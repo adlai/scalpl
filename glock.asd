@@ -6,9 +6,10 @@
   :author "Adlai Chandrasekhar <munchking@gmail.com>"
   :license "CC0"
   :depends-on (#:drakma
-               #:hunchentoot
                #:cl-json
-               #:cl-base64)
+               #:cl-base64
+               #:ironclad
+               #:local-time)
   :components ((:file "package")
                (:file "glock")))
 
