@@ -18,3 +18,9 @@
 
 (defun as-alist (object)
   (mapcar-slots #'cons object))
+
+;;; Actually useful
+
+(defun currency-pair (c1 c2)
+  "c1 and c2 should be three-letter keywords such as :btc or :usd"
+  (format nil "~A~A" c1 c2))
