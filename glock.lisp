@@ -39,6 +39,13 @@
     (lambda (path data)
       (hmac-sha512 (build-message path data) secret))))
 
+(define-condition mtgox-api-error (error)
+  ((token :initarg :token)
+   (error :initarg :error))
+  (:report (lambda (condition stream)
+             (with-slots (token error) condition
+               (format stream "~A: ~A" token error)))))
+
 (defun mtgox-path-request (path &rest keys)
   (json:decode-json (apply #'drakma:http-request
                            (concatenate 'string +base-path+ path)
