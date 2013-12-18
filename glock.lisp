@@ -47,11 +47,14 @@
                (format stream "~A: ~A" token error)))))
 
 (defun mtgox-path-request (path &rest keys)
-  (json:decode-json (apply #'drakma:http-request
-                           (concatenate 'string +base-path+ path)
-                           :want-stream T
-                           :user-agent "Glockbot"
-                           keys)))
+  (let ((response (json:decode-json (apply #'drakma:http-request
+                                           (concatenate 'string +base-path+ path)
+                                           :want-stream T
+                                           :user-agent "Glockbot"
+                                           keys))))
+    (with-json-slots (result data error token) response
+      (if (string= result "success") data
+          (error 'mtgox-api-error :token token :error error)))))
 
 (defun mtgox-get-request (path &optional data)
   (mtgox-path-request path :parameters data))
