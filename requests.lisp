@@ -46,6 +46,13 @@
     (with-open-file (stream path)
       (make-signer stream))))
 
+(defgeneric make-key (key)
+  (:method ((key string)) key)
+  (:method ((stream stream)) (read-line stream))
+  (:method ((path pathname))
+    (with-open-file (stream path)
+      (make-key stream))))
+
 (define-condition mtgox-api-error (error)
   ((token :initarg :token)
    (error :initarg :error))
