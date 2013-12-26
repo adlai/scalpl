@@ -2,15 +2,16 @@
 
 (defpackage #:glock.connection
   (:use #:cl #:glock.utils)
-  (:export #:mtgox-connection))
+  (:export #:mtgox-connection
+           #:get-request
+           #:post-request
+           #:path #:pair #:data
+           #:request))
 
 (in-package #:glock.connection)
 
 ;;; General Parameters
 (defparameter +base-path+ "https://data.mtgox.com/api/2/")
-
-(defun make-path (pair method-path)
-  (concatenate 'string +base-path+ pair "\\" method-path))
 
 ;;; Bastardized shamelessly from #'drakma::alist-to-url-encoded-string
 (defun urlencode-params (params)
@@ -94,24 +95,18 @@
 
 (defclass api-request ()
   ((path :initarg :path)
-   (pair :initarg :pair)
-   (data :initarg :data))
-  (:default-initargs :pair "BTCUSD"))
-(defclass get-request (api-method) ())
-(defclass post-request (api-method) ())
-
-(defmethod initialize-instance ((request api-request) &key)
-  (error "~S must be either a GET-METHOD or a POST-METHOD" request))
-(defmethod initialize-instance ((request get-request) &key))
-(defmethod initialize-instance ((request post-request) &key))
+   (pair :initarg :pair :initform "BTCUSD")
+   (data :initarg :data :initform '())))
+(defclass get-request (api-request) ())
+(defclass post-request (api-request) ())
 
 (defgeneric request (connection method)
   (:method ((conn mtgox-connection) (request api-request))
     (error "~S must be either a GET-METHOD or a POST-METHOD" request))
   (:method ((conn mtgox-connection) (request get-request))
     (with-slots (path pair data) request
-      (mtgox-get-request (make-path pair path) data)))
+      (mtgox-get-request (format nil "~A/~A" pair path) data)))
   (:method ((conn mtgox-connection) (request post-request))
     (with-slots (path pair data) request
       (with-slots (key signer) conn
-        (mtgox-post-request (make-path pair path) key signer data)))))
+        (mtgox-post-request (format nil "~A/~A" pair path) key signer data)))))

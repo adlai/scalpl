@@ -12,6 +12,10 @@
    #:ticker
    ))
 
+;;; For your REPL convenience
+(defpackage #:glock-user
+  (:use #:cl #:glock))
+
 (in-package #:glock)
 
 ;; ;;; First frobs
@@ -22,6 +26,8 @@
 ;;                               "/money/ticker"))))
 ;;     (json:decode-json (drakma:http-request uri :want-stream t))))
 
-(defclass ticker (get-request)
-  ((fast? :initarg :fast?))
-  (:default-initargs :fast? T))
+(defclass ticker (get-request) ()
+  (:default-initargs :fast T))
+
+(defmethod initialize-instance :around ((ticker ticker) &key fast)
+  (call-next-method ticker :path (format nil "money/ticker~@[_fast~]" fast)))
