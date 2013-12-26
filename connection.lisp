@@ -9,6 +9,9 @@
 ;;; General Parameters
 (defparameter +base-path+ "https://data.mtgox.com/api/2/")
 
+(defun make-path (pair method-path)
+  (concatenate 'string +base-path+ pair "\\" method-path))
+
 ;;; Bastardized shamelessly from #'drakma::alist-to-url-encoded-string
 (defun urlencode-params (params)
   (with-output-to-string (out)
@@ -19,14 +22,6 @@
                   (drakma:url-encode name drakma::*drakma-default-external-format*)
                   value
                   (drakma:url-encode value drakma::*drakma-default-external-format*)))))
-
-;;; First frobs
-(defun ticker (&key (pair "BTCUSD") fast)
-  (let ((uri (concatenate 'string +base-path+ pair
-                          (if fast
-                              "/money/ticker_fast"
-                              "/money/ticker"))))
-    (json:decode-json (drakma:http-request uri :want-stream t))))
 
 (defun hmac-sha512 (message secret)
   (let ((hmac (ironclad:make-hmac (base64:base64-string-to-usb8-array secret) 'ironclad:sha512)))
@@ -97,8 +92,26 @@
   (setf (slot-value conn 'key)    (make-key    key)
         (slot-value conn 'signer) (make-signer secret)))
 
-(defclass api-method ())
-(defclass get-method (api-method))
-(defclass post-method (api-method))
+(defclass api-request ()
+  ((path :initarg :path)
+   (pair :initarg :pair)
+   (data :initarg :data))
+  (:default-initargs :pair "BTCUSD"))
+(defclass get-request (api-method) ())
+(defclass post-request (api-method) ())
 
-(defgeneric request (connection method &key))
+(defmethod initialize-instance ((request api-request) &key)
+  (error "~S must be either a GET-METHOD or a POST-METHOD" request))
+(defmethod initialize-instance ((request get-request) &key))
+(defmethod initialize-instance ((request post-request) &key))
+
+(defgeneric request (connection method)
+  (:method ((conn mtgox-connection) (request api-request))
+    (error "~S must be either a GET-METHOD or a POST-METHOD" request))
+  (:method ((conn mtgox-connection) (request get-request))
+    (with-slots (path pair data) request
+      (mtgox-get-request (make-path pair path) data)))
+  (:method ((conn mtgox-connection) (request post-request))
+    (with-slots (path pair data) request
+      (with-slots (key signer) conn
+        (mtgox-post-request (make-path pair path) key signer data)))))

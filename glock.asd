@@ -12,5 +12,6 @@
                #:local-time)
   :components ((:file "utils")
                (:file "connection" :depends-on ("utils"))
-               (:file "orders" :depends-on ("connection" "utils"))))
+               (:file "orders" :depends-on ("connection" "utils"))
+               (:file "glock" :depends-on ("connection" "orders"))))
 
