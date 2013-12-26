@@ -1,7 +1,7 @@
 ;;;; orders.lisp
 
 (defpackage #:glock.orders
-  (:use #:cl #:glock.utils #:glock.requests))
+  (:use #:cl #:glock.utils #:glock.connection))
 
 (in-package #:glock.orders)
 

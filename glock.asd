@@ -11,6 +11,6 @@
                #:ironclad
                #:local-time)
   :components ((:file "utils")
-               (:file "requests" :depends-on ("utils"))
-               (:file "orders" :depends-on ("requests" "utils"))))
+               (:file "connection" :depends-on ("utils"))
+               (:file "orders" :depends-on ("connection" "utils"))))
 

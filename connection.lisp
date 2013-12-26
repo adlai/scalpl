@@ -1,10 +1,10 @@
 ;;;; glock.lisp
 
-(defpackage #:glock.requests
+(defpackage #:glock.connection
   (:use #:cl #:glock.utils)
-  (:export ))
+  (:export #:mtgox-connection))
 
-(in-package #:glock.requests)
+(in-package #:glock.connection)
 
 ;;; General Parameters
 (defparameter +base-path+ "https://data.mtgox.com/api/2/")
@@ -88,3 +88,17 @@
                       :additional-headers `(("Rest-Key"  . ,key)
                                             ("Rest-Sign" . ,(funcall signer path data))
                                             ("Content-Type" . "application/x-www-form-urlencoded"))))
+
+;;; Let's try an API object, like with BigQuery's OAuth2Client
+(defclass mtgox-connection ()
+  (key signer))
+
+(defmethod initialize-instance ((conn mtgox-connection) &key key secret)
+  (setf (slot-value conn 'key)    (make-key    key)
+        (slot-value conn 'signer) (make-signer secret)))
+
+(defclass api-method ())
+(defclass get-method (api-method))
+(defclass post-method (api-method))
+
+(defgeneric request (connection method &key))
