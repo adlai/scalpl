@@ -36,10 +36,15 @@
 (defun build-message (path data)
   (concatenate 'string path (string #\Null) (urlencode-params data)))
 
-(defun make-signer (secret-path)
-  (let ((secret (with-open-file (f secret-path) (read-line f))))
+(defgeneric make-signer (secret)
+  (:method ((secret string))
     (lambda (path data)
-      (hmac-sha512 (build-message path data) secret))))
+      (hmac-sha512 (build-message path data) secret)))
+  (:method ((stream stream))
+    (make-signer (read-line stream)))
+  (:method ((path pathname))
+    (with-open-file (stream path)
+      (make-signer stream))))
 
 (define-condition mtgox-api-error (error)
   ((token :initarg :token)
