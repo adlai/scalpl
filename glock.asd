@@ -10,6 +10,7 @@
                #:cl-base64
                #:ironclad
                #:local-time)
-  :components ((:file "package")
-               (:file "glock")))
+  :components ((:file "utils")
+               (:file "requests" :depends-on ("utils"))
+               (:file "orders" :depends-on ("requests" "utils"))))
 

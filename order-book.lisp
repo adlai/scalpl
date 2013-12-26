@@ -1,6 +1,9 @@
 ;;;; utils.lisp
 
-(in-package #:glock)
+(defpackage #:glock.order-book
+  (:use #:cl #:glock.utils))
+
+(in-package #:glock.order-book)
 
 ;;; Talking to the API
 
@@ -23,9 +26,18 @@
 
 ;;; Datastructure to store order book info
 
+;;; How the order book itself should look:
+;;; Two alists, one of bids, one of asks
+;;; Each one is a list of ( price-int . amount-int )
+;;; where amount-int is the total of all orders at that price
+
 (defclass order-book ()
   ((full :initarg :full)
-   currency-pair min-price max-price bids data timestamp))
+   currency-pair min-price max-price bids asks timestamp))
+
+;; (macrolet ((define-order-adder (name accessor comparison)
+;;              `(defun ,name (order book)
+;;                 (if (,accessor book))))))
 
 (defmethod initialize-instance ((book order-book) &key full (c1 :btc) (c2 :usd) pair)
   (with-slots (currency-pair data min-price max-price timestamp) book

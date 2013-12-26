@@ -1,11 +1,13 @@
 ;;;; glock.lisp
 
-(in-package #:glock)
+(defpackage #:glock.requests
+  (:use #:cl #:glock.utils)
+  (:export ))
+
+(in-package #:glock.requests)
 
 ;;; General Parameters
 (defparameter +base-path+ "https://data.mtgox.com/api/2/")
-
-(defparameter *nonce* 0)
 
 ;;; Bastardized shamelessly from #'drakma::alist-to-url-encoded-string
 (defun urlencode-params (params)
@@ -46,12 +48,18 @@
              (with-slots (token error) condition
                (format stream "~A: ~A" token error)))))
 
+(defun decode-json (json-stream)
+  (json:with-decoder-simple-clos-semantics
+    (json:bind-custom-vars
+        (:array-type 'list)
+      (json:decode-json json-stream))))
+
 (defun mtgox-path-request (path &rest keys)
-  (let ((response (json:decode-json (apply #'drakma:http-request
-                                           (concatenate 'string +base-path+ path)
-                                           :want-stream T
-                                           :user-agent "Glockbot"
-                                           keys))))
+  (let ((response (decode-json (apply #'drakma:http-request
+                                      (concatenate 'string +base-path+ path)
+                                      :want-stream T
+                                      :user-agent "Glockbot"
+                                      keys))))
     (with-json-slots (result data error token) response
       (if (string= result "success") data
           (error 'mtgox-api-error :token token :error error)))))

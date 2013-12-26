@@ -1,10 +1,17 @@
 ;;;; utils.lisp
 
-(in-package #:glock)
+(defpackage #:glock.utils
+  (:use #:cl)
+  (:import-from #:json #:map-slots)
+  (:export #:mapcar-slots
+           #:bound-slot-names
+           #:as-alist
+           #:currency-pair
+           #:with-json-slots))
+
+(in-package #:glock.utils)
 
 ;;; Exploratory nonsense
-
-(import 'json::map-slots)
 
 (defun mapcar-slots (function object)
   (let (list)
