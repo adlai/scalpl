@@ -86,12 +86,17 @@
                                             ("Content-Type" . "application/x-www-form-urlencoded"))))
 
 ;;; Let's try an API object, like with BigQuery's OAuth2Client
-(defclass mtgox-connection ()
-  (key signer))
+(defclass mtgox-connection () ())
+(defclass mtgox-authentication (mtgox-connection) (key signer))
 
 (defmethod initialize-instance ((conn mtgox-connection) &key key secret)
-  (setf (slot-value conn 'key)    (make-key    key)
-        (slot-value conn 'signer) (make-signer secret)))
+  (when (and key secret)
+    (change-class conn 'mtgox-authentication :key key :secret secret)))
+(defmethod update-instance-for-different-class ((conn mtgox-connection)
+                                                (auth mtgox-authentication)
+                                                &key key secret)
+  (setf (slot-value auth 'key)    (make-key    key)
+        (slot-value auth 'signer) (make-signer secret)))
 
 (defclass api-request ()
   ((path :initarg :path)
