@@ -1,7 +1,7 @@
 ;;;; glock.lisp
 
 (defpackage #:glock.connection
-  (:use #:cl #:glock.utils)
+  (:use #:cl #:glock.util)
   (:export #:mtgox-connection
            #:get-request
            #:post-request

@@ -1,6 +1,6 @@
 ;;;; utils.lisp
 
-(defpackage #:glock.utils
+(defpackage #:glock.util
   (:use #:cl)
   (:import-from #:json #:map-slots)
   (:export #:mapcar-slots
@@ -9,7 +9,7 @@
            #:currency-pair
            #:with-json-slots))
 
-(in-package #:glock.utils)
+(in-package #:glock.util)
 
 ;;; Exploratory nonsense
 
