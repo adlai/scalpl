@@ -10,8 +10,9 @@
                #:cl-base64
                #:ironclad
                #:local-time)
-  :components ((:file "utils")
-               (:file "connection" :depends-on ("utils"))
-               (:file "orders" :depends-on ("connection" "utils"))
-               (:file "glock" :depends-on ("connection" "orders"))))
+  :components ((:file "util")
+               (:file "connection" :depends-on ("util"))
+               (:file "orders" :depends-on ("connection" "util"))
+               (:file "glock" :depends-on ("connection" "orders"))
+               (:file "calc" :depends-on ("util"))))
 
