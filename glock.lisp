@@ -18,14 +18,7 @@
 
 (in-package #:glock)
 
-;; ;;; First frobs
-;; (defun ticker (&key (pair "BTCUSD") fast)
-;;   (let ((uri (concatenate 'string +base-path+ pair
-;;                           (if fast
-;;                               "/money/ticker_fast"
-;;                               "/money/ticker"))))
-;;     (json:decode-json (drakma:http-request uri :want-stream t))))
-
+;;; Ticker request
 (defclass ticker (get-request) ()
   (:default-initargs :fast T))
 
