@@ -111,7 +111,11 @@
   (:method ((conn mtgox-connection) (request get-request))
     (with-slots (path pair data) request
       (mtgox-get-request (format nil "~A/~A" pair path) data)))
-  (:method ((conn mtgox-connection) (request post-request))
+  (:method ((conn mtgox-authentication) (request post-request))
     (with-slots (path pair data) request
       (with-slots (key signer) conn
-        (mtgox-post-request (format nil "~A/~A" pair path) key signer data)))))
+        (mtgox-post-request (format nil "~A/~A" pair path) key signer data))))
+  (:method ((conn mtgox-connection) (path string))
+    (request conn (make-instance 'get-request :path path)))
+  (:method ((conn mtgox-authentication) (path string))
+    (request conn (make-instance 'post-request :path path))))
