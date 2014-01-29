@@ -24,3 +24,7 @@
 
 (defmethod initialize-instance :around ((ticker ticker) &key fast)
   (call-next-method ticker :path (format nil "money/ticker~@[_fast~]" fast)))
+
+;;; Order Manipulation
+(defclass orders (post-request) ()
+  (:default-initargs :path "money/orders"))

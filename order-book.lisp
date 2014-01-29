@@ -1,7 +1,7 @@
 ;;;; utils.lisp
 
 (defpackage #:glock.order-book
-  (:use #:cl #:glock.util))
+  (:use #:cl #:glock.util #:glock.connection))
 
 (in-package #:glock.order-book)
 

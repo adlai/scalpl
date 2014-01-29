@@ -2,7 +2,6 @@
 
 (defpackage #:glock.util
   (:use #:cl)
-  (:import-from #:json #:map-slots)
   (:export #:mapcar-slots
            #:bound-slot-names
            #:as-alist
@@ -14,11 +13,7 @@
 ;;; Exploratory nonsense
 
 (defun mapcar-slots (function object)
-  (let (list)
-    (map-slots (lambda (name value)
-                 (push (funcall function name value) list))
-               object)
-    list))
+  (st-json:mapjso function object))
 
 (defun bound-slot-names (object)
   (mapcar-slots (lambda (name value) (declare (ignore value)) name) object))
@@ -32,10 +27,11 @@
   "c1 and c2 should be three-letter keywords such as :btc or :usd"
   (format nil "~A~A" c1 c2))
 
-(defmacro with-json-slots (slot-vars object &body body)
-  `(with-slots
-         ,(mapcar (lambda (slot)
-                    `(,slot ,(intern (symbol-name slot) :keyword)))
-                  slot-vars)
-       ,object
-     ,@body))
+;; TODO: Make this work with ST-JSON
+;; (defmacro with-json-slots (slot-vars object &body body)
+;;   `(with-slots
+;;          ,(mapcar (lambda (slot)
+;;                     `(,slot ,(intern (symbol-name slot) :keyword)))
+;;                   slot-vars)
+;;        ,object
+;;      ,@body))

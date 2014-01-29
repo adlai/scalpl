@@ -6,13 +6,15 @@
   :author "Adlai Chandrasekhar <munchking@gmail.com>"
   :license "CC0"
   :depends-on (#:drakma
-               #:cl-json
+               #:st-json
                #:cl-base64
                #:ironclad
                #:local-time)
+  :serial t
   :components ((:file "util")
-               (:file "connection" :depends-on ("util"))
-               (:file "orders" :depends-on ("connection" "util"))
-               (:file "glock" :depends-on ("connection" "orders"))
-               (:file "calc" :depends-on ("util"))))
+               (:file "connection")
+               (:file "orders")
+               (:file "order-book")
+               (:file "calc")
+               (:file "glock")))
 
