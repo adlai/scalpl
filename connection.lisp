@@ -57,12 +57,7 @@
                (format stream "~A: ~A" token error)))))
 
 (defun decode-json (json-stream)
-  (st-json:read-json json-stream)
-  ;; (json:with-decoder-simple-clos-semantics
-  ;;   (json:bind-custom-vars
-  ;;       (:array-type 'list)
-  ;;     (json:decode-json json-stream)))
-  )
+  (st-json:read-json json-stream))
 
 (defun mtgox-path-request (path &rest keys)
   (let ((response (decode-json (apply #'drakma:http-request

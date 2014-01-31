@@ -1,7 +1,7 @@
 ;;;; utils.lisp
 
 (defpackage #:glock.util
-  (:use #:cl)
+  (:use #:cl #:st-json)
   (:export #:mapcar-slots
            #:bound-slot-names
            #:as-alist
@@ -27,11 +27,19 @@
   "c1 and c2 should be three-letter keywords such as :btc or :usd"
   (format nil "~A~A" c1 c2))
 
-;; TODO: Make this work with ST-JSON
-;; (defmacro with-json-slots (slot-vars object &body body)
-;;   `(with-slots
-;;          ,(mapcar (lambda (slot)
-;;                     `(,slot ,(intern (symbol-name slot) :keyword)))
-;;                   slot-vars)
-;;        ,object
-;;      ,@body))
+(defmacro once-only ((&rest names) &body body)
+  (let ((gensyms (loop for n in names collect (gensym (symbol-name n)))))
+    `(let (,@(loop for g in gensyms collect `(,g (gensym))))
+      `(let (,,@(loop for g in gensyms for n in names collect ``(,,g ,,n)))
+        ,(let (,@(loop for n in names for g in gensyms collect `(,n ,g)))
+           ,@body)))))
+
+(defmacro with-json-slots ((&rest slot-bindings) object &body body)
+  (once-only (object)
+    `(let ,(mapcar (lambda (binding)
+                     (if (consp binding)
+                         (destructuring-bind (var slot) binding
+                           `(,var (getjso ,slot ,object)))
+                         `(,binding (getjso ,(string-downcase (symbol-name binding)) ,object))))
+                   slot-bindings)
+       ,@body)))
