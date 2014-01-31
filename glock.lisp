@@ -1,7 +1,7 @@
 ;;;; glock.lisp
 
 (defpackage #:glock
-  (:use #:cl #:glock.connection #:glock.orders)
+  (:use #:cl #:glock.util #:glock.connection #:glock.orders #:glock.order-book)
   (:export
    ;; from glock.connection
    #:mtgox-api-error
@@ -14,7 +14,7 @@
 
 ;;; For your REPL convenience
 (defpackage #:glock-user
-  (:use #:cl #:glock))
+  (:use #:cl #:st-json #:glock #:glock.util #:glock.order-book))
 
 (in-package #:glock)
 
