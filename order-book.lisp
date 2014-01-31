@@ -11,14 +11,17 @@
     (let ((glue (external-program:process-output-stream (external-program:start "node" '("-e" "require('goxstream').createStream({ticker: false, depth: true}).pipe(process.stdout)") :output :stream))))
       (read-line glue)                  ; connected to: wss://websocket.mtgox.com
       (read-line glue)                  ; subscribing to channel: depth.BTCUSD
-      (loop (chanl:send output (st-json:read-json glue)))))
+      (loop (chanl:send output (parse-depth-message (st-json:read-json glue))))))
   output)
 
-(defun depth-message-price (jso)
-  (/ (parse-integer (getjso* "depth.price_int" jso)) #.(expt 10 5)))
-
-(defun depth-message-volume (jso)
-  (/ (parse-integer (getjso* "depth.volume_int" jso)) #.(expt 10 8)))
+(defun parse-depth-message (raw-jso)
+  (with-json-slots (type_str price_int volume_int total_volume_int now)
+      (getjso "depth" raw-jso)
+    (jso "now" (goxstamp (parse-integer now))
+         "type" (concatenate 'string type_str "s")
+         "price" (/ (parse-integer price_int) (expt 10 5))
+         "delta" (/ (parse-integer volume_int) (expt 10 8))
+         "total" (/ (parse-integer total_volume_int) (expt 10 8)))))
 
 ;;; Talking to the API
 
@@ -45,3 +48,33 @@
       (jso "now" now
            "asks" (remove 1/100000000 asks :key #'order-amount)
            "bids" (remove 1/100000000 bids :key #'order-amount)))))
+
+;;; This function is not thread safe!
+;;; It intentionally returns (values) to show that the book gets modified
+(defun apply-depth-message (depth book)
+  (with-json-slots (now type price delta total) depth
+    (if (print (/= delta total))
+        ;; Modify existing order
+        (if (print (zerop total))
+            ;; Delete order
+            (setf (getjso type book)
+                  (remove price (getjso type book) :key #'order-price))
+            ;; Adjust order volume
+            (let ((order (find price (getjso type book) :key #'order-price)))
+              (assert order)
+              ;; (assert (local-time:timestamp> now (order-time order)))
+              ;; (assert (= total (+ delta (order-amount order))))
+              (setf (order-time order) now
+                    (order-amount order) total)))
+        ;; Add new order
+        (let ((test (if (string= type "bids") #'> #'<))
+              (new (%make-order :price price :amount total :time now)))
+          (if (print (funcall test price (order-price (first (getjso type book)))))
+              ;; Add new "best" order
+              (push new (getjso type book))
+              ;; Add order at appropriate place in list
+              (do* ((tail (getjso type book) (cdr tail)))
+                   ((or (funcall test price (order-price (car tail)))
+                        (null (cdr tail)))
+                    (push new (cdr tail))))))))
+  (values))
