@@ -6,7 +6,8 @@
            #:bound-slot-names
            #:as-alist
            #:currency-pair
-           #:with-json-slots))
+           #:with-json-slots
+           #:goxstamp))
 
 (in-package #:glock.util)
 
@@ -22,6 +23,10 @@
   (mapcar-slots #'cons object))
 
 ;;; Actually useful
+
+(defun goxstamp (stamp)
+  (multiple-value-bind (sec nsec) (floor stamp 1000000)
+    (local-time:unix-to-timestamp sec :nsec nsec)))
 
 (defun currency-pair (c1 c2)
   "c1 and c2 should be three-letter keywords such as :btc or :usd"

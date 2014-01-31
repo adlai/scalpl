@@ -9,8 +9,8 @@
 (defun make-depth-channel (&optional (output (make-instance 'chanl:channel)))
   (chanl:pexec ()
     (let ((glue (external-program:process-output-stream (external-program:start "node" '("-e" "require('goxstream').createStream({ticker: false, depth: true}).pipe(process.stdout)") :output :stream))))
-      (read-line glue)
-      (read-line glue)
+      (read-line glue)                  ; connected to: wss://websocket.mtgox.com
+      (read-line glue)                  ; subscribing to channel: depth.BTCUSD
       (loop (chanl:send output (st-json:read-json glue)))))
   output)
 
