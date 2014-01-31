@@ -9,7 +9,9 @@
                #:st-json
                #:cl-base64
                #:ironclad
-               #:local-time)
+               #:local-time
+               #:chanl
+               #:external-program)
   :serial t
   :components ((:file "util")
                (:file "connection")
