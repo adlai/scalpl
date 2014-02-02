@@ -78,3 +78,33 @@
                             (push new (cdr tail))))))))))
     ;; Return the new order on the books
     (find (getjso "price" depth) (getjso type book) :key #'order-price)))
+
+(defun spread (book)
+  (- (order-price (first (getjso "asks" book)))
+     (order-price (first (getjso "bids" book)))))
+
+(defun truncate-to-size (book number-of-orders)
+  (jso "bids" (subseq (getjso "bids" book) 0 number-of-orders)
+       "asks" (subseq (getjso "asks" book) 0 number-of-orders)))
+
+(defun print-order-book (book &optional (rows 5))
+  (format t "~&WARNING: FLOAT COERCION~%")
+  (format t "     Sum        Size        Bid        Ask        Size         Sum~%")
+  (loop
+     for bid in (subseq (getjso "bids" book) 0 rows)
+     for ask in (subseq (getjso "asks" book) 0 rows)
+     sum (order-amount bid) into bid-total
+     sum (order-amount ask) into ask-total
+     do (format t "~&~11,8F ~11,8F ~10,5F ~10,5F ~11,8F ~11,8F~%"
+                bid-total (order-amount bid) (order-price bid)
+                (order-price ask) (order-amount ask) ask-total)))
+
+(defun bid-within-depth (depth book)
+  (dolist (order (getjso "bids" book))
+    (when (>= 0 (decf depth (order-amount order)))
+      (return (+ (order-price order) (expt 10 -5))))))
+
+(defun ask-within-depth (depth book)
+  (dolist (order (getjso "asks" book))
+    (when (>= 0 (decf depth (order-amount order)))
+      (return (- (order-price order) (expt 10 -5))))))
