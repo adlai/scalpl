@@ -53,15 +53,15 @@
 (defun apply-depth-message (depth book)
   (with-json-slots (now type price total) depth
     (assert (member type '("asks" "bids") :test #'string=))
-    (if (print (zerop total))
-        ;; Delete order
-        ;; FIXME: What if there's a more recent order on the books?
-        (setf (getjso type book)
-              (delete price (getjso type book) :key #'order-price :count 1))
-        ;; Add new / adjust existing
-        (let ((order (print (find price (getjso type book) :key #'order-price))))
-          ;; If there's a more recent order on the book, we discard the update
-          (unless (and order (print (local-time:timestamp< now (order-time order))))
+    (let ((order (print (find price (getjso type book) :key #'order-price))))
+      ;; If there's a more recent order on the books, we discard the update
+      (unless (and order (print (local-time:timestamp< now (order-time order))))
+        (if (print (zerop total))
+            ;; Delete order
+            ;; FIXME: What if there's a more recent order on the books?
+            (setf (getjso type book)
+                  (delete price (getjso type book) :key #'order-price :count 1))
+            ;; Add new / adjust existing
             (if order
                 (setf (order-time order) now
                       (order-amount order) total)
