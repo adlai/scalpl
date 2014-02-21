@@ -16,7 +16,7 @@
   :components ((:file "util")
                (:file "connection")
                (:file "orders")
-               (:file "order-book")
                (:file "calc")
+               (:file "book")
                (:file "glock")))
 

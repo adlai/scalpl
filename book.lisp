@@ -1,10 +1,10 @@
 ;;;; utils.lisp
 
-(defpackage #:glock.order-book
+(defpackage #:glock.book
   (:use #:cl #:glock.util #:glock.connection #:st-json)
-  (:export #:order-book))
+  (:export #:book))
 
-(in-package #:glock.order-book)
+(in-package #:glock.book)
 
 (defun make-depth-channel (&optional (output (make-instance 'chanl:channel)))
   (chanl:pexec ()
@@ -25,10 +25,10 @@
 
 ;;; Talking to the API
 
-(defclass order-book (post-request)
+(defclass book (post-request)
   (:default-initargs :full t))
 
-(defmethod initialize-instance :around ((book order-book) &key full)
+(defmethod initialize-instance :around ((book book) &key full)
   (call-next-method book :path (format nil "money/depth/~:[fetch~;full~]" full)))
 
 (defstruct (order (:constructor %make-order)) price amount time)
@@ -40,7 +40,7 @@
                    :price (/ (parse-integer price_int) #.(expt 10 5))
                    :amount (/ (parse-integer amount_int) #.(expt 10 8))))))
 
-(defmethod request :around ((connection mtgox-connection) (method order-book))
+(defmethod request :around ((connection mtgox-connection) (method book))
   (with-json-slots (now bids asks) (call-next-method)
     (let ((asks (mapcar #'make-order asks))
           (bids (reduce (lambda (bids order) (cons (make-order order) bids))
@@ -87,7 +87,7 @@
   (jso "bids" (subseq (getjso "bids" book) 0 number-of-orders)
        "asks" (subseq (getjso "asks" book) 0 number-of-orders)))
 
-(defun print-order-book (book &optional (rows 5))
+(defun print-book (book &optional (rows 5))
   (format t "~&WARNING: FLOAT COERCION~%")
   (format t "     Sum        Size        Bid        Ask        Size         Sum~%")
   (loop
