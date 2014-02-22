@@ -23,15 +23,19 @@
                                   (full nil))
   (values output
           (chanl:pexec (:name name)
-            ;; It's important that we begin to buffer depth messages BEFORE we download
-            ;; the full order book... TODO: make-depth-channel should have an option to
-            ;; block until depth messages have started arriving
+            ;; make-depth-channel waits until the channel contains messages
             (let* ((depth (make-depth-channel (make-instance 'chanl:unbounded-channel)))
+                   ;; we'll update this book every time orders are requested
                    (book (request connection (make-instance 'book :full full))))
+              ;; updater loop
               (loop
-                 (if (chanl:send-blocks-p output)
-                     (setf book (apply-depth-message (chanl:recv depth) book))
-                     (chanl:send output book)))))))
+                 (chanl:select
+                   ;; try sending
+                   ((chanl:send output book))
+                   ;; or just update our book
+                   ((chanl:recv depth depth)
+                    ;; apply it
+                    (setf book (apply-depth-message depth book)))))))))
 
 (defun parse-depth-message (raw-jso)
   (with-json-slots (type_str price_int volume_int total_volume_int now)
