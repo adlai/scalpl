@@ -3,18 +3,18 @@
 (defpackage #:glock
   (:use #:cl #:glock.util #:glock.connection #:glock.orders #:glock.book)
   (:export
+
    ;; from glock.connection
    #:mtgox-api-error
    #:mtgox-connection
    #:request
 
+   ;; from glock.book
+   #:book
+
    ;; from here
    #:ticker
    ))
-
-;;; For your REPL convenience
-(defpackage #:glock-user
-  (:use #:cl #:st-json #:glock #:glock.util #:glock.book))
 
 (in-package #:glock)
 
@@ -28,3 +28,7 @@
 ;;; Order Manipulation
 (defclass orders (post-request) ()
   (:default-initargs :path "money/orders"))
+
+;;; For your REPL convenience
+(defpackage #:glock-user
+  (:use #:cl #:glock))
