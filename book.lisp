@@ -38,9 +38,9 @@
       (getjso "depth" raw-jso)
     (jso "now" (goxstamp (parse-integer now))
          "type" (concatenate 'string type_str "s")
-         "price" (/ (parse-integer price_int) (expt 10 5))
-         "delta" (/ (parse-integer volume_int) (expt 10 8)) ; TODO: Verify order book state
-         "total" (/ (parse-integer total_volume_int) (expt 10 8)))))
+         "price" (parse-integer price_int)
+         "delta" (parse-integer volume_int) ; TODO: Verify order book state
+         "total" (parse-integer total_volume_int))))
 
 ;;; Talking to the API
 
@@ -56,8 +56,8 @@
   (with-json-slots (stamp price_int amount_int) raw-order
     (multiple-value-bind (sec nsec) (floor (parse-integer stamp) #.(expt 10 6))
       (%make-order :time (local-time:unix-to-timestamp sec :nsec nsec)
-                   :price (/ (parse-integer price_int) #.(expt 10 5))
-                   :amount (/ (parse-integer amount_int) #.(expt 10 8))))))
+                   :price (parse-integer price_int)
+                   :amount (parse-integer amount_int)))))
 
 (defmethod request :around ((connection mtgox-connection) (method book))
   (with-json-slots (now bids asks) (call-next-method)
@@ -119,7 +119,6 @@
        "asks" (subseq (getjso "asks" book) 0 number-of-orders)))
 
 (defun print-book (book &optional (rows 5))
-  (format t "~&WARNING: FLOAT COERCION~%")
   (format t "     Sum        Size        Bid        Ask        Size         Sum~%")
   (setf rows (min rows (length (getjso "bids" book)) (length (getjso "asks" book))))
   (loop
@@ -127,7 +126,7 @@
      for ask in (subseq (getjso "asks" book) 0 rows)
      sum (order-amount bid) into bid-total
      sum (order-amount ask) into ask-total
-     do (format t "~&~11,8F ~11,8F ~10,5F ~10,5F ~11,8F ~11,8F~%"
+     do (format t "~&~12D ~11D ~10D ~10D ~11D ~12D~%"
                 bid-total (order-amount bid) (order-price bid)
                 (order-price ask) (order-amount ask) ask-total)))
 
