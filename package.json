@@ -1,0 +1,8 @@
+{
+  "name": "glock-talk",
+  "description": "worker for talking with an exchange stream",
+  "author": "Adlai Chandrasekhar <munchking@gmail.com>",
+  "dependencies": {
+    "goxstream": "~0.1.1"
+  }
+}

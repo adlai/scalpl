@@ -5,8 +5,9 @@
 
 (cl:in-package #:glock.asd)
 
-(defclass package.json (static-file)
-  ())
+(defclass package.json (static-file) ())
+
+;; (defmethod component-relative-pathname ((component package.json)) "package.json")
 
 (defmethod perform ((op compile-op) (component package.json))
   (with-slots ((path absolute-pathname)) (slot-value component 'parent)
@@ -29,6 +30,6 @@
                (:file "connection")
                (:file "orders")
                (:file "calc")
-               (:package.json "package.json")
+               (:package.json "package.json") ; why is ASDF so insistant
                (:file "book")
                (:file "glock")))
