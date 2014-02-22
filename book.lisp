@@ -74,6 +74,12 @@
   (with-json-slots (now type price total) depth
     ;; Basic sanity
     (assert (member type '("asks" "bids") :test #'string=))
+    ;; ;; Debugging
+    ;; (if (zerop total)
+    ;;     (format t "~&~D REM ~:[ASK~;BID~] @ ~10D"
+    ;;             now (string= type "bids") price)
+    ;;     (format t "~&~D ~:[ASK~;BID~] ~12D @ ~10D"
+    ;;             now (string= type "bids") total price))
     (let (
           ;; We'll be updating one of the order lists later on, so we need to
           ;; create a copy of the order book object itself.
@@ -105,7 +111,7 @@
                    ;; Continue on down the order list
                    (t (cons first (updated-orders (rest remaining-orders)))))))
         (setf (getjso type new-book)
-              (if (zerop total)
+              (if (< total (expt 10 6)) ; anything less is dust or deletion
                   (remove price (getjso type book) :key 'order-price :count 1)
                   (updated-orders (getjso type book))))
         new-book))))
