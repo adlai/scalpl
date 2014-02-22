@@ -49,34 +49,47 @@
            "asks" (remove 1/100000000 asks :key #'order-amount)
            "bids" (remove 1/100000000 bids :key #'order-amount)))))
 
-;;; This function is not thread safe!
+;;; This function is now thread safe!
 (defun apply-depth-message (depth book)
+  ;; First, pick apart the depth message
   (with-json-slots (now type price total) depth
+    ;; Basic sanity
     (assert (member type '("asks" "bids") :test #'string=))
-    (let ((order (find price (getjso type book) :key #'order-price)))
-      ;; If there's a more recent order on the books, we discard the update
-      (unless (and order (local-time:timestamp< now (order-time order)))
-        (if (zerop total)
-            ;; Delete order
-            (setf (getjso type book)
-                  (delete price (getjso type book) :key #'order-price :count 1))
-            ;; Add new / adjust existing
-            (if order
-                (setf (order-time order) now
-                      (order-amount order) total)
-                ;; Add new order
-                (let ((test (if (string= type "bids") #'> #'<))
-                      (new (%make-order :price price :amount total :time now)))
-                  (if (funcall test price (order-price (first (getjso type book))))
-                      ;; Add new "best" order
-                      (push new (getjso type book))
-                      ;; Add order at appropriate place in list
-                      (do* ((tail (getjso type book) (cdr tail)))
-                           ((or (funcall test price (order-price (car tail)))
-                                (null (cdr tail)))
-                            (push new (cdr tail))))))))))
-    ;; Return the new order on the books
-    (find (getjso "price" depth) (getjso type book) :key #'order-price)))
+    (let (
+          ;; We'll be updating one of the order lists later on, so we need to
+          ;; create a copy of the order book object itself.
+          (new-book  (jso "now"  (getjso "now"  book)
+                          "asks" (getjso "asks" book)
+                          "bids" (getjso "bids" book)))
+          ;; Nothing special here, just the order we'll be inserting later
+          (new-order (%make-order :price price :amount total :time now))
+          ;; Lets us know when we find the right spot for the new order
+          (test      (if (string= type "bids") #'> #'<)))
+      (labels (
+               ;; This helper function is used to express the following flow
+               ;; recursively, instead of a terrible DO (or worse, LOOP)
+               ;; TODO: use tail calls
+               (updated-orders (remaining-orders &aux (first (first remaining-orders)))
+                 (cond
+                   ;; Did we reach the spot where this order belongs?
+                   ((or (not remaining-orders) (funcall test price (order-price first)))
+                    ;; Put it before them and return
+                    (cons new-order remaining-orders))
+                   ;; Does the depth change affect the first remaining order?
+                   ((= price (order-price first))
+                    ;; Is the data on the books more recent than this new order?
+                    (if (local-time:timestamp< now (order-time first))
+                        ;; If so, return the book unchanged
+                        (return-from apply-depth-message book)
+                        ;; If not, put the new data in place of the old
+                        (cons new-order (rest remaining-orders))))
+                   ;; Continue on down the order list
+                   (t (cons first (updated-orders (rest remaining-orders)))))))
+        (setf (getjso type new-book)
+              (if (zerop total)
+                  (remove price (getjso type book) :key 'order-price :count 1)
+                  (updated-orders (getjso type book))))
+        new-book))))
 
 (defun spread (book)
   (- (order-price (first (getjso "asks" book)))
