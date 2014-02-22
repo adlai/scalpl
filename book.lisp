@@ -16,6 +16,23 @@
   (loop (unless (chanl:recv-blocks-p output) (return)))
   output)
 
+(defun make-order-book-channel (&key
+                                  (name "order book channel")
+                                  (output (make-instance 'chanl:channel))
+                                  (connection (make-instance 'mtgox-connection))
+                                  (full nil))
+  (values output
+          (chanl:pexec (:name name)
+            ;; It's important that we begin to buffer depth messages BEFORE we download
+            ;; the full order book... TODO: make-depth-channel should have an option to
+            ;; block until depth messages have started arriving
+            (let* ((depth (make-depth-channel (make-instance 'chanl:unbounded-channel)))
+                   (book (request connection (make-instance 'book :full full))))
+              (loop
+                 (if (chanl:send-blocks-p output)
+                     (setf book (apply-depth-message (chanl:recv depth) book))
+                     (chanl:send output book)))))))
+
 (defun parse-depth-message (raw-jso)
   (with-json-slots (type_str price_int volume_int total_volume_int now)
       (getjso "depth" raw-jso)
