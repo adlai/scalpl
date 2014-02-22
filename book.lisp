@@ -89,6 +89,7 @@
 (defun print-book (book &optional (rows 5))
   (format t "~&WARNING: FLOAT COERCION~%")
   (format t "     Sum        Size        Bid        Ask        Size         Sum~%")
+  (setf rows (min rows (length (getjso "bids" book)) (length (getjso "asks" book))))
   (loop
      for bid in (subseq (getjso "bids" book) 0 rows)
      for ask in (subseq (getjso "asks" book) 0 rows)
