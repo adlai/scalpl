@@ -6,12 +6,14 @@
 
 (in-package #:glock.book)
 
-(defun make-depth-channel (&optional (output (make-instance 'chanl:channel)))
+(defun make-depth-channel (&optional (output (make-instance 'chanl:unbounded-channel)))
   (chanl:pexec ()
     (let ((glue (external-program:process-output-stream (external-program:start "node" '("-e" "require('goxstream').createStream({ticker: false, depth: true}).pipe(process.stdout)") :output :stream))))
       (read-line glue)                  ; connected to: wss://websocket.mtgox.com
       (read-line glue)                  ; subscribing to channel: depth.BTCUSD
-      (loop (chanl:send output (parse-depth-message (st-json:read-json glue))))))
+      (loop (chanl:send output (parse-depth-message (st-json:read-json glue)) :blockp nil))))
+  ;; Block until we've started receiving depth messages
+  (loop (unless (chanl:recv-blocks-p output) (return)))
   output)
 
 (defun parse-depth-message (raw-jso)
@@ -25,7 +27,7 @@
 
 ;;; Talking to the API
 
-(defclass book (post-request)
+(defclass book (get-request)
   (:default-initargs :full t))
 
 (defmethod initialize-instance :around ((book book) &key full)
