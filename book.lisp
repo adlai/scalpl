@@ -8,9 +8,9 @@
 
 (defun make-depth-channel (&optional (output (make-instance 'chanl:unbounded-channel)))
   (chanl:pexec ()
-    (let ((glue (external-program:process-output-stream (external-program:start "node" '("-e" "require('goxstream').createStream({ticker: false, depth: true}).pipe(process.stdout)") :output :stream))))
-      (read-line glue)                  ; connected to: wss://websocket.mtgox.com
-      (read-line glue)                  ; subscribing to channel: depth.BTCUSD
+    (let ((glue (external-program:process-output-stream (external-program:start "node" '("-e" "(function(gox){gox.setup('pubnub');gox.connect('usd');gox.subscribe('depth');gox.on('depth',console.log)})(require('mtgox-orderbook'))") :output :stream))))
+      ;; (read-line glue)                  ; connected to: wss://websocket.mtgox.com
+      ;; (read-line glue)                  ; subscribing to channel: depth.BTCUSD
       (loop (chanl:send output (parse-depth-message (st-json:read-json glue)) :blockp nil))))
   ;; Block until we've started receiving depth messages
   (loop (unless (chanl:recv-blocks-p output) (return)))
@@ -39,7 +39,7 @@
 
 (defun parse-depth-message (raw-jso)
   (with-json-slots (type_str price_int volume_int total_volume_int now)
-      (getjso "depth" raw-jso)
+      raw-jso ;; (getjso "depth" raw-jso)
     (jso "now" (goxstamp (parse-integer now))
          "type" (concatenate 'string type_str "s")
          "price" (parse-integer price_int)
