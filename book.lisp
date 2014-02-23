@@ -49,12 +49,13 @@
                       ;; apply it
                       (setf book (apply-depth-message trade book))
                       )
+                     ;; thrash-free blocking hack
                      (t (sleep 1)))))))))
 
 (defun parse-trade-message (raw-jso)
   (with-json-slots (trade_type price_int amount_int properties tid primary)
       (getjso "trade" raw-jso)
-    (format t "~&~D ~:[BUY~;SELL~] ~12D @ ~D ~A ~A"
+    (format t "~&~D parsed ~:[GET~;RID~] ~12D @ ~D ~A ~A"
             (goxstamp (parse-integer tid))
             (string= "ask" trade_type) amount_int price_int
             properties primary)
@@ -67,6 +68,7 @@
 (defun parse-depth-message (raw-jso)
   (with-json-slots (type_str price_int volume_int total_volume_int now)
       (getjso "depth" raw-jso)
+    (format t "~&~D parsed ~:[BID~;ASK~]")
     (jso "now" (goxstamp (parse-integer now))
          "type" (concatenate 'string type_str "s")
          "price" (parse-integer price_int)
