@@ -19,7 +19,7 @@
   (chanl:pexec ()
     (let ((glue (external-program:process-output-stream (external-program:start "node" '("-e" "require('pubnub').init({subscribe_key:'sub-c-50d56e1e-2fd9-11e3-a041-02ee2ddab7fe',ssl:true}).subscribe({channel:'dbf1dee9-4f2e-4a08-8cb7-748919a71b21',message:function(m){console.log(m)},connect:function(){console.log('connected to trade')}})") :output :stream))))
       (chanl:send output (read-line glue))
-      (loop (chanl:send output (parse-depth-message (st-json:read-json glue)) :blockp t))))
+      (loop (chanl:send output (parse-trade-message (st-json:read-json glue)) :blockp t))))
   output)
 
 (defun make-order-book-channel (&key
@@ -30,12 +30,12 @@
   (values output
           (chanl:pexec (:name name)
             ;; open our data streams
-            (let ((depth (make-depth-channel)) (trade (make-trade-channel)))
+            (let ((trade (make-trade-channel)) (depth (make-depth-channel)))
               ;; wait until both streams are connected before snapsho[ot]ting the book
-              (assert (string= "connected to depth" (print (chanl:recv depth :blockp t))))
               (assert (string= "connected to trade" (print (chanl:recv trade :blockp t))))
+              (assert (string= "connected to depth" (print (chanl:recv depth :blockp t))))
+              (sleep 30)                ; trying to get a sufficiently recent order book
               (let ((book (request connection (make-instance 'book :full full))))
-                (format t "~&received book created at ~D" (getjso "now" book))
                 ;; updater loop
                 (loop
                    (chanl:select
@@ -45,28 +45,33 @@
                      ((chanl:recv depth depth)
                       ;; apply it
                       (setf book (apply-depth-message depth book)))
+                     ((chanl:recv trade trade)
+                      ;; apply it
+                      (setf book (apply-depth-message trade book))
+                      )
                      (t (sleep 1)))))))))
 
+(defun parse-trade-message (raw-jso)
+  (with-json-slots (trade_type price_int amount_int properties tid primary)
+      (getjso "trade" raw-jso)
+    (format t "~&~D ~:[BUY~;SELL~] ~12D @ ~D ~A ~A"
+            (goxstamp (parse-integer tid))
+            (string= "ask" trade_type) amount_int price_int
+            properties primary)
+    (jso "now" (goxstamp (parse-integer tid))
+         "type" (concatenate 'string trade_type "s")
+         "price" (parse-integer price_int)
+         "delta" (- (parse-integer amount_int))
+         "total" (when (string= properties "market") 0))))
+
 (defun parse-depth-message (raw-jso)
-  (if (string= "trade" (getjso "private" raw-jso))
-      (with-json-slots (trade_type price_int amount_int properties tid primary)
-          (getjso "trade" raw-jso)
-        (format t "~&~D ~:[BUY~;SELL~] ~12D @ ~D ~A ~A"
-                (goxstamp (parse-integer tid))
-                (string= "ask" trade_type) amount_int price_int
-                properties primary)
-        (jso "now" (goxstamp (parse-integer tid))
-             "type" (concatenate 'string trade_type "s")
-             "price" (parse-integer price_int)
-             "delta" (- (parse-integer amount_int))
-             "total" (when (string= properties "market") 0)))
-      (with-json-slots (type_str price_int volume_int total_volume_int now)
-          (getjso "depth" raw-jso)
-        (jso "now" (goxstamp (parse-integer now))
-             "type" (concatenate 'string type_str "s")
-             "price" (parse-integer price_int)
-             "delta" (parse-integer volume_int) ; TODO: Verify order book state
-             "total" (parse-integer total_volume_int)))))
+  (with-json-slots (type_str price_int volume_int total_volume_int now)
+      (getjso "depth" raw-jso)
+    (jso "now" (goxstamp (parse-integer now))
+         "type" (concatenate 'string type_str "s")
+         "price" (parse-integer price_int)
+         "delta" (parse-integer volume_int) ; TODO: Verify order book state
+         "total" (parse-integer total_volume_int))))
 
 ;;; Talking to the API
 
@@ -101,23 +106,23 @@
   (with-json-slots (now type price total delta) depth
     ;; Basic sanity
     (assert (member type '("asks" "bids") :test #'string=))
-    ;; ;; Debugging
-    ;; (if (or (null total) (zerop total))
-    ;;     (format t "~&~D REM ~:[ASK~;BID~] @ ~10D"
-    ;;             now (string= type "bids") price)
-    ;;     (format t "~&~D ~:[ASK~;BID~] ~12D @ ~10D"
-    ;;             now (string= type "bids") total price))
+    ;; Debugging
+    (if (or (null total) (zerop total))
+        (format t "~&~D REM ~:[ASK~;BID~] @ ~10D"
+                now (string= type "bids") price)
+        (format t "~&~D ~:[ASK~;BID~] ~12D @ ~10D"
+                now (string= type "bids") total price))
     ;; Skip buffered orders older than our book snapshot
     (if (local-time:timestamp< now (getjso "now" book))
         (format t "~&~D skipped buffered thingy" now)
         (let (
-              ;; We'll be updating one of the order lists later on, so we need to
-              ;; create a copy of the order book object itself.
-              (new-book  (jso "now"  (getjso "now"  book)
-                              "asks" (getjso "asks" book)
-                              "bids" (getjso "bids" book)))
               ;; Lets us know when we find the right spot for the new order
               (before    (if (string= type "bids") #'> #'<)))
+          ;; We'll be updating one of the order lists later on, so we need to
+          ;; create a copy of the order book object itself.
+          (setf book (jso "now"  (getjso "now"  book)  ; maybe like this?
+                          "asks" (getjso "asks" book)
+                          "bids" (getjso "bids" book)))
           (flet ((new-order (total) (%make-order :price price :amount total :time now)))
             (labels (
                      ;; This helper function is used to express the following flow
@@ -138,11 +143,11 @@
                                 (rest remaining-orders)))
                          ;; Continue on down the order list
                          (t (cons first (updated-orders (rest remaining-orders)))))))
-              (setf (getjso type new-book)
+              (setf (getjso type book)
                     (if (or (not total) (< total (expt 10 6))) ; dust or deletion
                         (remove price (getjso type book) :key 'order-price :count 1)
-                        (updated-orders (getjso type book))))
-              new-book))))))
+                        (updated-orders (getjso type book)))))))))
+  book)
 
 (defun spread (book)
   (- (order-price (first (getjso "asks" book)))
@@ -153,14 +158,15 @@
        "asks" (subseq (getjso "asks" book) 0 number-of-orders)))
 
 (defun print-book (book &optional (rows 5))
-  (format t "     Sum        Size        Bid        Ask        Size         Sum~%")
+  (format t "~&  --- ORDER BOOK ---  (last updated ~D)" (getjso "now" book))
+  (format t "~%     Sum        Size        Bid        Ask        Size         Sum")
   (setf rows (min rows (length (getjso "bids" book)) (length (getjso "asks" book))))
   (loop
      for bid in (subseq (getjso "bids" book) 0 rows)
      for ask in (subseq (getjso "asks" book) 0 rows)
      sum (order-amount bid) into bid-total
      sum (order-amount ask) into ask-total
-     do (format t "~&~12D ~11D ~10D ~10D ~11D ~12D~%"
+     do (format t "~%~12D ~11D ~10D ~10D ~11D ~12D"
                 bid-total (order-amount bid) (order-price bid)
                 (order-price ask) (order-amount ask) ask-total)))
 
