@@ -3,6 +3,6 @@
   "description": "worker for talking with an exchange stream",
   "author": "Adlai Chandrasekhar <munchking@gmail.com>",
   "dependencies": {
-    "mtgox-orderbook": "0.5.1"
+    "pubnub": "0.5.1"
   }
 }
