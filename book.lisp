@@ -6,6 +6,7 @@
 
 (in-package #:glock.book)
 
+;;; TODO: exchange polymorphism
 (defun make-depth-channel (&optional (output (make-instance 'chanl:unbounded-channel)))
   (chanl:pexec ()
     (let ((glue (external-program:process-output-stream (external-program:start "node" '("-e" "require('pubnub').init({subscribe_key:'sub-c-50d56e1e-2fd9-11e3-a041-02ee2ddab7fe',ssl:true}).subscribe({channel:'24e67e0d-1cad-4cc0-9e7a-f8523ef460fe',message:function(m){console.log(m)},connect:function(){console.log('connected to depth')}})") :output :stream))))
@@ -13,6 +14,7 @@
       (loop (chanl:send output (parse-depth-message (st-json:read-json glue)) :blockp t))))
   output)
 
+;;; TODO: exchange polymorphism
 (defun make-trade-channel (&optional (output (make-instance 'chanl:unbounded-channel)))
   (chanl:pexec ()
     (let ((glue (external-program:process-output-stream (external-program:start "node" '("-e" "require('pubnub').init({subscribe_key:'sub-c-50d56e1e-2fd9-11e3-a041-02ee2ddab7fe',ssl:true}).subscribe({channel:'dbf1dee9-4f2e-4a08-8cb7-748919a71b21',message:function(m){console.log(m)},connect:function(){console.log('connected to trade')}})") :output :stream))))
@@ -27,24 +29,23 @@
                                   (full nil))
   (values output
           (chanl:pexec (:name name)
-            (let ((depth (make-depth-channel))
-                  (trade (make-trade-channel)))
-              ;; we have to buffer both streams before requesting the book
-              (loop
-                 (when (and (not (chanl:recv-blocks-p depth))
-                            (not (chanl:recv-blocks-p trade)))
-                   (return)))
-              ;; we'll update this book every time orders are requested
-              (book (request connection (make-instance 'book :full full)))
-              ;; updater loop
-              (loop
-                 (chanl:select
-                   ;; try sending
-                   ((chanl:send output book))
-                   ;; or just update our book
-                   ((chanl:recv depth depth)
-                    ;; apply it
-                    (setf book (apply-depth-message depth book)))))))))
+            ;; open our data streams
+            (let ((depth (make-depth-channel)) (trade (make-trade-channel)))
+              ;; wait until both streams are connected before snapsho[ot]ting the book
+              (assert (string= "connected to depth" (print (chanl:recv depth :blockp t))))
+              (assert (string= "connected to trade" (print (chanl:recv trade :blockp t))))
+              (let ((book (request connection (make-instance 'book :full full))))
+                (format t "~&received book created at ~D" (getjso "now" book))
+                ;; updater loop
+                (loop
+                   (chanl:select
+                     ;; try sending
+                     ((chanl:send output book))
+                     ;; or just update our book
+                     ((chanl:recv depth depth)
+                      ;; apply it
+                      (setf book (apply-depth-message depth book)))
+                     (t (sleep 1)))))))))
 
 (defun parse-depth-message (raw-jso)
   (if (string= "trade" (getjso "private" raw-jso))
@@ -89,9 +90,10 @@
     (let ((asks (mapcar #'make-order asks))
           (bids (reduce (lambda (bids order) (cons (make-order order) bids))
                         bids :initial-value nil)))
-      (jso "now" now
-           "asks" (remove (expt 10 6) asks :key #'order-amount :test #'>)
-           "bids" (remove (expt 10 6) bids :key #'order-amount :test #'>)))))
+      (multiple-value-bind (sec nsec) (floor (parse-integer now) #.(expt 10 6))
+        (jso "now" (local-time:unix-to-timestamp sec :nsec nsec)
+             "asks" (remove (expt 10 6) asks :key #'order-amount :test #'>)
+             "bids" (remove (expt 10 6) bids :key #'order-amount :test #'>))))))
 
 ;;; This function is now thread safe!
 (defun apply-depth-message (depth book)
@@ -105,39 +107,42 @@
     ;;             now (string= type "bids") price)
     ;;     (format t "~&~D ~:[ASK~;BID~] ~12D @ ~10D"
     ;;             now (string= type "bids") total price))
-    (let (
-          ;; We'll be updating one of the order lists later on, so we need to
-          ;; create a copy of the order book object itself.
-          (new-book  (jso "now"  (getjso "now"  book)
-                          "asks" (getjso "asks" book)
-                          "bids" (getjso "bids" book)))
-          ;; Lets us know when we find the right spot for the new order
-          (before    (if (string= type "bids") #'> #'<)))
-      (flet ((new-order (total) (%make-order :price price :amount total :time now)))
-        (labels (
-                 ;; This helper function is used to express the following flow
-                 ;; recursively, instead of a terrible DO (or worse, LOOP)
-                 ;; TODO: use tail calls
-                 (updated-orders (remaining-orders &aux (first (first remaining-orders)))
-                   (cond
-                     ;; Did we reach the spot where this order belongs?
-                     ((or (not remaining-orders) (funcall before price (order-price first)))
-                      ;; Put it before them and return
-                      (cons (new-order total) remaining-orders))
-                     ;; Does the depth change affect the first remaining order?
-                     ((= price (order-price first))
-                      ;; Build the appropriate modification
-                      (cons (new-order (if (not total)
-                                           (+ delta (order-amount first))
-                                           total))
-                            (rest remaining-orders)))
-                     ;; Continue on down the order list
-                     (t (cons first (updated-orders (rest remaining-orders)))))))
-          (setf (getjso type new-book)
-                (if (or (not total) (< total (expt 10 6))) ; dust or deletion
-                    (remove price (getjso type book) :key 'order-price :count 1)
-                    (updated-orders (getjso type book))))
-          new-book)))))
+    ;; Skip buffered orders older than our book snapshot
+    (if (local-time:timestamp< now (getjso "now" book))
+        (format t "~&~D skipped buffered thingy" now)
+        (let (
+              ;; We'll be updating one of the order lists later on, so we need to
+              ;; create a copy of the order book object itself.
+              (new-book  (jso "now"  (getjso "now"  book)
+                              "asks" (getjso "asks" book)
+                              "bids" (getjso "bids" book)))
+              ;; Lets us know when we find the right spot for the new order
+              (before    (if (string= type "bids") #'> #'<)))
+          (flet ((new-order (total) (%make-order :price price :amount total :time now)))
+            (labels (
+                     ;; This helper function is used to express the following flow
+                     ;; recursively, instead of a terrible DO (or worse, LOOP)
+                     ;; TODO: use tail calls
+                     (updated-orders (remaining-orders &aux (first (first remaining-orders)))
+                       (cond
+                         ;; Did we reach the spot where this order belongs?
+                         ((or (not remaining-orders) (funcall before price (order-price first)))
+                          ;; Put it before them and return
+                          (cons (new-order total) remaining-orders))
+                         ;; Does the depth change affect the first remaining order?
+                         ((= price (order-price first))
+                          ;; Build the appropriate modification
+                          (cons (new-order (if (not total)
+                                               (+ delta (order-amount first))
+                                               total))
+                                (rest remaining-orders)))
+                         ;; Continue on down the order list
+                         (t (cons first (updated-orders (rest remaining-orders)))))))
+              (setf (getjso type new-book)
+                    (if (or (not total) (< total (expt 10 6))) ; dust or deletion
+                        (remove price (getjso type book) :key 'order-price :count 1)
+                        (updated-orders (getjso type book))))
+              new-book))))))
 
 (defun spread (book)
   (- (order-price (first (getjso "asks" book)))
