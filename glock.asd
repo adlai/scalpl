@@ -28,8 +28,9 @@
   :serial t
   :components ((:file "util")
                (:file "connection")
-               (:file "orders")
-               (:file "calc")
-               (:package.json "package.json") ; why is ASDF so insistant
-               (:file "book")
-               (:file "glock")))
+               ;; (:file "orders")
+               ;; (:file "calc")
+               ;; (:package.json "package.json") ; why is ASDF so insistant
+               ;; (:file "book")
+               ;; (:file "glock")
+               ))

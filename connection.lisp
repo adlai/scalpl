@@ -2,8 +2,7 @@
 
 (defpackage #:glock.connection
   (:use #:cl #:glock.util)
-  (:export #:mtgox-connection
-           #:get-request
+  (:export #:get-request
            #:post-request
            #:path #:pair #:data
            #:request))
@@ -11,7 +10,7 @@
 (in-package #:glock.connection)
 
 ;;; General Parameters
-(defparameter +base-path+ "https://data.mtgox.com/api/2/")
+(defparameter +base-path+ "https://api.kraken.com/0/")
 
 ;;; Bastardized shamelessly from #'drakma::alist-to-url-encoded-string
 (defun urlencode-params (params)
@@ -49,70 +48,34 @@
     (with-open-file (stream path)
       (make-key stream))))
 
-(define-condition mtgox-api-error (error)
-  ((token :initarg :token)
-   (error :initarg :error))
-  (:report (lambda (condition stream)
-             (with-slots (token error) condition
-               (format stream "~A: ~A" token error)))))
-
 (defun decode-json (json-stream)
   (st-json:read-json json-stream))
 
-(defun mtgox-path-request (path &rest keys)
-  (let ((response (decode-json (apply #'drakma:http-request
-                                      (concatenate 'string +base-path+ path)
-                                      :want-stream T
-                                      :user-agent "Glockbot"
-                                      keys))))
-    (with-json-slots (result data error token) response
-      (if (string= result "success") data
-          (error 'mtgox-api-error :token token :error error)))))
+(defun raw-request (path &rest keys)
+  (decode-json (apply #'drakma:http-request
+                      (concatenate 'string +base-path+ path)
+                      :want-stream T
+                      :user-agent "agent smith"
+                      keys)))
 
-(defun mtgox-get-request (path &optional data)
-  (mtgox-path-request path :parameters data))
+(defun get-request (path &optional data)
+  (raw-request (concatenate 'string "public/" path "?"
+                            (urlencode-params data))
+               :parameters data))
 
-(defun mtgox-post-request (path key signer &optional data)
-  (push (cons "tonce" (prin1-to-string (* 1000000 (local-time:timestamp-to-unix (local-time:now)))))
+(defun nonce ()
+  (+ (* 1000 (local-time:timestamp-to-unix (local-time:now)))
+     ;; hacky hack works on sbcl and ccl = good enough
+     (floor (mod (get-internal-real-time) internal-time-units-per-second)
+            (/ internal-time-units-per-second 1000))))
+
+(defun post-request (path key signer &optional data)
+  (push (cons "tonce" (prin1-to-string (+ (mod (get-internal-run-time) 1000)
+                                          (* 1000000 (local-time:timestamp-to-unix (local-time:now))))))
         data)
-  (mtgox-path-request path
-                      :method :post
-                      :parameters data
-                      :additional-headers `(("Rest-Key"  . ,key)
-                                            ("Rest-Sign" . ,(funcall signer path data))
-                                            ("Content-Type" . "application/x-www-form-urlencoded"))))
-
-;;; Let's try an API object, like with BigQuery's OAuth2Client
-(defclass mtgox-connection () ())
-(defclass mtgox-authentication (mtgox-connection) (key signer))
-
-(defmethod initialize-instance ((conn mtgox-connection) &key key secret)
-  (when (and key secret)
-    (change-class conn 'mtgox-authentication :key key :secret secret)))
-(defmethod update-instance-for-different-class ((conn mtgox-connection)
-                                                (auth mtgox-authentication)
-                                                &key key secret)
-  (setf (slot-value auth 'key)    (make-key    key)
-        (slot-value auth 'signer) (make-signer secret)))
-
-(defclass api-request ()
-  ((path :initarg :path)
-   (pair :initarg :pair :initform "BTCUSD")
-   (data :initarg :data :initform '())))
-(defclass get-request (api-request) ())
-(defclass post-request (api-request) ())
-
-(defgeneric request (connection method)
-  (:method ((conn mtgox-connection) (request api-request))
-    (error "~S must be either a GET-METHOD or a POST-METHOD" request))
-  (:method ((conn mtgox-connection) (request get-request))
-    (with-slots (path pair data) request
-      (mtgox-get-request (format nil "~A/~A" pair path) data)))
-  (:method ((conn mtgox-authentication) (request post-request))
-    (with-slots (path pair data) request
-      (with-slots (key signer) conn
-        (mtgox-post-request (format nil "~A/~A" pair path) key signer data))))
-  (:method ((conn mtgox-connection) (path string))
-    (request conn (make-instance 'get-request :path path)))
-  (:method ((conn mtgox-authentication) (path string))
-    (request conn (make-instance 'post-request :path path))))
+  (raw-request (concatenate 'string "private/" path)
+               :method :post
+               :parameters data
+               :additional-headers `(("Rest-Key"  . ,key)
+                                     ("Rest-Sign" . ,(funcall signer path data))
+                                     ("Content-Type" . "application/x-www-form-urlencoded"))))
