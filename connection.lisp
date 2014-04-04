@@ -63,16 +63,11 @@
                             (urlencode-params data))
                :parameters data))
 
-(defun nonce ()
-  (+ (* 1000 (local-time:timestamp-to-unix (local-time:now)))
-     ;; hacky hack works on sbcl and ccl = good enough
-     (floor (mod (get-internal-real-time) internal-time-units-per-second)
-            (/ internal-time-units-per-second 1000))))
+(defun nonce (&aux (now (local-time:now)))
+  (+ (local-time:nsec-of now) (* 1000000 (local-time:timestamp-to-unix now))))
 
 (defun post-request (path key signer &optional data)
-  (push (cons "tonce" (prin1-to-string (+ (mod (get-internal-run-time) 1000)
-                                          (* 1000000 (local-time:timestamp-to-unix (local-time:now))))))
-        data)
+  (push (cons "nonce" (nonce)) data)
   (raw-request (concatenate 'string "private/" path)
                :method :post
                :parameters data
