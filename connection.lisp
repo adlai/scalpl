@@ -11,6 +11,7 @@
 
 ;;; General Parameters
 (defparameter +base-path+ "https://api.kraken.com/0/")
+(defparameter +base-domain+ "https://api.kraken.com")
 
 ;;; Bastardized shamelessly from #'drakma::alist-to-url-encoded-string
 (defun urlencode-params (params)
@@ -24,17 +25,25 @@
                   (drakma:url-encode value drakma::*drakma-default-external-format*)))))
 
 (defun hmac-sha512 (message secret)
-  (let ((hmac (ironclad:make-hmac (base64:base64-string-to-usb8-array secret) 'ironclad:sha512)))
-    (ironclad:update-hmac hmac (map '(simple-array (unsigned-byte 8) (*)) #'char-code message))
+  (let ((hmac (ironclad:make-hmac secret 'ironclad:sha512)))
+    (ironclad:update-hmac hmac message)
     (base64:usb8-array-to-base64-string (ironclad:hmac-digest hmac))))
 
-(defun build-message (path data)
-  (concatenate 'string path (string #\Null) (urlencode-params data)))
+(defun hash-sha256 (message)
+  (ironclad:digest-sequence :sha256 message))
+
+;;; API-Key = API key
+;;; API-Sign = Message signature using HMAC-SHA512 of (URI path + SHA256(nonce + POST data)) and base64 decoded secret API key
 
 (defgeneric make-signer (secret)
   (:method ((secret string))
-    (lambda (path data)
-      (hmac-sha512 (build-message path data) secret)))
+    (lambda (path data nonce)
+      (hmac-sha512 (concatenate '(simple-array (unsigned-byte 8) (*))
+                                (map '(simple-array (unsigned-byte 8) (*)) 'char-code path)
+                                (hash-sha256 (map '(simple-array (unsigned-byte 8) (*))
+                                                  'char-code
+                                                  (concatenate 'string nonce (urlencode-params data)))))
+                   (base64:base64-string-to-usb8-array secret))))
   (:method ((stream stream))
     (make-signer (read-line stream)))
   (:method ((path pathname))
@@ -55,7 +64,6 @@
   (decode-json (apply #'drakma:http-request
                       (concatenate 'string +base-path+ path)
                       :want-stream T
-                      :user-agent "agent smith"
                       keys)))
 
 (defun get-request (path &optional data)
@@ -64,13 +72,15 @@
                :parameters data))
 
 (defun nonce (&aux (now (local-time:now)))
-  (+ (local-time:nsec-of now) (* 1000000 (local-time:timestamp-to-unix now))))
+  (princ-to-string (+ (floor (local-time:nsec-of now) 1000)
+                      (* 1000000 (local-time:timestamp-to-unix now)))))
 
-(defun post-request (path key signer &optional data)
-  (push (cons "nonce" (nonce)) data)
-  (raw-request (concatenate 'string "private/" path)
-               :method :post
-               :parameters data
-               :additional-headers `(("Rest-Key"  . ,key)
-                                     ("Rest-Sign" . ,(funcall signer path data))
-                                     ("Content-Type" . "application/x-www-form-urlencoded"))))
+(defun post-request (method key signer &optional data &aux (nonce (nonce)))
+  (let ((path (concatenate 'string "/0/private/" method)))
+    (push (cons "nonce" nonce) data)
+    (raw-request (concatenate 'string "private/" method)
+                 :method :post
+                 :parameters data
+                 :additional-headers `(("API-Key"  . ,key)
+                                       ("API-Sign" . ,(funcall signer path data nonce))
+                                       ("Content-Type" . "application/x-www-form-urlencoded")))))
