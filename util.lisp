@@ -7,7 +7,9 @@
            #:as-alist
            #:currency-pair
            #:with-json-slots
-           #:goxstamp))
+           #:goxstamp
+           #:jso-keys
+           ))
 
 (in-package #:glock.util)
 
@@ -48,3 +50,10 @@
                          `(,binding (getjso ,(string-downcase (symbol-name binding)) ,object))))
                    slot-bindings)
        ,@body)))
+
+(defun jso-keys (jso &aux keys)
+  (mapjso (lambda (key val)
+            (declare (ignore val))
+            (push key keys))
+          jso)
+  keys)
