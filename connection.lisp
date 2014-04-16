@@ -50,10 +50,12 @@
   (st-json:read-json json-stream))
 
 (defun raw-request (path &rest keys)
-  (decode-json (apply #'drakma:http-request
-                      (concatenate 'string +base-path+ path)
-                      :want-stream T
-                      keys)))
+  (with-json-slots (result error)
+      (decode-json (apply #'drakma:http-request
+                          (concatenate 'string +base-path+ path)
+                          :want-stream T
+                          keys))
+    (values result error)))
 
 (defun get-request (path &optional data)
   (raw-request (concatenate 'string "public/" path "?"

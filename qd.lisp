@@ -10,10 +10,9 @@
 (defun get-book (pair &optional count)
   (with-json-slots (bids asks)
       (getjso pair
-              (getjso "result"
-                      (get-request "Depth" `(("pair" . ,pair)
-                                             ,@(when count
-                                                     `(("count" . ,(princ-to-string count))))))))
+              (get-request "Depth" `(("pair" . ,pair)
+                                     ,@(when count
+                                             `(("count" . ,(princ-to-string count)))))))
     (flet ((parse (raw-order)
              (destructuring-bind (price amount timestamp) raw-order
                (declare (ignore timestamp))
