@@ -13,17 +13,6 @@
 (defparameter +base-path+ "https://api.kraken.com/0/")
 (defparameter +base-domain+ "https://api.kraken.com")
 
-;;; Bastardized shamelessly from #'drakma::alist-to-url-encoded-string
-(defun urlencode-params (params)
-  (with-output-to-string (out)
-    (loop for first = t then nil
-       for (name . value) in params
-       unless first do (write-char #\& out)
-       do (format out "~A~:[~;=~A~]"
-                  (drakma:url-encode name drakma::*drakma-default-external-format*)
-                  value
-                  (drakma:url-encode value drakma::*drakma-default-external-format*)))))
-
 (defun hmac-sha512 (message secret)
   (let ((hmac (ironclad:make-hmac secret 'ironclad:sha512)))
     (ironclad:update-hmac hmac message)
