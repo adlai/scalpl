@@ -35,3 +35,23 @@
             (cons (* funds (/ (cddr order) acc))
                   (cadr order)))
            (print (butlast book))))
+
+(defun open-orders ()
+  (when *auth*
+    (mapcar-jso (lambda (id order)
+                  (setf (getjso "id" order) id)
+                  order)
+                (getjso "open"
+                        (post-request "OpenOrders"
+                                      (car *auth*)
+                                      (cdr *auth*))))))
+
+(defun cancel-order (id)
+  (when *auth*
+    (post-request "CancelOrder"
+                  (car *auth*)
+                  (cdr *auth*)
+                  `(("txid" . ,id)))))
+
+(defun place-order (&key type price volume expiration ref validate)
+  (post-request "AddOrder"))
