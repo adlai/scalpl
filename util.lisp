@@ -7,6 +7,7 @@
            #:as-alist
            #:currency-pair
            #:with-json-slots
+           #:mapcar-jso
            #:goxstamp
            #:jso-keys
            #:urlencode-params
@@ -58,6 +59,12 @@
             (push key keys))
           jso)
   keys)
+
+(defun mapcar-jso (thunk jso &aux list)
+  (mapjso (lambda (key val)
+            (push (funcall thunk key val) list))
+          jso)
+  list)
 
 ;;; Bastardized shamelessly from #'drakma::alist-to-url-encoded-string
 (defun urlencode-params (params)
