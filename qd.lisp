@@ -41,7 +41,7 @@
 (defun cancel-pair-orders (pair)
   (mapjso (lambda (id order)
             (when (string= pair (getjso* "descr.pair" order))
-              (format t "~&REM ~A~%" (getjso* "descr.order" order))
+              (format t "~&wont ~A~%" (getjso* "descr.order" order))
               (cancel-order id)))
           (open-orders)))
 
@@ -66,7 +66,7 @@
                                    (when options '("," options)))))
               (format t "~&~A~%" message)))
         (progn
-          (format t "~&ADD ~A~%" (getjso* "descr.order" info))
+          (format t "~&want ~A~%" (getjso* "descr.order" info))
           (getjso "descr.txid" info)))))
 
 (defparameter *last-candle-id* 0)
@@ -116,12 +116,22 @@
   ;; Get our balances
   (let ((balances (auth-request "Balance"))
         (resilience (* resilience-factor *max-seen-vol*)))
-    (flet ((factor-funds (symbol)
+    (flet ((symbol-funds (symbol) (read-from-string (getjso symbol balances)))
+           (total-of (base quote rate) (+ base (/ quote rate)))
+           (factor-funds (symbol)
              (* fund-factor (read-from-string (getjso symbol balances)))))
-      (let ((btc (factor-funds "XXBT"))
+      (let ((total-btc (symbol-funds "XXBT"))
+            (total-doge (symbol-funds "XXDG"))
+            (doge/btc (read-from-string (second (getjso* "XXBTXXDG.p" (get-request "Ticker" '(("pair" . "XXBTXXDG")))))))
+            (btc (factor-funds "XXBT"))
             (doge (factor-funds "XXDG")))
         ;; report funding
-        (format t "~&Risking ~9,1F doge and ~6,3F btc~%" doge btc)
+        (format t "~&\"My cryptocurrency portfolio is ~$% invested in dogecoins\""
+                (* 100 (/ (/ total-doge doge/btc) (total-of total-btc total-doge doge/btc))))
+        (format t "~&very fund ~8$฿ + ~1$Ð ≈» ~8$฿~%"
+                total-btc total-doge (total-of total-btc total-doge doge/btc))
+        (format t "~&such risk ~8$฿ + ~1$Ð ≈» ~8$฿~%"
+                btc doge (total-of btc doge doge/btc))
         ;; Now run that algorithm thingy
         (time
          ;; TODO: MINIMIZE OFF-BOOK TIME!
