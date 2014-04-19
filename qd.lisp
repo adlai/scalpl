@@ -60,9 +60,10 @@
         (dolist (message errors)
           (if (and (search "volume" message)
                    (not (search "viqc" options)))
-              (post-limit type pair price (* volume price)
-                          (apply #'concatenate 'string "viqc"
-                                 (when options '("," options))))
+              (return
+                (post-limit type pair price (* volume price)
+                            (apply #'concatenate 'string "viqc"
+                                   (when options '("," options)))))
               (format t "~&~A~%" message)))
         (progn
           (format t "~&ADD ~A~%" (getjso* "descr.order" info))
