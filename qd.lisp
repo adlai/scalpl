@@ -103,6 +103,12 @@
                   (cadr order)))
           book))
 
+(defun gapps-rate (from to)
+  (getjso "rate" (read-json (drakma:http-request
+                             "http://rate-exchange.appspot.com/currency"
+                             :parameters `(("from" . ,from) ("to" . ,to))
+                             :want-stream t))))
+
 (defun %round (fund-factor resilience-factor)
   ;; Track our resilience target
   (track-vol "XXBTXXDG" 5)
