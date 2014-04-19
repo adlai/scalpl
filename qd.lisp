@@ -116,14 +116,19 @@
         ;; report funding
         (format t "~&Risking ~9,1F doge and ~6,3F btc~%" doge btc)
         ;; Now run that algorithm thingy
-        ;; First, remove our liquidity, so we don't watch ourselves
-        (cancel-pair-orders "XBTXDG")
-        ;; Next, get the current order book status
-        (multiple-value-bind (asks bids) (get-book "XXBTXXDG")
-          ;; Finally, inject our liquidity
-          (mapc (lambda (info)
-                  (post-limit "buy" "XXBTXXDG" (+ (cdr info) 0.1) (car info) "viqc"))
-                (dumbot-oneside bids resilience doge))
-          (mapc (lambda (info)
-                  (post-limit "sell" "XXBTXXDG" (- (cdr info) 0.1) (car info)))
-                (dumbot-oneside asks resilience btc)))))))
+        (time
+         ;; TODO: MINIMIZE OFF-BOOK TIME!
+         (progn
+           ;; First, remove our liquidity, so we don't watch ourselves
+           (cancel-pair-orders "XBTXDG")
+           ;; Next, get the current order book status
+           (multiple-value-bind (asks bids) (get-book "XXBTXXDG")
+             ;; Finally, inject our liquidity
+             (mapc (lambda (info)
+                     (post-limit "buy" "XXBTXXDG" (+ (cdr info) 0.1) (car info) "viqc"))
+                   (dumbot-oneside bids resilience doge))
+             (mapc (lambda (info)
+                     (post-limit "sell" "XXBTXXDG" (- (cdr info) 0.1) (car info)))
+                   (dumbot-oneside asks resilience btc)))))))))
+
+;;; (loop (%round 1/2 1/2) (sleep 30))
