@@ -28,6 +28,7 @@
   :serial t
   :components ((:file "util")
                (:file "connection")
+               (:file "qd")
                ;; (:file "orders")
                ;; (:file "calc")
                ;; (:package.json "package.json") ; why is ASDF so insistant
