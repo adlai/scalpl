@@ -10,11 +10,11 @@
 (defun auth-request (path &optional options)
   (when *auth* (post-request path (car *auth*) (cdr *auth*) options)))
 
-(defun get-markets (&aux (pairs (get-request "AssetPairs")))
-  (mapjso (lambda (name data)
-            (setf (getjso "name" data) name))
-          pairs)
-  pairs)
+(defun get-markets ()
+  (mapjso* (lambda (name data) (setf (getjso "name" data) name))
+           (get-request "AssetPairs")))
+
+(defvar *markets* (get-markets))
 
 (defun get-book (pair &optional count)
   (with-json-slots (bids asks)
@@ -114,21 +114,24 @@
                              :parameters `(("from" . ,from) ("to" . ,to))
                              :want-stream t))))
 
-(defun %round (fund-factor resilience-factor)
+(defun %round (fund-factor resilience-factor
+               &optional (pair "XXBTXXDG")
+                 &aux (info (getjso pair *markets*)))
   ;; Track our resilience target
-  (track-vol "XXBTXXDG" 5)
+  (track-vol pair 5)
   ;; Get our balances
   (let ((balances (auth-request "Balance"))
         (resilience (* resilience-factor *max-seen-vol*))
-        (doge/btc (read-from-string (second (getjso* "XXBTXXDG.p" (get-request "Ticker" '(("pair" . "XXBTXXDG"))))))))
+        (doge/btc (read-from-string (second (getjso "p" (getjso pair (get-request "Ticker" `(("pair" . ,pair)))))))))
     (flet ((symbol-funds (symbol) (read-from-string (getjso symbol balances)))
            (total-of (btc doge) (+ btc (/ doge doge/btc)))
            (factor-fund (fund factor) (* fund fund-factor factor)))
-      (let* ((total-btc (symbol-funds "XXBT"))
-             (total-doge (symbol-funds "XXDG"))
+      (let* ((total-btc (symbol-funds (getjso "base" info)))
+             (total-doge (symbol-funds (getjso "quote" info)))
              (total-fund (total-of total-btc total-doge))
              (btc-fraction (/ total-btc total-fund))
              (btc (factor-fund total-btc btc-fraction))
+             (ε (float (expt 10 (- (getjso "pair_decimals" info)))))
              (doge (factor-fund total-doge (- 1 btc-fraction))))
         ;; report funding
         (format t "~&\"My cryptocurrency portfolio is ~$% invested in dogecoins\""
@@ -143,15 +146,15 @@
          ;; TODO: MINIMIZE OFF-BOOK TIME!
          (progn
            ;; First, remove our liquidity, so we don't watch ourselves
-           (cancel-pair-orders "XBTXDG")
+           (cancel-pair-orders (getjso "altname" info))
            ;; Next, get the current order book status
-           (multiple-value-bind (asks bids) (get-book "XXBTXXDG")
+           (multiple-value-bind (asks bids) (get-book pair)
              ;; Finally, inject our liquidity
              (mapc (lambda (info)
-                     (post-limit "buy" "XXBTXXDG" (+ (cdr info) 0.1) (car info) "viqc"))
+                     (post-limit "buy" pair (+ (cdr info) ε) (car info) "viqc"))
                    (dumbot-oneside bids resilience doge))
              (mapc (lambda (info)
-                     (post-limit "sell" "XXBTXXDG" (- (cdr info) 0.1) (car info)))
+                     (post-limit "sell" pair (- (cdr info) ε) (car info)))
                    (dumbot-oneside asks resilience btc)))))))))
 
 (defvar *maker*
@@ -160,4 +163,4 @@
                 `((*auth*
                    ,(cons (glock.connection::make-key #P "secrets/kraken.pubkey")
                           (glock.connection::make-signer #P "secrets/kraken.secret")))))
-    (loop (%round 1 1/2) (sleep 45))))
+    (loop (%round 1 1/2 "XXBTZEUR") (sleep 45))))
