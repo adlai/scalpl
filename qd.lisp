@@ -94,10 +94,6 @@
               (unix-to-timestamp last)
               interval *max-seen-vol*))))
 
-(defparameter *max-seen-vol*
-  (or (and (boundp '*max-seen-vol*) *max-seen-vol*)
-      (track-vol "XXBTXXDG" 5)))
-
 (defun dumbot-oneside (book resilience funds &aux (acc 0))
   ;; calculate cumulative depths
   (do ((cur book (cdr cur))
