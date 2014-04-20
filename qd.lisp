@@ -1,7 +1,7 @@
 ;;;; qd.lisp - quick and dirty. kraken's api... wow
 
 (defpackage #:glock.qd
-  (:use #:cl #:st-json #:glock.util #:glock.connection))
+  (:use #:cl #:st-json #:local-time #:glock.util #:glock.connection))
 
 (in-package #:glock.qd)
 
@@ -69,22 +69,30 @@
           (format t "~&want ~A~%" (getjso* "descr.order" info))
           (getjso "descr.txid" info)))))
 
-(defparameter *last-candle-id* 0)
+(defvar *last-track-time*)
+(defvar *last-candle-id*)
 
 (defparameter *max-seen-vol* 0)
 
-(defun track-vol (pair interval)
-  (with-json-slots (last (candles pair))
-      (get-request "OHLC"
-                   `(("pair" . ,pair)
-                     ("interval" . ,(princ-to-string interval))))
-    (setf *last-candle-id* last
-          *max-seen-vol* (reduce 'max
-                                 (mapcar 'read-from-string
-                                         (map 'list 'seventh candles)))))
-  (format t "~&~A highest ~D minute volume - ~F"
-          (local-time:unix-to-timestamp *last-candle-id*)
-          interval *max-seen-vol*))
+(defun track-vol (pair interval &aux (now (timestamp-to-unix (now))))
+  (when (or (not (boundp '*last-candle-id*)) ; initial request
+            (< (* interval 60)          ; convert minutes to seconds
+               (- now *last-track-time*)))
+    (with-json-slots (last (candles pair))
+        (get-request "OHLC"
+                     `(("pair" . ,pair)
+                       ("interval" . ,(princ-to-string interval))
+                       ,@(when (boundp '*last-candle-id*)
+                               `(("since" . ,(princ-to-string *last-candle-id*))))))
+      (setf *last-candle-id* last
+            *last-track-time* now
+            *max-seen-vol* (reduce 'max
+                                   (mapcar 'read-from-string
+                                           (map 'list 'seventh candles))
+                                   :initial-value *max-seen-vol*))
+      (format t "~&~A highest ~D minute volume - ~F"
+              (unix-to-timestamp last)
+              interval *max-seen-vol*))))
 
 (defparameter *max-seen-vol*
   (or (and (boundp '*max-seen-vol*) *max-seen-vol*)
