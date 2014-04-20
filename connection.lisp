@@ -46,15 +46,15 @@
     (with-open-file (stream path)
       (make-key stream))))
 
-(defun decode-json (json-stream)
-  (st-json:read-json json-stream))
+(defun decode-json (arg)
+  (st-json:read-json arg))
 
 (defun raw-request (path &rest keys)
   (with-json-slots (result error)
-      (decode-json (apply #'drakma:http-request
-                          (concatenate 'string +base-path+ path)
-                          :want-stream T
-                          keys))
+      (decode-json (map 'string 'code-char
+                        (apply #'drakma:http-request
+                               (concatenate 'string +base-path+ path)
+                               keys)))
     (values result error)))
 
 (defun get-request (path &optional data)
