@@ -41,8 +41,8 @@
 (defun cancel-pair-orders (pair)
   (mapjso (lambda (id order)
             (when (string= pair (getjso* "descr.pair" order))
-              (format t "~&wont ~A~%" (getjso* "descr.order" order))
-              (cancel-order id)))
+              (cancel-order id)
+              (format t "~&wont ~A~%" (getjso* "descr.order" order))))
           (open-orders)))
 
 (defun post-limit (type pair price volume &optional options)
@@ -115,23 +115,25 @@
   (track-vol "XXBTXXDG" 5)
   ;; Get our balances
   (let ((balances (auth-request "Balance"))
-        (resilience (* resilience-factor *max-seen-vol*)))
+        (resilience (* resilience-factor *max-seen-vol*))
+        (doge/btc (read-from-string (second (getjso* "XXBTXXDG.p" (get-request "Ticker" '(("pair" . "XXBTXXDG"))))))))
     (flet ((symbol-funds (symbol) (read-from-string (getjso symbol balances)))
-           (total-of (base quote rate) (+ base (/ quote rate)))
-           (factor-funds (symbol)
-             (* fund-factor (read-from-string (getjso symbol balances)))))
-      (let ((total-btc (symbol-funds "XXBT"))
-            (total-doge (symbol-funds "XXDG"))
-            (doge/btc (read-from-string (second (getjso* "XXBTXXDG.p" (get-request "Ticker" '(("pair" . "XXBTXXDG")))))))
-            (btc (factor-funds "XXBT"))
-            (doge (factor-funds "XXDG")))
+           (total-of (btc doge) (+ btc (/ doge doge/btc)))
+           (factor-fund (fund factor) (* fund fund-factor factor)))
+      (let* ((total-btc (symbol-funds "XXBT"))
+             (total-doge (symbol-funds "XXDG"))
+             (total-fund (total-of total-btc total-doge))
+             (btc-fraction (/ total-btc total-fund))
+             (btc (factor-fund total-btc btc-fraction))
+             (doge (factor-fund total-doge (- 1 btc-fraction))))
         ;; report funding
         (format t "~&\"My cryptocurrency portfolio is ~$% invested in dogecoins\""
-                (* 100 (/ (/ total-doge doge/btc) (total-of total-btc total-doge doge/btc))))
+                (* 100 (- 1 btc-fraction)))
         (format t "~&very fund ~8$฿ + ~1$Ð ≈» ~8$฿~%"
-                total-btc total-doge (total-of total-btc total-doge doge/btc))
-        (format t "~&such risk ~8$฿ + ~1$Ð ≈» ~8$฿~%"
-                btc doge (total-of btc doge doge/btc))
+                total-btc total-doge total-fund)
+        (format t "~&such risk ~8$฿ + ~1$Ð ≈» ~8$฿ (~$% risked)~%"
+                btc doge (total-of btc doge)
+                (* 100 (/ (total-of btc doge) total-fund)))
         ;; Now run that algorithm thingy
         (time
          ;; TODO: MINIMIZE OFF-BOOK TIME!
@@ -148,4 +150,10 @@
                      (post-limit "sell" "XXBTXXDG" (- (cdr info) 0.1) (car info)))
                    (dumbot-oneside asks resilience btc)))))))))
 
-;;; (loop (%round 1/2 1/2) (sleep 30))
+(defvar *maker*
+  (chanl:pexec (:name "qdm-preα"
+                :initial-bindings
+                `((*auth*
+                   ,(cons (glock.connection::make-key #P "secrets/kraken.pubkey")
+                          (glock.connection::make-signer #P "secrets/kraken.secret")))))
+    (loop (%round 1 1/2) (sleep 45))))
