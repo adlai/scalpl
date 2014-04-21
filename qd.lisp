@@ -178,28 +178,30 @@
          ;; Get the current order book status
          (multiple-value-bind (asks bids)
              (get-book pair (getjso "pair_decimals" info))
-           ;; Remove our old liquidity
-           (mapc #'cancel-order (mapcar #'car my-asks))
-           (mapc #'cancel-order (mapcar #'car my-bids))
-           ;; Finally, inject our liquidity
-           (setf my-bids (mapcar (lambda (order-info)
-                                   (cons (post-limit "buy" pair
-                                                     (float (/ (cdr order-info)
-                                                               (expt 10 (getjso "pair_decimals" info)))
-                                                            0d0)
-                                                     (car order-info) "viqc")
-                                         order-info))
-                                 (dumbot-oneside (ignore-mine bids (mapcar 'cdr my-bids))
-                                                 resilience doge 1))
-                 my-asks (mapcar (lambda (order-info)
-                                   (cons (post-limit "sell" pair
-                                                     (float (/ (cdr order-info)
-                                                               (expt 10 (getjso "pair_decimals" info)))
-                                                            0d0)
-                                                     (car order-info))
-                                         order-info))
-                                 (dumbot-oneside (ignore-mine asks (mapcar 'cdr my-asks))
-                                                 resilience btc -1)))))
+           (let ((to-bid (dumbot-oneside (ignore-mine bids (mapcar 'cdr my-bids))
+                                         resilience doge 1))
+                 (to-ask (dumbot-oneside (ignore-mine asks (mapcar 'cdr my-asks))
+                                         resilience btc -1)))
+             ;; Remove our old liquidity
+             (mapc #'cancel-order (mapcar #'car my-asks))
+             (mapc #'cancel-order (mapcar #'car my-bids))
+             ;; Finally, inject our liquidity
+             (setf my-bids (mapcar (lambda (order-info)
+                                     (cons (post-limit "buy" pair
+                                                       (float (/ (cdr order-info)
+                                                                 (expt 10 (getjso "pair_decimals" info)))
+                                                              0d0)
+                                                       (car order-info) "viqc")
+                                           order-info))
+                                   to-bid)
+                   my-asks (mapcar (lambda (order-info)
+                                     (cons (post-limit "sell" pair
+                                                       (float (/ (cdr order-info)
+                                                                 (expt 10 (getjso "pair_decimals" info)))
+                                                              0d0)
+                                                       (car order-info))
+                                           order-info))
+                                   to-ask)))))
         ;; convert my orders into a saner format (for ignore-mine)
         (values (mapcar (lambda (order)
                           (destructuring-bind (id quote-amount . price) order
