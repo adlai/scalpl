@@ -10,6 +10,12 @@
 (defun auth-request (path &optional options)
   (when *auth* (post-request path (car *auth*) (cdr *auth*) options)))
 
+(defun get-assets ()
+  (mapjso* (lambda (name data) (setf (getjso "name" data) name))
+           (get-request "Assets")))
+
+(defvar *assets* (get-assets))
+
 (defun get-markets ()
   (mapjso* (lambda (name data) (setf (getjso "name" data) name))
            (get-request "AssetPairs")))
@@ -30,6 +36,16 @@
       (let ((asks (mapcar #'parse asks))
             (bids (mapcar #'parse bids)))
         (values asks bids)))))
+
+;;; order-book and my-orders should both be in the same format:
+;;; a list of (PRICE . AMOUNT), representing one side of the book
+(defun ignore-mine (order-book my-orders &aux new)
+  (dolist (order order-book new)
+    (if (= (car order) (caar my-orders))
+        (let ((without-me (- (cdr order) (cdar my-orders))))
+          (unless (zerop without-me)
+            (push (cons (car order) without-me) new)))
+        (push order new))))
 
 (defun open-orders ()
   (mapjso* (lambda (id order) (setf (getjso "id" order) id))
@@ -94,7 +110,7 @@
               (unix-to-timestamp last)
               interval *max-seen-vol*))))
 
-(defun dumbot-oneside (book resilience funds &aux (acc 0))
+(defun dumbot-oneside (book resilience funds &optional (delta 0) &aux (acc 0))
   ;; calculate cumulative depths
   (do ((cur book (cdr cur))
        (n 0 (1+ n)))
@@ -104,8 +120,8 @@
     (push (incf acc (cdar cur))
           (car cur)))
   (mapcar (lambda (order)
-            (cons (* funds (/ (cddr order) acc))
-                  (cadr order)))
+            (let ((vol (* funds (/ (cddr order) acc))))
+              (cons vol (+ delta (cadr order)))))
           book))
 
 (defun gapps-rate (from to)
@@ -131,7 +147,7 @@
              (total-fund (total-of total-btc total-doge))
              (btc-fraction (/ total-btc total-fund))
              (btc (factor-fund total-btc btc-fraction))
-             (ε (float (expt 10 (- (getjso "pair_decimals" info)))))
+             (ε (* 2 (float (expt 10 (- (getjso "pair_decimals" info))) 0d0)))
              (doge (factor-fund total-doge (- 1 btc-fraction))))
         ;; report funding
         (format t "~&\"My cryptocurrency portfolio is ~$% invested in dogecoins\""
@@ -150,17 +166,21 @@
            ;; Next, get the current order book status
            (multiple-value-bind (asks bids) (get-book pair)
              ;; Finally, inject our liquidity
-             (mapc (lambda (info)
-                     (post-limit "buy" pair (+ (cdr info) ε) (car info) "viqc"))
-                   (dumbot-oneside bids resilience doge))
-             (mapc (lambda (info)
-                     (post-limit "sell" pair (- (cdr info) ε) (car info)))
-                   (dumbot-oneside asks resilience btc)))))))))
+             (values (mapc (lambda (info)
+                             (post-limit "buy" pair (cdr info) (car info) "viqc"))
+                           (dumbot-oneside bids resilience doge ε))
+                     (mapc (lambda (info)
+                             (post-limit "sell" pair (cdr info) (car info)))
+                           (dumbot-oneside asks resilience btc (- ε)))))))))))
 
 (defvar *maker*
   (chanl:pexec (:name "qdm-preα"
                 :initial-bindings
-                `((*auth*
+                `((*read-default-float-format* double-float)
+                  (*auth*
                    ,(cons (glock.connection::make-key #P "secrets/kraken.pubkey")
                           (glock.connection::make-signer #P "secrets/kraken.secret")))))
-    (loop (%round 1 1/2 "XXBTZEUR") (sleep 45))))
+    (let (bids asks)
+      (loop
+         (setf (values bids asks) (%round 4/5 1 "XXBTXXDG"))
+         (sleep 60)))))
