@@ -104,7 +104,7 @@
 (defvar *last-track-time*)
 (defvar *last-candle-id*)
 
-(defparameter *max-seen-vol* 0)
+(defvar *max-seen-vol* 0)
 
 (defun track-vol (pair interval &aux (now (timestamp-to-unix (now))))
   (when (or (not (boundp '*last-candle-id*)) ; initial request
