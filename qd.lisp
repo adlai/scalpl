@@ -22,6 +22,10 @@
 
 (defvar *markets* (get-markets))
 
+;;; TODO: verify the number of decimals!
+(defun parse-price (price-string &optional decimals)
+  (parse-integer (remove #\. price-string)))
+
 (defun get-book (pair &optional count)
   (with-json-slots (bids asks)
       (getjso pair
@@ -31,7 +35,7 @@
     (flet ((parse (raw-order)
              (destructuring-bind (price amount timestamp) raw-order
                (declare (ignore timestamp))
-               (cons (read-from-string price)
+               (cons (parse-price price)
                      (read-from-string amount)))))
       (let ((asks (mapcar #'parse asks))
             (bids (mapcar #'parse bids)))
@@ -40,9 +44,13 @@
 ;;; order-book and my-orders should both be in the same format:
 ;;; a list of (PRICE . AMOUNT), representing one side of the book
 (defun ignore-mine (order-book my-orders &aux new)
-  (dolist (order order-book new)
-    (if (= (car order) (caar my-orders))
-        (let ((without-me (- (cdr order) (cdar my-orders))))
+  (print my-orders)
+  (dolist (order order-book (nreverse new))
+    (if (and my-orders (= (car order) (caar my-orders)))
+        (let* ((mine (pop my-orders))
+               (without-me (- (cdr order) (cdr mine))))
+          (format t "~&At ~A, I have ~A, remain ~A"
+                  (car order) (car mine) without-me)
           (unless (zerop without-me)
             (push (cons (car order) without-me) new)))
         (push order new))))
@@ -64,14 +72,14 @@
 (defun post-limit (type pair price volume &optional options)
   (multiple-value-bind (info errors)
       (auth-request "AddOrder"
-                    `(("ordertype" . "limit")
-                      ("type" . ,type)
-                      ("pair" . ,pair)
-                      ("volume" . ,(princ-to-string volume))
-                      ("price" . ,(princ-to-string price))
-                      ,@(when options `(("oflags" . ,options)))
-                      ;; ("validate" . "true")
-                      ))
+                    (print `(("ordertype" . "limit")
+                       ("type" . ,type)
+                       ("pair" . ,pair)
+                       ("volume" . ,(princ-to-string volume))
+                       ("price" . ,(format nil "~$" price))
+                       ,@(when options `(("oflags" . ,options)))
+                       ;; ("validate" . "true")
+                       )))
     (if errors
         (dolist (message errors)
           (if (and (search "volume" message)
@@ -131,7 +139,7 @@
                              :want-stream t))))
 
 (defun %round (fund-factor resilience-factor
-               &optional (pair "XXBTXXDG")
+               &optional (pair "XXBTXXDG") my-bids my-asks
                  &aux (info (getjso pair *markets*)))
   ;; Track our resilience target
   (track-vol pair 5)
@@ -147,7 +155,6 @@
              (total-fund (total-of total-btc total-doge))
              (btc-fraction (/ total-btc total-fund))
              (btc (factor-fund total-btc btc-fraction))
-             (ε (* 2 (float (expt 10 (- (getjso "pair_decimals" info))) 0d0)))
              (doge (factor-fund total-doge (- 1 btc-fraction))))
         ;; report funding
         (format t "~&\"My cryptocurrency portfolio is ~$% invested in dogecoins\""
@@ -166,12 +173,16 @@
            ;; Next, get the current order book status
            (multiple-value-bind (asks bids) (get-book pair)
              ;; Finally, inject our liquidity
-             (values (mapc (lambda (info)
-                             (post-limit "buy" pair (cdr info) (car info) "viqc"))
-                           (dumbot-oneside bids resilience doge ε))
-                     (mapc (lambda (info)
-                             (post-limit "sell" pair (cdr info) (car info)))
-                           (dumbot-oneside asks resilience btc (- ε)))))))))))
+             (values (mapc (lambda (order-info)
+                             (post-limit "buy" pair
+                                         (float (/ (cdr order-info) (expt 10 (getjso "pair_decimals" info))) 0d0)
+                                         (car order-info) "viqc"))
+                           (dumbot-oneside bids resilience doge 1))
+                     (mapc (lambda (order-info)
+                             (post-limit "sell" pair
+                                         (float (/ (cdr order-info) (expt 10 (getjso "pair_decimals" info))) 0d0)
+                                         (car order-info)))
+                           (dumbot-oneside asks resilience btc -1))))))))))
 
 (defvar *maker*
   (chanl:pexec (:name "qdm-preα"
@@ -182,5 +193,7 @@
                           (glock.connection::make-signer #P "secrets/kraken.secret")))))
     (let (bids asks)
       (loop
-         (setf (values bids asks) (%round 4/5 1 "XXBTXXDG"))
-         (sleep 60)))))
+         (setf (values bids asks) (%round 4/5 1 "XXBTXXDG" bids asks))
+         (pprint bids)
+         (pprint asks)
+         (sleep 40)))))
