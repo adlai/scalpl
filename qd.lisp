@@ -23,10 +23,12 @@
 (defvar *markets* (get-markets))
 
 ;;; TODO: verify the number of decimals!
-(defun parse-price (price-string &optional decimals)
-  (parse-integer (remove #\. price-string)))
+(defun parse-price (price-string decimals)
+  (let ((dot (position #\. price-string)))
+    (parse-integer (remove #\. price-string)
+                   :end (+ dot decimals))))
 
-(defun get-book (pair &optional count)
+(defun get-book (pair decimals &optional count)
   (with-json-slots (bids asks)
       (getjso pair
               (get-request "Depth" `(("pair" . ,pair)
@@ -35,7 +37,7 @@
     (flet ((parse (raw-order)
              (destructuring-bind (price amount timestamp) raw-order
                (declare (ignore timestamp))
-               (cons (parse-price price)
+               (cons (parse-price price decimals)
                      (read-from-string amount)))))
       (let ((asks (mapcar #'parse asks))
             (bids (mapcar #'parse bids)))
@@ -44,42 +46,45 @@
 ;;; order-book and my-orders should both be in the same format:
 ;;; a list of (PRICE . AMOUNT), representing one side of the book
 (defun ignore-mine (order-book my-orders &aux new)
-  (print my-orders)
   (dolist (order order-book (nreverse new))
     (if (and my-orders (= (car order) (caar my-orders)))
         (let* ((mine (pop my-orders))
                (without-me (- (cdr order) (cdr mine))))
           (format t "~&At ~A, I have ~A, remain ~A"
                   (car order) (car mine) without-me)
-          (unless (zerop without-me)
-            (push (cons (car order) without-me) new)))
+          (if (< without-me 0.001)
+              (format t " (dust)")
+              (push (cons (car order) without-me) new)))
         (push order new))))
 
 (defun open-orders ()
   (mapjso* (lambda (id order) (setf (getjso "id" order) id))
            (getjso "open" (auth-request "OpenOrders"))))
 
-(defun cancel-order (id)
-  (auth-request "CancelOrder" `(("txid" . ,id))))
+(defun cancel-order (order)
+  (auth-request "CancelOrder" `(("txid" . ,(getjso "id" order))))
+  (format t "~&wont ~A~%" (or (getjso "order" order)
+                              (getjso* "descr.order" order))))
 
 (defun cancel-pair-orders (pair)
   (mapjso (lambda (id order)
             (when (string= pair (getjso* "descr.pair" order))
-              (cancel-order id)
-              (format t "~&wont ~A~%" (getjso* "descr.order" order))))
+              (cancel-order order)))
           (open-orders)))
+
+(defparameter *validate* nil)
 
 (defun post-limit (type pair price volume &optional options)
   (multiple-value-bind (info errors)
       (auth-request "AddOrder"
-                    (print `(("ordertype" . "limit")
-                       ("type" . ,type)
-                       ("pair" . ,pair)
-                       ("volume" . ,(princ-to-string volume))
-                       ("price" . ,(format nil "~$" price))
-                       ,@(when options `(("oflags" . ,options)))
-                       ;; ("validate" . "true")
-                       )))
+                    `(("ordertype" . "limit")
+                      ("type" . ,type)
+                      ("pair" . ,pair)
+                      ("volume" . ,(princ-to-string volume))
+                      ("price" . ,(format nil "~$" price))
+                      ,@(when options `(("oflags" . ,options)))
+                      ,@(when *validate* `(("validate" . "true")))
+                      ))
     (if errors
         (dolist (message errors)
           (if (and (search "volume" message)
@@ -91,7 +96,10 @@
               (format t "~&~A~%" message)))
         (progn
           (format t "~&want ~A~%" (getjso* "descr.order" info))
-          (getjso "descr.txid" info)))))
+          ;; theoretically, we could get several order IDs here,
+          ;; but we're not using any of kraken's fancy forex nonsense
+          (setf (getjso* "descr.id" info) (car (getjso* "txid" info)))
+          (getjso "descr" info)))))
 
 (defvar *last-track-time*)
 (defvar *last-candle-id*)
@@ -167,22 +175,42 @@
         ;; Now run that algorithm thingy
         (time
          ;; TODO: MINIMIZE OFF-BOOK TIME!
-         (progn
-           ;; First, remove our liquidity, so we don't watch ourselves
-           (cancel-pair-orders (getjso "altname" info))
-           ;; Next, get the current order book status
-           (multiple-value-bind (asks bids) (get-book pair)
-             ;; Finally, inject our liquidity
-             (values (mapc (lambda (order-info)
-                             (post-limit "buy" pair
-                                         (float (/ (cdr order-info) (expt 10 (getjso "pair_decimals" info))) 0d0)
-                                         (car order-info) "viqc"))
-                           (dumbot-oneside bids resilience doge 1))
-                     (mapc (lambda (order-info)
-                             (post-limit "sell" pair
-                                         (float (/ (cdr order-info) (expt 10 (getjso "pair_decimals" info))) 0d0)
-                                         (car order-info)))
-                           (dumbot-oneside asks resilience btc -1))))))))))
+         ;; Get the current order book status
+         (multiple-value-bind (asks bids)
+             (get-book pair (getjso "pair_decimals" info))
+           ;; Remove our old liquidity
+           (mapc #'cancel-order (mapcar #'car my-asks))
+           (mapc #'cancel-order (mapcar #'car my-bids))
+           ;; Finally, inject our liquidity
+           (setf my-bids (mapcar (lambda (order-info)
+                                   (cons (post-limit "buy" pair
+                                                     (float (/ (cdr order-info)
+                                                               (expt 10 (getjso "pair_decimals" info)))
+                                                            0d0)
+                                                     (car order-info) "viqc")
+                                         order-info))
+                                 (dumbot-oneside (ignore-mine bids (mapcar 'cdr my-bids))
+                                                 resilience doge 1))
+                 my-asks (mapcar (lambda (order-info)
+                                   (cons (post-limit "sell" pair
+                                                     (float (/ (cdr order-info)
+                                                               (expt 10 (getjso "pair_decimals" info)))
+                                                            0d0)
+                                                     (car order-info))
+                                         order-info))
+                                 (dumbot-oneside (ignore-mine asks (mapcar 'cdr my-asks))
+                                                 resilience btc -1)))))
+        ;; convert my orders into a saner format (for ignore-mine)
+        (values (mapcar (lambda (order)
+                          (destructuring-bind (id quote-amount . price) order
+                            (list* id price
+                                   (* (expt 10 (getjso "pair_decimals" info))
+                                      (/ quote-amount price)))))
+                        my-bids)
+                (mapcar (lambda (order)
+                          (destructuring-bind (id quote-amount . price) order
+                            (list* id price quote-amount)))
+                        my-asks))))))
 
 (defvar *maker*
   (chanl:pexec (:name "qdm-preα"
@@ -194,6 +222,4 @@
     (let (bids asks)
       (loop
          (setf (values bids asks) (%round 4/5 1 "XXBTXXDG" bids asks))
-         (pprint bids)
-         (pprint asks)
          (sleep 40)))))
