@@ -51,11 +51,8 @@
       (if mine
           (let ((without-me (- (cdr order) (cdr mine))))
             (setf my-orders (remove mine my-orders))
-            (format t "~&At ~A, I have ~A, remain ~A"
-                    (car order) (cdr mine) without-me)
-            (if (< without-me 0.001)
-                (format t " (dust)")
-                (push (cons (car order) without-me) new)))
+            (unless (< without-me 0.001)
+              (push (cons (car order) without-me) new)))
           (push order new)))))
 
 (defun open-orders ()
