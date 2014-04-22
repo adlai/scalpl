@@ -183,37 +183,56 @@
                                          resilience doge 1))
                  (to-ask (dumbot-oneside (ignore-mine asks (mapcar 'cdr my-asks))
                                          resilience btc -1)))
-             ;; Remove our old liquidity
-             (mapc #'cancel-order (mapcar #'car my-asks))
-             (mapc #'cancel-order (mapcar #'car my-bids))
-             ;; Finally, inject our liquidity
-             (setf my-bids (mapcar (lambda (order-info)
-                                     (cons (post-limit "buy" pair
-                                                       (float (/ (cdr order-info)
-                                                                 (expt 10 (getjso "pair_decimals" info)))
-                                                              0d0)
-                                                       (car order-info) "viqc")
-                                           order-info))
-                                   to-bid)
-                   my-asks (mapcar (lambda (order-info)
-                                     (cons (post-limit "sell" pair
-                                                       (float (/ (cdr order-info)
-                                                                 (expt 10 (getjso "pair_decimals" info)))
-                                                              0d0)
-                                                       (car order-info))
-                                           order-info))
-                                   to-ask)))))
-        ;; convert my orders into a saner format (for ignore-mine)
-        (values (mapcar (lambda (order)
-                          (destructuring-bind (id quote-amount . price) order
-                            (list* id price
-                                   (* (expt 10 (getjso "pair_decimals" info))
-                                      (/ quote-amount price)))))
-                        my-bids)
-                (mapcar (lambda (order)
-                          (destructuring-bind (id quote-amount . price) order
-                            (list* id price quote-amount)))
-                        my-asks))))))
+             ;; cancel orders that need replacing
+             (dolist (old my-asks)
+               (let ((new (find (cadr old) to-ask :key #'cdr :test #'=)))
+                 (if (and new (< (- (car new) (cddr old)) 0.00001))
+                     ;; old order will be placed anyways, don't replace it
+                     (setf to-ask (remove new to-ask))
+                     ;; new order will replace old, cancel old
+                     (progn
+                       (cancel-order (car old))
+                       (setf my-asks (remove old my-asks))))))
+             (dolist (old my-bids)
+               (let ((new (find (cadr old) to-bid :key #'cdr :test #'=)))
+                 (if (and new (< (- (* (expt 10 (getjso "pair_decimals" info))
+                                       (/ (car new) (cdr new)))
+                                    (cddr old)) 0.00001))
+                     ;; old order will be placed anyways, don't replace it
+                     (setf to-bid (remove new to-bid))
+                     ;; new order will replace old, cancel old
+                     (progn
+                       (cancel-order (car old))
+                       (setf my-bids (remove old my-bids))))))
+             (let ((new-bids (mapcar (lambda (order-info)
+                                       (cons (post-limit "buy" pair
+                                                         (float (/ (cdr order-info)
+                                                                   (expt 10 (getjso "pair_decimals" info)))
+                                                                0d0)
+                                                         (car order-info) "viqc")
+                                             order-info))
+                                     to-bid))
+                   (new-asks (mapcar (lambda (order-info)
+                                       (cons (post-limit "sell" pair
+                                                         (float (/ (cdr order-info)
+                                                                   (expt 10 (getjso "pair_decimals" info)))
+                                                                0d0)
+                                                         (car order-info))
+                                             order-info))
+                                     to-ask)))
+               ;; convert new orders into a saner format (for ignore-mine)
+               (values (append my-bids
+                               (mapcar (lambda (order)
+                                         (destructuring-bind (id quote-amount . price) order
+                                           (list* id price
+                                                  (* (expt 10 (getjso "pair_decimals" info))
+                                                     (/ quote-amount price)))))
+                                       new-bids))
+                       (append my-asks
+                               (mapcar (lambda (order)
+                                         (destructuring-bind (id quote-amount . price) order
+                                           (list* id price quote-amount)))
+                                       new-asks)))))))))))
 
 (defvar *maker*
   (chanl:pexec (:name "qdm-preα"
@@ -225,4 +244,4 @@
     (let (bids asks)
       (loop
          (setf (values bids asks) (%round 4/5 1 "XXBTXXDG" bids asks))
-         (sleep 40)))))
+         (sleep 15)))))
