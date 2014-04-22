@@ -47,15 +47,16 @@
 ;;; a list of (PRICE . AMOUNT), representing one side of the book
 (defun ignore-mine (order-book my-orders &aux new)
   (dolist (order order-book (nreverse new))
-    (if (and my-orders (= (car order) (caar my-orders)))
-        (let* ((mine (pop my-orders))
-               (without-me (- (cdr order) (cdr mine))))
-          (format t "~&At ~A, I have ~A, remain ~A"
-                  (car order) (car mine) without-me)
-          (if (< without-me 0.001)
-              (format t " (dust)")
-              (push (cons (car order) without-me) new)))
-        (push order new))))
+    (let ((mine (find (car order) my-orders :test #'= :key #'car)))
+      (if mine
+          (let ((without-me (- (cdr order) (cdr mine))))
+            (setf my-orders (remove mine my-orders))
+            (format t "~&At ~A, I have ~A, remain ~A"
+                    (car order) (cdr mine) without-me)
+            (if (< without-me 0.001)
+                (format t " (dust)")
+                (push (cons (car order) without-me) new)))
+          (push order new)))))
 
 (defun open-orders ()
   (mapjso* (lambda (id order) (setf (getjso "id" order) id))
