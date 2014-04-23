@@ -50,12 +50,16 @@
   (st-json:read-json arg))
 
 (defun raw-request (path &rest keys)
-  (with-json-slots (result error)
-      (decode-json (map 'string 'code-char
-                        (apply #'drakma:http-request
-                               (concatenate 'string +base-path+ path)
-                               keys)))
-    (values result error)))
+  (multiple-value-bind (body status)
+      (apply #'drakma:http-request
+             (concatenate 'string +base-path+ path)
+             keys)
+    (case status
+      (200 (with-json-slots (result error)
+               (decode-json (map 'string 'code-char body))
+             (values result error)))
+      (t (cerror "Retry request" "HTTP Error ~D" status)
+         (apply #'raw-request path keys)))))
 
 (defun get-request (path &optional data)
   (raw-request (concatenate 'string "public/" path "?"
