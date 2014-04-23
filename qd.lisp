@@ -148,7 +148,7 @@
                &optional (pair "XXBTXXDG") my-bids my-asks
                  &aux (info (getjso pair *markets*)))
   ;; Track our resilience target
-  (track-vol pair 5)
+  (track-vol pair 1)
   ;; Get our balances
   (let ((balances (auth-request "Balance"))
         (resilience (* resilience-factor *max-seen-vol*))
@@ -184,7 +184,7 @@
              ;; cancel orders that need replacing
              (dolist (old my-asks)
                (let ((new (find (cadr old) to-ask :key #'cdr :test #'=)))
-                 (if (and new (< (- (car new) (cddr old)) 0.00001))
+                 (if (and new (< (abs (- (car new) (cddr old))) 0.00001))
                      ;; old order will be placed anyways, don't replace it
                      (setf to-ask (remove new to-ask))
                      ;; new order will replace old, cancel old
@@ -201,9 +201,10 @@
                                     to-ask))
              (dolist (old my-bids)
                (let ((new (find (cadr old) to-bid :key #'cdr :test #'=)))
-                 (if (and new (< (- (* (expt 10 (getjso "pair_decimals" info))
-                                       (/ (car new) (cdr new)))
-                                    (cddr old)) 0.00001))
+                 (if (and new (< (abs (- (* (expt 10 (getjso "pair_decimals" info))
+                                            (/ (car new) (cdr new)))
+                                         (cddr old)))
+                                 0.00001))
                      ;; old order will be placed anyways, don't replace it
                      (setf to-bid (remove new to-bid))
                      ;; new order will replace old, cancel old
@@ -211,13 +212,13 @@
                        (cancel-order (car old))
                        (setf my-bids (remove old my-bids))))))
              (setf new-bids (mapcar (lambda (order-info)
-                                     (cons (post-limit "buy" pair
-                                                       (float (/ (cdr order-info)
-                                                                 (expt 10 (getjso "pair_decimals" info)))
-                                                              0d0)
-                                                       (car order-info) "viqc")
-                                           order-info))
-                                   to-bid))
+                                      (cons (post-limit "buy" pair
+                                                        (float (/ (cdr order-info)
+                                                                  (expt 10 (getjso "pair_decimals" info)))
+                                                               0d0)
+                                                        (car order-info) "viqc")
+                                            order-info))
+                                    to-bid))
              ;; convert new orders into a saner format (for ignore-mine)
              (values (append my-bids
                              (mapcar (lambda (order)
