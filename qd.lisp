@@ -153,8 +153,11 @@
                              :want-stream t))))
 
 (defun %round (fund-factor resilience-factor
-               &optional (pair "XXBTXXDG") my-bids my-asks
-                 &aux (info (getjso pair *markets*)))
+               &optional
+                 (pair "XXBTXXDG") my-bids my-asks
+               &aux
+                 (market (getjso pair *markets*))
+                 (price-factor (expt 10 (getjso "pair_decimals" market))))
   ;; Track our resilience target
   (track-vol pair 1)
   ;; Get our balances
@@ -164,8 +167,8 @@
     (flet ((symbol-funds (symbol) (read-from-string (getjso symbol balances)))
            (total-of (btc doge) (+ btc (/ doge doge/btc)))
            (factor-fund (fund factor) (* fund fund-factor factor)))
-      (let* ((total-btc (symbol-funds (getjso "base" info)))
-             (total-doge (symbol-funds (getjso "quote" info)))
+      (let* ((total-btc (symbol-funds (getjso "base" market)))
+             (total-doge (symbol-funds (getjso "quote" market)))
              (total-fund (total-of total-btc total-doge))
              (btc-fraction (/ total-btc total-fund))
              (btc (factor-fund total-btc btc-fraction))
@@ -209,16 +212,14 @@
                        (setf my-asks (remove old my-asks))))))
              (setf new-asks (mapcar (lambda (order-info)
                                       (cons (post-limit "sell" pair
-                                                        (float (/ (cdr order-info)
-                                                                  (expt 10 (getjso "pair_decimals" info)))
+                                                        (float (/ (cdr order-info) price-factor)
                                                                0d0)
                                                         (car order-info))
                                             order-info))
                                     to-ask))
              (dolist (old my-bids)
                (let ((new (find (cadr old) to-bid :key #'cdr :test #'=)))
-                 (if (and new (< (abs (- (* (expt 10 (getjso "pair_decimals" info))
-                                            (/ (car new) (cdr new)))
+                 (if (and new (< (abs (- (* price-factor (/ (car new) (cdr new)))
                                          (cddr old)))
                                  0.00001))
                      ;; old order will be placed anyways, don't replace it
@@ -229,8 +230,7 @@
                        (setf my-bids (remove old my-bids))))))
              (setf new-bids (mapcar (lambda (order-info)
                                       (cons (post-limit "buy" pair
-                                                        (float (/ (cdr order-info)
-                                                                  (expt 10 (getjso "pair_decimals" info)))
+                                                        (float (/ (cdr order-info) price-factor)
                                                                0d0)
                                                         (car order-info) "viqc")
                                             order-info))
@@ -240,8 +240,7 @@
                              (mapcar (lambda (order)
                                        (destructuring-bind (id quote-amount . price) order
                                          (list* id price
-                                                (* (expt 10 (getjso "pair_decimals" info))
-                                                   (/ quote-amount price)))))
+                                                (* price-factor (/ quote-amount price)))))
                                      new-bids))
                      (append my-asks
                              (mapcar (lambda (order)
