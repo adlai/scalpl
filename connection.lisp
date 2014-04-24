@@ -58,6 +58,9 @@
       (200 (with-json-slots (result error)
                (decode-json (map 'string 'code-char body))
              (values result error)))
+      (502 (format t "~&Retrying after 502...~%")
+           (sleep 1)
+           (apply #'raw-request path keys))
       (t (cerror "Retry request" "HTTP Error ~D" status)
          (apply #'raw-request path keys)))))
 
