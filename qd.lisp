@@ -38,6 +38,7 @@
              (destructuring-bind (price amount timestamp) raw-order
                (declare (ignore timestamp))
                (cons (parse-price price decimals)
+                     ;; the amount seems to always have three decimals
                      (read-from-string amount)))))
       (let ((asks (mapcar #'parse asks))
             (bids (mapcar #'parse bids)))
@@ -183,6 +184,9 @@
            ;; if it's too low, just don't place the new order
            ;; this should yield behavior which resists price swings
            ;; TODO: properly deal with partial and completed orders
+           ;; TODO: algorithm similar to that of `ignore-mine' for updating
+           ;; our positions on the exchange with as little downtime as possible
+           ;; TODO: incorporate reserve tracking for zero-downtime order updates
            (let ((to-bid (dumbot-oneside (ignore-mine bids (mapcar 'cdr my-bids))
                                          resilience doge 1))
                  (to-ask (dumbot-oneside (ignore-mine asks (mapcar 'cdr my-asks))
@@ -241,6 +245,7 @@
                                      new-asks))))))))))
 
 (defvar *maker*
+  ;; FIXME: this function is on the wishlist
   (chanl:pexec (:name "qdm-preα"
                 :initial-bindings
                 `((*read-default-float-format* double-float)
