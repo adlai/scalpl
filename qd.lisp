@@ -45,6 +45,7 @@
 
 ;;; order-book and my-orders should both be in the same format:
 ;;; a list of (PRICE . AMOUNT), representing one side of the book
+;;; TODO: deal with partially completed orders
 (defun ignore-mine (order-book my-orders &aux new)
   (dolist (order order-book (nreverse new))
     (let ((mine (find (car order) my-orders :test #'= :key #'car)))
@@ -176,6 +177,12 @@
          ;; Get the current order book status
          (multiple-value-bind (asks bids)
              (get-book pair (getjso "pair_decimals" info))
+           ;; TODO: possible way to avoid lossy spreads:
+           ;; before placing an order, check its spread-lossiness against the
+           ;; orders already placed on the other side of the book
+           ;; if it's too low, just don't place the new order
+           ;; this should yield behavior which resists price swings
+           ;; TODO: properly deal with partial and completed orders
            (let ((to-bid (dumbot-oneside (ignore-mine bids (mapcar 'cdr my-bids))
                                          resilience doge 1))
                  (to-ask (dumbot-oneside (ignore-mine asks (mapcar 'cdr my-asks))
