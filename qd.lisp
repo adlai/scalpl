@@ -28,12 +28,15 @@
     (parse-integer (remove #\. price-string)
                    :end (+ dot decimals))))
 
-(defun get-book (pair decimals &optional count)
+(defun get-book (pair &optional count
+                 &aux (decimals (getjso "pair_decimals"
+                                        (getjso pair *markets*))))
   (with-json-slots (bids asks)
       (getjso pair
-              (get-request "Depth" `(("pair" . ,pair)
-                                     ,@(when count
-                                             `(("count" . ,(princ-to-string count)))))))
+              (get-request "Depth"
+                           `(("pair" . ,pair)
+                             ,@(when count
+                                     `(("count" . ,(princ-to-string count)))))))
     (flet ((parse (raw-order)
              (destructuring-bind (price amount timestamp) raw-order
                (declare (ignore timestamp))
@@ -176,8 +179,7 @@
         (time
          ;; TODO: MINIMIZE OFF-BOOK TIME!
          ;; Get the current order book status
-         (multiple-value-bind (asks bids)
-             (get-book pair (getjso "pair_decimals" info))
+         (multiple-value-bind (asks bids) (get-book pair)
            ;; TODO: possible way to avoid lossy spreads:
            ;; before placing an order, check its spread-lossiness against the
            ;; orders already placed on the other side of the book
