@@ -200,6 +200,11 @@
                  (to-ask (dumbot-oneside (ignore-mine asks (mapcar 'cdr my-asks))
                                          resilience btc -1))
                  new-bids new-asks)
+             ;; hacky fix for shitty idiocy
+             (unless (> (cdar to-ask) (cdar to-bid))
+               (format t "~&Dropping BOTH crossed orders~%")
+               (pop to-ask)
+               (pop to-bid))
              ;; cancel orders that need replacing
              (dolist (old my-asks)
                (let ((new (find (cadr old) to-ask :key #'cdr :test #'=)))
