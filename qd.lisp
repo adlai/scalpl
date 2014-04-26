@@ -228,7 +228,13 @@
                    ;; new replaces old
                    (progn
                      (cancel-order (car old))
-                     (setf my-asks (remove old my-asks)))))))
+                     (setf my-asks (remove old my-asks))
+                     (setf to-ask (remove new to-ask))
+                     (push (cons (post-limit "sell" pair
+                                             (float (/ (cdr new) price-factor) 0d0)
+                                             (car new))
+                                 new)
+                           new-asks))))))
             (dolist (new to-ask)
               (push (cons (post-limit "sell" pair
                                       (float (/ (cdr new) price-factor) 0d0)
