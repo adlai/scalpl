@@ -184,6 +184,9 @@
         (format t "~&such risk ~8$฿ + ~1$Ð ≈» ~8$฿ (~$% risked)~%"
                 btc doge (total-of btc doge)
                 (* 100 (/ (total-of btc doge) total-fund)))
+        ;; report orders
+        (format t "~&bids @ ~{~D~#[~:; ~]~}~%" (mapcar #'cadr my-bids))
+        (format t "~&asks @ ~{~D~#[~:; ~]~}~%" (mapcar #'cadr my-asks))
         ;; Now run that algorithm thingy
         (time
          ;; TODO: MINIMIZE OFF-BOOK TIME!
@@ -249,17 +252,19 @@
                                             order-info))
                                     to-bid))
              ;; convert new orders into a saner format (for ignore-mine)
-             (values (append my-bids
-                             (mapcar (lambda (order)
-                                       (destructuring-bind (id quote-amount . price) order
-                                         (list* id price
-                                                (* price-factor (/ quote-amount price)))))
-                                     new-bids))
-                     (append my-asks
-                             (mapcar (lambda (order)
-                                       (destructuring-bind (id quote-amount . price) order
-                                         (list* id price quote-amount)))
-                                     new-asks))))))))))
+             (values (sort (append my-bids
+                                   (mapcar (lambda (order)
+                                             (destructuring-bind (id quote-amount . price) order
+                                               (list* id price
+                                                      (* price-factor (/ quote-amount price)))))
+                                           new-bids))
+                           #'> :key #'cadr)
+                     (sort (append my-asks
+                                   (mapcar (lambda (order)
+                                             (destructuring-bind (id quote-amount . price) order
+                                               (list* id price quote-amount)))
+                                           new-asks))
+                           #'< :key #'cadr)))))))))
 
 (defvar *maker*
   ;; FIXME: this function is on the wishlist
