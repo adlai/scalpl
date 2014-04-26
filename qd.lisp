@@ -210,6 +210,8 @@
               (format t "~&Dropping BOTH crossed orders~%")
               (pop to-ask)
               (pop to-bid))
+            (format t "~&Remaining spread profit: ~D"
+                    (profit-margin (cdar to-bid) (cdar to-ask) 0.16))
             ;; cancel orders that need replacing
             (dolist (old my-asks)
               (let ((new (find (cadr old) to-ask :key #'cdr :test #'=)))
