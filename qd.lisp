@@ -216,13 +216,15 @@
                (let ((new (find (cadr old) to-ask :key #'cdr :test #'=)))
                  (cond
                    ((not new)
-                    ;; new order will replace old, cancel old
+                    ;; old needs to be removed
                     (progn
                       (cancel-order (car old))
                       (setf my-asks (remove old my-asks))))
                    ((< (abs (- (car new) (cddr old))) 0.00001)
+                    ;; new and old are identical
                     (setf to-ask (remove new to-ask)))
                    (t
+                    ;; new replaces old
                     (progn
                       (cancel-order (car old))
                       (setf my-asks (remove old my-asks)))))))
