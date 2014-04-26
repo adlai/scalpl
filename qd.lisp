@@ -211,13 +211,18 @@
              ;; cancel orders that need replacing
              (dolist (old my-asks)
                (let ((new (find (cadr old) to-ask :key #'cdr :test #'=)))
-                 (if (and new (< (abs (- (car new) (cddr old))) 0.00001))
-                     ;; old order will be placed anyways, don't replace it
-                     (setf to-ask (remove new to-ask))
-                     ;; new order will replace old, cancel old
-                     (progn
-                       (cancel-order (car old))
-                       (setf my-asks (remove old my-asks))))))
+                 (cond
+                   ((not new)
+                    ;; new order will replace old, cancel old
+                    (progn
+                      (cancel-order (car old))
+                      (setf my-asks (remove old my-asks))))
+                   ((< (abs (- (car new) (cddr old))) 0.00001)
+                    (setf to-ask (remove new to-ask)))
+                   (t
+                    (progn
+                      (cancel-order (car old))
+                      (setf my-asks (remove old my-asks)))))))
              (setf new-asks (mapcar (lambda (order-info)
                                       (cons (post-limit "sell" pair
                                                         (float (/ (cdr order-info) price-factor)
