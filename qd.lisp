@@ -229,13 +229,12 @@
                    (progn
                      (cancel-order (car old))
                      (setf my-asks (remove old my-asks)))))))
-            (setf new-asks (mapcar (lambda (order-info)
-                                     (cons (post-limit "sell" pair
-                                                       (float (/ (cdr order-info) price-factor)
-                                                              0d0)
-                                                       (car order-info))
-                                           order-info))
-                                   to-ask))
+            (dolist (new to-ask)
+              (push (cons (post-limit "sell" pair
+                                      (float (/ (cdr new) price-factor) 0d0)
+                                      (car new))
+                          new)
+                    new-asks))
             (dolist (old my-bids)
               (let ((new (find (cadr old) to-bid :key #'cdr :test #'=)))
                 (if (and new (< (abs (- (* price-factor (/ (car new) (cdr new)))
