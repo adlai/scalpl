@@ -132,19 +132,22 @@
 (defun profit-margin (bid ask fee-percent)
   (* (/ ask bid) (expt (- 1 (/ fee-percent 100)) 2)))
 
-(defun dumbot-oneside (book resilience funds &optional (delta 0) &aux (acc 0))
+(defun dumbot-oneside (book resilience funds &optional (delta 0)
+                       &aux (acc (cdar book)) (share acc))
   ;; calculate cumulative depths
-  (do ((cur book (cdr cur))
-       (n 0 (1+ n)))
-      ((> acc resilience)
-       (setf book (subseq book 0 n)))
+  (do* ((cur book (cdr cur))
+        (n 0 (1+ n)))
+       ((> acc resilience)
+        (let* ((clipped-book (subseq book 0 n))
+               (total-shares (reduce #'+ (mapcar #'car clipped-book))))
+          (mapcar (lambda (order)
+                    (let ((vol (* funds (/ (car order) total-shares))))
+                      (cons vol (+ delta (cadr order)))))
+                  clipped-book)))
     ;; modifies the book itself
-    (push (incf acc (cdar cur))
-          (car cur)))
-  (mapcar (lambda (order)
-            (let ((vol (* funds (/ (cddr order) acc))))
-              (cons vol (+ delta (cadr order)))))
-          book))
+    (push (incf share (incf acc (cdar cur))) (car cur))
+    (format t "~&Found ~$ at ~D total ~$ share ~$"
+            (cdadr cur) (caadr cur) acc share)))
 
 (defun gapps-rate (from to)
   (getjso "rate" (read-json (drakma:http-request
