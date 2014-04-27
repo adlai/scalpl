@@ -133,7 +133,7 @@
   (* (/ ask bid) (expt (- 1 (/ fee-percent 100)) 2)))
 
 (defun dumbot-oneside (book resilience funds &optional (delta 0)
-                       &aux (acc (cdar book)) (share acc))
+                       &aux (acc 0) (share 0))
   ;; calculate cumulative depths
   (do* ((cur book (cdr cur))
         (n 0 (1+ n)))
@@ -147,7 +147,7 @@
     ;; modifies the book itself
     (push (incf share (incf acc (cdar cur))) (car cur))
     (format t "~&Found ~$ at ~D total ~$ share ~$"
-            (cdadr cur) (caadr cur) acc share)))
+            (cddar cur) (cadar cur) acc share)))
 
 (defun gapps-rate (from to)
   (getjso "rate" (read-json (drakma:http-request
