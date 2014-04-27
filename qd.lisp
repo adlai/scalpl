@@ -200,79 +200,73 @@
           ;; TODO: algorithm similar to that of `ignore-mine' for updating
           ;; our positions on the exchange with as little downtime as possible
           ;; TODO: incorporate reserve tracking for zero-downtime order updates
-          (let ((to-bid (dumbot-oneside (ignore-mine bids (mapcar 'cdr my-bids))
-                                        resilience doge 1))
-                (to-ask (dumbot-oneside (ignore-mine asks (mapcar 'cdr my-asks))
-                                        resilience btc -1))
-                new-bids new-asks)
+          (let ((other-bids (ignore-mine bids (mapcar 'cdr my-bids)))
+                (other-asks (ignore-mine asks (mapcar 'cdr my-asks))))
             ;; hacky fix for shitty idiocy
-            (unless (> (cdar to-ask) (cdar to-bid))
-              (format t "~&Dropping BOTH crossed orders~%")
-              (pop to-ask)
-              (pop to-bid))
-            (format t "~&Remaining spread profit: ~D"
-                    (profit-margin (cdar to-bid) (cdar to-ask) 0.16))
-            ;; cancel orders that need replacing
-            (dolist (old my-asks)
-              (let ((new (find (cadr old) to-ask :key #'cdr :test #'=)))
-                (cond
-                  ((not new)
-                   ;; old needs to be removed
-                   (progn
-                     (cancel-order (car old))
-                     (setf my-asks (remove old my-asks))))
-                  ((< (abs (- (car new) (cddr old))) 0.00001)
-                   ;; new and old are identical
-                   (setf to-ask (remove new to-ask)))
-                  (t
-                   ;; new replaces old
-                   (progn
-                     (cancel-order (car old))
-                     (setf my-asks (remove old my-asks))
-                     (setf to-ask (remove new to-ask))
-                     (push (cons (post-limit "sell" pair
-                                             (float (/ (cdr new) price-factor) 0d0)
-                                             (car new))
-                                 new)
-                           new-asks))))))
-            (dolist (new to-ask)
-              (push (cons (post-limit "sell" pair
-                                      (float (/ (cdr new) price-factor) 0d0)
-                                      (car new))
-                          new)
-                    new-asks))
-            (dolist (old my-bids)
-              (let ((new (find (cadr old) to-bid :key #'cdr :test #'=)))
-                (if (and new (< (abs (- (* price-factor (/ (car new) (cdr new)))
-                                        (cddr old)))
-                                0.00001))
-                    ;; old order will be placed anyways, don't replace it
-                    (setf to-bid (remove new to-bid))
-                    ;; new order will replace old, cancel old
-                    (progn
-                      (cancel-order (car old))
-                      (setf my-bids (remove old my-bids))))))
-            (setf new-bids (mapcar (lambda (order-info)
-                                     (cons (post-limit "buy" pair
-                                                       (float (/ (cdr order-info) price-factor)
-                                                              0d0)
-                                                       (car order-info) "viqc")
-                                           order-info))
-                                   to-bid))
-            ;; convert new orders into a saner format (for ignore-mine)
-            (values (sort (append my-bids
-                                  (mapcar (lambda (order)
-                                            (destructuring-bind (id quote-amount . price) order
-                                              (list* id price
-                                                     (* price-factor (/ quote-amount price)))))
-                                          new-bids))
-                          #'> :key #'cadr)
-                    (sort (append my-asks
-                                  (mapcar (lambda (order)
-                                            (destructuring-bind (id quote-amount . price) order
-                                              (list* id price quote-amount)))
-                                          new-asks))
-                          #'< :key #'cadr))))))))
+            (unless (> (caar other-asks) (+ 2 (caar other-bids)))
+              (format t "~&Dropping BOTH nearly-crossed book orders~%")
+              (pop other-asks)
+              (pop other-bids))
+            (let ((to-bid (dumbot-oneside other-bids resilience doge 1))
+                  (to-ask (dumbot-oneside other-asks resilience btc -1))
+                  new-bids new-asks)
+              (format t "~&My estimated spread profit: ~D"
+                      (profit-margin (cdar to-bid) (cdar to-ask) 0.16))
+              (flet ((cancel (old)
+                       (cancel-order (car old))
+                       (setf my-asks (remove old my-asks)))
+                     (place (new)
+                       (push (cons (post-limit "sell" pair
+                                               (float (/ (cdr new) price-factor) 0d0)
+                                               (car new))
+                                   new)
+                             new-asks)))
+                (dolist (old my-asks)
+                  (let ((new (find (cadr old) to-ask :key #'cdr :test #'=)))
+                    (cond
+                      ((not new) (cancel old))
+                      ((< (abs (- (car new) (cddr old))) 0.00001)
+                       ;; new and old are identical
+                       (setf to-ask (remove new to-ask)))
+                      (t
+                       ;; new replaces old
+                       (progn
+                         (cancel old)
+                         (setf to-ask (remove new to-ask))
+                         (place new))))))
+                (mapcar #'place to-ask))
+              (dolist (old my-bids)
+                (let ((new (find (cadr old) to-bid :key #'cdr :test #'=)))
+                  (if (and new (< (abs (- (* price-factor (/ (car new) (cdr new)))
+                                          (cddr old)))
+                                  0.00001))
+                      ;; old order will be placed anyways, don't replace it
+                      (setf to-bid (remove new to-bid))
+                      ;; new order will replace old, cancel old
+                      (progn
+                        (cancel-order (car old))
+                        (setf my-bids (remove old my-bids))))))
+              (setf new-bids (mapcar (lambda (order-info)
+                                       (cons (post-limit "buy" pair
+                                                         (float (/ (cdr order-info) price-factor)
+                                                                0d0)
+                                                         (car order-info) "viqc")
+                                             order-info))
+                                     to-bid))
+              ;; convert new orders into a saner format (for ignore-mine)
+              (values (sort (append my-bids
+                                    (mapcar (lambda (order)
+                                              (destructuring-bind (id quote-amount . price) order
+                                                (list* id price
+                                                       (* price-factor (/ quote-amount price)))))
+                                            new-bids))
+                            #'> :key #'cadr)
+                      (sort (append my-asks
+                                    (mapcar (lambda (order)
+                                              (destructuring-bind (id quote-amount . price) order
+                                                (list* id price quote-amount)))
+                                            new-asks))
+                            #'< :key #'cadr)))))))))
 
 (defvar *maker*
   ;; FIXME: this function is on the wishlist
