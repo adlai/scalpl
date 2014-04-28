@@ -236,24 +236,30 @@
                          (setf to-ask (remove new to-ask))
                          (place new))))))
                 (mapcar #'place to-ask))
-              (dolist (old my-bids)
-                (let ((new (find (cadr old) to-bid :key #'cdr :test #'=)))
-                  (if (and new (< (abs (- (* price-factor (/ (car new) (cdr new)))
-                                          (cddr old)))
-                                  0.00001))
-                      ;; old order will be placed anyways, don't replace it
-                      (setf to-bid (remove new to-bid))
-                      ;; new order will replace old, cancel old
-                      (progn
-                        (cancel-order (car old))
-                        (setf my-bids (remove old my-bids))))))
-              (setf new-bids (mapcar (lambda (order-info)
-                                       (cons (post-limit "buy" pair
-                                                         (float (/ (cdr order-info) price-factor)
-                                                                0d0)
-                                                         (car order-info) "viqc")
-                                             order-info))
-                                     to-bid))
+              (flet ((cancel (old)
+                       (cancel-order (car old))
+                       (setf my-bids (remove old my-bids)))
+                     (place (new)
+                       (let ((o (post-limit "buy" pair
+                                            (float (/ (cdr new) price-factor) 0d0)
+                                            (car new) "viqc")))
+                         ;; rudimentary protection against too-small orders
+                         (if o (push (cons o new) new-bids)
+                             (format t "~&Couldn't place ~S~%" new)))))
+                (dolist (old my-bids)
+                  (let ((new (find (cadr old) to-bid :key #'cdr :test #'=)))
+                    (cond
+                      ((not new) (cancel old))
+                      ((< (abs (- (* price-factor (/ (car new) (cdr new)))
+                                  (cddr old)))
+                          0.00001)
+                       (setf to-bid (remove new to-bid)))
+                      (t
+                       (progn
+                         (cancel old)
+                         (setf to-bid (remove new to-bid))
+                         (place new))))))
+                (mapcar #'place to-bid))
               ;; convert new orders into a saner format (for ignore-mine)
               (values (sort (append my-bids
                                     (mapcar (lambda (order)
