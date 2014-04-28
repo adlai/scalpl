@@ -216,11 +216,12 @@
                        (cancel-order (car old))
                        (setf my-asks (remove old my-asks)))
                      (place (new)
-                       (push (cons (post-limit "sell" pair
-                                               (float (/ (cdr new) price-factor) 0d0)
-                                               (car new))
-                                   new)
-                             new-asks)))
+                       (let ((o (post-limit "sell" pair
+                                             (float (/ (cdr new) price-factor) 0d0)
+                                             (car new))))
+                         ;; rudimentary protection against too-small orders
+                         (if o (push (cons o new) new-asks)
+                             (format t "~&Couldn't place ~S~%" new)))))
                 (dolist (old my-asks)
                   (let ((new (find (cadr old) to-ask :key #'cdr :test #'=)))
                     (cond
