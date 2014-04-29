@@ -77,32 +77,33 @@
 
 (defparameter *validate* nil)
 
-(defun post-limit (type pair price volume &optional options)
-  (multiple-value-bind (info errors)
-      (auth-request "AddOrder"
-                    `(("ordertype" . "limit")
-                      ("type" . ,type)
-                      ("pair" . ,pair)
-                      ("volume" . ,(princ-to-string volume))
-                      ("price" . ,(format nil "~$" price))
-                      ,@(when options `(("oflags" . ,options)))
-                      ,@(when *validate* `(("validate" . "true")))
-                      ))
-    (if errors
-        (dolist (message errors)
-          (if (and (search "volume" message)
-                   (not (search "viqc" options)))
-              (return
-                (post-limit type pair price (* volume price)
-                            (apply #'concatenate 'string "viqc"
-                                   (when options '("," options)))))
-              (format t "~&~A~%" message)))
-        (progn
-          (format t "~&want ~A~%" (getjso* "descr.order" info))
-          ;; theoretically, we could get several order IDs here,
-          ;; but we're not using any of kraken's fancy forex nonsense
-          (setf (getjso* "descr.id" info) (car (getjso* "txid" info)))
-          (getjso "descr" info)))))
+(defun post-limit (type pair price volume decimals &optional options)
+  (let ((price (/ price (expt 10 decimals))))
+    (multiple-value-bind (info errors)
+        (auth-request "AddOrder"
+                      `(("ordertype" . "limit")
+                        ("type" . ,type)
+                        ("pair" . ,pair)
+                        ("volume" . ,(princ-to-string volume))
+                        ("price" . ,(format nil "~$" price))
+                        ,@(when options `(("oflags" . ,options)))
+                        ,@(when *validate* `(("validate" . "true")))
+                        ))
+      (if errors
+          (dolist (message errors)
+            (if (and (search "volume" message)
+                     (not (search "viqc" options)))
+                (return
+                  (post-limit type pair price (* volume price) 0
+                              (apply #'concatenate 'string "viqc"
+                                     (when options '("," options)))))
+                (format t "~&~A~%" message)))
+          (progn
+            (format t "~&want ~A~%" (getjso* "descr.order" info))
+            ;; theoretically, we could get several order IDs here,
+            ;; but we're not using any of kraken's fancy forex nonsense
+            (setf (getjso* "descr.id" info) (car (getjso* "txid" info)))
+            (getjso "descr" info))))))
 
 (defvar *last-track-time*)
 (defvar *last-candle-id*)
@@ -160,7 +161,8 @@
                  (pair "XXBTXXDG") my-bids my-asks
                &aux
                  (market (getjso pair *markets*))
-                 (price-factor (expt 10 (getjso "pair_decimals" market))))
+                 (decimals (getjso "pair_decimals" market))
+                 (price-factor (expt 10 decimals)))
   ;; Track our resilience target
   (track-vol pair 1)
   ;; Get our balances
@@ -216,33 +218,26 @@
                        (cancel-order (car old))
                        (setf my-asks (remove old my-asks)))
                      (place (new)
-                       (let ((o (post-limit "sell" pair
-                                             (float (/ (cdr new) price-factor) 0d0)
-                                             (car new))))
-                         ;; rudimentary protection against too-small orders
+                       (let ((o (post-limit "sell" pair (cdr new)
+                                            (car new) decimals)))
                          (if o (push (cons o new) new-asks)
                              (format t "~&Couldn't place ~S~%" new)))))
                 (dolist (old my-asks)
                   (let ((new (find (cadr old) to-ask :key #'cdr :test #'=)))
-                    (cond
-                      ((not new) (cancel old))
-                      ((< (abs (- (car new) (cddr old))) 0.00001)
-                       ;; new and old are identical
-                       (setf to-ask (remove new to-ask)))
-                      (t
-                       ;; new replaces old
-                       (progn
-                         (cancel old)
-                         (setf to-ask (remove new to-ask))
-                         (place new))))))
+                    (if new
+                        (let ((same (< (abs (- (car new) (cddr old))) 0.00001)))
+                          (if same (setf to-ask (remove new to-ask))
+                              (dolist (new to-ask (cancel old))
+                                (if (place new) (pop to-ask) (return)))))
+                        (dolist (new (remove (cadr old) to-ask :key #'cdr :test #'=) (cancel old))
+                          (if (place new) (pop to-ask) (return))))))
                 (mapcar #'place to-ask))
               (flet ((cancel (old)
                        (cancel-order (car old))
                        (setf my-bids (remove old my-bids)))
                      (place (new)
-                       (let ((o (post-limit "buy" pair
-                                            (float (/ (cdr new) price-factor) 0d0)
-                                            (car new) "viqc")))
+                       (let ((o (post-limit "buy" pair (cdr new)
+                                            (car new) decimals "viqc")))
                          ;; rudimentary protection against too-small orders
                          (if o (push (cons o new) new-bids)
                              (format t "~&Couldn't place ~S~%" new)))))
