@@ -199,8 +199,6 @@
           ;; if it's too low, just don't place the new order
           ;; this should yield behavior which resists price swings
           ;; TODO: properly deal with partial and completed orders
-          ;; TODO: algorithm similar to that of `ignore-mine' for updating
-          ;; our positions on the exchange with as little downtime as possible
           ;; TODO: incorporate reserve tracking for zero-downtime order updates
           (let ((other-bids (ignore-mine bids (mapcar 'cdr my-bids)))
                 (other-asks (ignore-mine asks (mapcar 'cdr my-asks))))
@@ -241,18 +239,18 @@
                            (if o (push (cons o new) new-bids)
                                (format t "~&Couldn't place ~S~%" new)))))
                   (dolist (old my-bids)
-                    (let ((new (find (cadr old) to-bid :key #'cdr :test #'=)))
-                      (cond
-                        ((not new) (cancel old my-bids))
-                        ((< (abs (- (* price-factor (/ (car new) (cdr new)))
-                                    (cddr old)))
-                            0.00001)
-                         (setf to-bid (remove new to-bid)))
-                        (t
-                         (progn
-                           (cancel old my-bids)
-                           (setf to-bid (remove new to-bid))
-                           (place new))))))
+                    (let* ((new (find (cadr old) to-bid :key #'cdr :test #'=))
+                           (same (and new (< (abs (- (* price-factor
+                                                        (/ (car new)
+                                                           (cdr new)))
+                                                     (cddr old)))
+                                             0.00001))))
+                      (if same (setf to-bid (remove new to-bid))
+                          (dolist (new (remove (cadr old) to-bid
+                                               :key #'cdr :test #'>)
+                                   (cancel old my-bids))
+                            (if (place new) (pop to-bid)
+                                (return (cancel old my-bids)))))))
                   (mapcar #'place to-bid)))
               ;; convert new orders into a saner format (for ignore-mine)
               (values (sort (append my-bids
