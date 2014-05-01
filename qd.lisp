@@ -164,7 +164,7 @@
                  (decimals (getjso "pair_decimals" market))
                  (price-factor (expt 10 decimals)))
   ;; Track our resilience target
-  (track-vol pair 1)
+  (track-vol pair 5)
   ;; Get our balances
   (let ((balances (auth-request "Balance"))
         (resilience (* resilience-factor *max-seen-vol*))
@@ -178,7 +178,7 @@
              (btc (* (- 1 fund-factor) total-btc btc-fraction))
              (doge (* fund-factor total-doge (- 1 btc-fraction))))
         ;; report funding
-        (format t "~&\"My cryptocurrency portfolio is ~$% invested in dogecoins\""
+        (format t "~&~|\"My cryptocurrency portfolio is ~$% invested in dogecoins\""
                 (* 100 (- 1 btc-fraction)))
         (format t "~&very fund ~8$฿ + ~1$Ð ≈» ~8$฿~%"
                 total-btc total-doge total-fund)
@@ -276,5 +276,5 @@
                           (glock.connection::make-signer #P "secrets/kraken.secret")))))
     (let (bids asks)
       (loop
-         (setf (values bids asks) (%round 3/4 3/4 "XXBTXXDG" bids asks))
+         (setf (values bids asks) (%round 3/4 1 "XXBTXXDG" bids asks))
          (sleep 15)))))
