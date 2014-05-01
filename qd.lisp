@@ -170,14 +170,13 @@
         (resilience (* resilience-factor *max-seen-vol*))
         (doge/btc (read-from-string (second (getjso "p" (getjso pair (get-request "Ticker" `(("pair" . ,pair)))))))))
     (flet ((symbol-funds (symbol) (read-from-string (getjso symbol balances)))
-           (total-of (btc doge) (+ btc (/ doge doge/btc)))
-           (factor-fund (fund factor) (* fund fund-factor factor)))
+           (total-of (btc doge) (+ btc (/ doge doge/btc))))
       (let* ((total-btc (symbol-funds (getjso "base" market)))
              (total-doge (symbol-funds (getjso "quote" market)))
              (total-fund (total-of total-btc total-doge))
              (btc-fraction (/ total-btc total-fund))
-             (btc (factor-fund total-btc btc-fraction))
-             (doge (factor-fund total-doge (- 1 btc-fraction))))
+             (btc (* (- 1 fund-factor) total-btc btc-fraction))
+             (doge (* fund-factor total-doge (- 1 btc-fraction))))
         ;; report funding
         (format t "~&\"My cryptocurrency portfolio is ~$% invested in dogecoins\""
                 (* 100 (- 1 btc-fraction)))
