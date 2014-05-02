@@ -57,19 +57,28 @@
          (search "Ledgers" path))
      (format t "~&API counter +2 from ~A" path))
     (t (format t "~&API counter +1 from ~A" path)))
-  (multiple-value-bind (body status)
-      (apply #'drakma:http-request
-             (concatenate 'string +base-path+ path)
-             keys)
-    (case status
-      (200 (with-json-slots (result error)
-               (decode-json (map 'string 'code-char body))
-             (values result error)))
-      (502 (format t "~&Retrying after 502...~%")
-           (sleep 1)
-           (apply #'raw-request path keys))
-      (t (cerror "Retry request" "HTTP Error ~D" status)
-         (apply #'raw-request path keys)))))
+  (handler-case
+      (multiple-value-bind (body status)
+          (apply #'drakma:http-request
+                 (concatenate 'string +base-path+ path)
+                 keys)
+        (case status
+          (200 (with-json-slots (result error)
+                   (decode-json (map 'string 'code-char body))
+                 (values result error)))
+          (502 (format t "~&Retrying after 502...~%")
+               (sleep 1)
+               (apply #'raw-request path keys))
+          (t (cerror "Retry request" "HTTP Error ~D" status)
+             (apply #'raw-request path keys))))
+    (usocket:deadline-timeout-error ()
+      (format t "~&Retrying after deadline timeout...~%")
+      (sleep 1)
+      (apply #'raw-request path keys))
+    (usocket:timeout-error ()
+      (format t "~&Retrying after regular timeout...~%")
+      (sleep 1)
+      (apply #'raw-request path keys))))
 
 (defun get-request (path &optional data)
   (raw-request (concatenate 'string "public/" path "?"
