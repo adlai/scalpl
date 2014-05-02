@@ -164,7 +164,7 @@
                  (decimals (getjso "pair_decimals" market))
                  (price-factor (expt 10 decimals)))
   ;; Track our resilience target
-  (track-vol pair 5)
+  (track-vol pair 1)
   ;; Get our balances
   (let ((balances (auth-request "Balance"))
         (resilience (* resilience-factor *max-seen-vol*))
@@ -276,5 +276,5 @@
                           (glock.connection::make-signer #P "secrets/kraken.secret")))))
     (let (bids asks)
       (loop
-         (setf (values bids asks) (%round 3/4 1 "XXBTXXDG" bids asks))
-         (sleep 15)))))
+         (setf (values bids asks) (%round 3/4 1/2 "XXBTXXDG" bids asks))
+         (sleep 10)))))
