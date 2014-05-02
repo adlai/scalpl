@@ -78,14 +78,14 @@
 (defparameter *validate* nil)
 
 (defun post-limit (type pair price volume decimals &optional options)
-  (let ((price (/ price (expt 10 decimals))))
+  (let ((price (/ price (expt 10d0 decimals))))
     (multiple-value-bind (info errors)
         (auth-request "AddOrder"
                       `(("ordertype" . "limit")
                         ("type" . ,type)
                         ("pair" . ,pair)
-                        ("volume" . ,(princ-to-string volume))
-                        ("price" . ,(format nil "~$" price))
+                        ("volume" . ,(format nil "~F" volume))
+                        ("price" . ,(format nil "~F" price))
                         ,@(when options `(("oflags" . ,options)))
                         ,@(when *validate* `(("validate" . "true")))
                         ))
@@ -206,6 +206,14 @@
               (format t "~&Dropping BOTH nearly-crossed book orders~%")
               (pop other-asks)
               (pop other-bids))
+            ;; NON STOP PARTY PROFIT MADNESS
+            (do ((best-bid (caar other-bids) (caar other-bids))
+                 (best-ask (caar other-asks) (caar other-asks)))
+                ((> (profit-margin (1+ best-bid) (1- best-ask) 0.16) 1))
+              (pop other-bids)
+              (pop other-asks)
+              (format t "~&Dropping unprofitable spread: ~D to ~D~%"
+                      best-bid best-ask))
             (let ((to-bid (dumbot-oneside other-bids resilience doge 1))
                   (to-ask (dumbot-oneside other-asks resilience btc -1))
                   new-bids new-asks)
