@@ -207,18 +207,19 @@
               (pop other-asks)
               (pop other-bids))
             ;; NON STOP PARTY PROFIT MADNESS
-            (do ((best-bid (caar other-bids) (caar other-bids))
-                 (best-ask (caar other-asks) (caar other-asks)))
-                ((> (profit-margin (1+ best-bid) (1- best-ask) 0.16) 1))
+            (do* ((best-bid (caar other-bids) (caar other-bids))
+                  (best-ask (caar other-asks) (caar other-asks))
+                  (spread (profit-margin (1+ best-bid) (1- best-ask) 0.16)
+                          (profit-margin (1+ best-bid) (1- best-ask) 0.16)))
+                 ((> spread 1)
+                  (format t "~&My estimated spread profit: ~D" spread))
               (pop other-bids)
               (pop other-asks)
-              (format t "~&Dropping unprofitable spread: ~D to ~D~%"
-                      best-bid best-ask))
+              (format t "~&Dropping unprofitable spread: ~F from ~D to ~D~%"
+                      spread best-bid best-ask))
             (let ((to-bid (dumbot-oneside other-bids resilience doge 1))
                   (to-ask (dumbot-oneside other-asks resilience btc -1))
                   new-bids new-asks)
-              (format t "~&My estimated spread profit: ~D"
-                      (profit-margin (cdar to-bid) (cdar to-ask) 0.16))
               (macrolet ((cancel (old place)
                            `(progn (cancel-order (car ,old))
                                    (setf ,place (remove ,old ,place)))))
