@@ -131,7 +131,7 @@
               interval *max-seen-vol*))))
 
 (defun profit-margin (bid ask fee-percent)
-  (* (/ ask bid) (expt (- 1 (/ fee-percent 100)) 2)))
+  (* (/ ask bid) (- 1 (/ fee-percent 100))))
 
 (defun dumbot-oneside (book resilience funds &optional (delta 0)
                        &aux (acc 0) (share 0))
