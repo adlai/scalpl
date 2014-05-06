@@ -167,7 +167,10 @@
   (track-vol pair 1)
   ;; Get our balances
   (let ((balances (auth-request "Balance"))
-        (resilience (* resilience-factor *max-seen-vol*))
+        ;; FIXME: I'm hardcoded because my developer is a lazy shmuck who can't
+        ;; be assed to properly balance the resilience according to the target
+        ;; portfolio distribution.
+        (resilience 3)
         (doge/btc (read-from-string (second (getjso "p" (getjso pair (get-request "Ticker" `(("pair" . ,pair)))))))))
     (flet ((symbol-funds (symbol) (read-from-string (getjso symbol balances)))
            (total-of (btc doge) (+ btc (/ doge doge/btc))))
@@ -209,8 +212,8 @@
             ;; NON STOP PARTY PROFIT MADNESS
             (do* ((best-bid (caar other-bids) (caar other-bids))
                   (best-ask (caar other-asks) (caar other-asks))
-                  (spread (profit-margin (1+ best-bid) (1- best-ask) 0.16)
-                          (profit-margin (1+ best-bid) (1- best-ask) 0.16)))
+                  (spread (profit-margin (1+ best-bid) (1- best-ask) 0.15)
+                          (profit-margin (1+ best-bid) (1- best-ask) 0.15)))
                  ((> spread 1)
                   (format t "~&My estimated spread profit: ~D" spread))
               (pop other-bids)
@@ -285,5 +288,5 @@
                           (glock.connection::make-signer #P "secrets/kraken.secret")))))
     (let (bids asks)
       (loop
-         (setf (values bids asks) (%round 4/5 1/3 "XXBTZEUR" bids asks))
+         (setf (values bids asks) (%round 2/3 1/9 "XXBTZEUR" bids asks))
          (sleep 6)))))
