@@ -289,5 +289,5 @@
                           (glock.connection::make-signer #P "secrets/kraken.secret")))))
     (let (bids asks)
       (loop
-         (setf (values bids asks) (%round 2/3 1/9 "XXBTZEUR" bids asks))
+         (setf (values bids asks) (%round 3/4 1/9 "XXBTZEUR" bids asks))
          (sleep 6)))))
