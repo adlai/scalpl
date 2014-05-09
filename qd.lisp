@@ -130,21 +130,23 @@
 (defun profit-margin (bid ask fee-percent)
   (* (/ ask bid) (- 1 (/ fee-percent 100))))
 
-(defun dumbot-oneside (book resilience funds &optional (delta 0)
+(defun dumbot-oneside (book resilience funds delta max-orders predicate
                        &aux (acc 0) (share 0))
   ;; calculate cumulative depths
   (do* ((cur book (cdr cur))
         (n 0 (1+ n)))
        ((> acc resilience)
-        (let* ((clipped-book (subseq book 0 n))
-               (total-shares (reduce #'+ (mapcar #'car clipped-book))))
+        (let* ((sorted (sort (subseq book 1 n) #'> :key #'cddr))
+               (n-orders (min max-orders n))
+               (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
+               (total-shares (reduce #'+ (mapcar #'car relevant))))
           (mapcar (lambda (order)
                     (let ((vol (* funds (/ (car order) total-shares))))
                       (cons vol (+ delta (cadr order)))))
-                  clipped-book)))
+                  (sort relevant predicate :key #'cddr))))
     ;; modifies the book itself
     (push (incf share (incf acc (cdar cur))) (car cur))
-    (format t "~&Found ~$ at ~D total ~$ share ~$"
+    (format t "~&Found ~$ at ~D total ~$ share ~$~%"
             (cddar cur) (cadar cur) acc share)))
 
 (defun gapps-rate (from to)
@@ -208,16 +210,16 @@
             ;; NON STOP PARTY PROFIT MADNESS
             (do* ((best-bid (caar other-bids) (caar other-bids))
                   (best-ask (caar other-asks) (caar other-asks))
-                  (spread (profit-margin (1+ best-bid) (1- best-ask) 0.15)
-                          (profit-margin (1+ best-bid) (1- best-ask) 0.15)))
+                  (spread (profit-margin (1+ best-bid) (1- best-ask) 0.14)
+                          (profit-margin (1+ best-bid) (1- best-ask) 0.14)))
                  ((> spread 1)
                   (format t "~&My estimated spread profit: ~D" spread))
               (pop other-bids)
               (pop other-asks)
               (format t "~&Dropping unprofitable spread: ~F from ~D to ~D~%"
                       spread best-bid best-ask))
-            (let ((to-bid (dumbot-oneside other-bids resilience doge 1))
-                  (to-ask (dumbot-oneside other-asks resilience btc -1))
+            (let ((to-bid (dumbot-oneside other-bids resilience doge 1 8 #'>))
+                  (to-ask (dumbot-oneside other-asks resilience btc -1 8 #'<))
                   new-bids new-asks)
               (macrolet ((cancel (old place)
                            `(progn (cancel-order (car ,old))
