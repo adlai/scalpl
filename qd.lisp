@@ -112,7 +112,8 @@
 
 (defun track-trades (pair interval-seconds
                      &aux (now (timestamp-to-unix (now))))
-  (when (< interval-seconds (- now *last-track-time*))
+  (when (or (not (boundp '*last-track-time*))
+            (< interval-seconds (- now *last-track-time*)))
     (with-json-slots (last (trades pair))
         (get-request "Trades"
                      `(("pair" . ,pair)
