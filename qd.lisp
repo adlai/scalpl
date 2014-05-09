@@ -106,29 +106,26 @@
             (getjso "descr" info))))))
 
 (defvar *last-track-time*)
-(defvar *last-candle-id*)
+(defvar *last-trade-id*)
 
-(defvar *max-seen-vol* 0)
+(defvar *max-seen-trade* 0)
 
-(defun track-vol (pair interval &aux (now (timestamp-to-unix (now))))
-  (when (or (not (boundp '*last-candle-id*)) ; initial request
-            (< (* interval 60)          ; convert minutes to seconds
-               (- now *last-track-time*)))
-    (with-json-slots (last (candles pair))
-        (get-request "OHLC"
+(defun track-trades (pair interval-seconds
+                     &aux (now (timestamp-to-unix (now))))
+  (when (< interval-seconds (- now *last-track-time*))
+    (with-json-slots (last (trades pair))
+        (get-request "Trades"
                      `(("pair" . ,pair)
-                       ("interval" . ,(princ-to-string interval))
-                       ,@(when (boundp '*last-candle-id*)
-                               `(("since" . ,(princ-to-string *last-candle-id*))))))
-      (setf *last-candle-id* last
+                       ,@(when (boundp '*last-trade-id*)
+                               `(("since" .,(princ-to-string *last-trade-id*))))))
+      (setf *last-trade-id*   last
             *last-track-time* now
-            *max-seen-vol* (reduce 'max
-                                   (mapcar 'read-from-string
-                                           (map 'list 'seventh candles))
-                                   :initial-value *max-seen-vol*))
-      (format t "~&~A highest ~D minute volume - ~F"
-              (unix-to-timestamp last)
-              interval *max-seen-vol*))))
+            *max-seen-trade*  (reduce #'max
+                                      (mapcar #'read-from-string
+                                              (mapcar #'second trades))
+                                      :initial-value *max-seen-trade*))))
+  (format t "~&~A largest seen trade: ~F (updated ~A)~%"
+          (now) *max-seen-trade* (unix-to-timestamp *last-track-time*)))
 
 (defun profit-margin (bid ask fee-percent)
   (* (/ ask bid) (- 1 (/ fee-percent 100))))
@@ -164,10 +161,10 @@
                  (decimals (getjso "pair_decimals" market))
                  (price-factor (expt 10 decimals)))
   ;; Track our resilience target
-  (track-vol pair 1)
+  (track-trades pair 25)
   ;; Get our balances
   (let ((balances (auth-request "Balance"))
-        (resilience (* resilience-factor *max-seen-vol*))
+        (resilience (* resilience-factor *max-seen-trade*))
         (doge/btc (read-from-string (second (getjso "p" (getjso pair (get-request "Ticker" `(("pair" . ,pair)))))))))
     (flet ((symbol-funds (symbol) (read-from-string (getjso symbol balances)))
            (total-of (btc doge) (+ btc (/ doge doge/btc)))
@@ -187,6 +184,7 @@
                 btc doge (total-of btc doge)
                 (* 100 (/ (total-of btc doge) total-fund)))
         ;; report orders
+        (format t "~A resilience: ~F" (now) resilience)
         (format t "~&bids @ ~{~D~#[~:; ~]~}~%" (mapcar #'cadr my-bids))
         (format t "~&asks @ ~{~D~#[~:; ~]~}~%" (mapcar #'cadr my-asks))
         ;; Now run that algorithm thingy
@@ -210,8 +208,8 @@
             ;; NON STOP PARTY PROFIT MADNESS
             (do* ((best-bid (caar other-bids) (caar other-bids))
                   (best-ask (caar other-asks) (caar other-asks))
-                  (spread (profit-margin (1+ best-bid) (1- best-ask) 0.16)
-                          (profit-margin (1+ best-bid) (1- best-ask) 0.16)))
+                  (spread (profit-margin (1+ best-bid) (1- best-ask) 0.15)
+                          (profit-margin (1+ best-bid) (1- best-ask) 0.15)))
                  ((> spread 1)
                   (format t "~&My estimated spread profit: ~D" spread))
               (pop other-bids)
@@ -286,5 +284,5 @@
                           (glock.connection::make-signer #P "secrets/kraken.secret")))))
     (let (bids asks)
       (loop
-         (setf (values bids asks) (%round 3/4 1/9 "XXBTZEUR" bids asks))
+         (setf (values bids asks) (%round 1 1 "XXBTZEUR" bids asks))
          (sleep 6)))))
