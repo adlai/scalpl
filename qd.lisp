@@ -238,7 +238,7 @@
                           (dolist (new (remove (cadr old) to-ask
                                                :key #'cdr :test #'<)
                                    (cancel old my-asks))
-                            (if (place new) (pop to-ask)
+                            (if (place new) (setf to-ask (remove new to-ask))
                                 (return (cancel old my-asks)))))))
                   (mapcar #'place to-ask))
                 (flet ((place (new)
@@ -258,7 +258,7 @@
                           (dolist (new (remove (cadr old) to-bid
                                                :key #'cdr :test #'>)
                                    (cancel old my-bids))
-                            (if (place new) (pop to-bid)
+                            (if (place new) (setf to-bid (remove new to-bid))
                                 (return (cancel old my-bids)))))))
                   (mapcar #'place to-bid)))
               ;; convert new orders into a saner format (for ignore-mine)
