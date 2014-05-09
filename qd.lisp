@@ -219,8 +219,8 @@
               (pop other-asks)
               (format t "~&Dropping unprofitable spread: ~F from ~D to ~D~%"
                       spread best-bid best-ask))
-            (let ((to-bid (dumbot-oneside other-bids resilience doge 1 8 #'>))
-                  (to-ask (dumbot-oneside other-asks resilience btc -1 8 #'<))
+            (let ((to-bid (dumbot-oneside other-bids resilience doge 1 9 #'>))
+                  (to-ask (dumbot-oneside other-asks resilience btc -1 9 #'<))
                   new-bids new-asks)
               (macrolet ((cancel (old place)
                            `(progn (cancel-order (car ,old))
