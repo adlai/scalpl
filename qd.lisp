@@ -96,7 +96,10 @@
           (dolist (message errors)
             (if (search "volume" message)
                 (if (search "viqc" options)
-                    (signal 'volume-too-low)
+                    (return
+                      ;; such hard code
+                      (post-limit type pair price (+ volume 0.01) 0 options))
+                    ;; (signal 'volume-too-low)
                     (return
                       (post-limit type pair price (* volume price) 0
                                   (apply #'concatenate 'string "viqc"
@@ -112,7 +115,7 @@
 (defvar *last-track-time*)
 (defvar *last-trade-id*)
 
-(defvar *max-seen-trade* 0)
+(defvar *max-seen-trade* 30)
 
 (defun track-trades (pair interval-seconds
                      &aux (now (timestamp-to-unix (now))))
@@ -151,8 +154,9 @@
                   (sort relevant predicate :key #'cddr))))
     ;; modifies the book itself
     (push (incf share (incf acc (cdar cur))) (car cur))
-    (format t "~&Found ~$ at ~D total ~$ share ~$~%"
-            (cddar cur) (cadar cur) acc share)))
+    ;; (format t "~&Found ~$ at ~D total ~$ share ~$~%"
+    ;;         (cddar cur) (cadar cur) acc share)
+    ))
 
 (defun gapps-rate (from to)
   (getjso "rate" (read-json (drakma:http-request
@@ -223,8 +227,8 @@
               (pop other-asks)
               (format t "~&Dropping unprofitable spread: ~F from ~D to ~D~%"
                       spread best-bid best-ask))
-            (let ((to-bid (dumbot-oneside other-bids resilience doge 1 15 #'>))
-                  (to-ask (dumbot-oneside other-asks resilience btc -1 15 #'<))
+            (let ((to-bid (dumbot-oneside other-bids resilience doge 1 9 #'>))
+                  (to-ask (dumbot-oneside other-asks resilience btc -1 9 #'<))
                   new-bids new-asks)
               (macrolet ((cancel (old place)
                            `(progn (cancel-order (car ,old))
@@ -289,16 +293,20 @@
                                             new-asks))
                             #'< :key #'cadr)))))))))
 
+(defvar *fund-factor* 1)
+(defvar *resilience-factor* 1)
+
 (defvar *maker*
   ;; FIXME: this function is on the wishlist
   (chanl:pexec (:name "qdm-preα"
                 :initial-bindings
                 `((*read-default-float-format* double-float)
-                  (*max-seen-trade* 30)
                   (*auth*
                    ,(cons (glock.connection::make-key #P "secrets/kraken.pubkey")
                           (glock.connection::make-signer #P "secrets/kraken.secret")))))
     (let (bids asks)
       (loop
-         (setf (values bids asks) (%round 1 1 "XXBTZEUR" bids asks))
-         (sleep 6)))))
+         (setf (values bids asks)
+               (%round *fund-factor*
+                       *resilience-factor*
+                       "XXBTZEUR" bids asks))))))
