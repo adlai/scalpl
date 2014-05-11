@@ -78,6 +78,8 @@
 
 (defparameter *validate* nil)
 
+(define-condition volume-too-low () ())
+
 (defun post-limit (type pair price volume decimals &optional options)
   (let ((price (/ price (expt 10d0 decimals))))
     (multiple-value-bind (info errors)
@@ -92,12 +94,13 @@
                         ))
       (if errors
           (dolist (message errors)
-            (if (and (search "volume" message)
-                     (not (search "viqc" options)))
-                (return
-                  (post-limit type pair price (* volume price) 0
-                              (apply #'concatenate 'string "viqc"
-                                     (when options '("," options)))))
+            (if (search "volume" message)
+                (if (search "viqc" options)
+                    (signal 'volume-too-low)
+                    (return
+                      (post-limit type pair price (* volume price) 0
+                                  (apply #'concatenate 'string "viqc"
+                                         (when options '("," options))))))
                 (format t "~&~A~%" message)))
           (progn
             (format t "~&want ~A~%" (getjso* "descr.order" info))
@@ -227,10 +230,14 @@
                            `(progn (cancel-order (car ,old))
                                    (setf ,place (remove ,old ,place)))))
                 (flet ((place (new)
-                         (let ((o (post-limit "sell" pair (cdr new)
-                                              (car new) decimals)))
-                           (if o (push (cons o new) new-asks)
-                               (format t "~&Couldn't place ~S~%" new)))))
+                         (handler-case
+                             (let ((o (post-limit "sell" pair (cdr new)
+                                                  (car new) decimals)))
+                               (if o (push (cons o new) new-asks)
+                                   (format t "~&Couldn't place ~S~%" new)))
+                           (volume-too-low ()
+                             (format t "~&Volume too low: ~S~%" new)
+                             t))))
                   (dolist (old my-asks)
                     (let* ((new (find (cadr old) to-ask :key #'cdr :test #'=))
                            (same (and new (< (abs (- (car new)
@@ -244,11 +251,15 @@
                                 (return (cancel old my-asks)))))))
                   (mapcar #'place to-ask))
                 (flet ((place (new)
-                         (let ((o (post-limit "buy" pair (cdr new)
-                                              (car new) decimals "viqc")))
-                           ;; rudimentary protection against too-small orders
-                           (if o (push (cons o new) new-bids)
-                               (format t "~&Couldn't place ~S~%" new)))))
+                         (handler-case
+                             (let ((o (post-limit "buy" pair (cdr new)
+                                                  (car new) decimals "viqc")))
+                               ;; rudimentary protection against too-small orders
+                               (if o (push (cons o new) new-bids)
+                                   (format t "~&Couldn't place ~S~%" new)))
+                           (volume-too-low ()
+                             (format t "~&Volume too low: ~S~%" new)
+                             t))))
                   (dolist (old my-bids)
                     (let* ((new (find (cadr old) to-bid :key #'cdr :test #'=))
                            (same (and new (< (abs (- (* price-factor
