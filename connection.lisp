@@ -50,13 +50,13 @@
   (st-json:read-json arg))
 
 (defun raw-request (path &rest keys)
-  (cond
-    ((or (search "AddOrder" path)
-         (search "CancelOrder" path)))
-    ((or (search "Trades" path)
-         (search "Ledgers" path))
-     (format t "~&API counter +2 from ~A" path))
-    (t (format t "~&API counter +1 from ~A" path)))
+  ;; (cond
+  ;;   ((or (search "AddOrder" path)
+  ;;        (search "CancelOrder" path)))
+  ;;   ((or (search "Trades" path)
+  ;;        (search "Ledgers" path))
+  ;;    (format t "~&API counter +2 from ~A" path))
+  ;;   (t (format t "~&API counter +1 from ~A" path)))
   (handler-case
       (multiple-value-bind (body status)
           (apply #'drakma:http-request

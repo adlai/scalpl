@@ -71,6 +71,7 @@
 
 (defun cancel-pair-orders (pair)
   (mapjso (lambda (id order)
+            (declare (ignore id))
             (when (string= pair (getjso* "descr.pair" order))
               (cancel-order order)))
           (open-orders)))
@@ -219,8 +220,8 @@
               (pop other-asks)
               (format t "~&Dropping unprofitable spread: ~F from ~D to ~D~%"
                       spread best-bid best-ask))
-            (let ((to-bid (dumbot-oneside other-bids resilience doge 1 9 #'>))
-                  (to-ask (dumbot-oneside other-asks resilience btc -1 9 #'<))
+            (let ((to-bid (dumbot-oneside other-bids resilience doge 1 15 #'>))
+                  (to-ask (dumbot-oneside other-asks resilience btc -1 15 #'<))
                   new-bids new-asks)
               (macrolet ((cancel (old place)
                            `(progn (cancel-order (car ,old))
@@ -282,6 +283,7 @@
   (chanl:pexec (:name "qdm-preα"
                 :initial-bindings
                 `((*read-default-float-format* double-float)
+                  (*max-seen-trade* 30)
                   (*auth*
                    ,(cons (glock.connection::make-key #P "secrets/kraken.pubkey")
                           (glock.connection::make-signer #P "secrets/kraken.secret")))))
