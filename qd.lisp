@@ -213,8 +213,8 @@
               (pop other-asks)
               (format t "~&Dropping unprofitable spread: ~F from ~D to ~D~%"
                       spread best-bid best-ask))
-            (let ((to-bid (dumbot-oneside other-bids resilience doge 1 9 #'>))
-                  (to-ask (dumbot-oneside other-asks resilience btc -1 9 #'<))
+            (let ((to-bid (dumbot-oneside other-bids resilience doge 1 15 #'>))
+                  (to-ask (dumbot-oneside other-asks resilience btc -1 15 #'<))
                   new-bids new-asks)
               (macrolet ((cancel (old place)
                            `(progn (cancel-order (car ,old))
@@ -230,9 +230,10 @@
                              t))))
                   (dolist (old my-asks)
                     (let* ((new (find (cadr old) to-ask :key #'cdr :test #'=))
-                           (same (and new (< (abs (- (car new)
-                                                     (cddr old)))
-                                             0.00001))))
+                           (same (and new (< (/ (abs (- (car new)
+                                                        (cddr old)))
+                                                (cddr old))
+                                             0.15))))
                       (if same (setf to-ask (remove new to-ask))
                           (dolist (new (remove (cadr old) to-ask
                                                :key #'cdr :test #'<)
@@ -252,11 +253,12 @@
                              t))))
                   (dolist (old my-bids)
                     (let* ((new (find (cadr old) to-bid :key #'cdr :test #'=))
-                           (same (and new (< (abs (- (* price-factor
-                                                        (/ (car new)
-                                                           (cdr new)))
-                                                     (cddr old)))
-                                             0.00001))))
+                           (same (and new (< (/ (abs (- (* price-factor
+                                                           (/ (car new)
+                                                              (cdr new)))
+                                                        (cddr old)))
+                                                (cddr old))
+                                             0.15))))
                       (if same (setf to-bid (remove new to-bid))
                           (dolist (new (remove (cadr old) to-bid
                                                :key #'cdr :test #'>)
