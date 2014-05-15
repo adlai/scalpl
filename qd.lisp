@@ -199,20 +199,9 @@
         ;; TODO: MINIMIZE OFF-BOOK TIME!
         ;; Get the current order book status
         (multiple-value-bind (asks bids) (get-book pair)
-          ;; TODO: possible way to avoid lossy spreads:
-          ;; before placing an order, check its spread-lossiness against the
-          ;; orders already placed on the other side of the book
-          ;; if it's too low, just don't place the new order
-          ;; this should yield behavior which resists price swings
           ;; TODO: properly deal with partial and completed orders
-          ;; TODO: incorporate reserve tracking for zero-downtime order updates
           (let ((other-bids (ignore-mine bids (mapcar 'cdr my-bids)))
                 (other-asks (ignore-mine asks (mapcar 'cdr my-asks))))
-            ;; hacky fix for shitty idiocy
-            (unless (> (caar other-asks) (+ 2 (caar other-bids)))
-              (format t "~&Dropping BOTH nearly-crossed book orders~%")
-              (pop other-asks)
-              (pop other-bids))
             ;; NON STOP PARTY PROFIT MADNESS
             (do* ((best-bid (caar other-bids) (caar other-bids))
                   (best-ask (caar other-asks) (caar other-asks))
