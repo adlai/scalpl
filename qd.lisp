@@ -65,9 +65,7 @@
            (getjso "open" (auth-request "OpenOrders"))))
 
 (defun cancel-order (order)
-  (auth-request "CancelOrder" `(("txid" . ,(getjso "id" order))))
-  (format t "~&wont ~A~%" (or (getjso "order" order)
-                              (getjso* "descr.order" order))))
+  (auth-request "CancelOrder" `(("txid" . ,(getjso "id" order)))))
 
 (defun cancel-pair-orders (pair)
   (mapjso (lambda (id order)
@@ -106,7 +104,6 @@
                                          (when options '("," options))))))
                 (format t "~&~A~%" message)))
           (progn
-            (format t "~&want ~A~%" (getjso* "descr.order" info))
             ;; theoretically, we could get several order IDs here,
             ;; but we're not using any of kraken's fancy forex nonsense
             (setf (getjso* "descr.id" info) (car (getjso* "txid" info)))
@@ -187,7 +184,7 @@
              (btc (factor-fund total-btc btc-fraction))
              (doge (factor-fund total-doge (- 1 btc-fraction))))
         ;; report funding
-        (format t "~&~|\"My cryptocurrency portfolio is ~$% invested in dogecoins\""
+        (format t "~&\"My cryptocurrency portfolio is ~$% invested in dogecoins\""
                 (* 100 (- 1 btc-fraction)))
         (format t "~&very fund ~8$฿ + ~1$Ð ≈» ~8$฿~%"
                 total-btc total-doge total-fund)
