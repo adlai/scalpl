@@ -122,13 +122,31 @@
         (get-request "Trades"
                      `(("pair" . ,pair)
                        ,@(when (boundp '*last-trade-id*)
-                               `(("since" .,(princ-to-string *last-trade-id*))))))
-      (setf *last-trade-id*   last
-            *last-track-time* now
-            *max-seen-trade*  (reduce #'max
-                                      (mapcar #'read-from-string
-                                              (mapcar #'second trades))
-                                      :initial-value *max-seen-trade*))))
+                           `(("since" .,(princ-to-string *last-trade-id*))))))
+      (when trades
+        (let ((l (mapcar (lambda (trade)
+                           (destructuring-bind (price volume time side kind data) trade
+                             (let ((stamp (local-time:unix-to-timestamp (round time)))
+                                   (vol (read-from-string volume)))
+                               (list stamp vol (concatenate 'string side kind)))))
+                         trades)))
+          (setf *last-trade-id*   last
+                *last-track-time* now
+                *max-seen-trade*
+                (reduce #'max
+                        (sort (mapcar #'second
+                                      (reduce (lambda (acc next)
+                                                (let ((prev (first acc)))
+                                                  (if (and (local-time:timestamp= (first prev) (first next))
+                                                           (string= (third prev) (third prev)))
+                                                      (cons (list (first prev)
+                                                                  (+ (second prev) (second next))
+                                                                  (third prev))
+                                                            (cdr acc))
+                                                      (cons next acc))))
+                                              (cdr l) :initial-value (list (car l))))
+                              #'>)
+                        :initial-value *max-seen-trade*))))))
   (format t "~&~A largest seen trade: ~F (updated ~A)~%"
           (now) *max-seen-trade* (unix-to-timestamp *last-track-time*)))
 
