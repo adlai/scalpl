@@ -300,23 +300,46 @@
                                             new-asks))
                             #'< :key #'cadr)))))))))
 
-(defvar *fund-factor* 1)
-(defvar *resilience-factor* 1)
+(defclass maker ()
+  ((pair :initarg :pair :initform "XXBTZEUR")
+   (fund-factor :initarg :fund-factor :initform 1)
+   (resilience :initarg :resilience :initform 1)
+   (auth :initarg :auth)
+   (delay :initarg :delay :initform 6)
+   (bids :initform nil :initarg :bids)
+   (asks :initform nil :initarg :asks)
+   thread))
+
+(defun pause-maker (maker)
+  (with-slots (bids asks thread) maker
+    (chanl:kill (slot-value thread 'chanl::thread))
+    (values bids asks)))
+
+(defun stop-maker (maker)
+  (with-slots (bids asks pair thread) maker
+    (chanl:kill (slot-value thread 'chanl::thread))
+    (mapcar (lambda (order) (cancel-order (car order)))
+            (append bids asks))))
+
+(defmethod initialize-instance :after ((maker maker) &key)
+  (with-slots (pair auth fund-factor resilience bids asks delay thread) maker
+    (setf thread
+          (chanl:pexec
+              (:name (concatenate 'string "qdm-preα " pair)
+               :initial-bindings
+               `((*read-default-float-format* double-float)
+                 (*maker* ,maker)       ; <- this changes everything
+                 (*auth* ,auth)))
+            (loop
+               (setf (values bids asks)
+                     (%round fund-factor resilience pair bids asks))
+               (sleep delay))))))
 
 (defvar *maker*
-  ;; FIXME: this function is on the wishlist
-  (chanl:pexec (:name "qdm-preα"
-                :initial-bindings
-                `((*read-default-float-format* double-float)
-                  (*auth*
-                   ,(cons (glock.connection::make-key #P "secrets/kraken.pubkey")
-                          (glock.connection::make-signer #P "secrets/kraken.secret")))))
-    (let (bids asks)
-      (loop
-         (setf (values bids asks)
-               (%round *fund-factor*
-                       *resilience-factor*
-                       "XXBTZEUR" bids asks))))))
+  (make-instance 'maker
+                 ;; this may crash if we're not in the right directory...
+                 :auth (cons (glock.connection::make-key #P "secrets/kraken.pubkey")
+                             (glock.connection::make-signer #P "secrets/kraken.secret"))))
 
 (defun trades-history (since &optional until)
   (getjso "trades"
