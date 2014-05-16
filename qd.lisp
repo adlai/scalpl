@@ -126,6 +126,7 @@
       (when trades
         (let ((l (mapcar (lambda (trade)
                            (destructuring-bind (price volume time side kind data) trade
+                             (declare (ignore price data))
                              (let ((stamp (local-time:unix-to-timestamp (round time)))
                                    (vol (read-from-string volume)))
                                (list stamp vol (concatenate 'string side kind)))))
