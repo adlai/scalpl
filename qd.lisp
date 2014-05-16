@@ -316,3 +316,8 @@
                (%round *fund-factor*
                        *resilience-factor*
                        "XXBTZEUR" bids asks))))))
+
+(defun trades-history (since &optional until)
+  (getjso "trades"
+          (auth-request "TradesHistory"
+                        `(("start" . ,since) ("end" . ,until)))))
