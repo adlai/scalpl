@@ -226,14 +226,11 @@
                   (best-ask (caar other-asks) (caar other-asks))
                   (spread (profit-margin (1+ best-bid) (1- best-ask) 0.14)
                           (profit-margin (1+ best-bid) (1- best-ask) 0.14)))
-                 ((> spread 1)
-                  (format t "~&My estimated spread profit: ~D" spread))
-              ;; TODO: rather than popping both, pop the one with smaller volume,
-              ;; and decrease the remaining order by that amount
-              (pop other-bids)
-              (pop other-asks)
-              (format t "~&Dropping unprofitable spread: ~F from ~D to ~D~%"
-                      spread best-bid best-ask))
+                 ((> spread 1))
+              (ecase (round (signum (- (cdar other-bids) (cdar other-asks))))
+                (-1 (decf (cdar other-asks) (cdr (pop other-bids))))
+                (+1 (decf (cdar other-bids) (cdr (pop other-asks))))
+                (0         (pop other-bids)      (pop other-asks))))
             (let ((to-bid (dumbot-oneside other-bids resilience doge 1 15 #'>))
                   (to-ask (dumbot-oneside other-asks resilience btc -1 15 #'<))
                   new-bids new-asks)
