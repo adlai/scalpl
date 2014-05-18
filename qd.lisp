@@ -307,24 +307,15 @@
    (fund-factor :initarg :fund-factor :initform 1)
    (resilience :initarg :resilience :initform 1)
    (auth :initarg :auth)
+   (control :initform (make-instance 'chanl:channel))
    (delay :initarg :delay :initform 6)
    (bids :initform nil :initarg :bids)
    (asks :initform nil :initarg :asks)
    thread))
 
-(defun pause-maker (maker)
-  (with-slots (bids asks thread) maker
-    (chanl:kill (slot-value thread 'chanl::thread))
-    (values bids asks)))
-
-(defun stop-maker (maker)
-  (with-slots (bids asks pair thread) maker
-    (chanl:kill (slot-value thread 'chanl::thread))
-    (mapcar (lambda (order) (cancel-order (car order)))
-            (append bids asks))))
-
 (defmethod initialize-instance :after ((maker maker) &key)
-  (with-slots (pair auth fund-factor resilience bids asks delay thread) maker
+  (with-slots (pair auth control fund-factor resilience bids asks delay thread)
+      maker
     (setf thread
           (chanl:pexec
               (:name (concatenate 'string "qdm-preα " pair)
@@ -333,9 +324,25 @@
                  (*maker* ,maker)       ; <- this changes everything
                  (*auth* ,auth)))
             (loop
-               (setf (values bids asks)
-                     (%round fund-factor resilience pair bids asks))
-               (sleep delay))))))
+               (chanl:select
+                 ((recv control command)
+                  ;; right now the only command is to pause
+                  (declare (ignore command))
+                  ;; right now we just wait for any other command to restart
+                  (chanl:recv control))
+                 (t (setf (values bids asks)
+                          (%round fund-factor resilience pair bids asks))
+                    (when delay (sleep delay)))))))))
+
+(defun pause-maker (maker)
+  (with-slots (control) maker
+    (chanl:send control :pause)))
+
+(defun stop-maker (maker)
+  (pause-maker maker)
+  ;; yuck
+  (with-slots (thread) maker
+    (chanl:kill (slot-value thread 'chanl::thread))))
 
 (defvar *maker*
   (make-instance 'maker
