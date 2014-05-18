@@ -228,6 +228,8 @@
                           (profit-margin (1+ best-bid) (1- best-ask) 0.14)))
                  ((> spread 1)
                   (format t "~&My estimated spread profit: ~D" spread))
+              ;; TODO: rather than popping both, pop the one with smaller volume,
+              ;; and decrease the remaining order by that amount
               (pop other-bids)
               (pop other-asks)
               (format t "~&Dropping unprofitable spread: ~F from ~D to ~D~%"
