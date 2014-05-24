@@ -159,7 +159,7 @@
   ;; calculate cumulative depths
   (do* ((cur book (cdr cur))
         (n 0 (1+ n)))
-       ((> acc resilience)
+       ((or (> acc resilience) (null cur))
         (let* ((sorted (sort (subseq book 1 n) #'> :key #'cddr))
                (n-orders (min max-orders n))
                (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
