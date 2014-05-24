@@ -314,10 +314,10 @@
   (with-slots (pair control fund-factor resilience bids asks delay) maker
     (chanl:select
       ((recv control command)
-       ;; right now the only command is to pause
-       (declare (ignore command))
-       ;; right now we just wait for any other command to restart
-       (chanl:recv control))
+       ;; commands are (cons command args)
+       (case (car command)
+         ;; pause - wait for any other command to restart
+         (pause (chanl:recv control))))
       (t (setf (values bids asks)
                (%round fund-factor resilience pair bids asks))
          (when delay (sleep delay))))))
@@ -330,17 +330,13 @@
                :initial-bindings
                `((*read-default-float-format* double-float)
                  (*auth* ,auth)))
+            ;; TODO: just pexec anew each time...
+            ;; you'll understand what you meant someday, right?
             (loop (dumbot-loop maker))))))
 
 (defun pause-maker (maker)
   (with-slots (control) maker
-    (chanl:send control :pause)))
-
-(defun stop-maker (maker)
-  (pause-maker maker)
-  ;; yuck
-  (with-slots (thread) maker
-    (chanl:kill (slot-value thread 'chanl::thread))))
+    (chanl:send control '(pause))))
 
 (defvar *maker*
   (make-instance 'maker
