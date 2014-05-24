@@ -310,26 +310,27 @@
    (asks :initform nil :initarg :asks)
    thread))
 
+(defun dumbot-loop (maker)
+  (with-slots (pair control fund-factor resilience bids asks delay) maker
+    (chanl:select
+      ((recv control command)
+       ;; right now the only command is to pause
+       (declare (ignore command))
+       ;; right now we just wait for any other command to restart
+       (chanl:recv control))
+      (t (setf (values bids asks)
+               (%round fund-factor resilience pair bids asks))
+         (when delay (sleep delay))))))
+
 (defmethod initialize-instance :after ((maker maker) &key)
-  (with-slots (pair auth control fund-factor resilience bids asks delay thread)
-      maker
+  (with-slots (auth pair thread) maker
     (setf thread
           (chanl:pexec
               (:name (concatenate 'string "qdm-preα " pair)
                :initial-bindings
                `((*read-default-float-format* double-float)
-                 (*maker* ,maker)       ; <- this changes everything
                  (*auth* ,auth)))
-            (loop
-               (chanl:select
-                 ((recv control command)
-                  ;; right now the only command is to pause
-                  (declare (ignore command))
-                  ;; right now we just wait for any other command to restart
-                  (chanl:recv control))
-                 (t (setf (values bids asks)
-                          (%round fund-factor resilience pair bids asks))
-                    (when delay (sleep delay)))))))))
+            (loop (dumbot-loop maker))))))
 
 (defun pause-maker (maker)
   (with-slots (control) maker
