@@ -211,9 +211,9 @@
                 btc doge (total-of btc doge)
                 (* 100 (/ (total-of btc doge) total-fund)))
         ;; report orders
-        (format t "~A resilience: ~F" (now) resilience)
-        (format t "~&bids @ ~{~D~#[~:; ~]~}~%" (mapcar #'cadr my-bids))
-        (format t "~&asks @ ~{~D~#[~:; ~]~}~%" (mapcar #'cadr my-asks))
+        ;; (format t "~A resilience: ~F" (now) resilience)
+        ;; (format t "~&bids @ ~{~D~#[~:; ~]~}~%" (mapcar #'cadr my-bids))
+        ;; (format t "~&asks @ ~{~D~#[~:; ~]~}~%" (mapcar #'cadr my-asks))
         ;; Now run that algorithm thingy
         ;; TODO: MINIMIZE OFF-BOOK TIME!
         ;; Get the current order book status
