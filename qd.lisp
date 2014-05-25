@@ -214,7 +214,7 @@
                       (cons vol (+ delta (cadr order)))))
                   (sort relevant predicate :key #'cddr))))
     ;; modifies the book itself
-    (push (incf share (incf acc (cdar cur))) (car cur))
+    (push (incf share (* 5/3 (incf acc (cdar cur)))) (car cur))
     ;; (format t "~&Found ~$ at ~D total ~$ share ~$~%"
     ;;         (cddar cur) (cadar cur) acc share)
     ))
@@ -274,7 +274,8 @@
                   (spread (profit-margin (1+ best-bid) (1- best-ask) 0.14)
                           (profit-margin (1+ best-bid) (1- best-ask) 0.14)))
                  ((> spread 1))
-              (ecase (round (signum (- (cdar other-bids) (cdar other-asks))))
+              (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
+                                       (- (cdar other-bids) (cdar other-asks)))))
                 (-1 (decf (cdar other-asks) (cdr (pop other-bids))))
                 (+1 (decf (cdar other-bids) (cdr (pop other-asks))))
                 (0         (pop other-bids)      (pop other-asks))))
