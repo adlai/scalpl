@@ -109,47 +109,92 @@
             (setf (getjso* "descr.id" info) (car (getjso* "txid" info)))
             (getjso "descr" info))))))
 
-(defvar *last-track-time*)
-(defvar *last-trade-id*)
+(defclass trades-tracker ()
+  ((pair :initarg :pair)
+   (control :initform (make-instance 'chanl:channel))
+   (buffer :initform (make-instance 'chanl:channel))
+   (output :initform (make-instance 'chanl:channel))
+   (delay :initarg :delay :initform 10)
+   trades last updater worker))
 
-(defvar *max-seen-trade* 30)
+(defun kraken-timestamp (timestamp)
+  (multiple-value-bind (sec rem) (floor timestamp)
+    (local-time:unix-to-timestamp sec :nsec (round (* (expt 10 9) rem)))))
 
-(defun track-trades (pair interval-seconds
-                     &aux (now (timestamp-to-unix (now))))
-  (when (or (not (boundp '*last-track-time*))
-            (< interval-seconds (- now *last-track-time*)))
-    (with-json-slots (last (trades pair))
-        (get-request "Trades"
-                     `(("pair" . ,pair)
-                       ,@(when (boundp '*last-trade-id*)
-                           `(("since" .,(princ-to-string *last-trade-id*))))))
-      (when trades
-        (let ((l (mapcar (lambda (trade)
-                           (destructuring-bind (price volume time side kind data) trade
-                             (declare (ignore price data))
-                             (let ((stamp (local-time:unix-to-timestamp (round time)))
-                                   (vol (read-from-string volume)))
-                               (list stamp vol (concatenate 'string side kind)))))
-                         trades)))
-          (setf *last-trade-id*   last
-                *last-track-time* now
-                *max-seen-trade*
-                (reduce #'max
-                        (sort (mapcar #'second
-                                      (reduce (lambda (acc next)
-                                                (let ((prev (first acc)))
-                                                  (if (and (local-time:timestamp= (first prev) (first next))
-                                                           (string= (third prev) (third prev)))
-                                                      (cons (list (first prev)
-                                                                  (+ (second prev) (second next))
-                                                                  (third prev))
-                                                            (cdr acc))
-                                                      (cons next acc))))
-                                              (cdr l) :initial-value (list (car l))))
-                              #'>)
-                        :initial-value *max-seen-trade*))))))
-  (format t "~&~A largest seen trade: ~F (updated ~A)~%"
-          (now) *max-seen-trade* (unix-to-timestamp *last-track-time*)))
+(defun trades-since (pair &optional since)
+  (with-json-slots (last (trades pair))
+      (get-request "Trades" `(("pair" . ,pair)
+                              ,@(when since `(("since" . ,since)))))
+    (values (mapcar (lambda (trade)
+                      (destructuring-bind (price volume time side kind data) trade
+                        (let ((price  (read-from-string price))
+                              (volume (read-from-string volume)))
+                          (list (kraken-timestamp time)
+                                volume price (* volume price)
+                                (concatenate 'string side kind data)))))
+                    trades)
+            last)))
+
+(defun tracker-loop (tracker)
+  (with-slots (pair control buffer output trades) tracker
+    (chanl:select
+      ((recv control command)
+       ;; commands are (cons command args)
+       (case (car command)
+         ;; max - find max seen trade size
+         (max (chanl:send output (reduce #'max (mapcar #'second trades))))
+         ;; pause - wait for any other command to restart
+         (pause (chanl:recv control))))
+      ((recv buffer raw-trades)
+       (setf trades
+             (reduce (lambda (acc next &aux (prev (first acc)))
+                       (if (and (> 0.3
+                                   (local-time:timestamp-difference (first next)
+                                                                    (first prev)))
+                                (string= (fifth prev) (fifth next)))
+                           (let* ((volume (+ (second prev) (second next)))
+                                  (cost (+ (fourth prev) (fourth next)))
+                                  (price (/ cost volume)))
+                             (cons (list (first prev)
+                                         volume price cost
+                                         (fifth prev))
+                                   (cdr acc)))
+                           (cons next acc)))
+                     raw-trades :initial-value trades)))
+      (t (sleep 0.2)))))
+
+(defmethod initialize-instance :after ((tracker trades-tracker) &key)
+  (with-slots (pair updater buffer delay worker last trades) tracker
+    (setf updater
+          (chanl:pexec
+              (:name (concatenate 'string "qdm-preα updater for " pair)
+               :initial-bindings `((*read-default-float-format* double-float)))
+            (loop
+               (multiple-value-bind (raw-trades until) (trades-since pair)
+                 (setf last until)
+                 (chanl:send buffer raw-trades)
+                 (sleep delay))))
+          worker
+          (chanl:pexec (:name (concatenate 'string "qdm-preα worker for " pair))
+            (setf trades
+                  (let ((raw-trades (chanl:recv buffer)))
+                    (reduce (lambda (acc next &aux (prev (first acc)))
+                              (if (and (> 0.3
+                                          (local-time:timestamp-difference (first next)
+                                                                           (first prev)))
+                                       (string= (fifth prev) (fifth next)))
+                                  (let* ((volume (+ (second prev) (second next)))
+                                         (cost (+ (fourth prev) (fourth next)))
+                                         (price (/ cost volume)))
+                                    (cons (list (first prev)
+                                                volume price cost
+                                                (fifth prev))
+                                          (cdr acc)))
+                                  (cons next acc)))
+                            (cdr raw-trades) :initial-value (list (car raw-trades)))))
+            ;; TODO: just pexec anew each time...
+            ;; you'll understand what you meant someday, right?
+            (loop (tracker-loop tracker))))))
 
 (defun profit-margin (bid ask fee-percent)
   (* (/ ask bid) (- 1 (/ fee-percent 100))))
@@ -183,15 +228,17 @@
 (defun %round (fund-factor resilience-factor
                &optional
                  (pair "XXBTXXDG") my-bids my-asks
+                 trade-tracker
                &aux
                  (market (getjso pair *markets*))
                  (decimals (getjso "pair_decimals" market))
                  (price-factor (expt 10 decimals)))
-  ;; Track our resilience target
-  (track-trades pair 25)
+  ;; whoo!
+  (chanl:send (slot-value trade-tracker 'control) '(max))
   ;; Get our balances
   (let ((balances (auth-request "Balance"))
-        (resilience (* resilience-factor *max-seen-trade*))
+        (resilience (* resilience-factor
+                       (chanl:recv (slot-value trade-tracker 'output))))
         (doge/btc (read-from-string (second (getjso "p" (getjso pair (get-request "Ticker" `(("pair" . ,pair)))))))))
     (flet ((symbol-funds (symbol) (read-from-string (getjso symbol balances)))
            (total-of (btc doge) (+ btc (/ doge doge/btc)))
@@ -308,10 +355,11 @@
    (delay :initarg :delay :initform 6)
    (bids :initform nil :initarg :bids)
    (asks :initform nil :initarg :asks)
-   thread))
+   trades-tracker thread))
 
 (defun dumbot-loop (maker)
-  (with-slots (pair control fund-factor resilience bids asks delay) maker
+  (with-slots (pair control fund-factor resilience bids asks delay trades-tracker)
+      maker
     (chanl:select
       ((recv control command)
        ;; commands are (cons command args)
@@ -319,11 +367,13 @@
          ;; pause - wait for any other command to restart
          (pause (chanl:recv control))))
       (t (setf (values bids asks)
-               (%round fund-factor resilience pair bids asks))
+               (%round fund-factor resilience pair bids asks trades-tracker))
          (when delay (sleep delay))))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
-  (with-slots (auth pair thread) maker
+  (with-slots (auth pair trades-tracker thread) maker
+    (unless trades-tracker
+      (setf trades-tracker (make-instance 'trades-tracker :pair pair)))
     (setf thread
           (chanl:pexec
               (:name (concatenate 'string "qdm-preα " pair)
