@@ -170,7 +170,9 @@
               (:name (concatenate 'string "qdm-preα updater for " pair)
                :initial-bindings `((*read-default-float-format* double-float)))
             (loop
-               (multiple-value-bind (raw-trades until) (trades-since pair)
+               (multiple-value-bind (raw-trades until)
+                   (handler-case (trades-since pair last)
+                     (unbound-slot () (trades-since pair)))
                  (setf last until)
                  (chanl:send buffer raw-trades)
                  (sleep delay))))
@@ -373,7 +375,7 @@
 
 (defmethod initialize-instance :after ((maker maker) &key)
   (with-slots (auth pair trades-tracker thread) maker
-    (unless trades-tracker
+    (unless (slot-boundp maker 'trades-tracker)
       (setf trades-tracker (make-instance 'trades-tracker :pair pair)))
     (setf thread
           (chanl:pexec
