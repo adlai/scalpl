@@ -280,7 +280,7 @@
 (defun %round (fund-factor resilience-factor
                &optional
                  (pair "XXBTXXDG") my-bids my-asks
-                 trade-tracker
+                 trade-tracker book-tracker
                &aux
                  (market (getjso pair *markets*))
                  (decimals (getjso "pair_decimals" market))
@@ -318,7 +318,10 @@
         ;; Now run that algorithm thingy
         ;; TODO: MINIMIZE OFF-BOOK TIME!
         ;; Get the current order book status
-        (multiple-value-bind (asks bids) (get-book pair)
+        (multiple-value-bind (asks bids)
+            (with-slots (asks-output bids-output) book-tracker
+              (values (chanl:recv asks-output)
+                      (chanl:recv bids-output)))
           ;; TODO: properly deal with partial and completed orders
           (let ((other-bids (ignore-mine bids (mapcar 'cdr my-bids)))
                 (other-asks (ignore-mine asks (mapcar 'cdr my-asks))))
@@ -410,10 +413,10 @@
    (delay :initarg :delay :initform 6)
    (bids :initform nil :initarg :bids)
    (asks :initform nil :initarg :asks)
-   trades-tracker thread))
+   trades-tracker book-tracker thread))
 
 (defun dumbot-loop (maker)
-  (with-slots (pair control fund-factor resilience bids asks delay trades-tracker)
+  (with-slots (pair control fund-factor resilience bids asks delay trades-tracker book-tracker)
       maker
     (chanl:select
       ((recv control command)
@@ -422,13 +425,16 @@
          ;; pause - wait for any other command to restart
          (pause (chanl:recv control))))
       (t (setf (values bids asks)
-               (%round fund-factor resilience pair bids asks trades-tracker))
+               (%round fund-factor resilience pair bids asks trades-tracker book-tracker))
          (when delay (sleep delay))))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
-  (with-slots (auth pair trades-tracker thread) maker
+  (with-slots (auth pair trades-tracker book-tracker thread) maker
+    ;; FIXME: wtf is this i don't even
     (unless (slot-boundp maker 'trades-tracker)
       (setf trades-tracker (make-instance 'trades-tracker :pair pair)))
+    (unless (slot-boundp maker 'book-tracker)
+      (setf book-tracker (make-instance 'book-tracker :pair pair)))
     (setf thread
           (chanl:pexec
               (:name (concatenate 'string "qdm-preα " pair)
