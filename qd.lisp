@@ -109,6 +109,10 @@
             (setf (getjso* "descr.id" info) (car (getjso* "txid" info)))
             (getjso "descr" info))))))
 
+;;;
+;;; TRADES
+;;;
+
 (defclass trades-tracker ()
   ((pair :initarg :pair)
    (control :initform (make-instance 'chanl:channel))
@@ -136,7 +140,7 @@
             last)))
 
 (defun tracker-loop (tracker)
-  (with-slots (pair control buffer output trades) tracker
+  (with-slots (control buffer output trades) tracker
     (chanl:select
       ((recv control command)
        ;; commands are (cons command args)
@@ -167,7 +171,7 @@
   (with-slots (pair updater buffer delay worker last trades) tracker
     (setf updater
           (chanl:pexec
-              (:name (concatenate 'string "qdm-preα updater for " pair)
+              (:name (concatenate 'string "qdm-preα trades updater for " pair)
                :initial-bindings `((*read-default-float-format* double-float)))
             (loop
                (multiple-value-bind (raw-trades until)
@@ -177,7 +181,7 @@
                  (chanl:send buffer raw-trades)
                  (sleep delay))))
           worker
-          (chanl:pexec (:name (concatenate 'string "qdm-preα worker for " pair))
+          (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " pair))
             (setf trades
                   (let ((raw-trades (chanl:recv buffer)))
                     (reduce (lambda (acc next &aux (prev (first acc)))
