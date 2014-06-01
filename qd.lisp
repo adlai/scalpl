@@ -304,13 +304,16 @@
              (btc (factor-fund total-btc btc-fraction))
              (doge (factor-fund total-doge (- 1 btc-fraction))))
         ;; report funding
-        (format t "~&\"My cryptocurrency portfolio is ~$% invested in dogecoins\""
-                (* 100 (- 1 btc-fraction)))
-        (format t "~&very fund ~8$฿ + ~1$Ð ≈» ~8$฿~%"
-                total-btc total-doge total-fund)
-        (format t "~&such risk ~8$฿ + ~1$Ð ≈» ~8$฿ (~$% risked)~%"
-                btc doge (total-of btc doge)
-                (* 100 (/ (total-of btc doge) total-fund)))
+        ;; FIXME: modularize all this decimal point handling
+        (let ((base-decimals (getjso "decimals" (getjso (getjso "base" market) *assets*)))
+              (quote-decimals (getjso "decimals" (getjso (getjso "quote" market) *assets*))))
+          ;; time, total, base, quote, invested, base risk, quote risk
+          (format t "~&~A T ~V$ B ~V$ Q ~V$ I ~$% B ~$% Q ~$%"
+                  (now) base-decimals total-fund
+                  base-decimals total-btc quote-decimals total-doge
+                  (* 100 (- 1 btc-fraction))
+                  (* 100 (/ btc total-btc))
+                  (* 100 (/ doge total-doge))))
         ;; report orders
         ;; (format t "~A resilience: ~F" (now) resilience)
         ;; (format t "~&bids @ ~{~D~#[~:; ~]~}~%" (mapcar #'cadr my-bids))
