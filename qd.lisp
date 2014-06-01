@@ -216,7 +216,7 @@
                       (cons vol (+ delta (cadr order)))))
                   (sort relevant predicate :key #'cddr))))
     ;; modifies the book itself
-    (push (incf share (* 5/3 (incf acc (cdar cur)))) (car cur))
+    (push (incf share (* 11/6 (incf acc (cdar cur)))) (car cur))
     ;; (format t "~&Found ~$ at ~D total ~$ share ~$~%"
     ;;         (cddar cur) (cadar cur) acc share)
     ))
@@ -248,7 +248,7 @@
       (let* ((total-btc (symbol-funds (getjso "base" market)))
              (total-doge (symbol-funds (getjso "quote" market)))
              (total-fund (total-of total-btc total-doge))
-             (btc-fraction (/ total-btc total-fund))
+             (btc-fraction (expt (/ total-btc total-fund) 3/2))
              (btc (factor-fund total-btc btc-fraction))
              (doge (factor-fund total-doge (- 1 btc-fraction))))
         ;; report funding
