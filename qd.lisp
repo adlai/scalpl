@@ -206,6 +206,47 @@
             ;; you'll understand what you meant someday, right?
             (loop (tracker-loop tracker))))))
 
+;;;
+;;; ORDER BOOK
+;;;
+
+(defclass book-tracker ()
+  ((pair :initarg :pair)
+   (control :initform (make-instance 'chanl:channel))
+   (bids-output :initform (make-instance 'chanl:channel))
+   (asks-output :initform (make-instance 'chanl:channel))
+   (delay :initarg :delay :initform 10)
+   bids asks updater worker))
+
+(defun book-loop (tracker)
+  (with-slots (control bids asks bids-output asks-output) tracker
+    (handler-case
+        (chanl:select
+          ((recv control command)
+           ;; commands are (cons command args)
+           (case (car command)
+             ;; pause - wait for any other command to restart
+             (pause (chanl:recv control))))
+          ((send bids-output bids))
+          ((send asks-output asks))
+          (t (sleep 0.2)))
+      (unbound-slot ()))))
+
+(defmethod initialize-instance :after ((tracker book-tracker) &key)
+  (with-slots (updater worker bids asks pair delay) tracker
+    (setf updater
+          (chanl:pexec
+              (:name (concatenate 'string "qdm-preα book updater for " pair)
+               :initial-bindings `((*read-default-float-format* double-float)))
+            (loop
+               (setf (values asks bids) (get-book pair))
+               (sleep delay)))
+          worker
+          (chanl:pexec (:name (concatenate 'string "qdm-preα book worker for " pair))
+            ;; TODO: just pexec anew each time...
+            ;; you'll understand what you meant someday, right?
+            (loop (book-loop tracker))))))
+
 (defun profit-margin (bid ask fee-percent)
   (* (/ ask bid) (- 1 (/ fee-percent 100))))
 
