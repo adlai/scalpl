@@ -109,6 +109,10 @@
             (setf (getjso* "descr.id" info) (car (getjso* "txid" info)))
             (getjso "descr" info))))))
 
+;;; TODO: Incorporate weak references and finalizers into the whole CSPSM model
+;;; so they get garbage collected when there are no more references to the
+;;; output channels
+
 ;;;
 ;;; TRADES
 ;;;
@@ -231,6 +235,7 @@
                              :parameters `(("from" . ,from) ("to" . ,to))
                              :want-stream t))))
 
+;;; FIXME: should just take a maker
 (defun %round (fund-factor resilience-factor
                &optional
                  (pair "XXBTXXDG") my-bids my-asks
@@ -243,8 +248,10 @@
   (chanl:send (slot-value trade-tracker 'control) '(max))
   ;; Get our balances
   (let ((balances (auth-request "Balance"))
+        ;; TODO: split into base resilience and quote resilience
         (resilience (* resilience-factor
                        (chanl:recv (slot-value trade-tracker 'output))))
+        ;; TODO: doge is cute but let's move on
         (doge/btc (read-from-string (second (getjso "p" (getjso pair (get-request "Ticker" `(("pair" . ,pair)))))))))
     (flet ((symbol-funds (symbol) (read-from-string (getjso symbol balances)))
            (total-of (btc doge) (+ btc (/ doge doge/btc)))
