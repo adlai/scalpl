@@ -300,9 +300,10 @@
       (let* ((total-btc (symbol-funds (getjso "base" market)))
              (total-doge (symbol-funds (getjso "quote" market)))
              (total-fund (total-of total-btc total-doge))
-             (btc-fraction (expt (/ total-btc total-fund) 2))
-             (btc (factor-fund total-btc btc-fraction))
-             (doge (factor-fund total-doge (- 1 btc-fraction))))
+             (investment (/ total-btc total-fund))
+             (scaled-factor (expt investment 2))
+             (btc (factor-fund total-btc scaled-factor))
+             (doge (factor-fund total-doge (- 1 scaled-factor))))
         ;; report funding
         ;; FIXME: modularize all this decimal point handling
         (let ((base-decimals (getjso "decimals" (getjso (getjso "base" market) *assets*)))
