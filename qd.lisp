@@ -435,7 +435,7 @@
 (defclass maker ()
   ((pair :initarg :pair :initform "XXBTZEUR")
    (fund-factor :initarg :fund-factor :initform 1)
-   (resilience :initarg :resilience :initform 1)
+   (resilience-factor :initarg :resilience :initform 1)
    (auth :initarg :auth)
    (control :initform (make-instance 'chanl:channel))
    (delay :initarg :delay :initform 6)
@@ -444,7 +444,7 @@
    trades-tracker book-tracker thread))
 
 (defun dumbot-loop (maker)
-  (with-slots (pair control fund-factor resilience bids asks delay trades-tracker book-tracker)
+  (with-slots (pair control fund-factor resilience-factor bids asks delay trades-tracker book-tracker)
       maker
     (chanl:select
       ((recv control command)
@@ -453,7 +453,7 @@
          ;; pause - wait for any other command to restart
          (pause (chanl:recv control))))
       (t (setf (values bids asks)
-               (%round fund-factor resilience pair bids asks trades-tracker book-tracker))
+               (%round fund-factor resilience-factor pair bids asks trades-tracker book-tracker))
          (when delay (sleep delay))))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
