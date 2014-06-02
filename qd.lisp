@@ -309,8 +309,13 @@
               (quote-decimals (getjso "decimals" (getjso (getjso "quote" market) *assets*))))
           ;; time, total, base, quote, invested, base risk, quote risk
           (format t "~&~A T ~V$ B ~V$ Q ~V$ I ~$% B ~$% Q ~$%"
-                  (now) base-decimals total-fund
-                  base-decimals total-btc quote-decimals total-doge
+                  (format-timestring nil (now)
+                                     :format '((:hour 2) #\:
+                                               (:min 2) #\:
+                                               (:sec 2)))
+                  base-decimals  total-fund
+                  base-decimals  total-btc
+                  quote-decimals total-doge
                   (* 100 (- 1 btc-fraction))
                   (* 100 (/ btc total-btc))
                   (* 100 (/ doge total-doge))))
