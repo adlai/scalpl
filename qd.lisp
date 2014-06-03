@@ -302,7 +302,9 @@
           (resilience (* resilience-factor
                          (chanl:recv (slot-value trades-tracker 'output))))
           ;; TODO: doge is cute but let's move on
-          (doge/btc (read-from-string (second (getjso "p" (getjso pair (get-request "Ticker" `(("pair" . ,pair)))))))))
+          (doge/btc (with-slots (control output) trades-tracker
+                      (chanl:send control `(vwap :since ,(timestamp- (now) 4 :hour)))
+                      (chanl:recv output))))
       (flet ((symbol-funds (symbol) (read-from-string (getjso symbol balances)))
              (total-of (btc doge) (+ btc (/ doge doge/btc)))
              (factor-fund (fund factor) (* fund fund-factor factor)))
