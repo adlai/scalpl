@@ -186,38 +186,41 @@
 
 (defmethod initialize-instance :after ((tracker trades-tracker) &key)
   (with-slots (pair updater buffer delay worker last trades) tracker
-    (setf updater
-          (chanl:pexec
-              (:name (concatenate 'string "qdm-preα trades updater for " pair)
-               :initial-bindings `((*read-default-float-format* double-float)))
-            (loop
-               (multiple-value-bind (raw-trades until)
-                   (handler-case (trades-since pair last)
-                     (unbound-slot () (trades-since pair)))
-                 (setf last until)
-                 (chanl:send buffer raw-trades)
-                 (sleep delay))))
-          worker
-          (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " pair))
-            (setf trades
-                  (let ((raw-trades (chanl:recv buffer)))
-                    (reduce (lambda (acc next &aux (prev (first acc)))
-                              (if (and (> 0.3
-                                          (local-time:timestamp-difference (first next)
-                                                                           (first prev)))
-                                       (string= (fifth prev) (fifth next)))
-                                  (let* ((volume (+ (second prev) (second next)))
-                                         (cost (+ (fourth prev) (fourth next)))
-                                         (price (/ cost volume)))
-                                    (cons (list (first prev)
-                                                volume price cost
-                                                (fifth prev))
-                                          (cdr acc)))
-                                  (cons next acc)))
-                            (cdr raw-trades) :initial-value (list (car raw-trades)))))
-            ;; TODO: just pexec anew each time...
-            ;; you'll understand what you meant someday, right?
-            (loop (tracker-loop tracker))))))
+    (unless (slot-boundp tracker 'updater)
+      (setf updater
+            (chanl:pexec
+                (:name (concatenate 'string "qdm-preα trades updater for " pair)
+                       :initial-bindings `((*read-default-float-format* double-float)))
+              (loop
+                 (multiple-value-bind (raw-trades until)
+                     (handler-case (trades-since pair last)
+                       (unbound-slot () (trades-since pair)))
+                   (setf last until)
+                   (chanl:send buffer raw-trades)
+                   (sleep delay))))))
+    (unless (slot-boundp tracker 'trades)
+      (setf trades
+            (let ((raw-trades (chanl:recv buffer)))
+              (reduce (lambda (acc next &aux (prev (first acc)))
+                        (if (and (> 0.3
+                                    (local-time:timestamp-difference (first next)
+                                                                     (first prev)))
+                                 (string= (fifth prev) (fifth next)))
+                            (let* ((volume (+ (second prev) (second next)))
+                                   (cost (+ (fourth prev) (fourth next)))
+                                   (price (/ cost volume)))
+                              (cons (list (first prev)
+                                          volume price cost
+                                          (fifth prev))
+                                    (cdr acc)))
+                            (cons next acc)))
+                      (cdr raw-trades) :initial-value (list (car raw-trades))))))
+    (unless (slot-boundp tracker 'worker)
+      (setf worker
+            (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " pair))
+              ;; TODO: just pexec anew each time...
+              ;; you'll understand what you meant someday, right?
+              (loop (tracker-loop tracker)))))))
 
 ;;;
 ;;; ORDER BOOK
