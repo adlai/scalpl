@@ -143,6 +143,17 @@
                     trades)
             last)))
 
+(defun vwap (tracker &key since type)
+  (let ((trades (slot-value tracker 'trades)))
+    (when since
+      (setf trades (remove since trades :key #'car :test #'timestamp>=)))
+    (when type
+      (setf trades (remove (ccase type (buy #\b) (sell #\s)) trades
+                           :key (lambda (trade) (char (fifth trade) 0))
+                           :test-not #'char=)))
+    (/ (reduce #'+ (mapcar #'fourth trades))
+       (reduce #'+ (mapcar #'second trades)))))
+
 (defun tracker-loop (tracker)
   (with-slots (control buffer output trades) tracker
     (chanl:select
@@ -151,6 +162,8 @@
        (case (car command)
          ;; max - find max seen trade size
          (max (chanl:send output (reduce #'max (mapcar #'second trades))))
+         ;; vwap - find vwap over recent trades
+         (vwap (chanl:send output (apply #'vwap tracker (cdr command))))
          ;; pause - wait for any other command to restart
          (pause (chanl:recv control))))
       ((recv buffer raw-trades)
