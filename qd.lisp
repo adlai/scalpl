@@ -276,161 +276,157 @@
                              :parameters `(("from" . ,from) ("to" . ,to))
                              :want-stream t))))
 
-;;; FIXME: should just take a maker
-(defun %round (fund-factor resilience-factor
-               &optional
-                 (pair "XXBTXXDG") my-bids my-asks
-                 trade-tracker book-tracker
-               &aux
-                 (market (getjso pair *markets*))
-                 (decimals (getjso "pair_decimals" market))
-                 (price-factor (expt 10 decimals)))
-  ;; whoo!
-  (chanl:send (slot-value trade-tracker 'control) '(max))
-  ;; Get our balances
-  (let ((balances (auth-request "Balance"))
-        ;; TODO: split into base resilience and quote resilience
-        (resilience (* resilience-factor
-                       (chanl:recv (slot-value trade-tracker 'output))))
-        ;; TODO: doge is cute but let's move on
-        (doge/btc (read-from-string (second (getjso "p" (getjso pair (get-request "Ticker" `(("pair" . ,pair)))))))))
-    (flet ((symbol-funds (symbol) (read-from-string (getjso symbol balances)))
-           (total-of (btc doge) (+ btc (/ doge doge/btc)))
-           (factor-fund (fund factor) (* fund fund-factor factor)))
-      (let* ((total-btc (symbol-funds (getjso "base" market)))
-             (total-doge (symbol-funds (getjso "quote" market)))
-             (total-fund (total-of total-btc total-doge))
-             (investment (/ total-btc total-fund))
-             (scaled-factor (expt investment 2))
-             (btc (factor-fund total-btc scaled-factor))
-             (doge (factor-fund total-doge (- 1 scaled-factor))))
-        ;; report funding
-        ;; FIXME: modularize all this decimal point handling
-        (let ((base-decimals (getjso "decimals" (getjso (getjso "base" market) *assets*)))
-              (quote-decimals (getjso "decimals" (getjso (getjso "quote" market) *assets*))))
-          ;; time, total, base, quote, invested, base risk, quote risk
-          (format t "~&~A T ~V$ B ~V$ Q ~V$ I ~$% B ~$% Q ~$%"
-                  (format-timestring nil (now)
-                                     :format '((:hour 2) #\:
-                                               (:min 2) #\:
-                                               (:sec 2)))
-                  base-decimals  total-fund
-                  base-decimals  total-btc
-                  quote-decimals total-doge
-                  (* 100 (- 1 btc-fraction))
-                  (* 100 (/ btc total-btc))
-                  (* 100 (/ doge total-doge))))
-        ;; Now run that algorithm thingy
-        (values
-         ;; first process bids
-         (multiple-value-bind (asks bids)
-             (with-slots (asks-output bids-output) book-tracker
-               (values (chanl:recv asks-output)
-                       (chanl:recv bids-output)))
-           ;; TODO: properly deal with partial and completed orders
-           (let ((other-bids (ignore-mine bids (mapcar 'cdr my-bids)))
-                 (other-asks (ignore-mine asks (mapcar 'cdr my-asks))))
-             ;; NON STOP PARTY PROFIT MADNESS
-             (do* ((best-bid (caar other-bids) (caar other-bids))
-                   (best-ask (caar other-asks) (caar other-asks))
-                   (spread (profit-margin (1+ best-bid) (1- best-ask) 0.14)
-                           (profit-margin (1+ best-bid) (1- best-ask) 0.14)))
-                  ((> spread 1))
-               (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
-                                        (- (cdar other-bids) (cdar other-asks)))))
-                 (-1 (decf (cdar other-asks) (cdr (pop other-bids))))
-                 (+1 (decf (cdar other-bids) (cdr (pop other-asks))))
-                 (0         (pop other-bids)      (pop other-asks))))
-             (let ((to-bid (dumbot-oneside other-bids resilience doge 1 15 #'>))
-                   new-bids)
-               (macrolet ((cancel (old place)
-                            `(progn (cancel-order (car ,old))
-                                    (setf ,place (remove ,old ,place)))))
-                 (flet ((place (new)
-                          (handler-case
-                              (let ((o (post-limit "buy" pair (cdr new)
-                                                   (car new) decimals "viqc")))
-                                ;; rudimentary protection against too-small orders
-                                (if o (push (cons o new) new-bids)
-                                    (format t "~&Couldn't place ~S~%" new)))
-                            (volume-too-low ()
-                              (format t "~&Volume too low: ~S~%" new)
-                              t))))
-                   (dolist (old my-bids)
-                     (let* ((new (find (cadr old) to-bid :key #'cdr :test #'=))
-                            (same (and new (< (/ (abs (- (* price-factor
-                                                            (/ (car new)
-                                                               (cdr new)))
-                                                         (cddr old)))
-                                                 (cddr old))
-                                              0.15))))
-                       (if same (setf to-bid (remove new to-bid))
-                           (dolist (new (remove (cadr old) to-bid
-                                                :key #'cdr :test #'>)
-                                    (cancel old my-bids))
-                             (if (place new) (setf to-bid (remove new to-bid))
-                                 (return (cancel old my-bids)))))))
-                   (mapcar #'place to-bid)))
-               ;; convert new orders into a saner format (for ignore-mine)
-               (sort (append my-bids
-                             (mapcar (lambda (order)
-                                       (destructuring-bind (id quote-amount . price) order
-                                         (list* id price
-                                                (* price-factor (/ quote-amount price)))))
-                                     new-bids))
-                     #'> :key #'cadr))))
-         ;; next process asks
-         (multiple-value-bind (asks bids)
-             (with-slots (asks-output bids-output) book-tracker
-               (values (chanl:recv asks-output)
-                       (chanl:recv bids-output)))
-           (let ((other-bids (ignore-mine bids (mapcar 'cdr my-bids)))
-                 (other-asks (ignore-mine asks (mapcar 'cdr my-asks))))
-             ;; NON STOP PARTY PROFIT MADNESS
-             (do* ((best-bid (caar other-bids) (caar other-bids))
-                   (best-ask (caar other-asks) (caar other-asks))
-                   (spread (profit-margin (1+ best-bid) (1- best-ask) 0.14)
-                           (profit-margin (1+ best-bid) (1- best-ask) 0.14)))
-                  ((> spread 1))
-               (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
-                                        (- (cdar other-bids) (cdar other-asks)))))
-                 (-1 (decf (cdar other-asks) (cdr (pop other-bids))))
-                 (+1 (decf (cdar other-bids) (cdr (pop other-asks))))
-                 (0         (pop other-bids)      (pop other-asks))))
-             (let ((to-ask (dumbot-oneside other-asks resilience btc -1 15 #'<))
-                   new-asks)
-               (macrolet ((cancel (old place)
-                            `(progn (cancel-order (car ,old))
-                                    (setf ,place (remove ,old ,place)))))
-                 (flet ((place (new)
-                          (handler-case
-                              (let ((o (post-limit "sell" pair (cdr new)
-                                                   (car new) decimals)))
-                                (if o (push (cons o new) new-asks)
-                                    (format t "~&Couldn't place ~S~%" new)))
-                            (volume-too-low ()
-                              (format t "~&Volume too low: ~S~%" new)
-                              t))))
-                   (dolist (old my-asks)
-                     (let* ((new (find (cadr old) to-ask :key #'cdr :test #'=))
-                            (same (and new (< (/ (abs (- (car new)
-                                                         (cddr old)))
-                                                 (cddr old))
-                                              0.15))))
-                       (if same (setf to-ask (remove new to-ask))
-                           (dolist (new (remove (cadr old) to-ask
-                                                :key #'cdr :test #'<)
-                                    (cancel old my-asks))
-                             (if (place new) (setf to-ask (remove new to-ask))
-                                 (return (cancel old my-asks)))))))
-                   (mapcar #'place to-ask)))
-               ;; convert new orders into a saner format (for ignore-mine)
-               (sort (append my-asks
-                             (mapcar (lambda (order)
-                                       (destructuring-bind (id quote-amount . price) order
-                                         (list* id price quote-amount)))
-                                     new-asks))
-                     #'< :key #'cadr)))))))))
+(defun %round (maker)
+  (with-slots (fund-factor resilience-factor pair (my-bids bids) (my-asks asks) trades-tracker book-tracker) maker
+    ;; whoo!
+    (chanl:send (slot-value trades-tracker 'control) '(max))
+    ;; Get our balances
+    (let ((balances (auth-request "Balance"))
+          ;; TODO: split into base resilience and quote resilience
+          (resilience (* resilience-factor
+                         (chanl:recv (slot-value trades-tracker 'output))))
+          ;; TODO: doge is cute but let's move on
+          (doge/btc (read-from-string (second (getjso "p" (getjso pair (get-request "Ticker" `(("pair" . ,pair)))))))))
+      (flet ((symbol-funds (symbol) (read-from-string (getjso symbol balances)))
+             (total-of (btc doge) (+ btc (/ doge doge/btc)))
+             (factor-fund (fund factor) (* fund fund-factor factor)))
+        (let* ((market (getjso pair *markets*))
+               (decimals (getjso "pair_decimals" market))
+               (price-factor (expt 10 decimals))
+               (total-btc (symbol-funds (getjso "base" market)))
+               (total-doge (symbol-funds (getjso "quote" market)))
+               (total-fund (total-of total-btc total-doge))
+               (investment (/ total-btc total-fund))
+               (scaled-factor (expt investment 2))
+               (btc (factor-fund total-btc scaled-factor))
+               (doge (factor-fund total-doge (- 1 scaled-factor))))
+          ;; report funding
+          ;; FIXME: modularize all this decimal point handling
+          (let ((base-decimals (getjso "decimals" (getjso (getjso "base" market) *assets*)))
+                (quote-decimals (getjso "decimals" (getjso (getjso "quote" market) *assets*))))
+            ;; time, total, base, quote, invested, base risk, quote risk
+            (format t "~&~A T ~V$ B ~V$ Q ~V$ I ~$% B ~$% Q ~$%"
+                    (format-timestring nil (now)
+                                       :format '((:hour 2) #\:
+                                                 (:min 2) #\:
+                                                 (:sec 2)))
+                    base-decimals  total-fund
+                    base-decimals  total-btc
+                    quote-decimals total-doge
+                    (* 100 investment)
+                    (* 100 (/ btc total-btc))
+                    (* 100 (/ doge total-doge))))
+          ;; Now run that algorithm thingy
+          (values
+           ;; first process bids
+           (multiple-value-bind (asks bids)
+               (with-slots (asks-output bids-output) book-tracker
+                 (values (chanl:recv asks-output)
+                         (chanl:recv bids-output)))
+             ;; TODO: properly deal with partial and completed orders
+             (let ((other-bids (ignore-mine bids (mapcar 'cdr my-bids)))
+                   (other-asks (ignore-mine asks (mapcar 'cdr my-asks))))
+               ;; NON STOP PARTY PROFIT MADNESS
+               (do* ((best-bid (caar other-bids) (caar other-bids))
+                     (best-ask (caar other-asks) (caar other-asks))
+                     (spread (profit-margin (1+ best-bid) (1- best-ask) 0.14)
+                             (profit-margin (1+ best-bid) (1- best-ask) 0.14)))
+                    ((> spread 1))
+                 (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
+                                          (- (cdar other-bids) (cdar other-asks)))))
+                   (-1 (decf (cdar other-asks) (cdr (pop other-bids))))
+                   (+1 (decf (cdar other-bids) (cdr (pop other-asks))))
+                   (0         (pop other-bids)      (pop other-asks))))
+               (let ((to-bid (dumbot-oneside other-bids resilience doge 1 15 #'>))
+                     new-bids)
+                 (macrolet ((cancel (old place)
+                              `(progn (cancel-order (car ,old))
+                                      (setf ,place (remove ,old ,place)))))
+                   (flet ((place (new)
+                            (handler-case
+                                (let ((o (post-limit "buy" pair (cdr new)
+                                                     (car new) decimals "viqc")))
+                                  ;; rudimentary protection against too-small orders
+                                  (if o (push (cons o new) new-bids)
+                                      (format t "~&Couldn't place ~S~%" new)))
+                              (volume-too-low ()
+                                (format t "~&Volume too low: ~S~%" new)
+                                t))))
+                     (dolist (old my-bids)
+                       (let* ((new (find (cadr old) to-bid :key #'cdr :test #'=))
+                              (same (and new (< (/ (abs (- (* price-factor
+                                                              (/ (car new)
+                                                                 (cdr new)))
+                                                           (cddr old)))
+                                                   (cddr old))
+                                                0.15))))
+                         (if same (setf to-bid (remove new to-bid))
+                             (dolist (new (remove (cadr old) to-bid
+                                                  :key #'cdr :test #'>)
+                                      (cancel old my-bids))
+                               (if (place new) (setf to-bid (remove new to-bid))
+                                   (return (cancel old my-bids)))))))
+                     (mapcar #'place to-bid)))
+                 ;; convert new orders into a saner format (for ignore-mine)
+                 (sort (append my-bids
+                               (mapcar (lambda (order)
+                                         (destructuring-bind (id quote-amount . price) order
+                                           (list* id price
+                                                  (* price-factor (/ quote-amount price)))))
+                                       new-bids))
+                       #'> :key #'cadr))))
+           ;; next process asks
+           (multiple-value-bind (asks bids)
+               (with-slots (asks-output bids-output) book-tracker
+                 (values (chanl:recv asks-output)
+                         (chanl:recv bids-output)))
+             (let ((other-bids (ignore-mine bids (mapcar 'cdr my-bids)))
+                   (other-asks (ignore-mine asks (mapcar 'cdr my-asks))))
+               ;; NON STOP PARTY PROFIT MADNESS
+               (do* ((best-bid (caar other-bids) (caar other-bids))
+                     (best-ask (caar other-asks) (caar other-asks))
+                     (spread (profit-margin (1+ best-bid) (1- best-ask) 0.14)
+                             (profit-margin (1+ best-bid) (1- best-ask) 0.14)))
+                    ((> spread 1))
+                 (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
+                                          (- (cdar other-bids) (cdar other-asks)))))
+                   (-1 (decf (cdar other-asks) (cdr (pop other-bids))))
+                   (+1 (decf (cdar other-bids) (cdr (pop other-asks))))
+                   (0         (pop other-bids)      (pop other-asks))))
+               (let ((to-ask (dumbot-oneside other-asks resilience btc -1 15 #'<))
+                     new-asks)
+                 (macrolet ((cancel (old place)
+                              `(progn (cancel-order (car ,old))
+                                      (setf ,place (remove ,old ,place)))))
+                   (flet ((place (new)
+                            (handler-case
+                                (let ((o (post-limit "sell" pair (cdr new)
+                                                     (car new) decimals)))
+                                  (if o (push (cons o new) new-asks)
+                                      (format t "~&Couldn't place ~S~%" new)))
+                              (volume-too-low ()
+                                (format t "~&Volume too low: ~S~%" new)
+                                t))))
+                     (dolist (old my-asks)
+                       (let* ((new (find (cadr old) to-ask :key #'cdr :test #'=))
+                              (same (and new (< (/ (abs (- (car new)
+                                                           (cddr old)))
+                                                   (cddr old))
+                                                0.15))))
+                         (if same (setf to-ask (remove new to-ask))
+                             (dolist (new (remove (cadr old) to-ask
+                                                  :key #'cdr :test #'<)
+                                      (cancel old my-asks))
+                               (if (place new) (setf to-ask (remove new to-ask))
+                                   (return (cancel old my-asks)))))))
+                     (mapcar #'place to-ask)))
+                 ;; convert new orders into a saner format (for ignore-mine)
+                 (sort (append my-asks
+                               (mapcar (lambda (order)
+                                         (destructuring-bind (id quote-amount . price) order
+                                           (list* id price quote-amount)))
+                                       new-asks))
+                       #'< :key #'cadr))))))))))
 
 (defclass maker ()
   ((pair :initarg :pair :initform "XXBTZEUR")
@@ -452,8 +448,7 @@
        (case (car command)
          ;; pause - wait for any other command to restart
          (pause (chanl:recv control))))
-      (t (setf (values bids asks)
-               (%round fund-factor resilience-factor pair bids asks trades-tracker book-tracker))
+      (t (setf (values bids asks) (%round maker))
          (when delay (sleep delay))))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
