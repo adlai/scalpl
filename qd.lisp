@@ -231,7 +231,7 @@
    (control :initform (make-instance 'chanl:channel))
    (bids-output :initform (make-instance 'chanl:channel))
    (asks-output :initform (make-instance 'chanl:channel))
-   (delay :initarg :delay :initform 6)
+   (delay :initarg :delay :initform 5)
    bids asks updater worker))
 
 (defun book-loop (tracker)
@@ -322,8 +322,8 @@
           ;; FIXME: modularize all this decimal point handling
           (let ((base-decimals (getjso "decimals" (getjso (getjso "base" market) *assets*)))
                 (quote-decimals (getjso "decimals" (getjso (getjso "quote" market) *assets*))))
-            ;; time, total, base, quote, invested, base risk, quote risk
-            (format t "~&~A T ~V$ B ~V$ Q ~V$ I ~$% B ~$% Q ~$%"
+            ;; time, total, base, quote, invested, risked, risk bias
+            (format t "~&~A T ~V$ B ~V$ Q ~V$ I ~$% R ~$% B~@$%"
                     (format-timestring nil (now)
                                        :format '((:hour 2) #\:
                                                  (:min 2) #\:
@@ -332,8 +332,8 @@
                     base-decimals  total-btc
                     quote-decimals total-doge
                     (* 100 investment)
-                    (* 100 (/ btc total-btc))
-                    (* 100 (/ doge total-doge))))
+                    (* 100 (/ (total-of btc doge) total-fund))
+                    (* 100 (/ (total-of (- btc) doge) total-fund))))
           ;; Now run that algorithm thingy
           (values
            ;; first process bids
