@@ -215,7 +215,7 @@
    (control :initform (make-instance 'chanl:channel))
    (bids-output :initform (make-instance 'chanl:channel))
    (asks-output :initform (make-instance 'chanl:channel))
-   (delay :initarg :delay :initform 10)
+   (delay :initarg :delay :initform 6)
    bids asks updater worker))
 
 (defun book-loop (tracker)
@@ -297,7 +297,7 @@
                (total-doge (symbol-funds (getjso "quote" market)))
                (total-fund (total-of total-btc total-doge))
                (investment (/ total-btc total-fund))
-               (scaled-factor (expt investment 2))
+               (scaled-factor (expt investment 5/2))
                (btc (factor-fund total-btc scaled-factor))
                (doge (factor-fund total-doge (- 1 scaled-factor))))
           ;; report funding
