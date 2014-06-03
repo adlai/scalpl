@@ -366,7 +366,8 @@
                                       (cancel old my-bids))
                                (if (place new) (setf to-bid (remove new to-bid))
                                    (return (cancel old my-bids)))))))
-                     (mapcar #'place to-bid)))
+                     (mapcar #'place to-bid)
+                     (unless new-bids (sleep (slot-value maker 'delay)))))
                  ;; convert new orders into a saner format (for ignore-mine)
                  (sort (append my-bids
                                (mapcar (lambda (order)
@@ -419,7 +420,8 @@
                                       (cancel old my-asks))
                                (if (place new) (setf to-ask (remove new to-ask))
                                    (return (cancel old my-asks)))))))
-                     (mapcar #'place to-ask)))
+                     (mapcar #'place to-ask)
+                     (unless new-asks (sleep (slot-value maker 'delay)))))
                  ;; convert new orders into a saner format (for ignore-mine)
                  (sort (append my-asks
                                (mapcar (lambda (order)
@@ -434,7 +436,7 @@
    (resilience-factor :initarg :resilience :initform 1)
    (auth :initarg :auth)
    (control :initform (make-instance 'chanl:channel))
-   (delay :initarg :delay :initform 6)
+   (delay :initarg :delay :initform 3)
    (bids :initform nil :initarg :bids)
    (asks :initform nil :initarg :asks)
    trades-tracker book-tracker thread))
@@ -448,8 +450,7 @@
        (case (car command)
          ;; pause - wait for any other command to restart
          (pause (chanl:recv control))))
-      (t (setf (values bids asks) (%round maker))
-         (when delay (sleep delay))))))
+      (t (setf (values bids asks) (%round maker))))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
   (with-slots (auth pair trades-tracker book-tracker thread) maker
