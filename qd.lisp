@@ -527,15 +527,17 @@
       (setf book-tracker (make-instance 'book-tracker :pair pair)))
     (unless (slot-boundp maker 'account-tracker)
       (setf account-tracker (make-instance 'account-tracker :auth auth)))
-    (setf thread
-          (chanl:pexec
-              (:name (concatenate 'string "qdm-preα " pair)
-               :initial-bindings
-               `((*read-default-float-format* double-float)
-                 (*auth* ,auth)))
-            ;; TODO: just pexec anew each time...
-            ;; you'll understand what you meant someday, right?
-            (loop (dumbot-loop maker))))))
+    (when (or (not (slot-boundp maker 'thread))
+              (eq :terminated (chanl:task-status thread)))
+      (setf thread
+            (chanl:pexec
+                (:name (concatenate 'string "qdm-preα " pair)
+                       :initial-bindings
+                       `((*read-default-float-format* double-float)
+                         (*auth* ,auth)))
+              ;; TODO: just pexec anew each time...
+              ;; you'll understand what you meant someday, right?
+              (loop (dumbot-loop maker)))))))
 
 (defun pause-maker (maker)
   (with-slots (control) maker
