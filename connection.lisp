@@ -61,6 +61,11 @@
       (multiple-value-bind (body status)
           (apply #'drakma:http-request
                  (concatenate 'string +base-path+ path)
+                 ;; Mystery crash on the morning of 2014-06-04
+                 ;; entered an infinite loop of usocket:timeout-error
+                 ;; lasted for hours, continued upon restart
+                 ;; other programs on the same computer not affected - just sbcl
+                 :connection-timeout 60
                  keys)
         (case status
           (200 (with-json-slots (result error)
@@ -87,10 +92,6 @@
       (format t "~&Retrying after deadline timeout...~%")
       (sleep 1)
       (apply #'raw-request path keys))
-    ;; Mystery crash on the morning of 2014-06-04
-    ;; entered an infinite loop of usocket:timeout-error
-    ;; lasted for hours, continued upon restart
-    ;; other programs on the same computer not affected - just sbcl
     (usocket:timeout-error ()
       (format t "~&Retrying after regular timeout...~%")
       (sleep 1)
