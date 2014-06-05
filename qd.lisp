@@ -272,7 +272,7 @@
    (control :initform (make-instance 'chanl:channel))
    (auth :initarg :auth)
    (delay :initform 12)
-   worker))
+   updater worker))
 
 (defun account-loop (tracker)
   (with-slots (auth balances control) tracker
@@ -289,14 +289,21 @@
                              (auth-request "Balance"))))))))
 
 (defmethod initialize-instance :after ((tracker account-tracker) &key)
-  (with-slots (auth balances control worker) tracker
-    (setf worker
-          (chanl:pexec (:name "qdm-preα account worker"
-                        :initial-bindings `((*auth* ,auth)
-                                            (*read-default-float-format* double-float)))
-            ;; TODO: just pexec anew each time...
-            ;; you'll understand what you meant someday, right?
-            (loop (account-loop tracker))))
+  (with-slots (auth balances control worker updater delay) tracker
+    (when (or (not (slot-boundp tracker 'worker))
+              (eq :terminated (chanl:task-status worker)))
+      (setf worker
+            (chanl:pexec (:name "qdm-preα account worker"
+                                :initial-bindings `((*auth* ,auth)
+                                                    (*read-default-float-format* double-float)))
+              ;; TODO: just pexec anew each time...
+              ;; you'll understand what you meant someday, right?
+              (loop (account-loop tracker)))))
+    (when (or (not (slot-boundp tracker 'updater))
+              (eq :terminated (chanl:task-status updater)))
+      (setf updater
+            (chanl:pexec (:name "qdm-preα account updater")
+              (loop (sleep delay) (chanl:send control t)))))
     (chanl:send control t)))
 
 (defun asset-balance (tracker asset &aux (channel (make-instance 'chanl:channel)))
