@@ -271,7 +271,7 @@
   ((balances :initarg :balances)
    (control :initform (make-instance 'chanl:channel))
    (auth :initarg :auth)
-   (delay :initform 12)
+   (delay :initform 20)
    updater worker))
 
 (defun account-loop (tracker)
@@ -283,10 +283,12 @@
                           (or (cdr (assoc (car command) balances
                                           :test #'string=))
                               0)))
-        (t (setf balances
-                 (mapcar-jso (lambda (asset balance)
-                               (cons asset (read-from-string balance)))
-                             (auth-request "Balance"))))))))
+        (t (let ((new (auth-request "Balance")))
+             (when new
+               (setf balances
+                     (mapcar-jso (lambda (asset balance)
+                                   (cons asset (read-from-string balance)))
+                                 new)))))))))
 
 (defmethod initialize-instance :after ((tracker account-tracker) &key)
   (with-slots (auth balances control worker updater delay) tracker
