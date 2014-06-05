@@ -316,6 +316,25 @@
 (defun profit-margin (bid ask fee-percent)
   (* (/ ask bid) (- 1 (/ fee-percent 100))))
 
+;;; Lossy trades
+
+;;; The most common lossy trade execution happens when a limit order rolls
+;;; through one or more offers but isn't filled, and thus remains on the
+;;; books. If this order is large enough, it'll get outbid by the next round of
+;;; the offer placement algorithm, and the outbidding offer will be lossy
+;;; relative to the trades previously executed.
+
+;;; How bad is this?
+
+;;; In some situations, the remaining limit order gets traded back rapidly:
+;; TUFCXE 12:26:33 buy  €473.22001 0.00020828 €0.09856
+;; TJVT4U 12:26:33 buy  €473.22002 0.00004196 €0.01986
+;; TRU2YT 12:24:05 buy  €474.04001 0.00108394 €0.51383
+;; TOFJR2 12:23:52 sell €474.04000 0.00002623 €0.01243
+;; TYWDQU 12:23:51 sell €473.98799 0.00074902 €0.35503
+;; TINWGD 12:23:51 sell €473.95313 0.00028740 €0.13621
+;; TPY7P4 12:23:51 sell €473.92213 0.00003772 €0.01788
+
 (defun dumbot-oneside (book resilience funds delta max-orders predicate
                        &aux (acc 0) (share 0))
   ;; calculate cumulative depths
