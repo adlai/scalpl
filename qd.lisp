@@ -334,7 +334,7 @@
                              :want-stream t))))
 
 (defun %round (maker)
-  (with-slots (fund-factor resilience-factor pair (my-bids bids) (my-asks asks) trades-tracker book-tracker) maker
+  (with-slots (fee fund-factor resilience-factor pair (my-bids bids) (my-asks asks) trades-tracker book-tracker) maker
     ;; whoo!
     (chanl:send (slot-value trades-tracker 'control) '(max))
     ;; Get our balances
@@ -388,8 +388,8 @@
                ;; NON STOP PARTY PROFIT MADNESS
                (do* ((best-bid (caar other-bids) (caar other-bids))
                      (best-ask (caar other-asks) (caar other-asks))
-                     (spread (profit-margin (1+ best-bid) (1- best-ask) 0.14)
-                             (profit-margin (1+ best-bid) (1- best-ask) 0.14)))
+                     (spread (profit-margin (1+ best-bid) (1- best-ask) fee)
+                             (profit-margin (1+ best-bid) (1- best-ask) fee)))
                     ((> spread 1))
                  (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
                                           (- (cdar other-bids) (cdar other-asks)))))
@@ -445,8 +445,8 @@
                ;; NON STOP PARTY PROFIT MADNESS
                (do* ((best-bid (caar other-bids) (caar other-bids))
                      (best-ask (caar other-asks) (caar other-asks))
-                     (spread (profit-margin (1+ best-bid) (1- best-ask) 0.14)
-                             (profit-margin (1+ best-bid) (1- best-ask) 0.14)))
+                     (spread (profit-margin (1+ best-bid) (1- best-ask) fee)
+                             (profit-margin (1+ best-bid) (1- best-ask) fee)))
                     ((> spread 1))
                  (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
                                           (- (cdar other-bids) (cdar other-asks)))))
@@ -498,6 +498,7 @@
    (delay :initarg :delay :initform 3)
    (bids :initform nil :initarg :bids)
    (asks :initform nil :initarg :asks)
+   (fee :initform 0.2 :initarg :fee)
    trades-tracker book-tracker thread))
 
 (defun dumbot-loop (maker)
