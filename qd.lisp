@@ -434,8 +434,7 @@
                                       (cancel old my-bids))
                                (if (place new) (setf to-bid (remove new to-bid))
                                    (return (cancel old my-bids)))))))
-                     (mapcar #'place to-bid)
-                     (unless new-bids (sleep (slot-value maker 'delay)))))
+                     (mapcar #'place to-bid)))
                  ;; convert new orders into a saner format (for ignore-mine)
                  (sort (append my-bids
                                (mapcar (lambda (order)
@@ -488,8 +487,7 @@
                                       (cancel old my-asks))
                                (if (place new) (setf to-ask (remove new to-ask))
                                    (return (cancel old my-asks)))))))
-                     (mapcar #'place to-ask)
-                     (unless new-asks (sleep (slot-value maker 'delay)))))
+                     (mapcar #'place to-ask)))
                  ;; convert new orders into a saner format (for ignore-mine)
                  (sort (append my-asks
                                (mapcar (lambda (order)
@@ -504,7 +502,6 @@
    (resilience-factor :initarg :resilience :initform 1)
    (auth :initarg :auth)
    (control :initform (make-instance 'chanl:channel))
-   (delay :initarg :delay :initform 3)
    (bids :initform nil :initarg :bids)
    (asks :initform nil :initarg :asks)
    (fee :initform 0.2 :initarg :fee)
