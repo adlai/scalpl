@@ -250,18 +250,22 @@
 
 (defmethod initialize-instance :after ((tracker book-tracker) &key)
   (with-slots (updater worker bids asks pair delay) tracker
-    (setf updater
-          (chanl:pexec
-              (:name (concatenate 'string "qdm-preα book updater for " pair)
-               :initial-bindings `((*read-default-float-format* double-float)))
-            (loop
-               (setf (values asks bids) (get-book pair))
-               (sleep delay)))
-          worker
-          (chanl:pexec (:name (concatenate 'string "qdm-preα book worker for " pair))
-            ;; TODO: just pexec anew each time...
-            ;; you'll understand what you meant someday, right?
-            (loop (book-loop tracker))))))
+    (when (or (not (slot-boundp tracker 'updater))
+              (eq :terminated (chanl:task-status updater)))
+      (setf updater
+            (chanl:pexec
+                (:name (concatenate 'string "qdm-preα book updater for " pair)
+                 :initial-bindings `((*read-default-float-format* double-float)))
+              (loop
+                 (setf (values asks bids) (get-book pair))
+                 (sleep delay))))
+    (when (or (not (slot-boundp tracker 'worker))
+              (eq :terminated (chanl:task-status worker)))
+      (setf worker
+            (chanl:pexec (:name (concatenate 'string "qdm-preα book worker for " pair))
+              ;; TODO: just pexec anew each time...
+              ;; you'll understand what you meant someday, right?
+              (loop (book-loop tracker))))))))
 
 ;;;
 ;;; ACCOUNT TRACKING
