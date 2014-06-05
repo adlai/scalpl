@@ -122,7 +122,7 @@
    (control :initform (make-instance 'chanl:channel))
    (buffer :initform (make-instance 'chanl:channel))
    (output :initform (make-instance 'chanl:channel))
-   (delay :initarg :delay :initform 30)
+   (delay :initarg :delay :initform 35)
    trades last updater worker))
 
 (defun kraken-timestamp (timestamp)
@@ -231,7 +231,7 @@
    (control :initform (make-instance 'chanl:channel))
    (bids-output :initform (make-instance 'chanl:channel))
    (asks-output :initform (make-instance 'chanl:channel))
-   (delay :initarg :delay :initform 5)
+   (delay :initarg :delay :initform 8)
    bids asks updater worker))
 
 (defun book-loop (tracker)
@@ -271,7 +271,7 @@
   ((balances :initarg :balances)
    (control :initform (make-instance 'chanl:channel))
    (auth :initarg :auth)
-   (delay :initform 20)
+   (delay :initform 27)
    updater worker))
 
 (defun account-loop (tracker)
