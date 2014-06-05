@@ -341,19 +341,21 @@
                              :want-stream t))))
 
 (defun %round (maker)
-  (with-slots (fee fund-factor resilience-factor pair (my-bids bids) (my-asks asks) trades-tracker book-tracker) maker
+  (with-slots (fee fund-factor resilience-factor
+               pair (my-bids bids) (my-asks asks)
+               trades-tracker book-tracker account-tracker)
+      maker
     ;; whoo!
     (chanl:send (slot-value trades-tracker 'control) '(max))
     ;; Get our balances
-    (let ((balances (auth-request "Balance"))
-          ;; TODO: split into base resilience and quote resilience
+    (let (;; TODO: split into base resilience and quote resilience
           (resilience (* resilience-factor
                          (chanl:recv (slot-value trades-tracker 'output))))
           ;; TODO: doge is cute but let's move on
           (doge/btc (with-slots (control output) trades-tracker
                       (chanl:send control `(vwap :since ,(timestamp- (now) 4 :hour)))
                       (chanl:recv output))))
-      (flet ((symbol-funds (symbol) (read-from-string (getjso symbol balances)))
+      (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
              (total-of (btc doge) (+ btc (/ doge doge/btc)))
              (factor-fund (fund factor) (* fund fund-factor factor)))
         (let* ((market (getjso pair *markets*))
@@ -506,7 +508,7 @@
    (bids :initform nil :initarg :bids)
    (asks :initform nil :initarg :asks)
    (fee :initform 0.2 :initarg :fee)
-   trades-tracker book-tracker thread))
+   trades-tracker book-tracker account-tracker thread))
 
 (defun dumbot-loop (maker)
   (with-slots (pair control fund-factor resilience-factor bids asks delay trades-tracker book-tracker)
@@ -520,12 +522,14 @@
       (t (setf (values bids asks) (%round maker))))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
-  (with-slots (auth pair trades-tracker book-tracker thread) maker
+  (with-slots (auth pair trades-tracker book-tracker account-tracker thread) maker
     ;; FIXME: wtf is this i don't even
     (unless (slot-boundp maker 'trades-tracker)
       (setf trades-tracker (make-instance 'trades-tracker :pair pair)))
     (unless (slot-boundp maker 'book-tracker)
       (setf book-tracker (make-instance 'book-tracker :pair pair)))
+    (unless (slot-boundp maker 'account-tracker)
+      (setf account-tracker (make-instance 'account-tracker :auth auth)))
     (setf thread
           (chanl:pexec
               (:name (concatenate 'string "qdm-preα " pair)
