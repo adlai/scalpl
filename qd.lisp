@@ -263,6 +263,47 @@
             ;; you'll understand what you meant someday, right?
             (loop (book-loop tracker))))))
 
+;;;
+;;; ACCOUNT TRACKING
+;;;
+
+(defclass account-tracker ()
+  ((balances :initarg :balances)
+   (control :initform (make-instance 'chanl:channel))
+   (auth :initarg :auth)
+   (delay :initform 12)
+   worker))
+
+(defun account-loop (tracker)
+  (with-slots (auth balances control) tracker
+    (let ((command (chanl:recv control)))
+      (typecase command
+        ;; ( asset . channel )
+        (cons (chanl:send (cdr command)
+                          (or (cdr (assoc (car command) balances
+                                          :test #'string=))
+                              0)))
+        (t (setf balances
+                 (mapcar-jso (lambda (asset balance)
+                               (cons asset (read-from-string balance)))
+                             (auth-request "Balance"))))))))
+
+(defmethod initialize-instance :after ((tracker account-tracker) &key)
+  (with-slots (auth balances control worker) tracker
+    (setf worker
+          (chanl:pexec (:name "qdm-preα account worker"
+                        :initial-bindings `((*auth* ,auth)
+                                            (*read-default-float-format* double-float)))
+            ;; TODO: just pexec anew each time...
+            ;; you'll understand what you meant someday, right?
+            (loop (account-loop tracker))))
+    (chanl:send control t)))
+
+(defun asset-balance (tracker asset &aux (channel (make-instance 'chanl:channel)))
+  (with-slots (control) tracker
+    (chanl:send control (cons asset channel))
+    (chanl:recv channel)))
+
 (defun profit-margin (bid ask fee-percent)
   (* (/ ask bid) (- 1 (/ fee-percent 100))))
 
