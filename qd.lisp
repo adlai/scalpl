@@ -122,7 +122,7 @@
    (control :initform (make-instance 'chanl:channel))
    (buffer :initform (make-instance 'chanl:channel))
    (output :initform (make-instance 'chanl:channel))
-   (delay :initarg :delay :initform 35)
+   (delay :initarg :delay :initform 65)
    trades last updater worker))
 
 (defun kraken-timestamp (timestamp)
@@ -366,7 +366,7 @@
                              :want-stream t))))
 
 (defun %round (maker)
-  (with-slots (fee fund-factor resilience-factor
+  (with-slots (fee fund-factor resilience-factor targeting-factor
                pair (my-bids bids) (my-asks asks)
                trades-tracker book-tracker account-tracker)
       maker
@@ -390,7 +390,7 @@
                (total-doge (symbol-funds (getjso "quote" market)))
                (total-fund (total-of total-btc total-doge))
                (investment (/ total-btc total-fund))
-               (scaled-factor (expt investment 5/2))
+               (scaled-factor (* investment targeting-factor))
                (btc (factor-fund total-btc scaled-factor))
                (doge (factor-fund total-doge (- 1 scaled-factor))))
           ;; report funding
@@ -525,11 +525,13 @@
   ((pair :initarg :pair :initform "XXBTZEUR")
    (fund-factor :initarg :fund-factor :initform 1)
    (resilience-factor :initarg :resilience :initform 1)
+   (targeting-factor :initarg :targeting :initform 1/2)
    (auth :initarg :auth)
    (control :initform (make-instance 'chanl:channel))
    (bids :initform nil :initarg :bids)
    (asks :initform nil :initarg :asks)
-   (fee :initform 0.2 :initarg :fee)
+   (fee :initform 0.13 :initarg :fee)
+   (delay :initform 3 :initarg :delay)
    trades-tracker book-tracker account-tracker thread))
 
 (defun dumbot-loop (maker)
@@ -541,7 +543,8 @@
        (case (car command)
          ;; pause - wait for any other command to restart
          (pause (chanl:recv control))))
-      (t (setf (values bids asks) (%round maker))))))
+      (t (setf (values bids asks) (%round maker))
+         (sleep delay)))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
   (with-slots (auth pair trades-tracker book-tracker account-tracker thread) maker
