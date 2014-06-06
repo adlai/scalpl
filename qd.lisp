@@ -410,31 +410,31 @@
                     (* 100 (/ (total-of btc doge) total-fund))
                     (* 100 (/ (total-of (- btc) doge) total-fund))))
           ;; Now run that algorithm thingy
-          (values
-           ;; first process bids
-           (multiple-value-bind (asks bids)
-               (with-slots (asks-output bids-output) book-tracker
-                 (values (chanl:recv asks-output)
-                         (chanl:recv bids-output)))
-             ;; TODO: properly deal with partial and completed orders
-             (let ((other-bids (ignore-mine bids (mapcar 'cdr my-bids)))
-                   (other-asks (ignore-mine asks (mapcar 'cdr my-asks))))
-               ;; NON STOP PARTY PROFIT MADNESS
-               (do* ((best-bid (caar other-bids) (caar other-bids))
-                     (best-ask (caar other-asks) (caar other-asks))
-                     (spread (profit-margin (1+ best-bid) (1- best-ask) fee)
-                             (profit-margin (1+ best-bid) (1- best-ask) fee)))
-                    ((> spread 1))
-                 (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
-                                          (- (cdar other-bids) (cdar other-asks)))))
-                   (-1 (decf (cdar other-asks) (cdr (pop other-bids))))
-                   (+1 (decf (cdar other-bids) (cdr (pop other-asks))))
-                   (0         (pop other-bids)      (pop other-asks))))
-               (let ((to-bid (dumbot-oneside other-bids resilience doge 1 15 #'>))
-                     new-bids)
-                 (macrolet ((cancel (old place)
-                              `(progn (cancel-order (car ,old))
-                                      (setf ,place (remove ,old ,place)))))
+          (macrolet ((cancel (old place)
+                       `(progn (cancel-order (car ,old))
+                               (setf ,place (remove ,old ,place)))))
+            (values
+             ;; first process bids
+             (multiple-value-bind (asks bids)
+                 (with-slots (asks-output bids-output) book-tracker
+                   (values (chanl:recv asks-output)
+                           (chanl:recv bids-output)))
+               ;; TODO: properly deal with partial and completed orders
+               (let ((other-bids (ignore-mine bids (mapcar 'cdr my-bids)))
+                     (other-asks (ignore-mine asks (mapcar 'cdr my-asks))))
+                 ;; NON STOP PARTY PROFIT MADNESS
+                 (do* ((best-bid (caar other-bids) (caar other-bids))
+                       (best-ask (caar other-asks) (caar other-asks))
+                       (spread (profit-margin (1+ best-bid) (1- best-ask) fee)
+                               (profit-margin (1+ best-bid) (1- best-ask) fee)))
+                      ((> spread 1))
+                   (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
+                                            (- (cdar other-bids) (cdar other-asks)))))
+                     (-1 (decf (cdar other-asks) (cdr (pop other-bids))))
+                     (+1 (decf (cdar other-bids) (cdr (pop other-asks))))
+                     (0         (pop other-bids)      (pop other-asks))))
+                 (let ((to-bid (dumbot-oneside other-bids resilience doge 1 15 #'>))
+                       new-bids)
                    (flet ((place (new)
                             (handler-case
                                 (let ((o (post-limit "buy" pair (cdr new)
@@ -459,38 +459,35 @@
                                       (cancel old my-bids))
                                (if (place new) (setf to-bid (remove new to-bid))
                                    (return (cancel old my-bids)))))))
-                     (mapcar #'place to-bid)))
-                 ;; convert new orders into a saner format (for ignore-mine)
-                 (sort (append my-bids
-                               (mapcar (lambda (order)
-                                         (destructuring-bind (id quote-amount . price) order
-                                           (list* id price
-                                                  (* price-factor (/ quote-amount price)))))
-                                       new-bids))
-                       #'> :key #'cadr))))
-           ;; next process asks
-           (multiple-value-bind (asks bids)
-               (with-slots (asks-output bids-output) book-tracker
-                 (values (chanl:recv asks-output)
-                         (chanl:recv bids-output)))
-             (let ((other-bids (ignore-mine bids (mapcar 'cdr my-bids)))
-                   (other-asks (ignore-mine asks (mapcar 'cdr my-asks))))
-               ;; NON STOP PARTY PROFIT MADNESS
-               (do* ((best-bid (caar other-bids) (caar other-bids))
-                     (best-ask (caar other-asks) (caar other-asks))
-                     (spread (profit-margin (1+ best-bid) (1- best-ask) fee)
-                             (profit-margin (1+ best-bid) (1- best-ask) fee)))
-                    ((> spread 1))
-                 (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
-                                          (- (cdar other-bids) (cdar other-asks)))))
-                   (-1 (decf (cdar other-asks) (cdr (pop other-bids))))
-                   (+1 (decf (cdar other-bids) (cdr (pop other-asks))))
-                   (0         (pop other-bids)      (pop other-asks))))
-               (let ((to-ask (dumbot-oneside other-asks resilience btc -1 15 #'<))
-                     new-asks)
-                 (macrolet ((cancel (old place)
-                              `(progn (cancel-order (car ,old))
-                                      (setf ,place (remove ,old ,place)))))
+                     (mapcar #'place to-bid))
+                   ;; convert new orders into a saner format (for ignore-mine)
+                   (sort (append my-bids
+                                 (mapcar (lambda (order)
+                                           (destructuring-bind (id quote-amount . price) order
+                                             (list* id price
+                                                    (* price-factor (/ quote-amount price)))))
+                                         new-bids))
+                         #'> :key #'cadr))))
+             ;; next process asks
+             (multiple-value-bind (asks bids)
+                 (with-slots (asks-output bids-output) book-tracker
+                   (values (chanl:recv asks-output)
+                           (chanl:recv bids-output)))
+               (let ((other-bids (ignore-mine bids (mapcar 'cdr my-bids)))
+                     (other-asks (ignore-mine asks (mapcar 'cdr my-asks))))
+                 ;; NON STOP PARTY PROFIT MADNESS
+                 (do* ((best-bid (caar other-bids) (caar other-bids))
+                       (best-ask (caar other-asks) (caar other-asks))
+                       (spread (profit-margin (1+ best-bid) (1- best-ask) fee)
+                               (profit-margin (1+ best-bid) (1- best-ask) fee)))
+                      ((> spread 1))
+                   (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
+                                            (- (cdar other-bids) (cdar other-asks)))))
+                     (-1 (decf (cdar other-asks) (cdr (pop other-bids))))
+                     (+1 (decf (cdar other-bids) (cdr (pop other-asks))))
+                     (0         (pop other-bids)      (pop other-asks))))
+                 (let ((to-ask (dumbot-oneside other-asks resilience btc -1 15 #'<))
+                       new-asks)
                    (flet ((place (new)
                             (handler-case
                                 (let ((o (post-limit "sell" pair (cdr new)
@@ -512,14 +509,14 @@
                                       (cancel old my-asks))
                                (if (place new) (setf to-ask (remove new to-ask))
                                    (return (cancel old my-asks)))))))
-                     (mapcar #'place to-ask)))
-                 ;; convert new orders into a saner format (for ignore-mine)
-                 (sort (append my-asks
-                               (mapcar (lambda (order)
-                                         (destructuring-bind (id quote-amount . price) order
-                                           (list* id price quote-amount)))
-                                       new-asks))
-                       #'< :key #'cadr))))))))))
+                     (mapcar #'place to-ask))
+                   ;; convert new orders into a saner format (for ignore-mine)
+                   (sort (append my-asks
+                                 (mapcar (lambda (order)
+                                           (destructuring-bind (id quote-amount . price) order
+                                             (list* id price quote-amount)))
+                                         new-asks))
+                         #'< :key #'cadr)))))))))))
 
 (defclass maker ()
   ((pair :initarg :pair :initform "XXBTZEUR")
