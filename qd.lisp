@@ -542,7 +542,8 @@
        ;; commands are (cons command args)
        (case (car command)
          ;; pause - wait for any other command to restart
-         (pause (chanl:recv control))))
+         (pause (chanl:recv control))
+         (stream (setf *standard-output* (cdr command)))))
       (t (setf (values bids asks) (%round maker))
          (sleep delay)))))
 
