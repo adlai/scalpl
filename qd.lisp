@@ -411,8 +411,10 @@
                     (* 100 (/ (total-of (- btc) doge) total-fund))))
           ;; Now run that algorithm thingy
           (macrolet ((cancel (old place)
-                       `(progn (cancel-order (car ,old))
-                               (setf ,place (remove ,old ,place)))))
+                       `(multiple-value-bind (ret err)
+                            (cancel-order (car ,old))
+                          (when (or ret (search "Unknown order" (car err)))
+                            (setf ,place (remove ,old ,place))))))
             (values
              ;; first process bids
              (multiple-value-bind (asks bids)
