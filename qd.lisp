@@ -5,10 +5,45 @@
 
 (in-package #:glock.qd)
 
-(defvar *auth*)
+;;;
+;;; Rate Limiter
+;;;
+
+(defclass rate-limiter ()
+  ((key :initarg :key)
+   (signer :initarg :secret)
+   (in :initform (make-instance 'chanl:channel))
+   thread))
+
+(defun limiter-loop (limiter)
+  (with-slots (key signer in) limiter
+    ;;                   / command structure \
+    (destructuring-bind (command method &rest options) (chanl:recv in)
+      (typecase command
+        (symbol (setf (slot-value limiter command) (apply method options)))
+        (chanl:channel
+         (chanl:send command
+                     (multiple-value-list (post-request method key signer options))))))))
+
+(defmethod initialize-instance :after ((limiter rate-limiter) &key key secret)
+  (setf (slot-value limiter 'key) (glock.connection::make-key key)
+        (slot-value limiter 'signer) (glock.connection::make-signer secret))
+  (when (or (not (slot-boundp limiter 'thread))
+            (eq :terminated (chanl:task-status (slot-value limiter 'thread))))
+    (setf (slot-value limiter 'thread)
+          (chanl:pexec (:name "qdm-preα rate gate")
+            (loop (limiter-loop limiter))))))
+
+(defvar *auth*
+  (make-instance 'rate-limiter
+                 :key #P "secrets/kraken.pubkey"
+                 :secret #P "secrets/kraken.secret"))
 
 (defun auth-request (path &optional options)
-  (when *auth* (post-request path (car *auth*) (cdr *auth*) options)))
+  (when *auth*
+    (let ((o (make-instance 'chanl:channel)))
+      (chanl:send (slot-value *auth* 'in) (list* o path options))
+      (values-list (chanl:recv o)))))
 
 (defun get-assets ()
   (mapjso* (lambda (name data) (setf (getjso "name" data) name))
@@ -186,7 +221,8 @@
 
 (defmethod initialize-instance :after ((tracker trades-tracker) &key)
   (with-slots (pair updater buffer delay worker last trades) tracker
-    (unless (slot-boundp tracker 'updater)
+    (when (or (not (slot-boundp tracker 'updater))
+              (eq :terminated (chanl:task-status updater)))
       (setf updater
             (chanl:pexec
                 (:name (concatenate 'string "qdm-preα trades updater for " pair)
@@ -215,7 +251,8 @@
                                     (cdr acc)))
                             (cons next acc)))
                       (cdr raw-trades) :initial-value (list (car raw-trades))))))
-    (unless (slot-boundp tracker 'worker)
+    (when (or (not (slot-boundp tracker 'worker))
+              (eq :terminated (chanl:task-status worker)))
       (setf worker
             (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " pair))
               ;; TODO: just pexec anew each time...
@@ -300,8 +337,7 @@
               (eq :terminated (chanl:task-status worker)))
       (setf worker
             (chanl:pexec (:name "qdm-preα account worker"
-                                :initial-bindings `((*auth* ,auth)
-                                                    (*read-default-float-format* double-float)))
+                                :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (account-loop tracker)))))
@@ -531,7 +567,7 @@
    (asks :initform nil :initarg :asks)
    (fee :initform 0.13 :initarg :fee)
    (delay :initform 3 :initarg :delay)
-   trades-tracker book-tracker account-tracker thread))
+   trades-tracker book-tracker account-tracker limiter thread))
 
 (defun dumbot-loop (maker)
   (with-slots (pair control fund-factor resilience-factor bids asks delay trades-tracker book-tracker)
@@ -560,9 +596,7 @@
       (setf thread
             (chanl:pexec
                 (:name (concatenate 'string "qdm-preα " pair)
-                       :initial-bindings
-                       `((*read-default-float-format* double-float)
-                         (*auth* ,auth)))
+                 :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (dumbot-loop maker)))))))
@@ -571,11 +605,7 @@
   (with-slots (control) maker
     (chanl:send control '(pause))))
 
-(defvar *maker*
-  (make-instance 'maker
-                 ;; this may crash if we're not in the right directory...
-                 :auth (cons (glock.connection::make-key #P "secrets/kraken.pubkey")
-                             (glock.connection::make-signer #P "secrets/kraken.secret"))))
+(defvar *maker* (make-instance 'maker :auth *auth*))
 
 (defun trades-history (since &optional until)
   (getjso "trades"
