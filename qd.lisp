@@ -157,7 +157,7 @@
    (control :initform (make-instance 'chanl:channel))
    (buffer :initform (make-instance 'chanl:channel))
    (output :initform (make-instance 'chanl:channel))
-   (delay :initarg :delay :initform 65)
+   (delay :initarg :delay :initform 27)
    trades last updater worker))
 
 (defun kraken-timestamp (timestamp)
@@ -312,7 +312,7 @@
   ((balances :initarg :balances)
    (control :initform (make-instance 'chanl:channel))
    (auth :initarg :auth)
-   (delay :initform 27)
+   (delay :initform 15)
    updater worker))
 
 (defun account-loop (tracker)
@@ -566,11 +566,10 @@
    (bids :initform nil :initarg :bids)
    (asks :initform nil :initarg :asks)
    (fee :initform 0.13 :initarg :fee)
-   (delay :initform 3 :initarg :delay)
    trades-tracker book-tracker account-tracker limiter thread))
 
 (defun dumbot-loop (maker)
-  (with-slots (pair control fund-factor resilience-factor bids asks delay trades-tracker book-tracker)
+  (with-slots (pair control fund-factor resilience-factor bids asks trades-tracker book-tracker)
       maker
     (chanl:select
       ((recv control command)
@@ -579,8 +578,7 @@
          ;; pause - wait for any other command to restart
          (pause (chanl:recv control))
          (stream (setf *standard-output* (cdr command)))))
-      (t (setf (values bids asks) (%round maker))
-         (sleep delay)))))
+      (t (setf (values bids asks) (%round maker))))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
   (with-slots (auth pair trades-tracker book-tracker account-tracker thread) maker
