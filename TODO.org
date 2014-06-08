@@ -1,0 +1,33 @@
+* Ticker-Tracker
+This is the module which turns ticker data into buy/sell data
+** Track the highest bid and lowest ask for the exchange in question
+** Was the last trade >= the lowest ask? -> Somebody bought coins
+** Was the last trade <= the highest bid? -> Somebody sold coins
+* Dumbot
+** Resilience
+*** Definition
+How large a buy or sell we want to suvive without getting "run over"
+*** Example A
+Our buy resilience is 4BTC, we have 0.5BTC to sell, and the ask-side order book
+looks like:
+|     Price |     Volume |      Depth | Our Liquidity |
+|-----------+------------+------------+---------------|
+| 350.00000 | 0.05000000 | 0.05000000 |               |
+| 350.02859 | 0.10000000 | 0.15000000 |               |
+| 350.18932 | 0.87382719 |  1.0238272 |               |
+| 350.71930 | 0.18990000 |  1.2137272 |               |
+| 350.99999 | 0.15000000 |  1.3637272 |               |
+| 351.00000 | 2.00000000 |  3.3637272 |               |
+| 351.59920 | 0.39996200 |  3.7636892 |               |
+We'd thus want to spread out our 0.5BTC between the best possible ask, and just
+before the last ask with a depth less than our resilience. It should spread out
+the orders proportionally to the depth necessary to reach each one -- thus, we
+scale our available liquidity by the VOLUME AT each order,
+beginning from the minimal order size (say, 0.001 BTC), and up as high as
+possible. The overall goal is not to change the shape of the order book, just
+increase its liquidity.
+** Inputs:
+(for just one side of the algorithm)
+*** Order book
+*** Resilience
+*** Funds
