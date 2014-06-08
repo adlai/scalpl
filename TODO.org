@@ -1,3 +1,7 @@
+
+* Exchange modularity
+** Need to distinguish between tracking a market and participating in it
+** Participation should be mediated by rate gates
 * Ticker-Tracker
 This is the module which turns ticker data into buy/sell data
 ** Track the highest bid and lowest ask for the exchange in question
@@ -7,7 +11,7 @@ This is the module which turns ticker data into buy/sell data
 ** Resilience
 *** Definition
 How large a buy or sell we want to suvive without getting "run over"
-*** Example A
+*** Old definition - included for reference
 Our buy resilience is 4BTC, we have 0.5BTC to sell, and the ask-side order book
 looks like:
 |     Price |     Volume |      Depth | Our Liquidity |
@@ -26,6 +30,9 @@ scale our available liquidity by the VOLUME AT each order,
 beginning from the minimal order size (say, 0.001 BTC), and up as high as
 possible. The overall goal is not to change the shape of the order book, just
 increase its liquidity.
+*** Resilience is now more complex
+We should at least have separate resilience for each side of the order book, if
+not even distinct levels of funds, each bound at different resilience levels.
 ** Inputs:
 (for just one side of the algorithm)
 *** Order book
