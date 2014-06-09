@@ -2,11 +2,16 @@
 * Exchange modularity
 ** Need to distinguish between tracking a market and participating in it
 ** Participation should be mediated by rate gates
-* Ticker-Tracker
-This is the module which turns ticker data into buy/sell data
-** Track the highest bid and lowest ask for the exchange in question
-** Was the last trade >= the lowest ask? -> Somebody bought coins
-** Was the last trade <= the highest bid? -> Somebody sold coins
+* Trades-Tracker
+** Level 2 order book!
+Think later of ways to do this efficiently, right now we're just interested in
+the high-level so we can express statistical arbitrage rules
+** Trade Direction
+*** Some exchanges provide this information in the trades data
+*** For exchanges that don't, we use a classifier:
+**** continually tracks best few offers on the book
+**** Was the last trade >= the lowest ask? -> buyer initiative
+**** Was the last trade <= the highest bid? -> seller initiative
 * Dumbot
 ** Resilience
 *** Definition
