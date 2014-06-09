@@ -6,44 +6,39 @@
 (in-package #:glock.qd)
 
 ;;;
-;;; Rate Limiter
+;;; Rate Gate
 ;;;
 
-(defclass rate-limiter ()
+(defclass gate ()
   ((key :initarg :key)
    (signer :initarg :secret)
    (in :initform (make-instance 'chanl:channel))
    thread))
 
-(defun limiter-loop (limiter)
-  (with-slots (key signer in) limiter
+(defun gate-loop (gate)
+  (with-slots (key signer in) gate
     ;;                   / command structure \
     (destructuring-bind (command method &rest options) (chanl:recv in)
       (typecase command
-        (symbol (setf (slot-value limiter command) (apply method options)))
+        (symbol (setf (slot-value gate command) (apply method options)))
         (chanl:channel
          (chanl:send command
                      (multiple-value-list (post-request method key signer options))))))))
 
-(defmethod initialize-instance :after ((limiter rate-limiter) &key key secret)
-  (setf (slot-value limiter 'key) (glock.connection::make-key key)
-        (slot-value limiter 'signer) (glock.connection::make-signer secret))
-  (when (or (not (slot-boundp limiter 'thread))
-            (eq :terminated (chanl:task-status (slot-value limiter 'thread))))
-    (setf (slot-value limiter 'thread)
-          (chanl:pexec (:name "qdm-preα rate gate")
-            (loop (limiter-loop limiter))))))
+(defmethod initialize-instance :after ((gate gate) &key key secret)
+  (setf (slot-value gate 'key) (glock.connection::make-key key)
+        (slot-value gate 'signer) (glock.connection::make-signer secret))
+  (when (or (not (slot-boundp gate 'thread))
+            (eq :terminated (chanl:task-status (slot-value gate 'thread))))
+    (setf (slot-value gate 'thread)
+          (chanl:pexec (:name "qdm-preα gate")
+            (loop (gate-loop gate))))))
 
-(defvar *auth*
-  (make-instance 'rate-limiter
-                 :key #P "secrets/kraken.pubkey"
-                 :secret #P "secrets/kraken.secret"))
-
-(defun auth-request (path &optional options)
-  (when *auth*
-    (let ((o (make-instance 'chanl:channel)))
-      (chanl:send (slot-value *auth* 'in) (list* o path options))
-      (values-list (chanl:recv o)))))
+(defun gate-request (gate path &optional options)
+  (let ((out (make-instance 'chanl:channel)))
+    (chanl:send (slot-value gate 'in)
+                (list* out path options))
+    (values-list (chanl:recv out))))
 
 (defun get-assets ()
   (mapjso* (lambda (name data) (setf (getjso "name" data) name))
@@ -95,12 +90,13 @@
               (push (cons (car order) without-me) new)))
           (push order new)))))
 
-(defun open-orders ()
+(defun open-orders (gate)
   (mapjso* (lambda (id order) (setf (getjso "id" order) id))
-           (getjso "open" (auth-request "OpenOrders"))))
+           (getjso "open" (gate-request gate "OpenOrders"))))
 
-(defun cancel-order (order)
-  (auth-request "CancelOrder" `(("txid" . ,(getjso "id" order)))))
+(defun cancel-order (gate order)
+  (gate-request gate "CancelOrder"
+                `(("txid" . ,(getjso "id" order)))))
 
 (defun cancel-pair-orders (pair)
   (mapjso (lambda (id order)
@@ -113,10 +109,10 @@
 
 (define-condition volume-too-low () ())
 
-(defun post-limit (type pair price volume decimals &optional options)
+(defun post-limit (gate type pair price volume decimals &optional options)
   (let ((price (/ price (expt 10d0 decimals))))
     (multiple-value-bind (info errors)
-        (auth-request "AddOrder"
+        (gate-request gate "AddOrder"
                       `(("ordertype" . "limit")
                         ("type" . ,type)
                         ("pair" . ,pair)
@@ -131,10 +127,10 @@
                 (if (search "viqc" options)
                     (return
                       ;; such hard code
-                      (post-limit type pair price (+ volume 0.01) 0 options))
+                      (post-limit gate type pair price (+ volume 0.01) 0 options))
                     ;; (signal 'volume-too-low)
                     (return
-                      (post-limit type pair price (* volume price) 0
+                      (post-limit gate type pair price (* volume price) 0
                                   (apply #'concatenate 'string "viqc"
                                          (when options '("," options))))))
                 (format t "~&~A~%" message)))
@@ -312,12 +308,12 @@
 (defclass account-tracker ()
   ((balances :initarg :balances)
    (control :initform (make-instance 'chanl:channel))
-   (auth :initarg :auth)
+   (gate :initarg :gate)
    (delay :initform 15)
    updater worker))
 
 (defun account-loop (tracker)
-  (with-slots (auth balances control) tracker
+  (with-slots (gate balances control) tracker
     (let ((command (chanl:recv control)))
       (typecase command
         ;; ( asset . channel )
@@ -325,7 +321,7 @@
                           (or (cdr (assoc (car command) balances
                                           :test #'string=))
                               0)))
-        (t (let ((new (auth-request "Balance")))
+        (t (let ((new (gate-request gate "Balance")))
              (when new
                (setf balances
                      (mapcar-jso (lambda (asset balance)
@@ -338,7 +334,7 @@
               (eq :terminated (chanl:task-status worker)))
       (setf worker
             (chanl:pexec (:name "qdm-preα account worker"
-                                :initial-bindings `((*read-default-float-format* double-float)))
+                          :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (account-loop tracker)))))
@@ -404,7 +400,7 @@
 
 (defun %round (maker)
   (with-slots (fee fund-factor resilience-factor targeting-factor
-               pair (my-bids bids) (my-asks asks)
+               pair (my-bids bids) (my-asks asks) gate
                trades-tracker book-tracker account-tracker)
       maker
     ;; whoo!
@@ -449,7 +445,7 @@
           ;; Now run that algorithm thingy
           (macrolet ((cancel (old place)
                        `(multiple-value-bind (ret err)
-                            (cancel-order (car ,old))
+                            (cancel-order gate (car ,old))
                           (when (or ret (search "Unknown order" (car err)))
                             (setf ,place (remove ,old ,place))))))
             (values
@@ -476,7 +472,7 @@
                        new-bids)
                    (flet ((place (new)
                             (handler-case
-                                (let ((o (post-limit "buy" pair (cdr new)
+                                (let ((o (post-limit gate "buy" pair (cdr new)
                                                      (car new) decimals "viqc")))
                                   ;; rudimentary protection against too-small orders
                                   (if o (push (cons o new) new-bids)
@@ -529,7 +525,7 @@
                        new-asks)
                    (flet ((place (new)
                             (handler-case
-                                (let ((o (post-limit "sell" pair (cdr new)
+                                (let ((o (post-limit gate "sell" pair (cdr new)
                                                      (car new) decimals)))
                                   (if o (push (cons o new) new-asks)
                                       (format t "~&Couldn't place ~S~%" new)))
@@ -562,16 +558,15 @@
    (fund-factor :initarg :fund-factor :initform 1)
    (resilience-factor :initarg :resilience :initform 1)
    (targeting-factor :initarg :targeting :initform 1/2)
-   (auth :initarg :auth)
+   (gate :initarg :gate)
    (control :initform (make-instance 'chanl:channel))
    (bids :initform nil :initarg :bids)
    (asks :initform nil :initarg :asks)
    (fee :initform 0.13 :initarg :fee)
-   trades-tracker book-tracker account-tracker limiter thread))
+   trades-tracker book-tracker account-tracker thread))
 
 (defun dumbot-loop (maker)
-  (with-slots (pair control fund-factor resilience-factor bids asks trades-tracker book-tracker)
-      maker
+  (with-slots (control bids asks) maker
     (chanl:select
       ((recv control command)
        ;; commands are (cons command args)
@@ -582,14 +577,14 @@
       (t (setf (values bids asks) (%round maker))))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
-  (with-slots (auth pair trades-tracker book-tracker account-tracker thread) maker
+  (with-slots (gate pair trades-tracker book-tracker account-tracker thread) maker
     ;; FIXME: wtf is this i don't even
     (unless (slot-boundp maker 'trades-tracker)
       (setf trades-tracker (make-instance 'trades-tracker :pair pair)))
     (unless (slot-boundp maker 'book-tracker)
       (setf book-tracker (make-instance 'book-tracker :pair pair)))
     (unless (slot-boundp maker 'account-tracker)
-      (setf account-tracker (make-instance 'account-tracker :auth auth)))
+      (setf account-tracker (make-instance 'account-tracker :gate gate)))
     (when (or (not (slot-boundp maker 'thread))
               (eq :terminated (chanl:task-status thread)))
       (setf thread
@@ -604,7 +599,11 @@
   (with-slots (control) maker
     (chanl:send control '(pause))))
 
-(defvar *maker* (make-instance 'maker :auth *auth*))
+(defvar *maker*
+  (make-instance 'maker
+                 :gate (make-instance 'gate
+                                      :key #P "secrets/kraken.pubkey"
+                                      :secret #P "secrets/kraken.secret")))
 
 (defun trades-history (since &optional until)
   (getjso "trades"
