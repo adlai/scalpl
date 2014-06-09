@@ -329,7 +329,7 @@
                                  new)))))))))
 
 (defmethod initialize-instance :after ((tracker account-tracker) &key)
-  (with-slots (auth balances control worker updater delay) tracker
+  (with-slots (control worker updater delay) tracker
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
