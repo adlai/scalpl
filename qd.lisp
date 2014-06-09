@@ -173,6 +173,7 @@
                         (let ((price  (read-from-string price))
                               (volume (read-from-string volume)))
                           (list (kraken-timestamp time)
+                                ;; FIXME - "cost" later gets treated as precise
                                 volume price (* volume price)
                                 (concatenate 'string side kind data)))))
                     trades)
