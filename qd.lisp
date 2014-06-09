@@ -350,6 +350,12 @@
     (chanl:send control (cons asset channel))
     (chanl:recv channel)))
 
+(defun trades-history (tracker &optional since until)
+  (getjso "trades"
+          (gate-request (slot-value tracker 'gate) "TradesHistory"
+                        (append (when since `(("start" . ,since)))
+                                (when until `(("end" . ,until)))))))
+
 (defun profit-margin (bid ask fee-percent)
   (* (/ ask bid) (- 1 (/ fee-percent 100))))
 
@@ -604,8 +610,3 @@
                  :gate (make-instance 'gate
                                       :key #P "secrets/kraken.pubkey"
                                       :secret #P "secrets/kraken.secret")))
-
-(defun trades-history (since &optional until)
-  (getjso "trades"
-          (auth-request "TradesHistory"
-                        `(("start" . ,since) ("end" . ,until)))))
