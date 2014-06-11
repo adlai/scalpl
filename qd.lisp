@@ -568,7 +568,7 @@
    (control :initform (make-instance 'chanl:channel))
    (bids :initform nil :initarg :bids)
    (asks :initform nil :initarg :asks)
-   (fee :initform 0.13 :initarg :fee)
+   (fee :initform 0.16 :initarg :fee)
    trades-tracker book-tracker account-tracker thread))
 
 (defun dumbot-loop (maker)
