@@ -1,4 +1,22 @@
 
+* Thesis Statement
+The software consists of three services:
+** Order Placement Engine
+*** performs
+offer placement in a market according to guidelines provided by an investor
+*** receives guidelines as
+a set of numerical parameters representing
+**** risk tolerances,
+**** hedging requirements,
+**** profit targets
+**** a market sentiment, defined as
+***** interpretations of past market events
+***** policies for interpreting current market events
+***** expectations regarding future market events
+** Market Observer
+tool for evaluating statistical queries on market events, past and present
+** Network                                                             :WIP:
+membership in a profit-sharing arbitrage cooperative, operating as a decentralized neural network.
 * Exchange modularity
 ** Need to distinguish between tracking a market and participating in it
 ** Participation should be mediated by rate gates
