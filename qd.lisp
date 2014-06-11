@@ -186,7 +186,7 @@
     (/ (reduce #'+ (mapcar #'fourth trades))
        (reduce #'+ (mapcar #'second trades)))))
 
-(defun tracker-loop (tracker)
+(defun trades-worker-loop (tracker)
   (with-slots (control buffer output trades) tracker
     (chanl:select
       ((recv control command)
@@ -216,21 +216,26 @@
                      raw-trades :initial-value trades)))
       (t (sleep 0.2)))))
 
+(defun trades-updater-loop (tracker)
+  (with-slots (pair buffer delay last) tracker
+    (multiple-value-bind (raw-trades until)
+        (handler-case (trades-since pair last)
+          (unbound-slot () (trades-since pair)))
+      (setf last until)
+      (chanl:send buffer raw-trades)
+      (sleep delay))))
+
 (defmethod initialize-instance :after ((tracker trades-tracker) &key)
-  (with-slots (pair updater buffer delay worker last trades) tracker
+  (with-slots (pair updater buffer worker last trades) tracker
     (when (or (not (slot-boundp tracker 'updater))
               (eq :terminated (chanl:task-status updater)))
       (setf updater
             (chanl:pexec
                 (:name (concatenate 'string "qdm-preα trades updater for " pair)
                        :initial-bindings `((*read-default-float-format* double-float)))
-              (loop
-                 (multiple-value-bind (raw-trades until)
-                     (handler-case (trades-since pair last)
-                       (unbound-slot () (trades-since pair)))
-                   (setf last until)
-                   (chanl:send buffer raw-trades)
-                   (sleep delay))))))
+              (loop (trades-updater-loop tracker)))))
+    ;; FIXME - this forces processing of the first dataset before the worker thread
+    ;; actually starts up, enabling the :initial-value parameter to #'reduce
     (unless (slot-boundp tracker 'trades)
       (setf trades
             (let ((raw-trades (chanl:recv buffer)))
@@ -254,7 +259,7 @@
             (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " pair))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
-              (loop (tracker-loop tracker)))))))
+              (loop (trades-worker-loop tracker)))))))
 
 ;;;
 ;;; ORDER BOOK
