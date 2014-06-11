@@ -98,12 +98,12 @@
   (gate-request gate "CancelOrder"
                 `(("txid" . ,(getjso "id" order)))))
 
-(defun cancel-pair-orders (pair)
+(defun cancel-pair-orders (gate pair)
   (mapjso (lambda (id order)
             (declare (ignore id))
             (when (string= pair (getjso* "descr.pair" order))
-              (cancel-order order)))
-          (open-orders)))
+              (cancel-order gate order)))
+          (open-orders gate)))
 
 (defparameter *validate* nil)
 
