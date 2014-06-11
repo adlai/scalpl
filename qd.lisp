@@ -338,6 +338,12 @@
                                   (gate-request gate "Balance"))))
     (sleep delay)))
 
+(defun trades-history (tracker &optional since until)
+  (getjso "trades"
+          (gate-request (slot-value tracker 'gate) "TradesHistory"
+                        (append (when since `(("start" . ,since)))
+                                (when until `(("end" . ,until)))))))
+
 (defun account-lictor-loop (tracker)
   (with-slots (gate control delay) tracker
     (chanl:send control
@@ -381,12 +387,6 @@
   (with-slots (control) tracker
     (chanl:send control (cons asset channel))
     (chanl:recv channel)))
-
-(defun trades-history (tracker &optional since until)
-  (getjso "trades"
-          (gate-request (slot-value tracker 'gate) "TradesHistory"
-                        (append (when since `(("start" . ,since)))
-                                (when until `(("end" . ,until)))))))
 
 (defun profit-margin (bid ask fee-percent)
   (* (/ ask bid) (- 1 (/ fee-percent 100))))
