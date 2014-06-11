@@ -46,12 +46,14 @@
 
 (defmacro with-json-slots ((&rest slot-bindings) object &body body)
   (once-only (object)
-    `(let ,(mapcar (lambda (binding)
-                     (if (consp binding)
-                         (destructuring-bind (var slot) binding
-                           `(,var (getjso ,slot ,object)))
-                         `(,binding (getjso ,(string-downcase (symbol-name binding)) ,object))))
-                   slot-bindings)
+    `(symbol-macrolet
+         ,(mapcar (lambda (binding)
+                    (if (consp binding)
+                        (destructuring-bind (var slot) binding
+                          `(,var (getjso ,slot ,object)))
+                        `(,binding (getjso ,(string-downcase (string binding))
+                                           ,object))))
+                  slot-bindings)
        ,@body)))
 
 (defun jso-keys (jso &aux keys)
