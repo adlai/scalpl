@@ -10,10 +10,8 @@
 ;;;
 
 (defclass gate ()
-  ((key :initarg :key)
-   (signer :initarg :secret)
-   (in :initform (make-instance 'chanl:channel))
-   thread))
+  (key signer thread
+   (in :initform (make-instance 'chanl:channel))))
 
 (defun gate-loop (gate)
   (with-slots (key signer in) gate
@@ -27,7 +25,9 @@
 
 (defmethod initialize-instance :after ((gate gate) &key key secret)
   (setf (slot-value gate 'key) (glock.connection::make-key key)
-        (slot-value gate 'signer) (glock.connection::make-signer secret))
+        (slot-value gate 'signer) (glock.connection::make-signer secret)))
+
+(defmethod shared-initialize :after ((gate gate) names &key)
   (when (or (not (slot-boundp gate 'thread))
             (eq :terminated (chanl:task-status (slot-value gate 'thread))))
     (setf (slot-value gate 'thread)
