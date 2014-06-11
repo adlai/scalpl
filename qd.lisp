@@ -31,7 +31,8 @@
   (when (or (not (slot-boundp gate 'thread))
             (eq :terminated (chanl:task-status (slot-value gate 'thread))))
     (setf (slot-value gate 'thread)
-          (chanl:pexec (:name "qdm-preα gate")
+          (chanl:pexec (:name "qdm-preα gate"
+                        :initial-bindings `((*read-default-float-format* double-float)))
             (loop (gate-loop gate))))))
 
 (defun gate-request (gate path &optional options)
