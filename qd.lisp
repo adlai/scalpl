@@ -176,16 +176,17 @@
                     trades)
             last)))
 
-(defun vwap (tracker &key since type)
-  (let ((trades (slot-value tracker 'trades)))
-    (when since
-      (setf trades (remove since trades :key #'car :test #'timestamp>=)))
-    (when type
-      (setf trades (remove (ccase type (buy #\b) (sell #\s)) trades
-                           :key (lambda (trade) (char (fifth trade) 0))
-                           :test-not #'char=)))
-    (/ (reduce #'+ (mapcar #'fourth trades))
-       (reduce #'+ (mapcar #'second trades)))))
+(defgeneric vwap (tracker &key since type)
+  (:method ((tracker trades-tracker) &key since type)
+    (let ((trades (slot-value tracker 'trades)))
+      (when since
+        (setf trades (remove since trades :key #'car :test #'timestamp>=)))
+      (when type
+        (setf trades (remove (ccase type (buy #\b) (sell #\s)) trades
+                             :key (lambda (trade) (char (fifth trade) 0))
+                             :test-not #'char=)))
+      (/ (reduce #'+ (mapcar #'fourth trades))
+         (reduce #'+ (mapcar #'second trades))))))
 
 (defun trades-worker-loop (tracker)
   (with-slots (control buffer output trades) tracker
@@ -358,6 +359,12 @@
                             :key (lambda (data) (getjso "time" data)))))
     ;; TODO - proper rate limiting, based on method names
     (sleep (* delay 3))))
+
+(defmethod vwap ((tracker account-tracker) &key type &allow-other-keys)
+  (let ((trades (remove type (slot-value tracker 'trades)
+                        :key (lambda (c) (getjso "type" c)) :test #'string/=)))
+    (/ (reduce '+ (mapcar (lambda (x) (read-from-string (getjso "cost" x))) trades))
+       (reduce '+ (mapcar (lambda (x) (read-from-string (getjso "vol" x))) trades)))))
 
 (defmethod initialize-instance :after ((tracker account-tracker) &key)
   (with-slots (worker updater lictor) tracker
