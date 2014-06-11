@@ -316,7 +316,7 @@
    (control :initform (make-instance 'chanl:channel))
    (gate :initarg :gate)
    (delay :initform 15)
-   updater worker))
+   updater worker trades lictor))
 
 (defun account-worker-loop (tracker)
   (with-slots (balances control) tracker
@@ -338,8 +338,23 @@
                                   (gate-request gate "Balance"))))
     (sleep delay)))
 
+(defun account-lictor-loop (tracker)
+  (with-slots (gate control delay) tracker
+    (chanl:send control
+                (cons 'trades
+                      (sort (mapcar-jso (lambda (tid data)
+                                          (with-json-slots (txid time) data
+                                            (setf txid tid
+                                                  time (kraken-timestamp time)))
+                                          data)
+                                        (trades-history tracker))
+                            #'timestamp>
+                            :key (lambda (data) (getjso "time" data)))))
+    ;; TODO - proper rate limiting, based on method names
+    (sleep (* delay 3))))
+
 (defmethod initialize-instance :after ((tracker account-tracker) &key)
-  (with-slots (worker updater) tracker
+  (with-slots (worker updater lictor) tracker
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
@@ -347,6 +362,14 @@
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (account-worker-loop tracker)))))
+    (when (or (not (slot-boundp tracker 'lictor))
+              (eq :terminated (chanl:task-status lictor)))
+      (setf lictor
+            (chanl:pexec (:name "qdm-preα account lictor"
+                          :initial-bindings `((*read-default-float-format* double-float)))
+              ;; TODO: just pexec anew each time...
+              ;; you'll understand what you meant someday, right?
+              (loop (account-lictor-loop tracker)))))
     (when (or (not (slot-boundp tracker 'updater))
               (eq :terminated (chanl:task-status updater)))
       (setf updater
