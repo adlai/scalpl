@@ -312,38 +312,41 @@
    (delay :initform 15)
    updater worker))
 
-(defun account-loop (tracker)
-  (with-slots (gate balances control) tracker
+(defun account-worker-loop (tracker)
+  (with-slots (balances control) tracker
     (let ((command (chanl:recv control)))
-      (typecase command
-        ;; ( asset . channel )
-        (cons (chanl:send (cdr command)
-                          (or (cdr (assoc (car command) balances
-                                          :test #'string=))
-                              0)))
-        (t (let ((new (gate-request gate "Balance")))
-             (when new
-               (setf balances
-                     (mapcar-jso (lambda (asset balance)
-                                   (cons asset (read-from-string balance)))
-                                 new)))))))))
+      (destructuring-bind (car . cdr) command
+        (typecase car
+          ;; ( asset . channel )  <- send asset balance to channel
+          (string
+           (chanl:send cdr (or (cdr (assoc car balances :test #'string=)) 0)))
+          ;; ( slot . value ) <- update slot with new value
+          (symbol (setf (slot-value tracker car) cdr)))))))
+
+(defun account-updater-loop (tracker)
+  (with-slots (gate control delay) tracker
+    (chanl:send control
+                (cons 'balances
+                      (mapcar-jso (lambda (asset balance)
+                                    (cons asset (read-from-string balance)))
+                                  (gate-request gate "Balance"))))
+    (sleep delay)))
 
 (defmethod initialize-instance :after ((tracker account-tracker) &key)
-  (with-slots (control worker updater delay) tracker
+  (with-slots (worker updater) tracker
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
-            (chanl:pexec (:name "qdm-preα account worker"
-                          :initial-bindings `((*read-default-float-format* double-float)))
+            (chanl:pexec (:name "qdm-preα account worker")
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
-              (loop (account-loop tracker)))))
+              (loop (account-worker-loop tracker)))))
     (when (or (not (slot-boundp tracker 'updater))
               (eq :terminated (chanl:task-status updater)))
       (setf updater
-            (chanl:pexec (:name "qdm-preα account updater")
-              (loop (sleep delay) (chanl:send control t)))))
-    (chanl:send control t)))
+            (chanl:pexec (:name "qdm-preα account updater"
+                          :initial-bindings `((*read-default-float-format* double-float)))
+              (loop (account-updater-loop tracker)))))))
 
 (defun asset-balance (tracker asset &aux (channel (make-instance 'chanl:channel)))
   (with-slots (control) tracker
