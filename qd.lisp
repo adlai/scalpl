@@ -340,22 +340,24 @@
     (sleep delay)))
 
 (defun trades-history (tracker &optional since until)
-  (getjso "trades"
-          (gate-request (slot-value tracker 'gate) "TradesHistory"
-                        (append (when since `(("start" . ,since)))
-                                (when until `(("end" . ,until)))))))
+  (mapcar-jso (lambda (tid data)
+                (map nil (lambda (key)
+                           (setf (getjso key data)
+                                 (read-from-string (getjso key data))))
+                     '("price" "cost" "fee" "vol"))
+                (with-json-slots (txid time) data
+                  (setf txid tid time (kraken-timestamp time)))
+                data)
+              (getjso "trades"
+                      (gate-request (slot-value tracker 'gate) "TradesHistory"
+                                    (append (when since `(("start" . ,since)))
+                                            (when until `(("end" . ,until))))))))
 
 (defun account-lictor-loop (tracker)
   (with-slots (gate control delay) tracker
     (chanl:send control
                 (cons 'trades
-                      (sort (mapcar-jso (lambda (tid data)
-                                          (with-json-slots (txid time) data
-                                            (setf txid tid
-                                                  time (kraken-timestamp time)))
-                                          data)
-                                        (trades-history tracker))
-                            #'timestamp>
+                      (sort (trades-history tracker) #'timestamp>
                             :key (lambda (data) (getjso "time" data)))))
     ;; TODO - proper rate limiting, based on method names
     (sleep (* delay 3))))
@@ -363,8 +365,8 @@
 (defmethod vwap ((tracker account-tracker) &key type &allow-other-keys)
   (let ((trades (remove type (slot-value tracker 'trades)
                         :key (lambda (c) (getjso "type" c)) :test #'string/=)))
-    (/ (reduce '+ (mapcar (lambda (x) (read-from-string (getjso "cost" x))) trades))
-       (reduce '+ (mapcar (lambda (x) (read-from-string (getjso "vol" x))) trades)))))
+    (/ (reduce '+ (mapcar (lambda (x) (getjso "cost" x)) trades))
+       (reduce '+ (mapcar (lambda (x) (getjso "vol" x)) trades)))))
 
 (defmethod initialize-instance :after ((tracker account-tracker) &key)
   (with-slots (worker updater lictor) tracker
