@@ -433,7 +433,8 @@
                     (let ((vol (* funds (/ (car order) total-shares))))
                       (cons vol (+ delta (cadr order)))))
                   (sort relevant predicate :key #'cddr))))
-    ;; modifies the book itself
+    ;; TODO - no side effects
+    ;; TODO - use a callback for liquidity distribution control
     (push (incf share (* 11/6 (incf acc (cdar cur)))) (car cur))
     ;; (format t "~&Found ~$ at ~D total ~$ share ~$~%"
     ;;         (cddar cur) (cadar cur) acc share)
