@@ -435,6 +435,7 @@
                   (sort relevant predicate :key #'cddr))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
+    ;; (cdar cur) contains offer volume
     (push (incf share (* 11/6 (incf acc (cdar cur)))) (car cur))
     ;; (format t "~&Found ~$ at ~D total ~$ share ~$~%"
     ;;         (cddar cur) (cadar cur) acc share)
@@ -471,9 +472,8 @@
                (total-doge (symbol-funds (getjso "quote" market)))
                (total-fund (total-of total-btc total-doge))
                (investment (/ total-btc total-fund))
-               (scaled-factor (* investment targeting-factor))
-               (btc (factor-fund total-btc scaled-factor))
-               (doge (factor-fund total-doge (- 1 scaled-factor))))
+               (btc (factor-fund total-btc (* investment targeting-factor)))
+               (doge (factor-fund total-doge (- 1 (* investment targeting-factor)))))
           ;; report funding
           ;; FIXME: modularize all this decimal point handling
           (let ((base-decimals (getjso "decimals" (getjso (getjso "base" market) *assets*)))
