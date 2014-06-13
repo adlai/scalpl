@@ -478,8 +478,8 @@
           ;; FIXME: modularize all this decimal point handling
           (let ((base-decimals (getjso "decimals" (getjso (getjso "base" market) *assets*)))
                 (quote-decimals (getjso "decimals" (getjso (getjso "quote" market) *assets*))))
-            ;; time, total, base, quote, invested, risked, risk bias
-            (format t "~&~A T ~V$ B ~V$ Q ~V$ I ~$% R ~$% B~@$%"
+            ;; time, total, base, quote, invested, risked, risk bias, pulse
+            (format t "~&~A T ~V$ B ~V$ Q ~V$ I ~$% R ~$% B~@$ P~2,1@$%"
                     (format-timestring nil (now)
                                        :format '((:hour 2) #\:
                                                  (:min 2) #\:
@@ -489,7 +489,11 @@
                     quote-decimals total-doge
                     (* 100 investment)
                     (* 100 (/ (total-of btc doge) total-fund))
-                    (* 100 (/ (total-of (- btc) doge) total-fund))))
+                    (* 100 (/ (total-of (- btc) doge) total-fund))
+                    ;; FIXME: take flow into account! this calculation lies!
+                    (* 100 (1- (profit-margin (vwap account-tracker :type "buy")
+                                              (vwap account-tracker :type "sell")
+                                              0.13)))))
           ;; Now run that algorithm thingy
           (macrolet ((cancel (old place)
                        `(multiple-value-bind (ret err)
