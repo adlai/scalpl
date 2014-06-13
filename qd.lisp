@@ -500,15 +500,14 @@
                             (cancel-order gate (car ,old))
                           (when (or ret (search "Unknown order" (car err)))
                             (setf ,place (remove ,old ,place))))))
-            (values
-             ;; first process bids
-             (multiple-value-bind (asks bids)
-                 (with-slots (asks-output bids-output) book-tracker
-                   (values (chanl:recv asks-output)
-                           (chanl:recv bids-output)))
+            (flet ((filter-book (market-slot mine)
+                     (ignore-mine (chanl:recv (slot-value book-tracker market-slot))
+                                  (mapcar #'cdr mine))))
+              (values
+               ;; first process bids
                ;; TODO: properly deal with partial and completed orders
-               (let ((other-bids (ignore-mine bids (mapcar 'cdr my-bids)))
-                     (other-asks (ignore-mine asks (mapcar 'cdr my-asks))))
+               (let ((other-bids (filter-book 'bids-output my-bids))
+                     (other-asks (filter-book 'asks-output my-asks)))
                  ;; NON STOP PARTY PROFIT MADNESS
                  (do* ((best-bid (caar other-bids) (caar other-bids))
                        (best-ask (caar other-asks) (caar other-asks))
@@ -550,14 +549,10 @@
                                              (list* id price
                                                     (* price-factor (/ quote-amount price)))))
                                          new-bids))
-                         #'> :key #'cadr))))
-             ;; next process asks
-             (multiple-value-bind (asks bids)
-                 (with-slots (asks-output bids-output) book-tracker
-                   (values (chanl:recv asks-output)
-                           (chanl:recv bids-output)))
-               (let ((other-bids (ignore-mine bids (mapcar 'cdr my-bids)))
-                     (other-asks (ignore-mine asks (mapcar 'cdr my-asks))))
+                         #'> :key #'cadr)))
+               ;; next process asks
+               (let ((other-bids (filter-book 'bids-output my-bids))
+                     (other-asks (filter-book 'asks-output my-asks)))
                  ;; NON STOP PARTY PROFIT MADNESS
                  (do* ((best-bid (caar other-bids) (caar other-bids))
                        (best-ask (caar other-asks) (caar other-asks))
