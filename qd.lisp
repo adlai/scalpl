@@ -53,31 +53,6 @@
 
 (defvar *markets* (get-markets))
 
-;;; TODO: verify the number of decimals!
-(defun parse-price (price-string decimals)
-  (let ((dot (position #\. price-string)))
-    (parse-integer (remove #\. price-string)
-                   :end (+ dot decimals))))
-
-(defun get-book (pair &optional count
-                 &aux (decimals (getjso "pair_decimals"
-                                        (getjso pair *markets*))))
-  (with-json-slots (bids asks)
-      (getjso pair
-              (get-request "Depth"
-                           `(("pair" . ,pair)
-                             ,@(when count
-                                     `(("count" . ,(princ-to-string count)))))))
-    (flet ((parse (raw-order)
-             (destructuring-bind (price amount timestamp) raw-order
-               (declare (ignore timestamp))
-               (cons (parse-price price decimals)
-                     ;; the amount seems to always have three decimals
-                     (read-from-string amount)))))
-      (let ((asks (mapcar #'parse asks))
-            (bids (mapcar #'parse bids)))
-        (values asks bids)))))
-
 ;;; order-book and my-orders should both be in the same format:
 ;;; a list of (PRICE . AMOUNT), representing one side of the book
 ;;; TODO: deal with partially completed orders
@@ -275,7 +250,7 @@
    (delay :initarg :delay :initform 8)
    bids asks updater worker))
 
-(defun book-loop (tracker)
+(defun book-worker-loop (tracker)
   (with-slots (control bids asks bids-output asks-output) tracker
     (handler-case
         (chanl:select
@@ -289,6 +264,36 @@
           (t (sleep 0.2)))
       (unbound-slot ()))))
 
+;;; TODO: verify the number of decimals!
+(defun parse-price (price-string decimals)
+  (let ((dot (position #\. price-string)))
+    (parse-integer (remove #\. price-string)
+                   :end (+ dot decimals))))
+
+(defun get-book (pair &optional count
+                 &aux (decimals (getjso "pair_decimals"
+                                        (getjso pair *markets*))))
+  (with-json-slots (bids asks)
+      (getjso pair
+              (get-request "Depth"
+                           `(("pair" . ,pair)
+                             ,@(when count
+                                     `(("count" . ,(princ-to-string count)))))))
+    (flet ((parse (raw-order)
+             (destructuring-bind (price amount timestamp) raw-order
+               (declare (ignore timestamp))
+               (cons (parse-price price decimals)
+                     ;; the amount seems to always have three decimals
+                     (read-from-string amount)))))
+      (let ((asks (mapcar #'parse asks))
+            (bids (mapcar #'parse bids)))
+        (values asks bids)))))
+
+(defun book-updater-loop (tracker)
+  (with-slots (bids asks delay pair) tracker
+    (setf (values asks bids) (get-book pair))
+    (sleep delay)))
+
 (defmethod initialize-instance :after ((tracker book-tracker) &key)
   (with-slots (updater worker bids asks pair delay) tracker
     (when (or (not (slot-boundp tracker 'updater))
@@ -297,16 +302,14 @@
             (chanl:pexec
                 (:name (concatenate 'string "qdm-preα book updater for " pair)
                  :initial-bindings `((*read-default-float-format* double-float)))
-              (loop
-                 (setf (values asks bids) (get-book pair))
-                 (sleep delay))))
+              (loop (book-updater-loop tracker))))
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
             (chanl:pexec (:name (concatenate 'string "qdm-preα book worker for " pair))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
-              (loop (book-loop tracker))))))))
+              (loop (book-worker-loop tracker))))))))
 
 ;;;
 ;;; ACCOUNT TRACKING
