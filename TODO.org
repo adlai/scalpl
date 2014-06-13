@@ -20,6 +20,32 @@ membership in a profit-sharing arbitrage cooperative, operating as a decentraliz
 * Exchange modularity
 ** Need to distinguish between tracking a market and participating in it
 ** Participation should be mediated by rate gates
+* Account
+** Contents:
+*** exchange / gate object
+**** executes commands
+**** obeys rate limit
+*** balance manager
+**** tracks asset balances
+**** handles hedging requirements and target exposures
+**** reports asset balances
+**** calculates liquidity allocation plan
+*** offer manager
+**** tracks open offers
+**** routes limit orders and cancellations to the exchange
+**** performs on-demand analysis on offer distributions
+**** limit orders placement according to priority (ie "best" price)
+*** command executor
+**** translates limit orders and cancellations into API calls
+**** filters out "EOrder:Insufficient funds" errors
+(they'll get placed again next round)
+*** offer execution tracker
+**** downloads offer execution backlog
+**** tracks execution of my offers
+**** performs on-demand analysis on execution stream
+***** emvwap, duplex and directional
+***** order flow optimization
+***** update offer handler
 * Trades-Tracker
 ** Level 2 order book!
 Think later of ways to do this efficiently, right now we're just interested in
