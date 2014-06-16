@@ -316,7 +316,7 @@
 ;;;
 
 (defclass account-tracker ()
-  ((balances :initarg :balances)
+  ((balances :initarg :balances :initform nil)
    (control :initform (make-instance 'chanl:channel))
    (gate :initarg :gate)
    (delay :initform 15)
