@@ -373,6 +373,13 @@
 
 (defmethod initialize-instance :after ((tracker account-tracker) &key)
   (with-slots (worker updater lictor) tracker
+    (when (or (not (slot-boundp tracker 'updater))
+              (eq :terminated (chanl:task-status updater)))
+      (setf updater
+            (chanl:pexec (:name "qdm-preα account updater"
+                          :initial-bindings `((*read-default-float-format* double-float)))
+              (loop (account-updater-loop tracker)))))
+    (sleep 3)
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
@@ -387,13 +394,7 @@
                           :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
-              (loop (account-lictor-loop tracker)))))
-    (when (or (not (slot-boundp tracker 'updater))
-              (eq :terminated (chanl:task-status updater)))
-      (setf updater
-            (chanl:pexec (:name "qdm-preα account updater"
-                          :initial-bindings `((*read-default-float-format* double-float)))
-              (loop (account-updater-loop tracker)))))))
+              (loop (account-lictor-loop tracker)))))))
 
 (defun asset-balance (tracker asset &aux (channel (make-instance 'chanl:channel)))
   (with-slots (control) tracker
@@ -627,6 +628,7 @@
       (setf book-tracker (make-instance 'book-tracker :pair pair)))
     (unless (slot-boundp maker 'account-tracker)
       (setf account-tracker (make-instance 'account-tracker :gate gate)))
+    (sleep 20)
     (when (or (not (slot-boundp maker 'thread))
               (eq :terminated (chanl:task-status thread)))
       (setf thread
