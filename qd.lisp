@@ -498,6 +498,7 @@
                     (* 100 (1- (profit-margin (vwap account-tracker :type "buy")
                                               (vwap account-tracker :type "sell")
                                               0.13)))))
+          (force-output)
           ;; Now run that algorithm thingy
           (macrolet ((cancel (old place)
                        `(multiple-value-bind (ret err)
