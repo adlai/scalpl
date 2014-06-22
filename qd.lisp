@@ -312,6 +312,101 @@
               (loop (book-worker-loop tracker))))))))
 
 ;;;
+;;; EXECUTION TRACKING
+;;;
+
+(defclass execution-tracker ()
+  ((gate :initarg :gate)
+   (delay :initform 30)
+   (trades :initform nil)
+   (control :initform (make-instance 'chanl:channel))
+   (buffer :initform (make-instance 'chanl:channel))
+   (since :initform (timestamp- (now) 6 :hour) :initarg :since)
+   worker updater))
+
+(defun raw-trades-history (tracker &key since until ofs)
+  (macrolet ((check-bound (bound)
+               `(setf ,bound
+                      (ctypecase ,bound
+                        (null nil)      ; (typep nil nil) -> nil
+                        (string ,bound)
+                        (timestamp
+                         (princ-to-string (timestamp-to-unix ,bound)))
+                        (jso (getjso "txid" ,bound))))))
+    (check-bound since)
+    (check-bound until))
+  (gate-request (slot-value tracker 'gate) "TradesHistory"
+                (append (when since `(("start" . ,since)))
+                        (when until `(("end" . ,until)))
+                        (when ofs `(("ofs" . ,ofs))))))
+
+(defun trades-history-chunk (tracker &key until since)
+  (with-slots (delay) tracker
+    (with-json-slots (count trades)
+        (apply #'raw-trades-history tracker
+               (append (when until `(:until ,until))
+                       (when since `(:since ,since))))
+      (let* ((total (parse-integer count))
+             (chunk (make-array (list total) :fill-pointer 0)))
+        (flet ((process (trades-jso)
+                 (mapjso (lambda (tid data)
+                           (map nil (lambda (key)
+                                      (setf (getjso key data)
+                                            (read-from-string (getjso key data))))
+                                '("price" "cost" "fee" "vol"))
+                           (with-json-slots (txid time) data
+                             (setf txid tid time (kraken-timestamp time)))
+                           (vector-push data chunk))
+                         trades-jso)))
+          (when (zerop total)
+            (return-from trades-history-chunk chunk))
+          (process trades)
+          (unless until
+            (setf until (getjso "txid" (elt chunk 0))))
+          (loop
+             (when (= total (fill-pointer chunk))
+               (return (sort chunk #'timestamp<
+                             :key (lambda (o) (getjso "time" o)))))
+             (sleep delay)
+             (with-json-slots (count trades)
+                 (apply #'raw-trades-history tracker
+                        :until until :ofs (princ-to-string (fill-pointer chunk))
+                        (when since `(:since ,since)))
+               (let ((next-total (parse-integer count)))
+                 (assert (= total next-total))
+                 (process trades)))))))))
+
+(defun execution-worker-loop (tracker)
+  (with-slots (trades control buffer) tracker
+    (chanl:select
+      ((recv control channel) (chanl:send channel trades))
+      ((recv buffer trade) (push trade trades))
+      (t (sleep 0.2)))))
+
+(defun execution-updater-loop (tracker)
+  (with-slots (since gate buffer) tracker
+    (loop
+       for trade across (trades-history-chunk tracker :since since)
+       do (chanl:send buffer trade)
+       finally (when trade (setf since trade)))))
+
+(defmethod shared-initialize :after ((tracker execution-tracker) slots &key)
+  (with-slots (delay worker updater) tracker
+    (when (or (not (slot-boundp tracker 'worker))
+              (eq :terminated (chanl:task-status worker)))
+      (setf worker
+            (chanl:pexec (:name "qdm-preα execution worker")
+              (loop (execution-worker-loop tracker)))))
+    (when (or (not (slot-boundp tracker 'updater))
+              (eq :terminated (chanl:task-status updater)))
+      (setf updater
+            (chanl:pexec (:name "qdm-preα execution updater"
+                          :initial-bindings '((*read-default-float-format* double-float)))
+              (loop
+                 (sleep delay)
+                 (execution-updater-loop tracker)))))))
+
+;;;
 ;;; ACCOUNT TRACKING
 ;;;
 
