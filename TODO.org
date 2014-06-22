@@ -17,8 +17,27 @@ a set of numerical parameters representing
 tool for evaluating statistical queries on market events, past and present
 ** Network                                                             :WIP:
 membership in a profit-sharing arbitrage cooperative, operating as a decentralized neural network.
-* Communicating Machines
+* TODO Communicating Machines
 CSP×UTM
+** Machine structure
+machines are essentially a bunch of threads and channels, possibly some state
+** crash-only design
+it should always be possible to crash and restart a machine.
+*** initial state
+a machine's definition should include instructions on how to "reset" a machine
+to its starting state
+*** fail state
+the definition should include a way for a watchdog to detect whether a machine
+has failed. it should be possible to perform this check externally; ie, it
+should be possible for a watchdog to detect when a machine has entered a loop,
+or is stuck in a system call, or whatnot. when the watchdog detects such a
+situation, it simply puts the machine into its initial state.
+* TODO Basis Tracking
+basis tracking ≡ keep track of the last buys and sells, make sure future trades
+are always profitable. perhaps have a configurable parameter that toggles
+whether you can "create new positions" rather than just "close old ones"?
+* TODO Portfolio Handling Guidelines
+How the investor specifies guidelines to the automated market maker
 * Exchange modularity
 ** Need to distinguish between tracking a market and participating in it
 ** Participation should be mediated by rate gates
