@@ -437,43 +437,24 @@
                                   (gate-request gate "Balance"))))
     (sleep delay)))
 
-(defun trades-history (tracker &optional since until)
-  (mapcar-jso (lambda (tid data)
-                (map nil (lambda (key)
-                           (setf (getjso key data)
-                                 (read-from-string (getjso key data))))
-                     '("price" "cost" "fee" "vol"))
-                (with-json-slots (txid time) data
-                  (setf txid tid time (kraken-timestamp time)))
-                data)
-              (getjso "trades"
-                      (gate-request (slot-value tracker 'gate) "TradesHistory"
-                                    (append (when since `(("start" . ,since)))
-                                            (when until `(("end" . ,until))))))))
-
-(defun account-lictor-loop (tracker)
-  (with-slots (gate control delay) tracker
-    (chanl:send control
-                (cons 'trades
-                      (sort (trades-history tracker) #'timestamp>
-                            :key (lambda (data) (getjso "time" data)))))
-    ;; TODO - proper rate limiting, based on method names
-    (sleep (* delay 3))))
-
 (defmethod vwap ((tracker account-tracker) &key type &allow-other-keys)
-  (let ((trades (remove type (slot-value tracker 'trades)
-                        :key (lambda (c) (getjso "type" c)) :test #'string/=)))
-    (/ (reduce '+ (mapcar (lambda (x) (getjso "cost" x)) trades))
-       (reduce '+ (mapcar (lambda (x) (getjso "vol" x)) trades)))))
+  (let ((c (make-instance 'chanl:channel)))
+    (chanl:send (slot-value (slot-value tracker 'lictor) 'control) c)
+    (let ((trades (remove type (chanl:recv c)
+                          :key (lambda (c) (getjso "type" c)) :test #'string/=)))
+      (/ (reduce '+ (mapcar (lambda (x) (getjso "cost" x)) trades))
+         (reduce '+ (mapcar (lambda (x) (getjso "vol" x)) trades))))))
 
 (defmethod initialize-instance :after ((tracker account-tracker) &key)
-  (with-slots (worker updater lictor) tracker
+  (with-slots (worker updater gate lictor) tracker
     (when (or (not (slot-boundp tracker 'updater))
               (eq :terminated (chanl:task-status updater)))
       (setf updater
             (chanl:pexec (:name "qdm-preα account updater"
                           :initial-bindings `((*read-default-float-format* double-float)))
               (loop (account-updater-loop tracker)))))
+    (unless (slot-boundp tracker 'lictor)
+      (setf lictor (make-instance 'execution-tracker :gate gate)))
     (sleep 3)
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
@@ -481,15 +462,7 @@
             (chanl:pexec (:name "qdm-preα account worker")
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
-              (loop (account-worker-loop tracker)))))
-    (when (or (not (slot-boundp tracker 'lictor))
-              (eq :terminated (chanl:task-status lictor)))
-      (setf lictor
-            (chanl:pexec (:name "qdm-preα account lictor"
-                          :initial-bindings `((*read-default-float-format* double-float)))
-              ;; TODO: just pexec anew each time...
-              ;; you'll understand what you meant someday, right?
-              (loop (account-lictor-loop tracker)))))))
+              (loop (account-worker-loop tracker)))))))
 
 (defun asset-balance (tracker asset &aux (channel (make-instance 'chanl:channel)))
   (with-slots (control) tracker
