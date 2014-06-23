@@ -437,11 +437,14 @@
                                   (gate-request gate "Balance"))))
     (sleep delay)))
 
-(defmethod vwap ((tracker account-tracker) &key type &allow-other-keys)
+(defmethod vwap ((tracker account-tracker) &key type pair &allow-other-keys)
   (let ((c (make-instance 'chanl:channel)))
     (chanl:send (slot-value (slot-value tracker 'lictor) 'control) c)
     (let ((trades (remove type (chanl:recv c)
                           :key (lambda (c) (getjso "type" c)) :test #'string/=)))
+      (when pair
+        (setf trades (remove pair trades
+                             :key (lambda (c) (getjso "pair" c)) :test #'string/=)))
       (/ (reduce '+ (mapcar (lambda (x) (getjso "cost" x)) trades))
          (reduce '+ (mapcar (lambda (x) (getjso "vol" x)) trades))))))
 
@@ -551,7 +554,7 @@
           (let ((base-decimals (getjso "decimals" (getjso (getjso "base" market) *assets*)))
                 (quote-decimals (getjso "decimals" (getjso (getjso "quote" market) *assets*))))
             ;; time, total, base, quote, invested, risked, risk bias, pulse
-            (format t "~&~A T ~V$ B ~V$ Q ~V$ I ~$% R ~$% B~@$ P~2,1@$%"
+            (format t "~&~A ~V$ B ~V$ Q ~V$ I ~$% R ~$% B~@$ ~6@$%"
                     (format-timestring nil (now)
                                        :format '((:hour 2) #\:
                                                  (:min 2) #\:
@@ -563,9 +566,9 @@
                     (* 100 (/ (total-of btc doge) total-fund))
                     (* 100 (/ (total-of (- btc) doge) total-fund))
                     ;; FIXME: take flow into account! this calculation lies!
-                    (* 100 (1- (profit-margin (vwap account-tracker :type "buy")
-                                              (vwap account-tracker :type "sell")
-                                              0.13)))))
+                    (* 100 (1- (profit-margin (vwap account-tracker :type "buy" :pair pair)
+                                              (vwap account-tracker :type "sell" :pair pair)
+                                              fee)))))
           (force-output)
           ;; Now run that algorithm thingy
           (macrolet ((cancel (old place)
