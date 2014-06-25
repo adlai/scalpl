@@ -566,6 +566,8 @@
                     (* 100 (/ (total-of btc doge) total-fund))
                     (* 100 (/ (total-of (- btc) doge) total-fund))
                     ;; FIXME: take flow into account! this calculation lies!
+                    ;; temporarily "fixed" by declaring that the calculation is valid
+                    ;; since the timestamp of the earliest trade
                     (* 100 (1- (profit-margin (vwap account-tracker :type "buy" :pair pair)
                                               (vwap account-tracker :type "sell" :pair pair)
                                               fee)))))
