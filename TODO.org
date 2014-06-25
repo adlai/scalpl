@@ -17,21 +17,45 @@ a set of numerical parameters representing
 tool for evaluating statistical queries on market events, past and present
 ** Network                                                             :WIP:
 membership in a profit-sharing arbitrage cooperative, operating as a decentralized neural network.
-* TODO Communicating Machines
-CSP×UTM
-** Machine structure
-machines are essentially a bunch of threads and channels, possibly some state
+* TODO Actor Abstraction
+CSP×FSM
+** implementation data
+*** machine definition
+a Finite State Machine description of the actor's interaction with its channels
+**** how it handles inputs
+functions called on arguments received from each input
+**** how it handles outputs
+when it broadcasts, and what do the broadcasts contain
+**** "Remote API"
+i.e. how to 'control' this actor, alter its state machine, etc
+*** channel(s) to which that actor listens
+*** channel(s) to which that actor sends
 ** crash-only design
-it should always be possible to crash and restart a machine.
-*** initial state
-a machine's definition should include instructions on how to "reset" a machine
-to its starting state
-*** fail state
-the definition should include a way for a watchdog to detect whether a machine
-has failed. it should be possible to perform this check externally; ie, it
-should be possible for a watchdog to detect when a machine has entered a loop,
-or is stuck in a system call, or whatnot. when the watchdog detects such a
-situation, it simply puts the machine into its initial state.
+it should be possible to kill an actor's thread at any time, and spawning the
+actor's run-function again in the proper manner should resume the actor's functioning
+*** initialization
+**** customization of initialization
+initialization specs for actors should be defined as methods on one or more of
+initialize-instance, reinitialize-instance, or shared-initialize
+**** default initialization
+***** channels
+creation of all channels necessary for the actor's functioning
+ - input channels
+ - broadcast channels
+ - control channels - is this just a subtype of input?
+right now let's create channels as early as possible, ie, :initform
+***** execution
+of the actor's state machine must be insured, possibly by
+ - spawning a new thread for this purpose, or
+ - adding a task to an execution pool
+***** registration with watchdog
+the new actor provides the watchdog a death predicate, and a check frequency.
+*** TODO devtools
+we'll need a cross-actor debugger / condition handler, and repl-like functionality
+**** condition system
+make the condition system and debugger function across threads, see cond.js
+**** reflection / inspection
+send a function to be applied to the actor (return handled by caller)
 * TODO Basis Tracking
 basis tracking ≡ keep track of the last buys and sells, make sure future trades
 are always profitable. perhaps have a configurable parameter that toggles
