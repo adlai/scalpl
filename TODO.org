@@ -17,6 +17,12 @@ a set of numerical parameters representing
 tool for evaluating statistical queries on market events, past and present
 ** Network                                                             :WIP:
 membership in a profit-sharing arbitrage cooperative, operating as a decentralized neural network.
+* TODO Book Filter
+** Receives order book updates from a book-tracker
+Currently these are simply entire books, but depth updates would be best.
+** Receives offer status updates from a account-tracker
+Offer placement and offer cancellation
+** Multiple account filters!
 * TODO Actor Abstraction
 CSP×FSM
 ** implementation data
