@@ -130,7 +130,8 @@
    (buffer :initform (make-instance 'chanl:channel))
    (output :initform (make-instance 'chanl:channel))
    (delay :initarg :delay :initform 27)
-   trades last updater worker))
+   (trades :initform nil)
+   last updater worker))
 
 (defun kraken-timestamp (timestamp)
   (multiple-value-bind (sec rem) (floor timestamp)
@@ -176,6 +177,7 @@
          ;; pause - wait for any other command to restart
          (pause (chanl:recv control))))
       ((recv buffer raw-trades)
+       (unless trades (push (pop raw-trades) trades))
        (setf trades
              (reduce (lambda (acc next &aux (prev (first acc)))
                        (if (and (> 0.3
@@ -211,25 +213,6 @@
                 (:name (concatenate 'string "qdm-preα trades updater for " pair)
                        :initial-bindings `((*read-default-float-format* double-float)))
               (loop (trades-updater-loop tracker)))))
-    ;; FIXME - this forces processing of the first dataset before the worker thread
-    ;; actually starts up, enabling the :initial-value parameter to #'reduce
-    (unless (slot-boundp tracker 'trades)
-      (setf trades
-            (let ((raw-trades (chanl:recv buffer)))
-              (reduce (lambda (acc next &aux (prev (first acc)))
-                        (if (and (> 0.3
-                                    (local-time:timestamp-difference (first next)
-                                                                     (first prev)))
-                                 (string= (fifth prev) (fifth next)))
-                            (let* ((volume (+ (second prev) (second next)))
-                                   (cost (+ (fourth prev) (fourth next)))
-                                   (price (/ cost volume)))
-                              (cons (list (first prev)
-                                          volume price cost
-                                          (fifth prev))
-                                    (cdr acc)))
-                            (cons next acc)))
-                      (cdr raw-trades) :initial-value (list (car raw-trades))))))
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
