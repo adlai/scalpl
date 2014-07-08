@@ -23,7 +23,7 @@
          (chanl:send command
                      (multiple-value-list (post-request method key signer options))))))))
 
-(defmethod initialize-instance :after ((gate gate) &key key secret)
+(defmethod initialize-instance :before ((gate gate) &key key secret)
   (setf (slot-value gate 'key) (glock.connection::make-key key)
         (slot-value gate 'signer) (glock.connection::make-signer secret)))
 
@@ -204,8 +204,8 @@
       (chanl:send buffer raw-trades)
       (sleep delay))))
 
-(defmethod initialize-instance :after ((tracker trades-tracker) &key)
-  (with-slots (pair updater buffer worker last trades) tracker
+(defmethod shared-initialize :after ((tracker trades-tracker) (slots t) &key)
+  (with-slots (pair updater worker) tracker
     (when (or (not (slot-boundp tracker 'updater))
               (eq :terminated (chanl:task-status updater)))
       (setf updater
@@ -277,8 +277,8 @@
     (setf (values asks bids) (get-book pair))
     (sleep delay)))
 
-(defmethod initialize-instance :after ((tracker book-tracker) &key)
-  (with-slots (updater worker bids asks pair delay) tracker
+(defmethod shared-initialize :after ((tracker book-tracker) (names t) &key)
+  (with-slots (updater worker pair) tracker
     (when (or (not (slot-boundp tracker 'updater))
               (eq :terminated (chanl:task-status updater)))
       (setf updater
@@ -398,7 +398,8 @@
    (control :initform (make-instance 'chanl:channel))
    (gate :initarg :gate)
    (delay :initform 15)
-   updater worker trades lictor))
+   (lictor :initarg :lictor)
+   updater worker))
 
 (defun account-worker-loop (tracker)
   (with-slots (balances control) tracker
@@ -431,17 +432,19 @@
       (/ (reduce '+ (mapcar (lambda (x) (getjso "cost" x)) trades))
          (reduce '+ (mapcar (lambda (x) (getjso "vol" x)) trades))))))
 
-(defmethod initialize-instance :after ((tracker account-tracker) &key)
-  (with-slots (worker updater gate lictor) tracker
+(defmethod shared-initialize :after ((tracker account-tracker) (names t) &key)
+  (with-slots (updater worker lictor gate) tracker
+    (unless (slot-boundp tracker 'lictor)
+      (setf lictor (make-instance 'execution-tracker :gate gate))
+      ;; if this tracker has no trades, we can't calculate vwap
+      ;; crappy solution... ideally w/condition system?
+      (sleep 3))
     (when (or (not (slot-boundp tracker 'updater))
               (eq :terminated (chanl:task-status updater)))
       (setf updater
             (chanl:pexec (:name "qdm-preα account updater"
                           :initial-bindings `((*read-default-float-format* double-float)))
               (loop (account-updater-loop tracker)))))
-    (unless (slot-boundp tracker 'lictor)
-      (setf lictor (make-instance 'execution-tracker :gate gate)))
-    (sleep 3)
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
@@ -663,7 +666,10 @@
    (bids :initform nil :initarg :bids)
    (asks :initform nil :initarg :asks)
    (fee :initform 0.16 :initarg :fee)
-   trades-tracker book-tracker account-tracker thread))
+   (trades-tracker :initarg :trades-tracker)
+   (book-tracker :initarg :book-tracker)
+   (account-tracker :initarg :account-tracker)
+   thread))
 
 (defun dumbot-loop (maker)
   (with-slots (control bids asks) maker
@@ -676,16 +682,18 @@
          (stream (setf *standard-output* (cdr command)))))
       (t (setf (values bids asks) (%round maker))))))
 
-(defmethod initialize-instance :after ((maker maker) &key)
+(defmethod shared-initialize :after ((maker maker) (names t) &key)
   (with-slots (gate pair trades-tracker book-tracker account-tracker thread) maker
     ;; FIXME: wtf is this i don't even
     (unless (slot-boundp maker 'trades-tracker)
-      (setf trades-tracker (make-instance 'trades-tracker :pair pair)))
+      (setf trades-tracker (make-instance 'trades-tracker :pair pair))
+      (sleep 12))
     (unless (slot-boundp maker 'book-tracker)
-      (setf book-tracker (make-instance 'book-tracker :pair pair)))
+      (setf book-tracker (make-instance 'book-tracker :pair pair))
+      (sleep 12))
     (unless (slot-boundp maker 'account-tracker)
-      (setf account-tracker (make-instance 'account-tracker :gate gate)))
-    (sleep 20)
+      (setf account-tracker (make-instance 'account-tracker :gate gate))
+      (sleep 12))
     (when (or (not (slot-boundp maker 'thread))
               (eq :terminated (chanl:task-status thread)))
       (setf thread
