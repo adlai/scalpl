@@ -582,10 +582,9 @@
                                   (+1 (decf (cdar other-bids) (cdr (pop other-asks))))
                                   (0         (pop other-bids)      (pop other-asks))))
                               ,@body)))
-                (setf (values my-bids my-asks)
-                (values
-                 ;; first process bids
                  ;; TODO: properly deal with partial and completed orders
+                (setf
+                 my-bids
                  (with-book ()
                    (let ((to-bid (dumbot-oneside other-bids resilience doge 1 15 #'>))
                          new-bids)
@@ -617,8 +616,9 @@
                                                (list* id price
                                                       (* price-factor (/ quote-amount price)))))
                                            new-bids))
-                           #'> :key #'cadr)))
-                 ;; next process asks
+                           #'> :key #'cadr))))
+                (setf
+                 my-asks
                  (with-book ()
                    (let ((to-ask (dumbot-oneside other-asks resilience btc -1 15 #'<))
                          new-asks)
@@ -646,7 +646,7 @@
                                              (destructuring-bind (id quote-amount . price) order
                                                (list* id price quote-amount)))
                                            new-asks))
-                           #'< :key #'cadr)))))))))))))
+                           #'< :key #'cadr))))))))))))
 
 (defclass maker ()
   ((pair :initarg :pair :initform "XXBTZEUR")
