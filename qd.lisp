@@ -1,7 +1,7 @@
 ;;;; qd.lisp - quick and dirty. kraken's api... wow
 
 (defpackage #:glock.qd
-  (:use #:cl #:st-json #:local-time #:glock.util #:glock.connection))
+  (:use #:cl #:anaphora #:st-json #:local-time #:glock.util #:glock.connection))
 
 (in-package #:glock.qd)
 
