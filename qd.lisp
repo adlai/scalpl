@@ -582,6 +582,7 @@
                                   (+1 (decf (cdar other-bids) (cdr (pop other-asks))))
                                   (0         (pop other-bids)      (pop other-asks))))
                               ,@body)))
+                (setf (values my-bids my-asks)
                 (values
                  ;; first process bids
                  ;; TODO: properly deal with partial and completed orders
@@ -645,7 +646,7 @@
                                              (destructuring-bind (id quote-amount . price) order
                                                (list* id price quote-amount)))
                                            new-asks))
-                           #'< :key #'cadr))))))))))))
+                           #'< :key #'cadr)))))))))))))
 
 (defclass maker ()
   ((pair :initarg :pair :initform "XXBTZEUR")
@@ -663,7 +664,7 @@
    thread))
 
 (defun dumbot-loop (maker)
-  (with-slots (control bids asks) maker
+  (with-slots (control) maker
     (chanl:select
       ((recv control command)
        ;; commands are (cons command args)
@@ -671,7 +672,7 @@
          ;; pause - wait for any other command to restart
          (pause (chanl:recv control))
          (stream (setf *standard-output* (cdr command)))))
-      (t (setf (values bids asks) (%round maker))))))
+      (t (%round maker)))))
 
 (defmethod shared-initialize :after ((maker maker) (names t) &key)
   (with-slots (gate pair trades-tracker book-tracker account-tracker thread) maker
