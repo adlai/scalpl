@@ -395,21 +395,23 @@
 
 (defclass ope ()
   ((gate :initarg :gate)
+   (placed :initform nil)
    (control :initform (make-instance 'chanl:channel))
    (response :initform (make-instance 'chanl:channel))
    thread))
 
 (defun ope-interface-loop (ope)
-  (with-slots (gate active control response) ope
+  (with-slots (gate active control response placed) ope
     (let ((command (chanl:recv control)))
       (destructuring-bind (car . cdr) command
         (chanl:send response
                     (case car
-                      (bid (apply #'post-limit gate "buy" cdr))
-                      (ask (apply #'post-limit gate "sell" cdr))
+                      (place (aprog1 (apply #'post-limit gate cdr)
+                               (when it (push it placed))))
                       (cancel (multiple-value-bind (ret err)
                                   (cancel-order gate cdr)
-                                (or ret (search "Unknown order" (car err)))))))))))
+                                (when (or ret (search "Unknown order" (car err)))
+                                  (setf placed (remove cdr placed)))))))))))
 
 (defmethod shared-initialize :after ((ope ope) slots &key)
   (with-slots (thread) ope
@@ -422,12 +424,12 @@
 
 (defun ope-bid (ope &rest data)
   (with-slots (control response) ope
-    (chanl:send control `(bid ,@data "viqc"))
+    (chanl:send control `(place "buy" ,@data "viqc"))
     (chanl:recv response)))
 
 (defun ope-ask (ope &rest data)
   (with-slots (control response) ope
-    (chanl:send control `(ask ,@data))
+    (chanl:send control `(place "sell" ,@data))
     (chanl:recv response)))
 
 (defun ope-cancel (ope oid)
