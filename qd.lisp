@@ -608,11 +608,10 @@
                                               fee)))))
           (force-output)
           ;; Now run that algorithm thingy
-          (macrolet ((cancel (old place)
-                       `(multiple-value-bind (ret err)
-                            (cancel-order gate (car ,old))
-                          (when (or ret (search "Unknown order" (car err)))
-                            (setf ,place (remove ,old ,place))))))
+          (macrolet ((cancel-from (old place)
+                       `(when (ope-cancel (slot-value account-tracker 'ope)
+                                          (car ,old))
+                          (setf ,place (remove ,old ,place)))))
             (flet ((filter-book (market-slot mine)
                      (ignore-mine (chanl:recv (slot-value book-tracker market-slot))
                                   (mapcar #'cdr mine))))
@@ -654,9 +653,9 @@
                            (if same (setf to-bid (remove new to-bid))
                                (dolist (new (remove (cadr old) to-bid
                                                     :key #'cdr :test #'>)
-                                        (cancel old my-bids))
+                                        (cancel-from old my-bids))
                                  (if (place new) (setf to-bid (remove new to-bid))
-                                     (return (cancel old my-bids)))))))
+                                     (return (cancel-from old my-bids)))))))
                        (mapcar #'place to-bid))
                      ;; convert new orders into a saner format (for ignore-mine)
                      (sort (append my-bids
@@ -685,9 +684,9 @@
                            (if same (setf to-ask (remove new to-ask))
                                (dolist (new (remove (cadr old) to-ask
                                                     :key #'cdr :test #'<)
-                                        (cancel old my-asks))
+                                        (cancel-from old my-asks))
                                  (if (place new) (setf to-ask (remove new to-ask))
-                                     (return (cancel old my-asks)))))))
+                                     (return (cancel-from old my-asks)))))))
                        (mapcar #'place to-ask))
                      ;; convert new orders into a saner format (for ignore-mine)
                      (sort (append my-asks
