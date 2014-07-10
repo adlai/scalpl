@@ -426,6 +426,8 @@
       (destructuring-bind (car . cdr) command
         (chanl:send response
                     (case car
+                      (offer (aprog1 (post-offer gate cdr)
+                               (when it (push it placed))))
                       (place (aprog1 (apply #'post-limit gate cdr)
                                (when it (push it placed))))
                       (cancel (multiple-value-bind (ret err)
@@ -441,6 +443,11 @@
             (chanl:pexec (:name "qdm-preα ope interface"
                           :initial-bindings `((*read-default-float-format* double-float)))
               (loop (ope-interface-loop ope)))))))
+
+(defun ope-place (ope offer)
+  (with-slots (control response) ope
+    (chanl:send control (cons 'offer offer))
+    (chanl:recv response)))
 
 (defun ope-bid (ope &rest data)
   (with-slots (control response) ope
