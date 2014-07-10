@@ -250,6 +250,7 @@
    (bids-output :initform (make-instance 'chanl:channel))
    (asks-output :initform (make-instance 'chanl:channel))
    (delay :initarg :delay :initform 8)
+   (offers :initform nil)
    bids asks updater worker))
 
 (defun book-worker-loop (tracker)
@@ -272,27 +273,28 @@
     (parse-integer (remove #\. price-string)
                    :end (+ dot decimals))))
 
-(defun get-book (pair &optional count)
+(defun get-book (pair &optional as-offers)
   (let ((decimals (getjso "pair_decimals" (getjso pair *markets*))))
     (with-json-slots (bids asks)
-        (getjso pair
-                (get-request "Depth"
-                             `(("pair" . ,pair)
-                               ,@(when count
-                                       `(("count" . ,(princ-to-string count)))))))
-      (flet ((parse (raw-order)
-               (destructuring-bind (price amount timestamp) raw-order
-                 (declare (ignore timestamp))
-                 (cons (parse-price price decimals)
-                       ;; the amount seems to always have three decimals
-                       (read-from-string amount)))))
-        (let ((asks (mapcar #'parse asks))
-              (bids (mapcar #'parse bids)))
+        (getjso pair (get-request "Depth" `(("pair" . ,pair))))
+      (flet ((parser (factor)
+               (lambda (raw-order)
+                 (destructuring-bind (price amount timestamp) raw-order
+                   (declare (ignore timestamp))
+                   (if as-offers
+                       (make-instance 'offer :pair pair
+                                      :price (* factor (parse-price price decimals))
+                                      :volume (read-from-string amount))
+                       (cons (parse-price price decimals)
+                             ;; the amount seems to always have three decimals
+                             (read-from-string amount)))))))
+        (let ((asks (mapcar (parser 1) asks))
+              (bids (mapcar (parser -1) bids)))
           (values asks bids))))))
 
 (defun book-updater-loop (tracker)
-  (with-slots (bids asks delay pair) tracker
-    (setf (values asks bids) (get-book pair))
+  (with-slots (bids asks delay pair offers) tracker
+    (setf (values asks bids) (get-book pair offers))
     (sleep delay)))
 
 (defmethod shared-initialize :after ((tracker book-tracker) (names t) &key)
