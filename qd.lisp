@@ -551,6 +551,25 @@
 ;; TINWGD 12:23:51 sell €473.95313 0.00028740 €0.13621
 ;; TPY7P4 12:23:51 sell €473.92213 0.00003772 €0.01788
 
+(defun dumbot-offers (book resilience funds max-orders &aux (acc 0) (share 0))
+  (do* ((cur book (cdr cur))
+        (n 0 (1+ n)))
+       ((or (> acc resilience) (null cur))
+        (let* ((sorted (sort (subseq book 1 n) #'>
+                             :key (lambda (x) (slot-value (cdr x) 'volume))))
+               (n-orders (min max-orders n))
+               (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
+               (total-shares (reduce #'+ (mapcar #'car relevant))))
+          (mapcar (lambda (order)
+                    (with-slots (pair price) (cdr order)
+                      (make-instance 'offer :pair pair :price (1- price)
+                                     :volume (* funds (/ (car order) total-shares)))))
+                  (sort relevant #'< :key (lambda (x) (slot-value (cdr x) 'price))))))
+    ;; TODO - no side effects
+    ;; TODO - use a callback for liquidity distribution control
+    (with-slots (volume) (car cur)
+      (push (incf share (* 11/6 (incf acc volume))) (car cur)))))
+
 (defun dumbot-oneside (book resilience funds delta max-orders predicate
                        &aux (acc 0) (share 0))
   ;; calculate cumulative depths
