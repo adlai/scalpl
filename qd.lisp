@@ -272,24 +272,23 @@
     (parse-integer (remove #\. price-string)
                    :end (+ dot decimals))))
 
-(defun get-book (pair &optional count
-                 &aux (decimals (getjso "pair_decimals"
-                                        (getjso pair *markets*))))
-  (with-json-slots (bids asks)
-      (getjso pair
-              (get-request "Depth"
-                           `(("pair" . ,pair)
-                             ,@(when count
-                                     `(("count" . ,(princ-to-string count)))))))
-    (flet ((parse (raw-order)
-             (destructuring-bind (price amount timestamp) raw-order
-               (declare (ignore timestamp))
-               (cons (parse-price price decimals)
-                     ;; the amount seems to always have three decimals
-                     (read-from-string amount)))))
-      (let ((asks (mapcar #'parse asks))
-            (bids (mapcar #'parse bids)))
-        (values asks bids)))))
+(defun get-book (pair &optional count)
+  (let ((decimals (getjso "pair_decimals" (getjso pair *markets*))))
+    (with-json-slots (bids asks)
+        (getjso pair
+                (get-request "Depth"
+                             `(("pair" . ,pair)
+                               ,@(when count
+                                       `(("count" . ,(princ-to-string count)))))))
+      (flet ((parse (raw-order)
+               (destructuring-bind (price amount timestamp) raw-order
+                 (declare (ignore timestamp))
+                 (cons (parse-price price decimals)
+                       ;; the amount seems to always have three decimals
+                       (read-from-string amount)))))
+        (let ((asks (mapcar #'parse asks))
+              (bids (mapcar #'parse bids)))
+          (values asks bids))))))
 
 (defun book-updater-loop (tracker)
   (with-slots (bids asks delay pair) tracker
