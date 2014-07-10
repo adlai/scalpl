@@ -564,7 +564,7 @@
           (mapcar (lambda (order)
                     (let ((vol (* funds (/ (car order) total-shares))))
                       (cons vol (+ delta (cadr order)))))
-                  (sort relevant predicate :key #'cddr))))
+                  (sort relevant predicate :key #'cadr))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
     ;; (cdar cur) contains offer volume
