@@ -116,6 +116,25 @@
             (setf (getjso* "descr.id" info) (car (getjso* "txid" info)))
             (getjso "descr" info))))))
 
+;;;
+;;; Offers
+;;;
+
+(defclass offer ()
+  ((pair :initarg :pair)
+   (volume :initarg :volume)
+   (price :initarg :price)))
+
+(defun post-offer (gate offer)
+  (with-slots (pair volume price) offer
+    (flet ((post (type options)
+             (post-limit gate type pair (abs price) volume
+                         (getjso "pair_decimals" (getjso pair *markets*))
+                         options)))
+      (if (> price 0)
+          (post "buy" "viqc")
+          (post "sell" nil)))))
+
 ;;; TODO: Incorporate weak references and finalizers into the whole CSPSM model
 ;;; so they get garbage collected when there are no more references to the
 ;;; output channels
