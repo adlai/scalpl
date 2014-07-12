@@ -135,6 +135,19 @@
           (post "buy" "viqc")
           (post "sell" nil)))))
 
+;;; TODO: deal with partially completed orders
+(defun ignore-offers (open mine &aux them)
+  (dolist (offer open (nreverse them))
+    (aif (find (offer-price offer) mine :test #'= :key #'offer-price)
+         (let ((without-me (- (offer-volume offer) (offer-volume it))))
+           (setf mine (remove it mine))
+           (unless (< without-me 0.001)
+             (push (make-instance 'offer :pair (slot-value offer 'pair)
+                                  :price (offer-price offer)
+                                  :volume without-me)
+                   them)))
+         (push offer them))))
+
 ;;; TODO: Incorporate weak references and finalizers into the whole CSPSM model
 ;;; so they get garbage collected when there are no more references to the
 ;;; output channels
