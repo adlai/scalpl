@@ -122,8 +122,8 @@
 
 (defclass offer ()
   ((pair :initarg :pair)
-   (volume :initarg :volume)
-   (price :initarg :price)))
+   (volume :initarg :volume :reader offer-volume)
+   (price :initarg :price :reader offer-price)))
 
 (defun post-offer (gate offer)
   (with-slots (pair volume price) offer
@@ -562,8 +562,7 @@
   (do* ((cur book (cdr cur))
         (n 0 (1+ n)))
        ((or (> acc resilience) (null cur))
-        (let* ((sorted (sort (subseq book 1 n) #'>
-                             :key (lambda (x) (slot-value (cdr x) 'volume))))
+        (let* ((sorted (sort (subseq book 1 n) #'> :key #'offer-volume))
                (n-orders (min max-orders n))
                (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
                (total-shares (reduce #'+ (mapcar #'car relevant))))
@@ -571,7 +570,7 @@
                     (with-slots (pair price) (cdr order)
                       (make-instance 'offer :pair pair :price (1- price)
                                      :volume (* funds (/ (car order) total-shares)))))
-                  (sort relevant #'< :key (lambda (x) (slot-value (cdr x) 'price))))))
+                  (sort relevant #'< :key #'offer-price))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
     (with-slots (volume) (car cur)
