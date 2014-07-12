@@ -131,7 +131,7 @@
              (post-limit gate type pair (abs price) volume
                          (getjso "pair_decimals" (getjso pair *markets*))
                          options)))
-      (if (> price 0)
+      (if (< price 0)
           (post "buy" "viqc")
           (post "sell" nil)))))
 
@@ -463,14 +463,12 @@
     (chanl:recv response)))
 
 (defun ope-bid (ope &rest data)
-  (with-slots (control response) ope
-    (chanl:send control `(place "buy" ,@data "viqc"))
-    (chanl:recv response)))
+  (destructuring-bind (pair price volume) data
+    (ope-place ope (make-instance 'offer :pair pair :volume volume :price (- price)))))
 
 (defun ope-ask (ope &rest data)
-  (with-slots (control response) ope
-    (chanl:send control `(place "sell" ,@data))
-    (chanl:recv response)))
+  (destructuring-bind (pair price volume) data
+    (ope-place ope (make-instance 'offer :pair pair :volume volume :price price))))
 
 (defun ope-cancel (ope oid)
   (with-slots (control response) ope
@@ -698,7 +696,7 @@
                          new-bids)
                      (flet ((place (new)
                               (let ((o (ope-bid (slot-value account-tracker 'ope)
-                                                pair (cdr new) (car new) decimals)))
+                                                pair (cdr new) (car new))))
                                 ;; rudimentary protection against too-small orders
                                 (if o (push (cons o new) new-bids)
                                     (format t "~&Couldn't place ~S~%" new)))))
@@ -732,7 +730,7 @@
                          new-asks)
                      (flet ((place (new)
                               (let ((o (ope-ask (slot-value account-tracker 'ope)
-                                                pair (cdr new) (car new) decimals)))
+                                                pair (cdr new) (car new))))
                                 (if o (push (cons o new) new-asks)
                                     (format t "~&Couldn't place ~S~%" new)))))
                        (dolist (old my-asks)
