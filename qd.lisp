@@ -440,13 +440,11 @@
         (chanl:send response
                     (case car
                       (offer (aprog1 (post-offer gate cdr)
-                               (when it (push it placed))))
-                      (place (aprog1 (apply #'post-limit gate cdr)
-                               (when it (push it placed))))
+                               (when it (push (cons it cdr) placed))))
                       (cancel (multiple-value-bind (ret err)
                                   (cancel-order gate cdr)
                                 (when (or ret (search "Unknown order" (car err)))
-                                  (setf placed (remove cdr placed)))))))))))
+                                  (setf placed (remove cdr placed :key #'car)))))))))))
 
 (defmethod shared-initialize :after ((ope ope) slots &key)
   (with-slots (thread) ope
