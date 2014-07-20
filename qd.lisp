@@ -262,12 +262,13 @@
    (control :initform (make-instance 'chanl:channel))
    (bids-output :initform (make-instance 'chanl:channel))
    (asks-output :initform (make-instance 'chanl:channel))
+   (book-output :initform (make-instance 'chanl:channel))
    (delay :initarg :delay :initform 8)
    (offers :initform nil)
    bids asks updater worker))
 
 (defun book-worker-loop (tracker)
-  (with-slots (control bids asks bids-output asks-output) tracker
+  (with-slots (control bids asks bids-output asks-output book-output) tracker
     (handler-case
         (chanl:select
           ((recv control command)
@@ -277,6 +278,7 @@
              (pause (chanl:recv control))))
           ((send bids-output bids))
           ((send asks-output asks))
+          ((send book-output (cons bids asks)))
           (t (sleep 0.2)))
       (unbound-slot ()))))
 
@@ -438,7 +440,9 @@
     (let ((command (chanl:recv control)))
       (destructuring-bind (car . cdr) command
         (chanl:send response
+                    ;; FIXME: store order id in the offer object, avoid mapcar
                     (case car
+                      (filter (ignore-offers cdr (mapcar #'cdr placed)))
                       (offer (aprog1 (post-offer gate cdr)
                                (when it (push (cons it cdr) placed))))
                       (cancel (multiple-value-bind (ret err)
