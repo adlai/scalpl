@@ -319,15 +319,15 @@
       (setf updater
             (chanl:pexec
                 (:name (concatenate 'string "qdm-preα book updater for " pair)
-                 :initial-bindings `((*read-default-float-format* double-float)))
-              (loop (book-updater-loop tracker))))
+                       :initial-bindings `((*read-default-float-format* double-float)))
+              (loop (book-updater-loop tracker)))))
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
             (chanl:pexec (:name (concatenate 'string "qdm-preα book worker for " pair))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
-              (loop (book-worker-loop tracker))))))))
+              (loop (book-worker-loop tracker)))))))
 
 ;;;
 ;;; EXECUTION TRACKING
