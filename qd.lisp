@@ -122,8 +122,8 @@
 
 (defclass offer ()
   ((pair :initarg :pair)
-   (volume :initarg :volume :reader offer-volume)
-   (price :initarg :price :reader offer-price)))
+   (volume :initarg :volume :accessor offer-volume)
+   (price :initarg :price :accessor offer-price)))
 
 (defun post-offer (gate offer)
   (with-slots (pair volume price) offer
@@ -442,6 +442,7 @@
         (chanl:send response
                     ;; FIXME: store order id in the offer object, avoid mapcar
                     (case car
+                      (placed placed)
                       (filter (ignore-offers cdr (mapcar #'cdr placed)))
                       (offer (aprog1 (post-offer gate cdr)
                                (when it (push (cons it cdr) placed))))
@@ -458,6 +459,16 @@
             (chanl:pexec (:name "qdm-preα ope interface"
                           :initial-bindings `((*read-default-float-format* double-float)))
               (loop (ope-interface-loop ope)))))))
+
+(defun ope-placed (ope)
+  (with-slots (control response) ope
+    (chanl:send control '(placed))
+    (let ((all (sort (copy-list (chanl:recv response)) #'<
+                     :key (lambda (x) (offer-price (cdr x))))))
+      (flet ((split (sign)
+               (remove sign all :key (lambda (x) (signum (offer-price (cdr x)))))))
+        ;;       bids       asks
+        (values (split 1) (split -1))))))
 
 (defun ope-place (ope offer)
   (with-slots (control response) ope
@@ -575,7 +586,7 @@
   (do* ((cur book (cdr cur))
         (n 0 (1+ n)))
        ((or (> acc resilience) (null cur))
-        (let* ((sorted (sort (subseq book 1 n) #'> :key #'offer-volume))
+        (let* ((sorted (sort (subseq book 1 n) #'> :key (lambda (x) (offer-volume (cdr x)))))
                (n-orders (min max-orders n))
                (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
                (total-shares (reduce #'+ (mapcar #'car relevant))))
@@ -583,7 +594,7 @@
                     (with-slots (pair price) (cdr order)
                       (make-instance 'offer :pair pair :price (1- price)
                                      :volume (* funds (/ (car order) total-shares)))))
-                  (sort relevant #'< :key #'offer-price))))
+                  (sort relevant #'< :key (lambda (x) (offer-price (cdr x)))))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
     (with-slots (volume) (car cur)
