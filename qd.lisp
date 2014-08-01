@@ -53,19 +53,6 @@
 
 (defvar *markets* (get-markets))
 
-;;; order-book and my-orders should both be in the same format:
-;;; a list of (PRICE . AMOUNT), representing one side of the book
-;;; TODO: deal with partially completed orders
-(defun ignore-mine (order-book my-orders &aux new)
-  (dolist (order order-book (nreverse new))
-    (let ((mine (find (car order) my-orders :test #'= :key #'car)))
-      (if mine
-          (let ((without-me (- (cdr order) (cdr mine))))
-            (setf my-orders (remove mine my-orders))
-            (unless (< without-me 0.001)
-              (push (cons (car order) without-me) new)))
-          (push order new)))))
-
 (defun open-orders (gate)
   (mapjso* (lambda (id order) (setf (getjso "id" order) id))
            (getjso "open" (gate-request gate "OpenOrders"))))
@@ -264,7 +251,6 @@
    (asks-output :initform (make-instance 'chanl:channel))
    (book-output :initform (make-instance 'chanl:channel))
    (delay :initarg :delay :initform 8)
-   (offers :initform nil)
    bids asks updater worker))
 
 (defun book-worker-loop (tracker)
@@ -276,8 +262,6 @@
            (case (car command)
              ;; pause - wait for any other command to restart
              (pause (chanl:recv control))))
-          ((send bids-output bids))
-          ((send asks-output asks))
           ((send book-output (cons bids asks)))
           (t (sleep 0.2)))
       (unbound-slot ()))))
@@ -288,7 +272,7 @@
     (parse-integer (remove #\. price-string)
                    :end (+ dot decimals))))
 
-(defun get-book (pair &optional as-offers)
+(defun get-book (pair)
   (let ((decimals (getjso "pair_decimals" (getjso pair *markets*))))
     (with-json-slots (bids asks)
         (getjso pair (get-request "Depth" `(("pair" . ,pair))))
@@ -296,20 +280,16 @@
                (lambda (raw-order)
                  (destructuring-bind (price amount timestamp) raw-order
                    (declare (ignore timestamp))
-                   (if as-offers
-                       (make-instance 'offer :pair pair
-                                      :price (* factor (parse-price price decimals))
-                                      :volume (read-from-string amount))
-                       (cons (parse-price price decimals)
-                             ;; the amount seems to always have three decimals
-                             (read-from-string amount)))))))
+                   (make-instance 'offer :pair pair
+                                  :price (* factor (parse-price price decimals))
+                                  :volume (read-from-string amount))))))
         (let ((asks (mapcar (parser 1) asks))
               (bids (mapcar (parser -1) bids)))
           (values asks bids))))))
 
 (defun book-updater-loop (tracker)
   (with-slots (bids asks delay pair offers) tracker
-    (setf (values asks bids) (get-book pair offers))
+    (setf (values asks bids) (get-book pair))
     (sleep delay)))
 
 (defmethod shared-initialize :after ((tracker book-tracker) (names t) &key)
@@ -600,28 +580,6 @@
     (with-slots (volume) (car cur)
       (push (incf share (* 11/6 (incf acc volume))) (car cur)))))
 
-(defun dumbot-oneside (book resilience funds delta max-orders predicate
-                       &aux (acc 0) (share 0))
-  ;; calculate cumulative depths
-  (do* ((cur book (cdr cur))
-        (n 0 (1+ n)))
-       ((or (> acc resilience) (null cur))
-        (let* ((sorted (sort (subseq book 1 n) #'> :key #'cddr))
-               (n-orders (min max-orders n))
-               (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
-               (total-shares (reduce #'+ (mapcar #'car relevant))))
-          (mapcar (lambda (order)
-                    (let ((vol (* funds (/ (car order) total-shares))))
-                      (cons vol (+ delta (cadr order)))))
-                  (sort relevant predicate :key #'cadr))))
-    ;; TODO - no side effects
-    ;; TODO - use a callback for liquidity distribution control
-    ;; (cdar cur) contains offer volume
-    (push (incf share (* 11/6 (incf acc (cdar cur)))) (car cur))
-    ;; (format t "~&Found ~$ at ~D total ~$ share ~$~%"
-    ;;         (cddar cur) (cadar cur) acc share)
-    ))
-
 (defun gapps-rate (from to)
   (getjso "rate" (read-json (drakma:http-request
                              "http://rate-exchange.appspot.com/currency"
@@ -630,7 +588,7 @@
 
 (defun %round (maker)
   (with-slots (fee fund-factor resilience-factor targeting-factor
-               pair (my-bids bids) (my-asks asks) gate
+               pair gate
                trades-tracker book-tracker account-tracker)
       maker
     ;; whoo!
@@ -683,89 +641,80 @@
                        `(when (ope-cancel (slot-value account-tracker 'ope)
                                           (car ,old))
                           (setf ,place (remove ,old ,place)))))
-            (flet ((filter-book (market-slot mine)
-                     (ignore-mine (chanl:recv (slot-value book-tracker market-slot))
-                                  (mapcar #'cdr mine))))
+            (flet ((filter-book (book)
+                     (chanl:send (slot-value (slot-value account-tracker 'ope) 'control)
+                                 (cons 'filter book))
+                     (chanl:recv (slot-value (slot-value account-tracker 'ope) 'response))))
               (macrolet ((with-book (() &body body)
-                           `(let ((other-bids (filter-book 'bids-output my-bids))
-                                  (other-asks (filter-book 'asks-output my-asks)))
-                              ;; NON STOP PARTY PROFIT MADNESS
-                              (do* ((best-bid (caar other-bids) (caar other-bids))
-                                    (best-ask (caar other-asks) (caar other-asks))
-                                    (spread (profit-margin (1+ best-bid) (1- best-ask) fee)
-                                            (profit-margin (1+ best-bid) (1- best-ask) fee)))
-                                   ((> spread 1))
-                                (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
-                                                         (- (cdar other-bids) (cdar other-asks)))))
-                                  (-1 (decf (cdar other-asks) (cdr (pop other-bids))))
-                                  (+1 (decf (cdar other-bids) (cdr (pop other-asks))))
-                                  (0         (pop other-bids)      (pop other-asks))))
-                              ,@body)))
+                           `(destructuring-bind (market-bids . market-asks)
+                                (chanl:recv (slot-value book-tracker 'book-output))
+                              (let ((other-bids (filter-book market-bids))
+                                    (other-asks (filter-book market-asks)))
+                                ;; NON STOP PARTY PROFIT MADNESS
+                                (do* ((best-bid (- (offer-price (car other-bids)))
+                                                (- (offer-price (car other-bids))))
+                                      (best-ask (offer-price (car other-asks))
+                                                (offer-price (car other-asks)))
+                                      (spread (profit-margin (1+ best-bid) (1- best-ask) fee)
+                                              (profit-margin (1+ best-bid) (1- best-ask) fee)))
+                                     ((> spread 1))
+                                  (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
+                                                           (- (offer-volume (car other-bids))
+                                                              (offer-volume (car other-asks))))))
+                                    (-1 (decf (offer-volume (car other-asks))
+                                              (offer-volume (pop other-bids))))
+                                    (+1 (decf (offer-volume (car other-bids))
+                                              (offer-volume (pop other-asks))))
+                                    (0 (pop other-bids) (pop other-asks))))
+                                (multiple-value-bind (my-bids my-asks)
+                                    (ope-placed (slot-value account-tracker 'ope))
+                                  ,@body)))))
                  ;; TODO: properly deal with partial and completed orders
-                (setf
-                 my-bids
-                 (with-book ()
-                   (let ((to-bid (dumbot-oneside other-bids resilience doge 1 15 #'>))
-                         new-bids)
-                     (flet ((place (new)
-                              (let ((o (ope-bid (slot-value account-tracker 'ope)
-                                                pair (cdr new) (car new))))
-                                ;; rudimentary protection against too-small orders
-                                (if o (push (cons o new) new-bids)
-                                    (format t "~&Couldn't place ~S~%" new)))))
-                       (dolist (old my-bids)
-                         (let* ((new (find (cadr old) to-bid :key #'cdr :test #'=))
-                                (same (and new (< (/ (abs (- (* price-factor
-                                                                (/ (car new)
-                                                                   (cdr new)))
-                                                             (cddr old)))
-                                                     (cddr old))
-                                                  0.15))))
-                           (if same (setf to-bid (remove new to-bid))
-                               (dolist (new (remove (cadr old) to-bid
-                                                    :key #'cdr :test #'>)
-                                        (cancel-from old my-bids))
-                                 (if (place new) (setf to-bid (remove new to-bid))
-                                     (return (cancel-from old my-bids)))))))
-                       (mapcar #'place to-bid))
-                     ;; convert new orders into a saner format (for ignore-mine)
-                     (sort (append my-bids
-                                   (mapcar (lambda (order)
-                                             (destructuring-bind (id quote-amount . price) order
-                                               (list* id price
-                                                      (* price-factor (/ quote-amount price)))))
-                                           new-bids))
-                           #'> :key #'cadr))))
-                (setf
-                 my-asks
-                 (with-book ()
-                   (let ((to-ask (dumbot-oneside other-asks resilience btc -1 15 #'<))
-                         new-asks)
-                     (flet ((place (new)
-                              (let ((o (ope-ask (slot-value account-tracker 'ope)
-                                                pair (cdr new) (car new))))
-                                (if o (push (cons o new) new-asks)
-                                    (format t "~&Couldn't place ~S~%" new)))))
-                       (dolist (old my-asks)
-                         (let* ((new (find (cadr old) to-ask :key #'cdr :test #'=))
-                                (same (and new (< (/ (abs (- (car new)
-                                                             (cddr old)))
-                                                     (cddr old))
-                                                  0.15))))
-                           (if same (setf to-ask (remove new to-ask))
-                               (dolist (new (remove (cadr old) to-ask
-                                                    :key #'cdr :test #'<)
-                                        (cancel-from old my-asks))
-                                 (if (place new) (setf to-ask (remove new to-ask))
-                                     (return (cancel-from old my-asks)))))))
-                       (mapcar #'place to-ask))
-                     ;; convert new orders into a saner format (for ignore-mine)
-                     (sort (append my-asks
-                                   (mapcar (lambda (order)
-                                             (destructuring-bind (id quote-amount . price) order
-                                               (list* id price quote-amount)))
-                                           new-asks))
-                           #'< :key #'cadr))))))))))))
+                (with-book ()
+                  (let ((to-bid (dumbot-offers other-bids resilience doge 15))
+                        new-bids)
+                    (flet ((place (new)
+                             (let ((o (ope-place (slot-value account-tracker 'ope) new)))
+                               ;; rudimentary protection against too-small orders
+                               (if o (push (cons o new) new-bids)
+                                   (format t "~&Couldn't place ~S~%" new)))))
+                      (dolist (old my-bids)
+                        (let* ((new (find (offer-price (cdr old)) to-bid
+                                          :key #'offer-price :test #'=))
+                               (same (and new (< (/ (abs (- (* price-factor
+                                                               (/ (offer-volume new)
+                                                                  (offer-price new)))
+                                                            (offer-volume (cdr old))))
+                                                    (offer-volume (cdr old)))
+                                                 0.15))))
+                          (if same (setf to-bid (remove new to-bid))
+                              (dolist (new (remove (offer-price (cdr old)) to-bid
+                                                   :key #'offer-price :test #'<)
+                                       (cancel-from old my-bids))
+                                (if (place new) (setf to-bid (remove new to-bid))
+                                    (return (cancel-from old my-bids)))))))
+                      (mapcar #'place to-bid))))
+                (with-book ()
+                  (let ((to-ask (dumbot-offers other-asks resilience btc 15))
+                        new-asks)
+                    (flet ((place (new)
+                             (let ((o (ope-place (slot-value account-tracker 'ope) new)))
+                               (if o (push (cons o new) new-asks)
+                                   (format t "~&Couldn't place ~S~%" new)))))
+                      (dolist (old my-asks)
+                        (let* ((new (find (offer-price (cdr old)) to-ask
+                                          :key #'offer-price :test #'=))
+                               (same (and new (< (/ (abs (- (offer-volume new)
+                                                            (offer-volume (cdr old))))
+                                                    (offer-volume (cdr old)))
+                                                 0.15))))
+                          (if same (setf to-ask (remove new to-ask))
+                              (dolist (new (remove (offer-price (cdr old)) to-ask
+                                                   :key #'offer-price :test #'<)
+                                       (cancel-from old my-asks))
+                                (if (place new) (setf to-ask (remove new to-ask))
+                                    (return (cancel-from old my-asks)))))))
+                      (mapcar #'place to-ask))))))))))))
 
 (defclass maker ()
   ((pair :initarg :pair :initform "XXBTZEUR")
