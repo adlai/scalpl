@@ -12,6 +12,7 @@
            #:goxstamp
            #:jso-keys
            #:urlencode-params
+           #:awhen1 #:aand1
            ))
 
 (in-package #:glock.util)
@@ -83,3 +84,17 @@
                   (drakma:url-encode name drakma::*drakma-default-external-format*)
                   value
                   (drakma:url-encode value drakma::*drakma-default-external-format*)))))
+
+;;; anaphora!
+
+(defmacro when1 (test &body body)
+  (once-only (test) `(when ,test ,@body ,test)))
+
+(defmacro awhen1 (test &body body)
+  `(anaphora::anaphoric when1 ,test ,@body))
+
+(defmacro and1 (test &rest rest)
+  (once-only (test) `(and ,test ,@rest ,test)))
+
+(defmacro aand1 (test &rest rest)
+  `(anaphora::anaphoric and1 ,test ,@rest))

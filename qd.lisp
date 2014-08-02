@@ -424,12 +424,10 @@
                     (case car
                       (placed placed)
                       (filter (ignore-offers cdr (mapcar #'cdr placed)))
-                      (offer (aprog1 (post-offer gate cdr)
-                               (when it (push (cons it cdr) placed))))
-                      (cancel (multiple-value-bind (ret err)
-                                  (cancel-order gate cdr)
-                                (awhen (or ret (search "Unknown order" (car err)))
-                                  (prog1 it (setf placed (remove cdr placed :key #'car))))))))))))
+                      (offer (awhen1 (post-offer gate cdr) (push (cons it cdr) placed)))
+                      (cancel (multiple-value-bind (ret err) (cancel-order gate cdr)
+                                (awhen1 (or ret (search "Unknown order" (car err)))
+                                  (setf placed (remove cdr placed :key #'car)))))))))))
 
 (defmethod shared-initialize :after ((ope ope) slots &key)
   (with-slots (thread) ope
@@ -665,15 +663,14 @@
                 (with-book ()
                   (let ((to-bid (dumbot-offers other-bids resilience doge 15)))
                     (dolist (old my-bids)
-                      (aif (aand (find (offer-price (cdr old)) to-bid
-                                       :key #'offer-price :test #'=)
-                                 (and (< (/ (abs (- (* price-factor
-                                                       (/ (offer-volume it)
-                                                          (offer-price it)))
-                                                    (offer-volume (cdr old))))
-                                            (offer-volume (cdr old)))
-                                         0.15)
-                                      it))
+                      (aif (aand1 (find (offer-price (cdr old)) to-bid
+                                        :key #'offer-price :test #'=)
+                                  (< (/ (abs (- (* price-factor
+                                                   (/ (offer-volume it)
+                                                      (offer-price it)))
+                                                (offer-volume (cdr old))))
+                                        (offer-volume (cdr old)))
+                                     0.15))
                            (setf to-bid (remove it to-bid))
                            (dolist (new (remove (offer-price (cdr old)) to-bid
                                                 :key #'offer-price :test #'<)
@@ -684,13 +681,12 @@
                 (with-book ()
                   (let ((to-ask (dumbot-offers other-asks resilience btc 15)))
                     (dolist (old my-asks)
-                      (aif (aand (find (offer-price (cdr old)) to-ask
-                                       :key #'offer-price :test #'=)
-                                 (and (< (/ (abs (- (offer-volume it)
-                                                    (offer-volume (cdr old))))
-                                            (offer-volume (cdr old)))
-                                         0.15)
-                                      it))
+                      (aif (aand1 (find (offer-price (cdr old)) to-ask
+                                        :key #'offer-price :test #'=)
+                                  (< (/ (abs (- (offer-volume it)
+                                                (offer-volume (cdr old))))
+                                        (offer-volume (cdr old)))
+                                     0.15))
                            (setf to-ask (remove it to-ask))
                            (dolist (new (remove (offer-price (cdr old)) to-ask
                                                 :key #'offer-price :test #'<)
