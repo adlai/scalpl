@@ -428,8 +428,8 @@
                                (when it (push (cons it cdr) placed))))
                       (cancel (multiple-value-bind (ret err)
                                   (cancel-order gate cdr)
-                                (when (or ret (search "Unknown order" (car err)))
-                                  (setf placed (remove cdr placed :key #'car)))))))))))
+                                (awhen (or ret (search "Unknown order" (car err)))
+                                  (prog1 it (setf placed (remove cdr placed :key #'car))))))))))))
 
 (defmethod shared-initialize :after ((ope ope) slots &key)
   (with-slots (thread) ope
@@ -671,20 +671,21 @@
                                   (push (cons it new) new-bids)
                                   (format t "~&Couldn't place ~S~%" new))))
                       (dolist (old my-bids)
-                        (let* ((new (find (offer-price (cdr old)) to-bid
-                                          :key #'offer-price :test #'=))
-                               (same (and new (< (/ (abs (- (* price-factor
-                                                               (/ (offer-volume new)
-                                                                  (offer-price new)))
-                                                            (offer-volume (cdr old))))
-                                                    (offer-volume (cdr old)))
-                                                 0.15))))
-                          (if same (setf to-bid (remove new to-bid))
-                              (dolist (new (remove (offer-price (cdr old)) to-bid
-                                                   :key #'offer-price :test #'<)
-                                       (cancel-from old my-bids))
-                                (if (place new) (setf to-bid (remove new to-bid))
-                                    (return (cancel-from old my-bids)))))))
+                        (aif (aand (find (offer-price (cdr old)) to-bid
+                                         :key #'offer-price :test #'=)
+                                   (and (< (/ (abs (- (* price-factor
+                                                         (/ (offer-volume it)
+                                                            (offer-price it)))
+                                                      (offer-volume (cdr old))))
+                                              (offer-volume (cdr old)))
+                                           0.15)
+                                        it))
+                             (setf to-bid (remove it to-bid))
+                             (dolist (new (remove (offer-price (cdr old)) to-bid
+                                                  :key #'offer-price :test #'<)
+                                      (cancel-from old my-bids))
+                               (if (place new) (setf to-bid (remove new to-bid))
+                                   (return (cancel-from old my-bids))))))
                       (mapcar #'place to-bid))))
                 (with-book ()
                   (let ((to-ask (dumbot-offers other-asks resilience btc 15))
@@ -694,18 +695,19 @@
                                   (push (cons it new) new-asks)
                                   (format t "~&Couldn't place ~S~%" new))))
                       (dolist (old my-asks)
-                        (let* ((new (find (offer-price (cdr old)) to-ask
-                                          :key #'offer-price :test #'=))
-                               (same (and new (< (/ (abs (- (offer-volume new)
-                                                            (offer-volume (cdr old))))
-                                                    (offer-volume (cdr old)))
-                                                 0.15))))
-                          (if same (setf to-ask (remove new to-ask))
-                              (dolist (new (remove (offer-price (cdr old)) to-ask
-                                                   :key #'offer-price :test #'<)
-                                       (cancel-from old my-asks))
-                                (if (place new) (setf to-ask (remove new to-ask))
-                                    (return (cancel-from old my-asks)))))))
+                        (aif (aand (find (offer-price (cdr old)) to-ask
+                                         :key #'offer-price :test #'=)
+                                   (and (< (/ (abs (- (offer-volume it)
+                                                      (offer-volume (cdr old))))
+                                              (offer-volume (cdr old)))
+                                           0.15)
+                                        it))
+                             (setf to-ask (remove it to-ask))
+                             (dolist (new (remove (offer-price (cdr old)) to-ask
+                                                  :key #'offer-price :test #'<)
+                                      (cancel-from old my-asks))
+                               (if (place new) (setf to-ask (remove new to-ask))
+                                   (return (cancel-from old my-asks))))))
                       (mapcar #'place to-ask))))))))))))
 
 (defclass maker ()
