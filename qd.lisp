@@ -57,9 +57,8 @@
   (mapjso* (lambda (id order) (setf (getjso "id" order) id))
            (getjso "open" (gate-request gate "OpenOrders"))))
 
-(defun cancel-order (gate order)
-  (gate-request gate "CancelOrder"
-                `(("txid" . ,(getjso "id" order)))))
+(defun cancel-order (gate oid)
+  (gate-request gate "CancelOrder" `(("txid" . ,oid))))
 
 (defun cancel-pair-orders (gate pair)
   (mapjso (lambda (id order)
@@ -112,15 +111,25 @@
    (volume :initarg :volume :accessor offer-volume)
    (price :initarg :price :reader offer-price)))
 
+(defclass placed (offer)
+  ((id :initarg :id :reader offer-id)
+   (text :initarg :text :reader offer-text)))
+
 (defun post-offer (gate offer)
   (with-slots (pair volume price) offer
     (flet ((post (type options)
-             (post-limit gate type pair (abs price) volume
-                         (getjso "pair_decimals" (getjso pair *markets*))
-                         options)))
+             (awhen (post-limit gate type pair (abs price) volume
+                                (getjso "pair_decimals" (getjso pair *markets*))
+                                options)
+               (with-json-slots (id order) it
+                 (change-class offer 'placed :id id :text order)))))
       (if (< price 0)
           (post "buy" "viqc")
           (post "sell" nil)))))
+
+(defun cancel-offer (gate offer)
+  (multiple-value-bind (ret err) (cancel-order gate (offer-id offer))
+    (or ret (search "Unknown order" (car err)))))
 
 ;;; TODO: deal with partially completed orders
 (defun ignore-offers (open mine &aux them)
@@ -423,11 +432,10 @@
                     ;; FIXME: store order id in the offer object, avoid mapcar
                     (case car
                       (placed placed)
-                      (filter (ignore-offers cdr (mapcar #'cdr placed)))
-                      (offer (awhen1 (post-offer gate cdr) (push (cons it cdr) placed)))
-                      (cancel (multiple-value-bind (ret err) (cancel-order gate cdr)
-                                (awhen1 (or ret (search "Unknown order" (car err)))
-                                  (setf placed (remove cdr placed :key #'car)))))))))))
+                      (filter (ignore-offers cdr placed))
+                      (offer (awhen1 (post-offer gate cdr) (push it placed)))
+                      (cancel (awhen1 (cancel-offer gate cdr)
+                                (setf placed (remove cdr placed))))))))))
 
 (defmethod shared-initialize :after ((ope ope) slots &key)
   (with-slots (thread) ope
@@ -441,10 +449,9 @@
 (defun ope-placed (ope)
   (with-slots (control response) ope
     (chanl:send control '(placed))
-    (let ((all (sort (copy-list (chanl:recv response)) #'<
-                     :key (lambda (x) (offer-price (cdr x))))))
+    (let ((all (sort (copy-list (chanl:recv response)) #'< :key #'offer-price)))
       (flet ((split (sign)
-               (remove sign all :key (lambda (x) (signum (offer-price (cdr x)))))))
+               (remove sign all :key (lambda (x) (signum (offer-price x))))))
         ;;       bids       asks
         (values (split 1) (split -1))))))
 
@@ -453,9 +460,9 @@
     (chanl:send control (cons 'offer offer))
     (chanl:recv response)))
 
-(defun ope-cancel (ope oid)
+(defun ope-cancel (ope offer)
   (with-slots (control response) ope
-    (chanl:send control (cons 'cancel oid))
+    (chanl:send control (cons 'cancel offer))
     (chanl:recv response)))
 
 ;;;
@@ -595,8 +602,6 @@
              (total-of (btc doge) (+ btc (/ doge doge/btc)))
              (factor-fund (fund factor) (* fund fund-factor factor)))
         (let* ((market (getjso pair *markets*))
-               (decimals (getjso "pair_decimals" market))
-               (price-factor (expt 10 decimals))
                (total-btc (symbol-funds (getjso "base" market)))
                (total-doge (symbol-funds (getjso "quote" market)))
                (total-fund (total-of total-btc total-doge))
@@ -655,44 +660,37 @@
                                     (0 (pop other-bids) (pop other-asks))))
                                 (multiple-value-bind (my-bids my-asks)
                                     (ope-placed (slot-value account-tracker 'ope))
-                                  ,@body))))
-                         (cancel-from (old place)
-                           `(when (ope-cancel ope (car ,old))
-                              (setf ,place (remove ,old ,place)))))
+                                  ,@body)))))
                 ;; TODO: properly deal with partial and completed orders
                 (with-book ()
                   (let ((to-bid (dumbot-offers other-bids resilience doge 15)))
                     (dolist (old my-bids)
-                      (aif (aand1 (find (offer-price (cdr old)) to-bid
+                      (aif (aand1 (find (offer-price old) to-bid
                                         :key #'offer-price :test #'=)
-                                  (< (/ (abs (- (* price-factor
-                                                   (/ (offer-volume it)
-                                                      (offer-price it)))
-                                                (offer-volume (cdr old))))
-                                        (offer-volume (cdr old)))
+                                  (< (/ (abs (- (offer-volume it) (offer-volume old)))
+                                        (offer-volume old))
                                      0.15))
                            (setf to-bid (remove it to-bid))
-                           (dolist (new (remove (offer-price (cdr old)) to-bid
+                           (dolist (new (remove (offer-price old) to-bid
                                                 :key #'offer-price :test #'<)
-                                    (cancel-from old my-bids))
+                                    (ope-cancel ope old))
                              (if (place new) (setf to-bid (remove new to-bid))
-                                 (return (cancel-from old my-bids))))))
+                                 (return (ope-cancel ope old))))))
                     (mapcar #'place to-bid)))
                 (with-book ()
                   (let ((to-ask (dumbot-offers other-asks resilience btc 15)))
                     (dolist (old my-asks)
-                      (aif (aand1 (find (offer-price (cdr old)) to-ask
+                      (aif (aand1 (find (offer-price old) to-ask
                                         :key #'offer-price :test #'=)
-                                  (< (/ (abs (- (offer-volume it)
-                                                (offer-volume (cdr old))))
-                                        (offer-volume (cdr old)))
+                                  (< (/ (abs (- (offer-volume it) (offer-volume old)))
+                                        (offer-volume old))
                                      0.15))
                            (setf to-ask (remove it to-ask))
-                           (dolist (new (remove (offer-price (cdr old)) to-ask
+                           (dolist (new (remove (offer-price old) to-ask
                                                 :key #'offer-price :test #'<)
-                                    (cancel-from old my-asks))
+                                    (ope-cancel ope old))
                              (if (place new) (setf to-ask (remove new to-ask))
-                                 (return (cancel-from old my-asks))))))
+                                 (return (ope-cancel ope old))))))
                     (mapcar #'place to-ask)))))))))))
 
 (defclass maker ()
