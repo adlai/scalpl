@@ -110,7 +110,7 @@
 (defclass offer ()
   ((pair :initarg :pair)
    (volume :initarg :volume :accessor offer-volume)
-   (price :initarg :price :accessor offer-price)))
+   (price :initarg :price :reader offer-price)))
 
 (defun post-offer (gate offer)
   (with-slots (pair volume price) offer
@@ -455,14 +455,6 @@
     (chanl:send control (cons 'offer offer))
     (chanl:recv response)))
 
-(defun ope-bid (ope &rest data)
-  (destructuring-bind (pair price volume) data
-    (ope-place ope (make-instance 'offer :pair pair :volume volume :price (- price)))))
-
-(defun ope-ask (ope &rest data)
-  (destructuring-bind (pair price volume) data
-    (ope-place ope (make-instance 'offer :pair pair :volume volume :price price))))
-
 (defun ope-cancel (ope oid)
   (with-slots (control response) ope
     (chanl:send control (cons 'cancel oid))
@@ -674,10 +666,10 @@
                   (let ((to-bid (dumbot-offers other-bids resilience doge 15))
                         new-bids)
                     (flet ((place (new)
-                             (let ((o (ope-place (slot-value account-tracker 'ope) new)))
+                             (aif (ope-place (slot-value account-tracker 'ope) new)
                                ;; rudimentary protection against too-small orders
-                               (if o (push (cons o new) new-bids)
-                                   (format t "~&Couldn't place ~S~%" new)))))
+                                  (push (cons it new) new-bids)
+                                  (format t "~&Couldn't place ~S~%" new))))
                       (dolist (old my-bids)
                         (let* ((new (find (offer-price (cdr old)) to-bid
                                           :key #'offer-price :test #'=))
@@ -698,9 +690,9 @@
                   (let ((to-ask (dumbot-offers other-asks resilience btc 15))
                         new-asks)
                     (flet ((place (new)
-                             (let ((o (ope-place (slot-value account-tracker 'ope) new)))
-                               (if o (push (cons o new) new-asks)
-                                   (format t "~&Couldn't place ~S~%" new)))))
+                             (aif (ope-place (slot-value account-tracker 'ope) new)
+                                  (push (cons it new) new-asks)
+                                  (format t "~&Couldn't place ~S~%" new))))
                       (dolist (old my-asks)
                         (let* ((new (find (offer-price (cdr old)) to-ask
                                           :key #'offer-price :test #'=))
