@@ -583,6 +583,21 @@
                              :parameters `(("from" . ,from) ("to" . ,to))
                              :want-stream t))))
 
+(defclass maker ()
+  ((pair :initarg :pair :initform "XXBTZEUR")
+   (fund-factor :initarg :fund-factor :initform 1)
+   (resilience-factor :initarg :resilience :initform 1)
+   (targeting-factor :initarg :targeting :initform 1/2)
+   (gate :initarg :gate)
+   (control :initform (make-instance 'chanl:channel))
+   (bids :initform nil :initarg :bids)
+   (asks :initform nil :initarg :asks)
+   (fee :initform 0.16 :initarg :fee)
+   (trades-tracker :initarg :trades-tracker)
+   (book-tracker :initarg :book-tracker)
+   (account-tracker :initarg :account-tracker)
+   thread))
+
 (defun %round (maker)
   (with-slots (fee fund-factor resilience-factor targeting-factor
                pair gate
@@ -692,21 +707,6 @@
                              (if (place new) (setf to-ask (remove new to-ask))
                                  (return (ope-cancel ope old))))))
                     (mapcar #'place to-ask)))))))))))
-
-(defclass maker ()
-  ((pair :initarg :pair :initform "XXBTZEUR")
-   (fund-factor :initarg :fund-factor :initform 1)
-   (resilience-factor :initarg :resilience :initform 1)
-   (targeting-factor :initarg :targeting :initform 1/2)
-   (gate :initarg :gate)
-   (control :initform (make-instance 'chanl:channel))
-   (bids :initform nil :initarg :bids)
-   (asks :initform nil :initarg :asks)
-   (fee :initform 0.16 :initarg :fee)
-   (trades-tracker :initarg :trades-tracker)
-   (book-tracker :initarg :book-tracker)
-   (account-tracker :initarg :account-tracker)
-   thread))
 
 (defun dumbot-loop (maker)
   (with-slots (control) maker
