@@ -745,6 +745,26 @@
   (with-slots (control) maker
     (chanl:send control '(pause))))
 
+(defun reset-the-net (maker)
+  (mapc (lambda (x) (chanl:kill (slot-value x 'chanl::thread)))
+        (list (slot-value maker 'thread)
+              (slot-value (slot-value (slot-value maker 'account-tracker) 'ope) 'thread)
+              (slot-value (slot-value (slot-value maker 'account-tracker) 'gate) 'thread)))
+  (mapc (lambda (x) (chanl:kill (slot-value x 'chanl::thread)))
+        (mapcar (lambda (x) (slot-value x 'updater))
+                (list (slot-value maker 'book-tracker)
+                      (slot-value maker 'account-tracker)
+                      (slot-value maker 'trades-tracker)
+                      (slot-value (slot-value maker 'account-tracker) 'lictor))))
+  (mapc 'reinitialize-instance
+        (list (slot-value maker 'book-tracker)
+              (slot-value maker 'account-tracker)
+              (slot-value maker 'trades-tracker)
+              (slot-value (slot-value maker 'account-tracker) 'gate)
+              (slot-value (slot-value maker 'account-tracker) 'lictor)
+              (slot-value (slot-value maker 'account-tracker) 'ope)
+              maker)))
+
 (defvar *maker*
   (make-instance 'maker
                  :gate (make-instance 'gate
