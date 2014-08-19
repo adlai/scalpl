@@ -6,6 +6,48 @@
 (in-package #:glock.qd)
 
 ;;;
+;;; Actor
+;;;
+
+(defclass actor ()
+  ((thread :documentation "Thread performing this actor's behavior")
+   (control :documentation "Channel for controlling this actor")
+   (children :allocation :class :initform nil
+             :documentation "Children of this actor")
+   (channels :allocation :class :initform nil
+             :documentation "Channel slot names")))
+
+(defmethod initialize-instance :before ((actor actor) &key)
+  (flet ((initialize (slot)
+           (setf (slot-value actor slot)
+                 (make-instance 'chanl:channel))))
+    (initialize 'control)
+    (mapc #'initialize (slot-value actor 'channels))))
+
+(defgeneric act (actor)
+  (:method ((actor actor))
+    (awhen (chanl:recv (slot-value actor 'control)) (funcall it actor))))
+
+(defgeneric christen (actor)
+  (:documentation "Generates a name for `actor', after slot initialization")
+  (:method ((actor actor)) (format nil "actor for ~A" actor)))
+
+(defun kill-actor (actor)
+  ;; todo: timeout for chanl:kill ?
+  (chanl:send (slot-value actor 'control) nil))
+
+(defmethod reinitialize-instance :before ((actor actor) &key kill)
+  (when kill (kill-actor actor)))
+
+(defmethod shared-initialize :after ((actor actor) slot-names &key)
+  (when (or (not (slot-boundp actor 'thread))
+            (eq :terminated (chanl:task-status (slot-value actor 'thread))))
+    (setf (slot-value actor 'thread)
+          (chanl:pexec (:name (christen actor)
+                        :initial-bindings `((*read-default-float-format* double-float)))
+            (act actor)))))
+
+;;;
 ;;; Rate Gate
 ;;;
 
@@ -256,14 +298,12 @@
 (defclass book-tracker ()
   ((pair :initarg :pair)
    (control :initform (make-instance 'chanl:channel))
-   (bids-output :initform (make-instance 'chanl:channel))
-   (asks-output :initform (make-instance 'chanl:channel))
    (book-output :initform (make-instance 'chanl:channel))
    (delay :initarg :delay :initform 8)
    bids asks updater worker))
 
 (defun book-worker-loop (tracker)
-  (with-slots (control bids asks bids-output asks-output book-output) tracker
+  (with-slots (control bids asks book-output) tracker
     (handler-case
         (chanl:select
           ((recv control command)
@@ -420,31 +460,12 @@
 (defclass ope ()
   ((gate :initarg :gate)
    (placed :initform nil)
+   (input :initform (make-instance 'chanl:channel))
+   (output :initform (make-instance 'chanl:channel))
    (control :initform (make-instance 'chanl:channel))
    (response :initform (make-instance 'chanl:channel))
-   thread))
-
-(defun ope-interface-loop (ope)
-  (with-slots (gate active control response placed) ope
-    (let ((command (chanl:recv control)))
-      (destructuring-bind (car . cdr) command
-        (chanl:send response
-                    ;; FIXME: store order id in the offer object, avoid mapcar
-                    (case car
-                      (placed placed)
-                      (filter (ignore-offers cdr placed))
-                      (offer (awhen1 (post-offer gate cdr) (push it placed)))
-                      (cancel (awhen1 (cancel-offer gate cdr)
-                                (setf placed (remove cdr placed))))))))))
-
-(defmethod shared-initialize :after ((ope ope) slots &key)
-  (with-slots (thread) ope
-    (when (or (not (slot-boundp ope 'thread))
-              (eq :terminated (chanl:task-status thread)))
-      (setf thread
-            (chanl:pexec (:name "qdm-preα ope interface"
-                          :initial-bindings `((*read-default-float-format* double-float)))
-              (loop (ope-interface-loop ope)))))))
+   (book-channel :initarg :book-channel)
+   updater worker))
 
 (defun ope-placed (ope)
   (with-slots (control response) ope
@@ -464,6 +485,141 @@
   (with-slots (control response) ope
     (chanl:send control (cons 'cancel offer))
     (chanl:recv response)))
+
+(defun ope-filter (ope book)
+  (with-slots (control response) ope
+    (chanl:send control (cons 'filter book))
+    (chanl:recv response)))
+
+(defun ope-updater-loop (ope)
+  (with-slots (gate control response placed) ope
+    (let ((command (chanl:recv control)))
+      (destructuring-bind (car . cdr) command
+        (chanl:send response
+                    ;; FIXME: store order id in the offer object, avoid mapcar
+                    (case car
+                      (placed placed)
+                      (filter (ignore-offers cdr placed))
+                      (offer (awhen1 (post-offer gate cdr) (push it placed)))
+                      (cancel (awhen1 (cancel-offer gate cdr)
+                                (setf placed (remove cdr placed))))))))))
+
+(defun profit-margin (bid ask fee-percent)
+  (* (/ ask bid) (- 1 (/ fee-percent 100))))
+
+;;; Lossy trades
+
+;;; The most common lossy trade execution happens when a limit order rolls
+;;; through one or more offers but isn't filled, and thus remains on the
+;;; books. If this order is large enough, it'll get outbid by the next round of
+;;; the offer placement algorithm, and the outbidding offer will be lossy
+;;; relative to the trades previously executed.
+
+;;; How bad is this?
+
+;;; In some situations, the remaining limit order gets traded back rapidly:
+;; TUFCXE 12:26:33 buy  €473.22001 0.00020828 €0.09856
+;; TJVT4U 12:26:33 buy  €473.22002 0.00004196 €0.01986
+;; TRU2YT 12:24:05 buy  €474.04001 0.00108394 €0.51383
+;; TOFJR2 12:23:52 sell €474.04000 0.00002623 €0.01243
+;; TYWDQU 12:23:51 sell €473.98799 0.00074902 €0.35503
+;; TINWGD 12:23:51 sell €473.95313 0.00028740 €0.13621
+;; TPY7P4 12:23:51 sell €473.92213 0.00003772 €0.01788
+
+(defun dumbot-offers (book resilience funds max-orders &aux (acc 0) (share 0))
+  (do* ((cur book (cdr cur))
+        (n 0 (1+ n)))
+       ((or (> acc resilience) (null cur))
+        (let* ((sorted (sort (subseq book 1 n) #'> :key (lambda (x) (offer-volume (cdr x)))))
+               (n-orders (min max-orders n))
+               (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
+               (total-shares (reduce #'+ (mapcar #'car relevant))))
+          (mapcar (lambda (order)
+                    (with-slots (pair price) (cdr order)
+                      (make-instance 'offer :pair pair :price (1- price)
+                                     :volume (* funds (/ (car order) total-shares)))))
+                  (sort relevant #'< :key (lambda (x) (offer-price (cdr x)))))))
+    ;; TODO - no side effects
+    ;; TODO - use a callback for liquidity distribution control
+    (with-slots (volume) (car cur)
+      (push (incf share (* 11/6 (incf acc volume))) (car cur)))))
+
+(defun ope-worker-loop (ope)
+  (with-slots (input output book-channel) ope
+    (destructuring-bind (fee base quote resilience) (chanl:recv input)
+      ;; Now run that algorithm thingy
+      (flet ((filter-book (book) (ope-filter ope book))
+             (place (new) (ope-place ope new)))
+        (macrolet ((with-book (() &body body)
+                     `(destructuring-bind (market-bids . market-asks)
+                          (chanl:recv book-channel)
+                        (let ((other-bids (filter-book market-bids))
+                              (other-asks (filter-book market-asks)))
+                          ;; NON STOP PARTY PROFIT MADNESS
+                          (do* ((best-bid (- (offer-price (car other-bids)))
+                                          (- (offer-price (car other-bids))))
+                                (best-ask (offer-price (car other-asks))
+                                          (offer-price (car other-asks)))
+                                (spread (profit-margin (1+ best-bid) (1- best-ask) fee)
+                                        (profit-margin (1+ best-bid) (1- best-ask) fee)))
+                               ((> spread 1))
+                            (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
+                                                     (- (offer-volume (car other-bids))
+                                                        (offer-volume (car other-asks))))))
+                              (-1 (decf (offer-volume (car other-asks))
+                                        (offer-volume (pop other-bids))))
+                              (+1 (decf (offer-volume (car other-bids))
+                                        (offer-volume (pop other-asks))))
+                              (0 (pop other-bids) (pop other-asks))))
+                          (multiple-value-bind (my-bids my-asks) (ope-placed ope)
+                            ,@body)))))
+          ;; TODO: properly deal with partial and completed orders
+          (with-book ()
+            (let ((to-bid (dumbot-offers other-bids resilience quote 15)))
+              (dolist (old my-bids)
+                (aif (aand1 (find (offer-price old) to-bid
+                                  :key #'offer-price :test #'=)
+                            (< (/ (abs (- (offer-volume it) (offer-volume old)))
+                                  (offer-volume old))
+                               0.15))
+                     (setf to-bid (remove it to-bid))
+                     (dolist (new (remove (offer-price old) to-bid
+                                          :key #'offer-price :test #'<)
+                              (ope-cancel ope old))
+                       (if (place new) (setf to-bid (remove new to-bid))
+                           (return (ope-cancel ope old))))))
+              (mapcar #'place to-bid)))
+          (with-book ()
+            (let ((to-ask (dumbot-offers other-asks resilience base 15)))
+              (dolist (old my-asks)
+                (aif (aand1 (find (offer-price old) to-ask
+                                  :key #'offer-price :test #'=)
+                            (< (/ (abs (- (offer-volume it) (offer-volume old)))
+                                  (offer-volume old))
+                               0.15))
+                     (setf to-ask (remove it to-ask))
+                     (dolist (new (remove (offer-price old) to-ask
+                                          :key #'offer-price :test #'<)
+                              (ope-cancel ope old))
+                       (if (place new) (setf to-ask (remove new to-ask))
+                           (return (ope-cancel ope old))))))
+              (mapcar #'place to-ask))))))
+    (chanl:send output nil)))
+
+(defmethod shared-initialize :after ((ope ope) slots &key)
+  (with-slots (updater worker) ope
+    (when (or (not (slot-boundp ope 'updater))
+              (eq :terminated (chanl:task-status updater)))
+      (setf updater
+            (chanl:pexec (:name "qdm-preα ope updater"
+                          :initial-bindings `((*read-default-float-format* double-float)))
+              (loop (ope-updater-loop ope)))))
+    (when (or (not (slot-boundp ope 'worker))
+              (eq :terminated (chanl:task-status worker)))
+      (setf worker
+            (chanl:pexec (:name "qdm-preα ope worker"
+                          :initial-bindings `((*read-default-float-format* double-float)))
+              (loop (ope-worker-loop ope)))))))
 
 ;;;
 ;;; ACCOUNT TRACKING
@@ -537,46 +693,6 @@
     (chanl:send control (cons asset channel))
     (chanl:recv channel)))
 
-(defun profit-margin (bid ask fee-percent)
-  (* (/ ask bid) (- 1 (/ fee-percent 100))))
-
-;;; Lossy trades
-
-;;; The most common lossy trade execution happens when a limit order rolls
-;;; through one or more offers but isn't filled, and thus remains on the
-;;; books. If this order is large enough, it'll get outbid by the next round of
-;;; the offer placement algorithm, and the outbidding offer will be lossy
-;;; relative to the trades previously executed.
-
-;;; How bad is this?
-
-;;; In some situations, the remaining limit order gets traded back rapidly:
-;; TUFCXE 12:26:33 buy  €473.22001 0.00020828 €0.09856
-;; TJVT4U 12:26:33 buy  €473.22002 0.00004196 €0.01986
-;; TRU2YT 12:24:05 buy  €474.04001 0.00108394 €0.51383
-;; TOFJR2 12:23:52 sell €474.04000 0.00002623 €0.01243
-;; TYWDQU 12:23:51 sell €473.98799 0.00074902 €0.35503
-;; TINWGD 12:23:51 sell €473.95313 0.00028740 €0.13621
-;; TPY7P4 12:23:51 sell €473.92213 0.00003772 €0.01788
-
-(defun dumbot-offers (book resilience funds max-orders &aux (acc 0) (share 0))
-  (do* ((cur book (cdr cur))
-        (n 0 (1+ n)))
-       ((or (> acc resilience) (null cur))
-        (let* ((sorted (sort (subseq book 1 n) #'> :key (lambda (x) (offer-volume (cdr x)))))
-               (n-orders (min max-orders n))
-               (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
-               (total-shares (reduce #'+ (mapcar #'car relevant))))
-          (mapcar (lambda (order)
-                    (with-slots (pair price) (cdr order)
-                      (make-instance 'offer :pair pair :price (1- price)
-                                     :volume (* funds (/ (car order) total-shares)))))
-                  (sort relevant #'< :key (lambda (x) (offer-price (cdr x)))))))
-    ;; TODO - no side effects
-    ;; TODO - use a callback for liquidity distribution control
-    (with-slots (volume) (car cur)
-      (push (incf share (* 11/6 (incf acc volume))) (car cur)))))
-
 (defun gapps-rate (from to)
   (getjso "rate" (read-json (drakma:http-request
                              "http://rate-exchange.appspot.com/currency"
@@ -588,7 +704,6 @@
    (fund-factor :initarg :fund-factor :initform 1)
    (resilience-factor :initarg :resilience :initform 1)
    (targeting-factor :initarg :targeting :initform 1/2)
-   (gate :initarg :gate)
    (control :initform (make-instance 'chanl:channel))
    (bids :initform nil :initarg :bids)
    (asks :initform nil :initarg :asks)
@@ -599,8 +714,8 @@
    thread))
 
 (defun %round (maker)
-  (with-slots (fee fund-factor resilience-factor targeting-factor
-               pair gate
+  (declare (optimize (debug 3)))
+  (with-slots (fee fund-factor resilience-factor targeting-factor pair
                trades-tracker book-tracker account-tracker)
       maker
     ;; whoo!
@@ -646,67 +761,9 @@
                                               (vwap account-tracker :type "sell" :pair pair)
                                               fee)))))
           (force-output)
-          ;; Now run that algorithm thingy
-          (with-slots (ope) account-tracker
-            (flet ((filter-book (book)
-                     (chanl:send (slot-value ope 'control) (cons 'filter book))
-                     (chanl:recv (slot-value ope 'response)))
-                   (place (new) (ope-place (slot-value account-tracker 'ope) new)))
-              (macrolet ((with-book (() &body body)
-                           `(destructuring-bind (market-bids . market-asks)
-                                (chanl:recv (slot-value book-tracker 'book-output))
-                              (let ((other-bids (filter-book market-bids))
-                                    (other-asks (filter-book market-asks)))
-                                ;; NON STOP PARTY PROFIT MADNESS
-                                (do* ((best-bid (- (offer-price (car other-bids)))
-                                                (- (offer-price (car other-bids))))
-                                      (best-ask (offer-price (car other-asks))
-                                                (offer-price (car other-asks)))
-                                      (spread (profit-margin (1+ best-bid) (1- best-ask) fee)
-                                              (profit-margin (1+ best-bid) (1- best-ask) fee)))
-                                     ((> spread 1))
-                                  (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
-                                                           (- (offer-volume (car other-bids))
-                                                              (offer-volume (car other-asks))))))
-                                    (-1 (decf (offer-volume (car other-asks))
-                                              (offer-volume (pop other-bids))))
-                                    (+1 (decf (offer-volume (car other-bids))
-                                              (offer-volume (pop other-asks))))
-                                    (0 (pop other-bids) (pop other-asks))))
-                                (multiple-value-bind (my-bids my-asks)
-                                    (ope-placed (slot-value account-tracker 'ope))
-                                  ,@body)))))
-                ;; TODO: properly deal with partial and completed orders
-                (with-book ()
-                  (let ((to-bid (dumbot-offers other-bids resilience doge 15)))
-                    (dolist (old my-bids)
-                      (aif (aand1 (find (offer-price old) to-bid
-                                        :key #'offer-price :test #'=)
-                                  (< (/ (abs (- (offer-volume it) (offer-volume old)))
-                                        (offer-volume old))
-                                     0.15))
-                           (setf to-bid (remove it to-bid))
-                           (dolist (new (remove (offer-price old) to-bid
-                                                :key #'offer-price :test #'<)
-                                    (ope-cancel ope old))
-                             (if (place new) (setf to-bid (remove new to-bid))
-                                 (return (ope-cancel ope old))))))
-                    (mapcar #'place to-bid)))
-                (with-book ()
-                  (let ((to-ask (dumbot-offers other-asks resilience btc 15)))
-                    (dolist (old my-asks)
-                      (aif (aand1 (find (offer-price old) to-ask
-                                        :key #'offer-price :test #'=)
-                                  (< (/ (abs (- (offer-volume it) (offer-volume old)))
-                                        (offer-volume old))
-                                     0.15))
-                           (setf to-ask (remove it to-ask))
-                           (dolist (new (remove (offer-price old) to-ask
-                                                :key #'offer-price :test #'<)
-                                    (ope-cancel ope old))
-                             (if (place new) (setf to-ask (remove new to-ask))
-                                 (return (ope-cancel ope old))))))
-                    (mapcar #'place to-ask)))))))))))
+          (chanl:send (slot-value (slot-value account-tracker 'ope) 'input)
+                      (list fee btc doge resilience))
+          (chanl:recv (slot-value (slot-value account-tracker 'ope) 'output)))))))
 
 (defun dumbot-loop (maker)
   (with-slots (control) maker
@@ -719,8 +776,8 @@
          (stream (setf *standard-output* (cdr command)))))
       (t (%round maker)))))
 
-(defmethod shared-initialize :after ((maker maker) (names t) &key)
-  (with-slots (gate pair trades-tracker book-tracker account-tracker thread) maker
+(defmethod shared-initialize :after ((maker maker) (names t) &key gate)
+  (with-slots (pair trades-tracker book-tracker account-tracker thread) maker
     ;; FIXME: wtf is this i don't even
     (unless (slot-boundp maker 'trades-tracker)
       (setf trades-tracker (make-instance 'trades-tracker :pair pair))
@@ -731,6 +788,9 @@
     (unless (slot-boundp maker 'account-tracker)
       (setf account-tracker (make-instance 'account-tracker :gate gate))
       (sleep 12))
+    ;; stitchy!
+    (setf (slot-value (slot-value account-tracker 'ope) 'book-channel)
+          (slot-value book-tracker 'book-output))
     (when (or (not (slot-boundp maker 'thread))
               (eq :terminated (chanl:task-status thread)))
       (setf thread
@@ -746,16 +806,23 @@
     (chanl:send control '(pause))))
 
 (defun reset-the-net (maker)
-  (mapc (lambda (x) (chanl:kill (slot-value x 'chanl::thread)))
-        (list (slot-value maker 'thread)
-              (slot-value (slot-value (slot-value maker 'account-tracker) 'ope) 'thread)
-              (slot-value (slot-value (slot-value maker 'account-tracker) 'gate) 'thread)))
-  (mapc (lambda (x) (chanl:kill (slot-value x 'chanl::thread)))
-        (mapcar (lambda (x) (slot-value x 'updater))
-                (list (slot-value maker 'book-tracker)
-                      (slot-value maker 'account-tracker)
-                      (slot-value maker 'trades-tracker)
-                      (slot-value (slot-value maker 'account-tracker) 'lictor))))
+  (flet ((ensure-death (thread)
+           (tagbody
+              (if (eq :terminated (chanl:task-status thread)) (go end)
+                  (chanl:kill (slot-value thread 'chanl::thread)))
+            loop
+              (if (eq :terminated (chanl:task-status thread)) (go end) (go loop))
+            end)))
+    (mapc #'ensure-death
+          (list* (slot-value maker 'thread)
+                 (slot-value (slot-value (slot-value maker 'account-tracker) 'gate) 'thread)
+                 (slot-value (slot-value (slot-value maker 'account-tracker) 'ope) 'worker)
+                 (mapcar (lambda (x) (slot-value x 'updater))
+                         (list (slot-value maker 'book-tracker)
+                               (slot-value maker 'account-tracker)
+                               (slot-value maker 'trades-tracker)
+                               (slot-value (slot-value maker 'account-tracker) 'ope)
+                               (slot-value (slot-value maker 'account-tracker) 'lictor))))))
   (mapc 'reinitialize-instance
         (list (slot-value maker 'book-tracker)
               (slot-value maker 'account-tracker)
