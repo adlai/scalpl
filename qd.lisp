@@ -237,7 +237,7 @@
 (defun trades-worker-loop (tracker)
   (with-slots (control buffer output trades) tracker
     (chanl:select
-      ((recv control command)
+      ((chanl:recv control command)
        ;; commands are (cons command args)
        (case (car command)
          ;; max - find max seen trade size
@@ -246,7 +246,7 @@
          (vwap (chanl:send output (apply #'vwap tracker (cdr command))))
          ;; pause - wait for any other command to restart
          (pause (chanl:recv control))))
-      ((recv buffer raw-trades)
+      ((chanl:recv buffer raw-trades)
        (unless trades (push (pop raw-trades) trades))
        (setf trades
              (reduce (lambda (acc next &aux (prev (first acc)))
@@ -306,12 +306,12 @@
   (with-slots (control bids asks book-output) tracker
     (handler-case
         (chanl:select
-          ((recv control command)
+          ((chanl:recv control command)
            ;; commands are (cons command args)
            (case (car command)
              ;; pause - wait for any other command to restart
              (pause (chanl:recv control))))
-          ((send book-output (cons bids asks)))
+          ((chanl:send book-output (cons bids asks)))
           (t (sleep 0.2)))
       (unbound-slot ()))))
 
@@ -426,8 +426,8 @@
 (defun execution-worker-loop (tracker)
   (with-slots (trades control buffer) tracker
     (chanl:select
-      ((recv control channel) (chanl:send channel trades))
-      ((recv buffer trade) (push trade trades))
+      ((chanl:recv control channel) (chanl:send channel trades))
+      ((chanl:recv buffer trade) (push trade trades))
       (t (sleep 0.2)))))
 
 (defun execution-updater-loop (tracker)
@@ -768,7 +768,7 @@
 (defun dumbot-loop (maker)
   (with-slots (control) maker
     (chanl:select
-      ((recv control command)
+      ((chanl:recv control command)
        ;; commands are (cons command args)
        (case (car command)
          ;; pause - wait for any other command to restart
