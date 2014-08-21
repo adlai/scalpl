@@ -746,7 +746,7 @@
           (let ((base-decimals (getjso "decimals" (getjso (getjso "base" market) *assets*)))
                 (quote-decimals (getjso "decimals" (getjso (getjso "quote" market) *assets*))))
             ;; time, total, base, quote, invested, risked, risk bias, pulse
-            (format t "~&~A ~V$ B ~V$ Q ~V$ I ~$% R ~$% B~@$ ~6@$%"
+            (format t "~&~A ~V$ B ~V$ Q ~V$ I ~$% R ~$% B~@$ ~6@$~%"
                     (format-timestring nil (now)
                                        :format '((:hour 2) #\:
                                                  (:min 2) #\:
