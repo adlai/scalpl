@@ -812,7 +812,7 @@
   (flet ((ensure-death (thread)
            (tagbody
               (if (eq :terminated (chanl:task-status thread)) (go end)
-                  (chanl:kill (slot-value thread 'chanl::thread)))
+                  (chanl:kill (chanl:task-thread thread)))
             loop
               (if (eq :terminated (chanl:task-status thread)) (go end) (go loop))
             end)))
