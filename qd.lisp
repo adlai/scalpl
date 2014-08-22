@@ -192,6 +192,20 @@
                    them)))
          (push offer them))))
 
+(defun placed-offers (gate)
+  (mapcar-jso (lambda (id data)
+                (with-json-slots (descr vol oflags) data
+                  (with-json-slots (pair type price order) descr
+                    (let* ((decimals (getjso "pair_decimals" (getjso pair *markets*)))
+                           (price-int (parse-price price decimals))
+                           (volume (read-from-string vol)))
+                      (make-instance 'placed
+                                     :id id :text order :pair pair
+                                     :price (if (string= type "buy") (- price-int) price-int)
+                                     :volume (if (not (search "viqc" oflags)) volume
+                                                 (/ volume price-int (expt 10 decimals))))))))
+              (open-orders gate)))
+
 ;;; TODO: Incorporate weak references and finalizers into the whole CSPSM model
 ;;; so they get garbage collected when there are no more references to the
 ;;; output channels
@@ -468,7 +482,7 @@
 
 (defclass ope ()
   ((gate :initarg :gate)
-   (placed :initform nil)
+   (placed :initform nil :initarg :placed)
    (input :initform (make-instance 'chanl:channel))
    (output :initform (make-instance 'chanl:channel))
    (control :initform (make-instance 'chanl:channel))
@@ -682,7 +696,7 @@
       ;; crappy solution... ideally w/condition system?
       (sleep 3))
     (unless (slot-boundp tracker 'ope)
-      (setf ope (make-instance 'ope :gate gate)))
+      (setf ope (make-instance 'ope :gate gate :placed (placed-offers gate))))
     (when (or (not (slot-boundp tracker 'updater))
               (eq :terminated (chanl:task-status updater)))
       (setf updater
