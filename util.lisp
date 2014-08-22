@@ -17,17 +17,6 @@
 
 (in-package #:glock.util)
 
-;;; Exploratory nonsense
-
-(defun mapcar-slots (function object)
-  (st-json:mapjso function object))
-
-(defun bound-slot-names (object)
-  (mapcar-slots (lambda (name value) (declare (ignore value)) name) object))
-
-(defun as-alist (object)
-  (mapcar-slots #'cons object))
-
 ;;; Actually useful
 
 (defun goxstamp (stamp)
