@@ -84,14 +84,20 @@
     (values-list (chanl:recv out))))
 
 (defun get-assets ()
-  (mapjso* (lambda (name data) (setf (getjso "name" data) name))
-           (get-request "Assets")))
+  (aprog1 (mapjso* (lambda (name data) (setf (getjso "name" data) name))
+                   (get-request "Assets"))
+    (dolist (name (jso-keys it))
+      (let ((asset (getjso name it)))
+        (setf (getjso (getjso "altname" asset) it) asset)))))
 
 (defvar *assets* (get-assets))
 
 (defun get-markets ()
-  (mapjso* (lambda (name data) (setf (getjso "name" data) name))
-           (get-request "AssetPairs")))
+  (aprog1 (mapjso* (lambda (name data) (setf (getjso "name" data) name))
+                   (get-request "AssetPairs"))
+    (dolist (name (jso-keys it))
+      (let ((market (getjso name it)))
+        (setf (getjso (getjso "altname" market) it) market)))))
 
 (defvar *markets* (get-markets))
 
