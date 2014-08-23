@@ -25,6 +25,14 @@ Offer placement and offer cancellation
 ** Multiple account filters!
 * TODO Actor Abstraction
 CSP×FSM
+** macro prototype
+*** TODO sample
+**** input - port current gate, as-is, to imagipony defactor macro
+(defactor gate ()
+  ((in :initform (make-instance 'chanl:channel))
+   (key :initarg :key)
+   (signer :initarg :secret)))
+**** sample output
 ** implementation data
 *** machine definition
 a Finite State Machine description of the actor's interaction with its channels
