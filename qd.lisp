@@ -724,15 +724,41 @@
                              :parameters `(("from" . ,from) ("to" . ,to))
                              :want-stream t))))
 
+(defclass fee-tracker ()
+  ((pair :initarg :pair :initform "XXBTZEUR")
+   (gate :initarg :gate)
+   (delay :initform 67)
+   fee thread))
+
+(defun pair-fee (gate pair)
+  (awhen (gate-request gate "TradeVolume" `(("pair" . ,pair)))
+    (read-from-string (getjso "fee" (getjso pair (getjso "fees" it))))))
+
+(defun fee-tracker-loop (tracker)
+  (with-slots (pair gate delay fee) tracker
+    (setf fee (pair-fee gate pair))
+    (sleep delay)))
+
+(defmethod shared-initialize :after ((tracker fee-tracker) names &key)
+  (with-slots (thread pair gate fee) tracker
+    (setf fee (pair-fee gate pair))
+    (when (or (not (slot-boundp tracker 'thread))
+              (eq :terminated (chanl:task-status thread)))
+      (setf thread
+            (chanl:pexec
+                (:name (concatenate 'string "qdm-preα fee tracker for " pair)
+                 :initial-bindings `((*read-default-float-format* double-float)))
+              ;; TODO: just pexec anew each time...
+              ;; you'll understand what you meant someday, right?
+              (loop (fee-tracker-loop tracker)))))))
+
 (defclass maker ()
   ((pair :initarg :pair :initform "XXBTZEUR")
    (fund-factor :initarg :fund-factor :initform 1)
    (resilience-factor :initarg :resilience :initform 1)
    (targeting-factor :initarg :targeting :initform 1/2)
    (control :initform (make-instance 'chanl:channel))
-   (bids :initform nil :initarg :bids)
-   (asks :initform nil :initarg :asks)
-   (fee :initform 0.16 :initarg :fee)
+   (fee-tracker :initarg :fee-tracker)
    (trades-tracker :initarg :trades-tracker)
    (book-tracker :initarg :book-tracker)
    (account-tracker :initarg :account-tracker)
@@ -740,8 +766,8 @@
 
 (defun %round (maker)
   (declare (optimize (debug 3)))
-  (with-slots (fee fund-factor resilience-factor targeting-factor pair
-               trades-tracker book-tracker account-tracker)
+  (with-slots (fund-factor resilience-factor targeting-factor pair
+               fee-tracker trades-tracker book-tracker account-tracker)
       maker
     ;; whoo!
     (chanl:send (slot-value trades-tracker 'control) '(max))
@@ -757,6 +783,7 @@
              (total-of (btc doge) (+ btc (/ doge doge/btc)))
              (factor-fund (fund factor) (* fund fund-factor factor)))
         (let* ((market (getjso pair *markets*))
+               (fee (slot-value fee-tracker 'fee))
                (total-btc (symbol-funds (getjso "base" market)))
                (total-doge (symbol-funds (getjso "quote" market)))
                (total-fund (total-of total-btc total-doge))
@@ -802,7 +829,7 @@
       (t (%round maker)))))
 
 (defmethod shared-initialize :after ((maker maker) (names t) &key gate)
-  (with-slots (pair trades-tracker book-tracker account-tracker thread) maker
+  (with-slots (pair fee-tracker trades-tracker book-tracker account-tracker thread) maker
     ;; FIXME: wtf is this i don't even
     (unless (slot-boundp maker 'trades-tracker)
       (setf trades-tracker (make-instance 'trades-tracker :pair pair))
@@ -813,6 +840,10 @@
     (unless (slot-boundp maker 'account-tracker)
       (setf account-tracker (make-instance 'account-tracker :gate gate))
       (sleep 12))
+    ;; FIXME: ...
+    (unless (slot-boundp maker 'fee-tracker)
+      (setf fee-tracker (make-instance 'fee-tracker :pair pair
+                                       :gate (slot-value account-tracker 'gate))))
     ;; stitchy!
     (setf (slot-value (slot-value account-tracker 'ope) 'book-channel)
           (slot-value book-tracker 'book-output))
@@ -855,6 +886,7 @@
               (slot-value (slot-value maker 'account-tracker) 'gate)
               (slot-value (slot-value maker 'account-tracker) 'lictor)
               (slot-value (slot-value maker 'account-tracker) 'ope)
+              (slot-value maker 'fee-tracker)
               maker)))
 
 (defvar *maker*
