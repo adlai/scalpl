@@ -12,6 +12,8 @@
 (defclass actor ()
   ((thread :documentation "Thread performing this actor's behavior")
    (control :documentation "Channel for controlling this actor")
+   (default :documentation "Default command in absence of control messages"
+            :initarg :default :initform (error "Must supply default state"))
    (children :allocation :class :initform nil
              :documentation "Children of this actor")
    (channels :allocation :class :initform nil
@@ -24,9 +26,9 @@
     (initialize 'control)
     (mapc #'initialize (slot-value actor 'channels))))
 
-(defgeneric act (actor)
-  (:method ((actor actor))
-    (awhen (chanl:recv (slot-value actor 'control)) (funcall it actor))))
+(defgeneric perform (actor command)
+  (:method ((actor actor) (command function))
+    (funcall command actor)))
 
 (defgeneric christen (actor)
   (:documentation "Generates a name for `actor', after slot initialization")
