@@ -47,7 +47,7 @@
     (setf (slot-value actor 'thread)
           (chanl:pexec (:name (christen actor)
                         :initial-bindings `((*read-default-float-format* double-float)))
-            (act actor)))))
+            (perform actor (chanl:recv (slot-value actor 'control)))))))
 
 ;;;
 ;;; Rate Gate
@@ -490,7 +490,7 @@
    (control :initform (make-instance 'chanl:channel))
    (response :initform (make-instance 'chanl:channel))
    (book-channel :initarg :book-channel)
-   updater worker))
+   updater scalper))
 
 (defun ope-placed (ope)
   (with-slots (control response) ope
@@ -569,7 +569,7 @@
     (with-slots (volume) (car cur)
       (push (incf share (* 11/6 (incf acc volume))) (car cur)))))
 
-(defun ope-worker-loop (ope)
+(defun ope-scalper-loop (ope)
   (with-slots (input output book-channel) ope
     (destructuring-bind (fee base quote resilience) (chanl:recv input)
       ;; Now run that algorithm thingy
@@ -632,19 +632,19 @@
     (chanl:send output nil)))
 
 (defmethod shared-initialize :after ((ope ope) slots &key)
-  (with-slots (updater worker) ope
+  (with-slots (updater scalper) ope
     (when (or (not (slot-boundp ope 'updater))
               (eq :terminated (chanl:task-status updater)))
       (setf updater
             (chanl:pexec (:name "qdm-preα ope updater"
                           :initial-bindings `((*read-default-float-format* double-float)))
               (loop (ope-updater-loop ope)))))
-    (when (or (not (slot-boundp ope 'worker))
-              (eq :terminated (chanl:task-status worker)))
-      (setf worker
-            (chanl:pexec (:name "qdm-preα ope worker"
+    (when (or (not (slot-boundp ope 'scalper))
+              (eq :terminated (chanl:task-status scalper)))
+      (setf scalper
+            (chanl:pexec (:name "qdm-preα ope scalper"
                           :initial-bindings `((*read-default-float-format* double-float)))
-              (loop (ope-worker-loop ope)))))))
+              (loop (ope-scalper-loop ope)))))))
 
 ;;;
 ;;; ACCOUNT TRACKING
@@ -872,7 +872,7 @@
     (mapc #'ensure-death
           (list* (slot-value maker 'thread)
                  (slot-value (slot-value (slot-value maker 'account-tracker) 'gate) 'thread)
-                 (slot-value (slot-value (slot-value maker 'account-tracker) 'ope) 'worker)
+                 (slot-value (slot-value (slot-value maker 'account-tracker) 'ope) 'scalper)
                  (mapcar (lambda (x) (slot-value x 'updater))
                          (list (slot-value maker 'book-tracker)
                                (slot-value maker 'account-tracker)
