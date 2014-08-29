@@ -44,6 +44,9 @@ when it broadcasts, and what do the broadcasts contain
 i.e. how to 'control' this actor, alter its state machine, etc
 *** channel(s) to which that actor listens
 *** channel(s) to which that actor sends
+** timing
+should timing (ie, "update the order book every 8 seconds") be expressed in actors, or
+is that something better left to abstract out as a separate service sending timed messages?
 ** crash-only design
 it should be possible to kill an actor's thread at any time, and spawning the
 actor's run-function again in the proper manner should resume the actor's functioning
