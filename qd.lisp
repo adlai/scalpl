@@ -535,14 +535,18 @@
 
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
-;;; sends completion acknowledgement to response channel
+;;; sends completion acknowledgement to prioritizer-response channel
 (defun ope-prioritizer-loop (ope)
   (with-slots (next-bids next-asks prioritizer-response) ope
     (flet ((place (new) (ope-place ope new)))
       (chanl:select
         ((chanl:recv next-bids to-bid)
          (multiple-value-bind (my-bids my-asks) (ope-placed ope)
+           (fresh-line)
+           (format-timestring t (now) :format '((:hour 2) #\: (:min 2) #\: (:sec 2)))
            (dolist (old my-bids (mapcar #'place to-bid))
+             (format-timestring t (now) :format '(".." (:sec 2)))
+             (finish-output)
              (aif (aand1 (find (offer-price old) to-bid
                                :key #'offer-price :test #'=)
                          (< (/ (abs (- (offer-volume it) (offer-volume old)))
@@ -556,7 +560,11 @@
                         (return (ope-cancel ope old))))))))
         ((chanl:recv next-asks to-ask)
          (multiple-value-bind (my-bids my-asks) (ope-placed ope)
+           (fresh-line)
+           (format-timestring t (now) :format '((:hour 2) #\: (:min 2) #\: (:sec 2)))
            (dolist (old my-asks (mapcar #'place to-ask))
+             (format-timestring t (now) :format '(".." (:sec 2)))
+             (finish-output)
              (aif (aand1 (find (offer-price old) to-ask
                                :key #'offer-price :test #'=)
                          (< (/ (abs (- (offer-volume it) (offer-volume old)))
