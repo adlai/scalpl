@@ -611,7 +611,7 @@
       (push (incf share (* 11/6 (incf acc volume))) (car cur)))))
 
 (defun ope-scalper-loop (ope)
-  (with-slots (input output book-channel) ope
+  (with-slots (input output book-channel next-bids next-asks prioritizer-response) ope
     (destructuring-bind (fee base quote resilience) (chanl:recv input)
       ;; Now run that algorithm thingy
       (flet ((filter-book (book) (ope-filter ope book))
@@ -641,39 +641,16 @@
                               (+1 (decf (offer-volume (car other-bids))
                                         (offer-volume (pop other-asks))))
                               (0 (pop other-bids) (pop other-asks))))
-                          (multiple-value-bind (my-bids my-asks) (ope-placed ope)
-                            ,@body)))))
+                          ,@body))))
+          ;; Need to rework this flow so the worker (actor calculating priorities) gets
+          ;; the entire book at once...
           ;; TODO: properly deal with partial and completed orders
           (with-book ()
-            (let ((to-bid (dumbot-offers other-bids resilience quote 15)))
-              (dolist (old my-bids)
-                (aif (aand1 (find (offer-price old) to-bid
-                                  :key #'offer-price :test #'=)
-                            (< (/ (abs (- (offer-volume it) (offer-volume old)))
-                                  (offer-volume old))
-                               0.15))
-                     (setf to-bid (remove it to-bid))
-                     (dolist (new (remove (offer-price old) to-bid
-                                          :key #'offer-price :test #'<)
-                              (ope-cancel ope old))
-                       (if (place new) (setf to-bid (remove new to-bid))
-                           (return (ope-cancel ope old))))))
-              (mapcar #'place to-bid)))
+            (chanl:send next-bids (dumbot-offers other-bids resilience quote 15))
+            (chanl:recv prioritizer-response))
           (with-book ()
-            (let ((to-ask (dumbot-offers other-asks resilience base 15)))
-              (dolist (old my-asks)
-                (aif (aand1 (find (offer-price old) to-ask
-                                  :key #'offer-price :test #'=)
-                            (< (/ (abs (- (offer-volume it) (offer-volume old)))
-                                  (offer-volume old))
-                               0.15))
-                     (setf to-ask (remove it to-ask))
-                     (dolist (new (remove (offer-price old) to-ask
-                                          :key #'offer-price :test #'<)
-                              (ope-cancel ope old))
-                       (if (place new) (setf to-ask (remove new to-ask))
-                           (return (ope-cancel ope old))))))
-              (mapcar #'place to-ask))))))
+            (chanl:send next-asks (dumbot-offers other-asks resilience base 15))
+            (chanl:recv prioritizer-response)))))
     (chanl:send output nil)))
 
 (defmethod shared-initialize :after ((ope ope) slots &key)
