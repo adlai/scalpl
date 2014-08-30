@@ -487,10 +487,13 @@
    (placed :initform nil :initarg :placed)
    (input :initform (make-instance 'chanl:channel))
    (output :initform (make-instance 'chanl:channel))
+   (next-bids :initform (make-instance 'chanl:channel))
+   (next-asks :initform (make-instance 'chanl:channel))
+   (prioritizer-response :initform (make-instance 'chanl:channel))
    (control :initform (make-instance 'chanl:channel))
    (response :initform (make-instance 'chanl:channel))
    (book-channel :initarg :book-channel)
-   updater scalper))
+   updater prioritizer scalper))
 
 (defun ope-placed (ope)
   (with-slots (control response) ope
@@ -516,6 +519,7 @@
     (chanl:send control (cons 'filter book))
     (chanl:recv response)))
 
+;;; receives messages in the control channel, outputs from the gate
 (defun ope-updater-loop (ope)
   (with-slots (gate control response placed) ope
     (let ((command (chanl:recv control)))
@@ -528,6 +532,43 @@
                       (offer (awhen1 (post-offer gate cdr) (push it placed)))
                       (cancel (awhen1 (cancel-offer gate cdr)
                                 (setf placed (remove cdr placed))))))))))
+
+;;; receives target bids and asks in the next-bids and next-asks channels
+;;; sends commands in the control channel through #'ope-place
+;;; sends completion acknowledgement to response channel
+(defun ope-prioritizer-loop (ope)
+  (with-slots (next-bids next-asks prioritizer-response) ope
+    (flet ((place (new) (ope-place ope new)))
+      (chanl:select
+        ((chanl:recv next-bids to-bid)
+         (multiple-value-bind (my-bids my-asks) (ope-placed ope)
+           (dolist (old my-bids (mapcar #'place to-bid))
+             (aif (aand1 (find (offer-price old) to-bid
+                               :key #'offer-price :test #'=)
+                         (< (/ (abs (- (offer-volume it) (offer-volume old)))
+                               (offer-volume old))
+                            0.15))
+                  (setf to-bid (remove it to-bid))
+                  (dolist (new (remove (offer-price old) to-bid
+                                       :key #'offer-price :test #'<)
+                           (ope-cancel ope old))
+                    (if (place new) (setf to-bid (remove new to-bid))
+                        (return (ope-cancel ope old))))))))
+        ((chanl:recv next-asks to-ask)
+         (multiple-value-bind (my-bids my-asks) (ope-placed ope)
+           (dolist (old my-asks (mapcar #'place to-ask))
+             (aif (aand1 (find (offer-price old) to-ask
+                               :key #'offer-price :test #'=)
+                         (< (/ (abs (- (offer-volume it) (offer-volume old)))
+                               (offer-volume old))
+                            0.15))
+                  (setf to-ask (remove it to-ask))
+                  (dolist (new (remove (offer-price old) to-ask
+                                       :key #'offer-price :test #'<)
+                           (ope-cancel ope old))
+                    (if (place new) (setf to-ask (remove new to-ask))
+                        (return (ope-cancel ope old))))))))))
+    (chanl:send prioritizer-response t)))
 
 (defun profit-margin (bid ask fee-percent)
   (* (/ ask bid) (- 1 (/ fee-percent 100))))
@@ -636,13 +677,18 @@
     (chanl:send output nil)))
 
 (defmethod shared-initialize :after ((ope ope) slots &key)
-  (with-slots (updater scalper) ope
+  (with-slots (updater prioritizer scalper) ope
     (when (or (not (slot-boundp ope 'updater))
               (eq :terminated (chanl:task-status updater)))
       (setf updater
             (chanl:pexec (:name "qdm-preα ope updater"
                           :initial-bindings `((*read-default-float-format* double-float)))
               (loop (ope-updater-loop ope)))))
+    (when (or (not (slot-boundp ope 'prioritizer))
+              (eq :terminated (chanl:task-status prioritizer)))
+      (setf prioritizer
+            (chanl:pexec (:name "qdm-preα ope prioritizer")
+              (loop (ope-prioritizer-loop ope)))))
     (when (or (not (slot-boundp ope 'scalper))
               (eq :terminated (chanl:task-status scalper)))
       (setf scalper
@@ -877,6 +923,7 @@
           (list* (slot-value maker 'thread)
                  (slot-value (slot-value (slot-value maker 'account-tracker) 'gate) 'thread)
                  (slot-value (slot-value (slot-value maker 'account-tracker) 'ope) 'scalper)
+                 (slot-value (slot-value (slot-value maker 'account-tracker) 'ope) 'prioritizer)
                  (mapcar (lambda (x) (slot-value x 'updater))
                          (list (slot-value maker 'book-tracker)
                                (slot-value maker 'account-tracker)
