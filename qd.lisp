@@ -575,6 +575,10 @@
       ;; Now run that algorithm thingy
       (flet ((filter-book (book) (ope-filter ope book))
              (place (new) (ope-place ope new)))
+        ;; The entire with-book operation needs to be turned into a separate
+        ;; program entity ("actor"?) which receives updated order books, and
+        ;; currently-placed offersets, and produces filtered books
+        ;; Whether filtered books are pushed or pulled is TBD
         (macrolet ((with-book (() &body body)
                      `(destructuring-bind (market-bids . market-asks)
                           (chanl:recv book-channel)
