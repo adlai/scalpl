@@ -623,7 +623,7 @@
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
     (with-slots (volume) (car cur)
-      (push (incf share (* 11/6 (incf acc volume))) (car cur)))))
+      (push (incf share (* 4/3 (incf acc volume))) (car cur)))))
 
 (defun ope-scalper-loop (ope)
   (with-slots (input output book-channel next-bids next-asks prioritizer-response) ope
