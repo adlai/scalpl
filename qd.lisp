@@ -623,7 +623,7 @@
 (defun dumbot-offers (book resilience funds max-orders &aux (acc 0) (share 0))
   (do* ((cur book (cdr cur))
         (n 0 (1+ n)))
-       ((or (> acc resilience) (null cur))
+       ((or (and (> acc resilience) (> n (isqrt max-orders))) (null cur))
         (let* ((sorted (sort (subseq book 1 n) #'> :key (lambda (x) (offer-volume (cdr x)))))
                (n-orders (min max-orders n))
                (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
