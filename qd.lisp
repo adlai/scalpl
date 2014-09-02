@@ -487,10 +487,37 @@
 
 ;;; TODO: ope-supplicant, manages offerings, has its input channel stored
 ;;; in a channel in the remaining ope object for use by ope-place &cetera
-(defclass ope ()
+(defclass ope-supplicant ()
   ((gate :initarg :gate)
    (placed :initform nil :initarg :placed)
-   (input :initform (make-instance 'chanl:channel))
+   (control :initform (make-instance 'chanl:channel) :initarg :control)
+   (response :initform (make-instance 'chanl:channel) :initarg :response)
+   thread))
+
+;;; receives messages in the control channel, outputs from the gate
+(defun ope-supplicant-loop (ope)
+  (with-slots (gate control response placed) ope
+    (let ((command (chanl:recv control)))
+      (destructuring-bind (car . cdr) command
+        (chanl:send response
+                    ;; FIXME: store order id in the offer object, avoid mapcar
+                    (case car
+                      (placed placed)
+                      (filter (ignore-offers cdr placed))
+                      (offer (awhen1 (post-offer gate cdr) (push it placed)))
+                      (cancel (awhen1 (cancel-offer gate cdr)
+                                (setf placed (remove cdr placed))))))))))
+
+(defmethod shared-initialize :after ((supplicant ope-supplicant) slots &key)
+  (with-slots (thread) supplicant
+    (when (or (not (slot-boundp supplicant 'thread))
+              (eq :terminated (chanl:task-status thread)))
+      (setf thread
+            (chanl:pexec (:name "qdm-preα ope supplicant")
+              (loop (ope-supplicant-loop supplicant)))))))
+
+(defclass ope ()
+  ((input :initform (make-instance 'chanl:channel))
    (output :initform (make-instance 'chanl:channel))
    (next-bids :initform (make-instance 'chanl:channel))
    (next-asks :initform (make-instance 'chanl:channel))
@@ -498,7 +525,7 @@
    (control :initform (make-instance 'chanl:channel))
    (response :initform (make-instance 'chanl:channel))
    (book-channel :initarg :book-channel)
-   updater prioritizer scalper))
+   supplicant prioritizer scalper))
 
 (defun ope-placed (ope)
   (with-slots (control response) ope
@@ -525,20 +552,6 @@
   (with-slots (control response) ope
     (chanl:send control (cons 'filter book))
     (chanl:recv response)))
-
-;;; receives messages in the control channel, outputs from the gate
-(defun ope-updater-loop (ope)
-  (with-slots (gate control response placed) ope
-    (let ((command (chanl:recv control)))
-      (destructuring-bind (car . cdr) command
-        (chanl:send response
-                    ;; FIXME: store order id in the offer object, avoid mapcar
-                    (case car
-                      (placed placed)
-                      (filter (ignore-offers cdr placed))
-                      (offer (awhen1 (post-offer gate cdr) (push it placed)))
-                      (cancel (awhen1 (cancel-offer gate cdr)
-                                (setf placed (remove cdr placed))))))))))
 
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
@@ -668,14 +681,10 @@
             (chanl:recv prioritizer-response)))))
     (chanl:send output nil)))
 
-(defmethod shared-initialize :after ((ope ope) slots &key)
-  (with-slots (updater prioritizer scalper) ope
-    (when (or (not (slot-boundp ope 'updater))
-              (eq :terminated (chanl:task-status updater)))
-      (setf updater
-            (chanl:pexec (:name "qdm-preα ope updater"
-                          :initial-bindings `((*read-default-float-format* double-float)))
-              (loop (ope-updater-loop ope)))))
+(defmethod shared-initialize :after ((ope ope) slots &key gate)
+  (with-slots (supplicant prioritizer scalper) ope
+    (unless (slot-boundp ope 'supplicant)
+      (setf supplicant (make-instance 'ope :gate gate :placed (placed-offers gate))))
     (when (or (not (slot-boundp ope 'prioritizer))
               (eq :terminated (chanl:task-status prioritizer)))
       (setf prioritizer
