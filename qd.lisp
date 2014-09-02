@@ -409,6 +409,9 @@
                         (when until `(("end" . ,until)))
                         (when ofs `(("ofs" . ,ofs))))))
 
+;;; TODO: We have the fees paid for each order in the data from the exchange,
+;;; so we should be able to calculate the _net_ price for each trade, and use
+;;; that for profitability calculations, rather than fee at time of calculation.
 (defun trades-history-chunk (tracker &key until since)
   (with-slots (delay) tracker
     (with-json-slots (count trades)
@@ -482,6 +485,8 @@
 ;;;  ENGINE
 ;;;
 
+;;; TODO: ope-supplicant, manages offerings, has its input channel stored
+;;; in a channel in the remaining ope object for use by ope-place &cetera
 (defclass ope ()
   ((gate :initarg :gate)
    (placed :initform nil :initarg :placed)
@@ -504,11 +509,13 @@
         ;;       bids       asks
         (values (split 1) (split -1))))))
 
+;;; response: placed offer if successful, nil if not
 (defun ope-place (ope offer)
   (with-slots (control response) ope
     (chanl:send control (cons 'offer offer))
     (chanl:recv response)))
 
+;;; response: {count: "1"} if successful, nil if not
 (defun ope-cancel (ope offer)
   (with-slots (control response) ope
     (chanl:send control (cons 'cancel offer))
