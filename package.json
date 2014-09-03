@@ -1,8 +1,0 @@
-{
-  "name": "glock-talk",
-  "description": "worker for talking with an exchange stream",
-  "author": "Adlai Chandrasekhar <munchking@gmail.com>",
-  "dependencies": {
-    "pubnub": "3.5.48"
-  }
-}

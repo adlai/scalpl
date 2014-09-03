@@ -1,6 +1,4 @@
-;;;; utils.lisp
-
-(defpackage #:glock.util
+(defpackage #:scalpl.util
   (:use #:cl #:st-json)
   (:export #:mapcar-slots
            #:bound-slot-names
@@ -15,7 +13,7 @@
            #:awhen1 #:aand1
            ))
 
-(in-package #:glock.util)
+(in-package #:scalpl.util)
 
 ;;; Actually useful
 

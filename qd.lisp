@@ -1,9 +1,9 @@
 ;;;; qd.lisp - quick and dirty. kraken's api... wow
 
-(defpackage #:glock.qd
-  (:use #:cl #:anaphora #:st-json #:local-time #:glock.util #:glock.connection))
+(defpackage #:scalpl.qd
+  (:use #:cl #:anaphora #:st-json #:local-time #:scalpl.util #:scalpl.connection))
 
-(in-package #:glock.qd)
+(in-package #:scalpl.qd)
 
 ;;;
 ;;; Actor
@@ -68,8 +68,8 @@
                      (multiple-value-list (post-request method key signer options))))))))
 
 (defmethod initialize-instance :before ((gate gate) &key key secret)
-  (setf (slot-value gate 'key) (glock.connection::make-key key)
-        (slot-value gate 'signer) (glock.connection::make-signer secret)))
+  (setf (slot-value gate 'key) (make-key key)
+        (slot-value gate 'signer) (make-signer secret)))
 
 (defmethod shared-initialize :after ((gate gate) names &key)
   (when (or (not (slot-boundp gate 'thread))

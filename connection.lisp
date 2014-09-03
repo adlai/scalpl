@@ -1,13 +1,12 @@
-;;;; glock.lisp
-
-(defpackage #:glock.connection
-  (:use #:cl #:glock.util)
+(defpackage #:scalpl.connection
+  (:use #:cl #:scalpl.util)
   (:export #:get-request
            #:post-request
            #:path #:pair #:data
+           #:make-key #:make-signer
            #:request))
 
-(in-package #:glock.connection)
+(in-package #:scalpl.connection)
 
 ;;; General Parameters
 (defparameter +base-path+ "https://api.kraken.com/0/")
