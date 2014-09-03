@@ -868,9 +868,9 @@
                                               (vwap account-tracker :type "sell" :pair pair)
                                               fee)))))
           (force-output)
-          (chanl:send (slot-value (slot-value account-tracker 'ope) 'input)
-                      (list fee btc doge resilience))
-          (chanl:recv (slot-value (slot-value account-tracker 'ope) 'output)))))))
+          (with-slots (ope) account-tracker
+            (chanl:send (slot-value ope 'input) (list fee btc doge resilience))
+            (chanl:recv (slot-value ope 'output))))))))
 
 (defun dumbot-loop (maker)
   (with-slots (control) maker
