@@ -870,6 +870,13 @@
           (force-output)
           (with-slots (ope) account-tracker
             (chanl:send (slot-value ope 'input) (list fee btc doge resilience))
+            (when (< (* investment (1+ (- investment))) 1/20)
+              (macrolet ((urgent (class side)
+                           `(make-instance ',class :pair pair :volume (* total-fund 1/6)
+                                           :price (abs (slot-value (cadr (slot-value book-tracker ',side)) 'price)))))
+                ;; theoretically, this could exceed available volume, but
+                ;; that's highly unlikely with a fund-factor below ~3/2
+                (describe (ope-place ope (if (> investment 1/2) (urgent ask bids) (urgent bid asks))))))
             (chanl:recv (slot-value ope 'output))))))))
 
 (defun dumbot-loop (maker)
