@@ -165,6 +165,11 @@
   ((id :initarg :id :reader offer-id)
    (text :initarg :text :reader offer-text)))
 
+(defclass bid (offer) ())
+(defclass ask (offer) ())
+(defmethod initialize-instance :after ((bid bid) &key)
+  (with-slots (price) bid (setf price (- price))))
+
 (defun post-offer (gate offer)
   (with-slots (pair volume price) offer
     (flet ((post (type options)
@@ -347,16 +352,15 @@
   (let ((decimals (getjso "pair_decimals" (getjso pair *markets*))))
     (with-json-slots (bids asks)
         (getjso pair (get-request "Depth" `(("pair" . ,pair))))
-      (flet ((parser (factor)
+      (flet ((parser (class)
                (lambda (raw-order)
                  (destructuring-bind (price amount timestamp) raw-order
                    (declare (ignore timestamp))
-                   (make-instance 'offer :pair pair
-                                  :price (* factor (parse-price price decimals))
+                   (make-instance class :pair pair
+                                  :price (parse-price price decimals)
                                   :volume (read-from-string amount))))))
-        (let ((asks (mapcar (parser 1) asks))
-              (bids (mapcar (parser -1) bids)))
-          (values asks bids))))))
+        (values (mapcar (parser 'ask) asks)
+                (mapcar (parser 'bid) bids))))))
 
 (defun book-updater-loop (tracker)
   (with-slots (bids asks delay pair offers) tracker
