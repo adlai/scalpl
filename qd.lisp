@@ -584,12 +584,12 @@
                                            :key #'offer-price :test #'<)
                                (ope-cancel ope old))
                         (if (place new) (setf target (remove new target))
-                            (return (ope-cancel ope old))))))))
+                            (return (ope-cancel ope old))))))
+               (chanl:send prioritizer-response t)))
         (chanl:select
           ((chanl:recv next-bids to-bid) (update to-bid (nth-value 0 (ope-placed ope))))
           ((chanl:recv next-asks to-ask) (update to-ask (nth-value 1 (ope-placed ope))))
-          (otherwise (sleep 0.5)))))
-    (chanl:send prioritizer-response t)))
+          (otherwise (sleep 0.2)))))))
 
 (defun profit-margin (bid ask fee-percent)
   (* (/ ask bid) (- 1 (/ fee-percent 100))))
@@ -932,6 +932,7 @@
             (account-tracker ope scalper)
             (account-tracker worker)
             (account-tracker updater)
+            (account-tracker lictor worker)
             (account-tracker lictor updater)
             (trades-tracker updater)
             (trades-tracker worker)
