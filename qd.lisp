@@ -494,8 +494,8 @@
 (defclass ope-supplicant ()
   ((gate :initarg :gate)
    (placed :initform nil :initarg :placed)
-   (control :initform (make-instance 'chanl:channel) :initarg :control)
-   (response :initform (make-instance 'chanl:channel) :initarg :response)
+   (control :initarg :control)
+   (response :initarg :response)
    thread))
 
 ;;; receives messages in the control channel, outputs from the gate
@@ -587,7 +587,8 @@
                             (return (ope-cancel ope old))))))))
         (chanl:select
           ((chanl:recv next-bids to-bid) (update to-bid (nth-value 0 (ope-placed ope))))
-          ((chanl:recv next-asks to-ask) (update to-ask (nth-value 1 (ope-placed ope)))))))
+          ((chanl:recv next-asks to-ask) (update to-ask (nth-value 1 (ope-placed ope))))
+          (otherwise (sleep 0.5)))))
     (chanl:send prioritizer-response t)))
 
 (defun profit-margin (bid ask fee-percent)
@@ -674,9 +675,11 @@
     (chanl:send output nil)))
 
 (defmethod shared-initialize :after ((ope ope) slots &key gate)
-  (with-slots (supplicant prioritizer scalper) ope
+  (with-slots (supplicant prioritizer scalper control response) ope
     (unless (slot-boundp ope 'supplicant)
-      (setf supplicant (make-instance 'ope :gate gate :placed (placed-offers gate))))
+      (setf supplicant (make-instance 'ope-supplicant :gate gate
+                                      :placed (placed-offers gate)
+                                      :control control :response response)))
     (when (or (not (slot-boundp ope 'prioritizer))
               (eq :terminated (chanl:task-status prioritizer)))
       (setf prioritizer
@@ -741,7 +744,7 @@
       ;; crappy solution... ideally w/condition system?
       (sleep 3))
     (unless (slot-boundp tracker 'ope)
-      (setf ope (make-instance 'ope :gate gate :placed (placed-offers gate))))
+      (setf ope (make-instance 'ope :gate gate)))
     (when (or (not (slot-boundp tracker 'updater))
               (eq :terminated (chanl:task-status updater)))
       (setf updater
@@ -911,7 +914,7 @@
   (with-slots (control) maker
     (chanl:send control '(pause))))
 
-(defun reset-the-net (maker)
+(defun reset-the-net (maker &optional (revive t))
   (flet ((ensure-death (list)
            (let ((thread (reduce #'slot-value list :initial-value maker)))
              (tagbody
@@ -935,16 +938,17 @@
             (book-tracker updater)
             (book-tracker worker)
             (fee-tracker thread))))
-  (mapc 'reinitialize-instance
-        (list (slot-value maker 'book-tracker)
-              (slot-value maker 'account-tracker)
-              (slot-value maker 'trades-tracker)
-              (slot-value (slot-value maker 'account-tracker) 'gate)
-              (slot-value (slot-value maker 'account-tracker) 'lictor)
-              (slot-value (slot-value maker 'account-tracker) 'ope)
-              (slot-value (slot-value (slot-value maker 'account-tracker) 'ope) 'supplicant)
-              (slot-value maker 'fee-tracker)
-              maker)))
+  (when revive
+    (mapc 'reinitialize-instance
+          (list (slot-value maker 'book-tracker)
+                (slot-value maker 'account-tracker)
+                (slot-value maker 'trades-tracker)
+                (slot-value (slot-value maker 'account-tracker) 'gate)
+                (slot-value (slot-value maker 'account-tracker) 'lictor)
+                (slot-value (slot-value maker 'account-tracker) 'ope)
+                (slot-value (slot-value (slot-value maker 'account-tracker) 'ope) 'supplicant)
+                (slot-value maker 'fee-tracker)
+                maker))))
 
 (defvar *maker*
   (make-instance 'maker
