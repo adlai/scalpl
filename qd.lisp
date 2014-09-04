@@ -489,13 +489,12 @@
 ;;;  ENGINE
 ;;;
 
-;;; TODO: ope-supplicant, manages offerings, has its input channel stored
-;;; in a channel in the remaining ope object for use by ope-place &cetera
 (defclass ope-supplicant ()
   ((gate :initarg :gate)
    (placed :initform nil :initarg :placed)
    (control :initarg :control)
    (response :initarg :response)
+   (balance-tracker :initarg :balance-tracker)
    thread))
 
 ;;; receives messages in the control channel, outputs from the gate
@@ -504,7 +503,6 @@
     (let ((command (chanl:recv control)))
       (destructuring-bind (car . cdr) command
         (chanl:send response
-                    ;; FIXME: store order id in the offer object, avoid mapcar
                     (case car
                       (placed placed)
                       (filter (ignore-offers cdr placed))
@@ -674,12 +672,13 @@
             (chanl:recv prioritizer-response)))))
     (chanl:send output nil)))
 
-(defmethod shared-initialize :after ((ope ope) slots &key gate)
+(defmethod shared-initialize :after ((ope ope) slots &key gate balance-tracker)
   (with-slots (supplicant prioritizer scalper control response) ope
     (unless (slot-boundp ope 'supplicant)
       (setf supplicant (make-instance 'ope-supplicant :gate gate
                                       :placed (placed-offers gate)
-                                      :control control :response response)))
+                                      :control control :response response
+                                      :balance-tracker balance-tracker)))
     (when (or (not (slot-boundp ope 'prioritizer))
               (eq :terminated (chanl:task-status prioritizer)))
       (setf prioritizer
@@ -744,7 +743,7 @@
       ;; crappy solution... ideally w/condition system?
       (sleep 3))
     (unless (slot-boundp tracker 'ope)
-      (setf ope (make-instance 'ope :gate gate)))
+      (setf ope (make-instance 'ope :gate gate :balance-tracker tracker)))
     (when (or (not (slot-boundp tracker 'updater))
               (eq :terminated (chanl:task-status updater)))
       (setf updater
