@@ -499,14 +499,24 @@
 
 ;;; receives messages in the control channel, outputs from the gate
 (defun ope-supplicant-loop (ope)
-  (with-slots (gate control response placed) ope
+  (with-slots (gate control response placed balance-tracker) ope
     (let ((command (chanl:recv control)))
       (destructuring-bind (car . cdr) command
         (chanl:send response
                     (case car
                       (placed placed)
                       (filter (ignore-offers cdr placed))
-                      (offer (awhen1 (post-offer gate cdr) (push it placed)))
+                      (offer (when (with-slots (pair price volume) cdr
+                                     (>= (asset-balance balance-tracker
+                                                        (getjso (if (< price 0) "quote" "base")
+                                                                (getjso pair *markets*)))
+                                         (reduce #'+
+                                                 (mapcar #'offer-volume
+                                                         (remove (- (signum price)) placed
+                                                                 :key (lambda (offer)
+                                                                        (signum (offer-price offer)))))
+                                                 :initial-value volume)))
+                               (awhen1 (post-offer gate cdr) (push it placed))))
                       (cancel (awhen1 (cancel-offer gate cdr)
                                 (setf placed (remove cdr placed))))))))))
 
