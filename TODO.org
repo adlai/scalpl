@@ -77,6 +77,10 @@ send a function to be applied to the actor (return handled by caller)
 basis tracking ≡ keep track of the last buys and sells, make sure future trades
 are always profitable. perhaps have a configurable parameter that toggles
 whether you can "create new positions" rather than just "close old ones"?
+** recursive cost basis:
+cost basis for an asset = price at which you purchased the asset, and
+optionally the cost basis which was traded away for acquiring the asset
+** price should account for exchange fees
 * TODO Portfolio Handling Guidelines
 How the investor specifies guidelines to the automated market maker
 * Exchange modularity
