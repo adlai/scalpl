@@ -738,7 +738,7 @@
                                   (gate-request gate "Balance"))))
     (sleep delay)))
 
-(defmethod vwap ((tracker account-tracker) &key type pair)
+(defmethod vwap ((tracker account-tracker) &key type pair depth)
   (let ((c (make-instance 'chanl:channel)))
     (chanl:send (slot-value (slot-value tracker 'lictor) 'control) c)
     (let ((trades (remove type (chanl:recv c)
@@ -746,6 +746,10 @@
       (when pair
         (setf trades (remove pair trades
                              :key (lambda (c) (getjso "pair" c)) :test #'string/=)))
+      (when depth
+        (setf trades (loop for trade in trades collect trade
+                           sum (getjso "vol" trade) into sum
+                           until (>= sum depth))))
       (/ (reduce '+ (mapcar (lambda (x) (getjso "cost" x)) trades))
          (reduce '+ (mapcar (lambda (x) (getjso "vol" x)) trades))))))
 
