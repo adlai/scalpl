@@ -253,8 +253,8 @@
                     trades)
             last)))
 
-(defgeneric vwap (tracker &key since type &allow-other-keys)
-  (:method ((tracker trades-tracker) &key since type)
+(defgeneric vwap (tracker &key since type depth &allow-other-keys)
+  (:method ((tracker trades-tracker) &key since depth type)
     (let ((trades (slot-value tracker 'trades)))
       (when since
         (setf trades (remove since trades :key #'car :test #'timestamp>=)))
@@ -262,6 +262,10 @@
         (setf trades (remove (ccase type (buy #\b) (sell #\s)) trades
                              :key (lambda (trade) (char (fifth trade) 0))
                              :test-not #'char=)))
+      (when depth
+        (setf trades (loop for trade in trades collect trade
+                           sum (second trade) into sum
+                           until (>= sum depth))))
       (/ (reduce #'+ (mapcar #'fourth trades))
          (reduce #'+ (mapcar #'second trades))))))
 
