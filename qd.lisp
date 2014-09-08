@@ -9,6 +9,14 @@
 ;;; Actor
 ;;;
 
+;;; TODO: Incorporate weak references and finalizers into the whole CSPSM model
+;;; so they get garbage collected when there are no more references to the
+;;; output channels
+
+;;; actor afterthought - maybe actors should be explicit, channels just an
+;;; implementation detail? "API methods" on the actor object serve as the
+;;; client, and state machine on the channel side serves as the server
+
 (defclass actor ()
   ((thread :documentation "Thread performing this actor's behavior")
    (control :documentation "Channel for controlling this actor")
@@ -212,10 +220,6 @@
                                      :volume (if (not (search "viqc" oflags)) volume
                                                  (/ volume price-int (expt 10 decimals))))))))
               (open-orders gate)))
-
-;;; TODO: Incorporate weak references and finalizers into the whole CSPSM model
-;;; so they get garbage collected when there are no more references to the
-;;; output channels
 
 ;;;
 ;;; TRADES
@@ -734,7 +738,7 @@
                                   (gate-request gate "Balance"))))
     (sleep delay)))
 
-(defmethod vwap ((tracker account-tracker) &key type pair &allow-other-keys)
+(defmethod vwap ((tracker account-tracker) &key type pair)
   (let ((c (make-instance 'chanl:channel)))
     (chanl:send (slot-value (slot-value tracker 'lictor) 'control) c)
     (let ((trades (remove type (chanl:recv c)
@@ -811,7 +815,7 @@
   ((pair :initarg :pair :initform "XXBTZEUR")
    (fund-factor :initarg :fund-factor :initform 1)
    (resilience-factor :initarg :resilience :initform 1)
-   (targeting-factor :initarg :targeting :initform 1/2)
+   (targeting-factor :initarg :targeting :initform 3/5)
    (control :initform (make-instance 'chanl:channel))
    (fee-tracker :initarg :fee-tracker)
    (trades-tracker :initarg :trades-tracker)
@@ -870,13 +874,13 @@
           (force-output)
           (with-slots (ope) account-tracker
             (chanl:send (slot-value ope 'input) (list fee btc doge resilience))
-            (when (< (* investment (1+ (- investment))) 1/20)
+            (when (< (* investment (1+ (- investment))) 1/18)
               (macrolet ((urgent (class side)
-                           `(make-instance ',class :pair pair :volume (* total-fund 1/6)
-                                           :price (abs (slot-value (cadr (slot-value book-tracker ',side)) 'price)))))
+                           `(make-instance ',class :pair pair :volume (* total-fund 1/8)
+                                           :price (1- (abs (slot-value (cadr (slot-value book-tracker ',side)) 'price))))))
                 ;; theoretically, this could exceed available volume, but
                 ;; that's highly unlikely with a fund-factor below ~3/2
-                (describe (ope-place ope (if (> investment 1/2) (urgent ask bids) (urgent bid asks))))))
+                (describe (ope-place ope (if (> investment 1/2) (urgent ask asks) (urgent bid bids))))))
             (chanl:recv (slot-value ope 'output))))))))
 
 (defun dumbot-loop (maker)
