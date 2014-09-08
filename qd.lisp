@@ -253,7 +253,7 @@
                     trades)
             last)))
 
-(defgeneric vwap (tracker &key since type)
+(defgeneric vwap (tracker &key since type &allow-other-keys)
   (:method ((tracker trades-tracker) &key since type)
     (let ((trades (slot-value tracker 'trades)))
       (when since
