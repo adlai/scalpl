@@ -857,24 +857,27 @@
           ;; FIXME: modularize all this decimal point handling
           (let ((base-decimals (getjso "decimals" (getjso (getjso "base" market) *assets*)))
                 (quote-decimals (getjso "decimals" (getjso (getjso "quote" market) *assets*))))
-            ;; time, total, base, quote, invested, risked, risk bias, pulse
-            (format t "~&~A ~V$ B ~V$ Q ~V$ I ~$% R ~$% B~@$ ~6@$~%"
-                    (format-timestring nil (now)
-                                       :format '((:hour 2) #\:
-                                                 (:min 2) #\:
-                                                 (:sec 2)))
-                    base-decimals  total-fund
-                    base-decimals  total-btc
-                    quote-decimals total-doge
-                    (* 100 investment)
-                    (* 100 (/ (total-of btc doge) total-fund))
-                    (* 100 (/ (total-of (- btc) doge) total-fund))
-                    ;; FIXME: take flow into account! this calculation lies!
-                    ;; temporarily "fixed" by declaring that the calculation is valid
-                    ;; since the timestamp of the earliest trade
-                    (* 100 (1- (profit-margin (vwap account-tracker :type "buy" :pair pair)
-                                              (vwap account-tracker :type "sell" :pair pair)
-                                              fee)))))
+            (flet ((depth-profit (depth)
+                     (* 100 (1- (profit-margin (vwap account-tracker :type "buy"
+                                                     :pair pair :depth depth)
+                                               (vwap account-tracker :type "sell"
+                                                     :pair pair :depth depth)
+                                               fee)))))
+              ;; time, total, base, quote, invested, risked, risk bias, pulse
+              (format t "~&~A ~V$ B ~V$ Q ~V$ I ~$% R ~$% B~@$ ~6@$ ~6@$ ~6@$~%"
+                      (format-timestring nil (now)
+                                         :format '((:hour 2) #\:
+                                                   (:min 2) #\:
+                                                   (:sec 2)))
+                      base-decimals  total-fund
+                      base-decimals  total-btc
+                      quote-decimals total-doge
+                      (* 100 investment)
+                      (* 100 (/ (total-of btc doge) total-fund))
+                      (* 100 (/ (total-of (- btc) doge) total-fund))
+                      (depth-profit 5)
+                      (depth-profit 0.5)
+                      (depth-profit 0.05))))
           (force-output)
           (with-slots (ope) account-tracker
             (chanl:send (slot-value ope 'input) (list fee btc doge resilience))
