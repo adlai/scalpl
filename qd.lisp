@@ -93,12 +93,16 @@
                 (list* out path options))
     (values-list (chanl:recv out))))
 
-(defun get-assets ()
-  (aprog1 (mapjso* (lambda (name data) (setf (getjso "name" data) name))
-                   (get-request "Assets"))
-    (dolist (name (jso-keys it))
-      (let ((asset (getjso name it)))
-        (setf (getjso (getjso "altname" asset) it) asset)))))
+(defstruct asset name decimals)
+
+(defun get-assets (&aux (assets (get-request "Assets")))
+  (aprog1 (make-hash-table :test #'equalp)
+    (mapjso (lambda (name data)
+              (with-json-slots (altname decimals) data
+                (let ((asset (make-asset :name name :decimals decimals)))
+                  (setf (gethash name it) asset
+                        (gethash altname it) asset))))
+            assets)))
 
 (defvar *assets* (get-assets))
 
@@ -859,8 +863,8 @@
                (doge (factor-fund total-doge (- 1 (* investment targeting-factor)))))
           ;; report funding
           ;; FIXME: modularize all this decimal point handling
-          (let ((base-decimals (getjso "decimals" (getjso (getjso "base" market) *assets*)))
-                (quote-decimals (getjso "decimals" (getjso (getjso "quote" market) *assets*))))
+          (let ((base-decimals (asset-decimals (gethash (getjso "base" market) *assets*)))
+                (quote-decimals (asset-decimals (gethash (getjso "quote" market) *assets*))))
             (flet ((depth-profit (depth)
                      (* 100 (1- (profit-margin (vwap account-tracker :type "buy"
                                                      :pair pair :depth depth)
