@@ -589,7 +589,7 @@
                          percents)))
                (dolist (old placed (mapcar #'place target))
                  (format-timestring t (now) :format '(".." (:sec 2)))
-                 (finish-output)
+                 (force-output)
                  (aif (aand1 (find (offer-price old) target
                                    :key #'offer-price :test #'=)
                              (< (/ (abs (- (offer-volume it) (offer-volume old)))
