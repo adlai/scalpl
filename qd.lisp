@@ -95,23 +95,28 @@
 
 (defstruct asset name decimals)
 
-(defun get-assets (&aux (assets (get-request "Assets")))
+(defun get-assets ()
   (aprog1 (make-hash-table :test #'equalp)
     (mapjso (lambda (name data)
               (with-json-slots (altname decimals) data
                 (let ((asset (make-asset :name name :decimals decimals)))
                   (setf (gethash name it) asset
                         (gethash altname it) asset))))
-            assets)))
+            (get-request "Assets"))))
 
 (defvar *assets* (get-assets))
 
+(defstruct market name decimals quote base)
+
 (defun get-markets ()
-  (aprog1 (mapjso* (lambda (name data) (setf (getjso "name" data) name))
-                   (get-request "AssetPairs"))
-    (dolist (name (jso-keys it))
-      (let ((market (getjso name it)))
-        (setf (getjso (getjso "altname" market) it) market)))))
+  (aprog1 (make-hash-table :test #'equalp)
+    (mapjso (lambda (name data)
+              (with-json-slots (altname pair_decimals quote base) data
+                (let ((market (make-market :name name :base base :quote quote
+                                           :decimals pair_decimals)))
+                  (setf (gethash name it) market
+                        (gethash altname it) market))))
+            (get-request "AssetPairs"))))
 
 (defvar *markets* (get-markets))
 
@@ -186,7 +191,7 @@
   (with-slots (pair volume price) offer
     (flet ((post (type options)
              (awhen (post-limit gate type pair (abs price) volume
-                                (getjso "pair_decimals" (getjso pair *markets*))
+                                (market-decimals (gethash pair *markets*))
                                 options)
                (with-json-slots (id order) it
                  (change-class offer 'placed :id id :text order)))))
@@ -215,7 +220,7 @@
   (mapcar-jso (lambda (id data)
                 (with-json-slots (descr vol oflags) data
                   (with-json-slots (pair type price order) descr
-                    (let* ((decimals (getjso "pair_decimals" (getjso pair *markets*)))
+                    (let* ((decimals (market-decimals (gethash pair *markets*)))
                            (price-int (parse-price price decimals))
                            (volume (read-from-string vol)))
                       (make-instance 'placed
@@ -361,7 +366,7 @@
                    :end (+ dot decimals))))
 
 (defun get-book (pair)
-  (let ((decimals (getjso "pair_decimals" (getjso pair *markets*))))
+  (let ((decimals (market-decimals (gethash pair *markets*))))
     (with-json-slots (bids asks)
         (getjso pair (get-request "Depth" `(("pair" . ,pair))))
       (flet ((parser (class)
@@ -520,8 +525,10 @@
                       (filter (ignore-offers cdr placed))
                       (offer (when (with-slots (pair price volume) cdr
                                      (>= (asset-balance balance-tracker
-                                                        (getjso (if (< price 0) "quote" "base")
-                                                                (getjso pair *markets*)))
+                                                        (funcall (if (< price 0)
+                                                                     'market-quote
+                                                                     'market-base)
+                                                                 (gethash pair *markets*)))
                                          (reduce #'+
                                                  (mapcar #'offer-volume
                                                          (remove (- (signum price)) placed
@@ -853,18 +860,18 @@
       (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
              (total-of (btc doge) (+ btc (/ doge doge/btc)))
              (factor-fund (fund factor) (* fund fund-factor factor)))
-        (let* ((market (getjso pair *markets*))
+        (let* ((market (gethash pair *markets*))
                (fee (slot-value fee-tracker 'fee))
-               (total-btc (symbol-funds (getjso "base" market)))
-               (total-doge (symbol-funds (getjso "quote" market)))
+               (total-btc (symbol-funds (market-base market)))
+               (total-doge (symbol-funds (market-quote market)))
                (total-fund (total-of total-btc total-doge))
                (investment (/ total-btc total-fund))
                (btc (factor-fund total-btc (* investment targeting-factor)))
                (doge (factor-fund total-doge (- 1 (* investment targeting-factor)))))
           ;; report funding
           ;; FIXME: modularize all this decimal point handling
-          (let ((base-decimals (asset-decimals (gethash (getjso "base" market) *assets*)))
-                (quote-decimals (asset-decimals (gethash (getjso "quote" market) *assets*))))
+          (let ((base-decimals (asset-decimals (gethash (market-base market) *assets*)))
+                (quote-decimals (asset-decimals (gethash (market-quote market) *assets*))))
             (flet ((depth-profit (depth)
                      (* 100 (1- (profit-margin (vwap account-tracker :type "buy"
                                                      :pair pair :depth depth)
