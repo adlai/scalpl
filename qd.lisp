@@ -111,21 +111,23 @@
 (defclass market ()
   ((name :initarg :name :reader name-of)
    (decimals :initarg :decimals)
-   (quote :initarg :quote)
-   (base :initarg :base)))
+   (quote :initarg :quote :reader quote-asset)
+   (base :initarg :base :reader base-asset)))
 
-(defun get-markets ()
-  (mapcar-jso (lambda (name data)
-                (with-json-slots (pair_decimals quote base) data
-                  (make-instance 'market :name name
-                                 :base base :quote quote
-                                 :decimals pair_decimals)))
-              (get-request "AssetPairs")))
+(defun get-markets (&optional assets)
+  (flet ((process (asset) (if assets (find-asset asset assets) asset)))
+    (mapcar-jso (lambda (name data)
+                  (with-json-slots (pair_decimals quote base) data
+                    (make-instance 'market :name name
+                                   :base (process base)
+                                   :quote (process quote)
+                                   :decimals pair_decimals)))
+                (get-request "AssetPairs"))))
 
 (defun find-market (designator &optional (markets *markets*))
   (find designator markets :key 'name-of :test 'string-equal))
 
-(defvar *markets* (get-markets))
+(defvar *markets* (get-markets *assets*))
 
 
 (defun open-orders (gate)
@@ -792,7 +794,7 @@
 
 (defun asset-balance (tracker asset &aux (channel (make-instance 'chanl:channel)))
   (with-slots (control) tracker
-    (chanl:send control (cons asset channel))
+    (chanl:send control (cons (name-of asset) channel))
     (chanl:recv channel)))
 
 (defun gapps-rate (from to)
@@ -870,7 +872,7 @@
           ;; report funding
           ;; FIXME: modularize all this decimal point handling
           (flet ((asset-decimals (kind)
-                   (slot-value (find-asset (slot-value market kind)) 'decimals))
+                   (slot-value (slot-value market kind) 'decimals))
                  (depth-profit (depth)
                    (* 100 (1- (profit-margin (vwap account-tracker :type "buy"
                                                    :pair pair :depth depth)
