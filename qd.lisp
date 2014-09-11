@@ -104,6 +104,9 @@
                         (gethash altname it) asset))))
             (get-request "Assets"))))
 
+(defun find-asset (designator &optional (assets *assets*))
+  (gethash designator assets))
+
 (defvar *assets* (get-assets))
 
 (defstruct market name decimals quote base)
@@ -871,7 +874,7 @@
           ;; report funding
           ;; FIXME: modularize all this decimal point handling
           (flet ((asset-decimals (reader)
-                   (slot-value (gethash (funcall reader market) *assets*) 'decimals))
+                   (slot-value (find-asset (funcall reader market)) 'decimals))
                  (depth-profit (depth)
                    (* 100 (1- (profit-margin (vwap account-tracker :type "buy"
                                                    :pair pair :depth depth)
