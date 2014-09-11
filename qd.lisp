@@ -93,21 +93,20 @@
                 (list* out path options))
     (values-list (chanl:recv out))))
 
-(defclass asset () ((name :initarg :name) (decimals :initarg :decimals)))
+(defclass asset ()
+  ((name :initarg :name :reader name-of)
+   (decimals :initarg :decimals)))
 
 (defun get-assets ()
-  (aprog1 (make-hash-table :test #'equalp)
-    (mapjso (lambda (name data)
-              (with-json-slots (altname decimals) data
-                (let ((asset (make-instance 'asset :name name :decimals decimals)))
-                  (setf (gethash name it) asset
-                        (gethash altname it) asset))))
-            (get-request "Assets"))))
+  (mapcar-jso (lambda (name data)
+                (with-json-slots (altname decimals) data
+                  (make-instance 'asset :name name :decimals decimals)))
+              (get-request "Assets")))
 
 (defun find-asset (designator &optional (assets *assets*))
-  (gethash designator assets))
+  (find designator assets :key 'name-of :test 'string-equal))
 
-(defvar *assets* (get-assets))
+(defparameter *assets* (get-assets))
 
 (defstruct market name decimals quote base)
 
