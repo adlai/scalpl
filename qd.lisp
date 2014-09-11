@@ -870,30 +870,30 @@
                (doge (factor-fund total-doge (- 1 (* investment targeting-factor)))))
           ;; report funding
           ;; FIXME: modularize all this decimal point handling
-          (let ((base-decimals (slot-value (gethash (market-base market) *assets*) 'decimals))
-                (quote-decimals (slot-value (gethash (market-quote market) *assets*) 'decimals)))
-            (flet ((depth-profit (depth)
-                     (* 100 (1- (profit-margin (vwap account-tracker :type "buy"
-                                                     :pair pair :depth depth)
-                                               (vwap account-tracker :type "sell"
-                                                     :pair pair :depth depth)
-                                               fee)))))
-              ;; time, total, base, quote, invested, risked, risk bias, pulse
-              (format t "~&~A ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$~%"
-                      (format-timestring nil (now)
-                                         :format '((:hour 2) #\:
-                                                   (:min 2) #\:
-                                                   (:sec 2)))
-                      base-decimals  total-fund
-                      base-decimals  total-btc
-                      quote-decimals total-doge
-                      (* 100 investment)
-                      (* 100 (/ (total-of btc doge) total-fund))
-                      (* 100 (/ (total-of (- btc) doge) total-fund))
-                      (depth-profit 17.15)
-                      (depth-profit 2.45)
-                      (depth-profit 0.35)
-                      (depth-profit 0.05))))
+          (flet ((asset-decimals (reader)
+                   (slot-value (gethash (funcall reader market) *assets*) 'decimals))
+                 (depth-profit (depth)
+                   (* 100 (1- (profit-margin (vwap account-tracker :type "buy"
+                                                   :pair pair :depth depth)
+                                             (vwap account-tracker :type "sell"
+                                                   :pair pair :depth depth)
+                                             fee)))))
+            ;; time, total, base, quote, invested, risked, risk bias, pulse
+            (format t "~&~A ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$~%"
+                    (format-timestring nil (now)
+                                       :format '((:hour 2) #\:
+                                                 (:min 2) #\:
+                                                 (:sec 2)))
+                    (asset-decimals 'market-base)  total-fund
+                    (asset-decimals 'market-base)  total-btc
+                    (asset-decimals 'market-quote) total-doge
+                    (* 100 investment)
+                    (* 100 (/ (total-of btc doge) total-fund))
+                    (* 100 (/ (total-of (- btc) doge) total-fund))
+                    (depth-profit 17.15)
+                    (depth-profit 2.45)
+                    (depth-profit 0.35)
+                    (depth-profit 0.05)))
           (force-output)
           (with-slots (ope) account-tracker
             (chanl:send (slot-value ope 'input) (list fee btc doge resilience))
