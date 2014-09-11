@@ -115,19 +115,18 @@
    (base :initarg :base)))
 
 (defun get-markets ()
-  (aprog1 (make-hash-table :test #'equalp)
-    (mapjso (lambda (name data)
-              (with-json-slots (altname pair_decimals quote base) data
-                (let ((market (make-market :name name :base base :quote quote
-                                           :decimals pair_decimals)))
-                  (setf (gethash name it) market
-                        (gethash altname it) market))))
-            (get-request "AssetPairs"))))
+  (mapcar-jso (lambda (name data)
+                (with-json-slots (pair_decimals quote base) data
+                  (make-instance 'market :name name
+                                 :base base :quote quote
+                                 :decimals pair_decimals)))
+              (get-request "AssetPairs")))
 
 (defun find-market (designator &optional (markets *markets*))
-  (gethash designator markets))
+  (find designator markets :key 'name-of :test 'string-equal))
 
-(defvar *markets* (get-markets))
+(defparameter *markets* (get-markets))
+
 
 (defun open-orders (gate)
   (mapjso* (lambda (id order) (setf (getjso "id" order) id))
