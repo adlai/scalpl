@@ -120,6 +120,9 @@
                         (gethash altname it) market))))
             (get-request "AssetPairs"))))
 
+(defun find-market (designator &optional (markets *markets*))
+  (gethash designator markets))
+
 (defvar *markets* (get-markets))
 
 (defun open-orders (gate)
@@ -193,7 +196,7 @@
   (with-slots (pair volume price) offer
     (flet ((post (type options)
              (awhen (post-limit gate type pair (abs price) volume
-                                (market-decimals (gethash pair *markets*))
+                                (market-decimals (find-market pair))
                                 options)
                (with-json-slots (id order) it
                  (change-class offer 'placed :id id :text order)))))
@@ -222,7 +225,7 @@
   (mapcar-jso (lambda (id data)
                 (with-json-slots (descr vol oflags) data
                   (with-json-slots (pair type price order) descr
-                    (let* ((decimals (market-decimals (gethash pair *markets*)))
+                    (let* ((decimals (market-decimals (find-market pair)))
                            (price-int (parse-price price decimals))
                            (volume (read-from-string vol)))
                       (make-instance 'placed
@@ -368,7 +371,7 @@
                    :end (+ dot decimals))))
 
 (defun get-book (pair)
-  (let ((decimals (market-decimals (gethash pair *markets*))))
+  (let ((decimals (market-decimals (find-market pair))))
     (with-json-slots (bids asks)
         (getjso pair (get-request "Depth" `(("pair" . ,pair))))
       (flet ((parser (class)
@@ -530,7 +533,7 @@
                                                         (funcall (if (< price 0)
                                                                      'market-quote
                                                                      'market-base)
-                                                                 (gethash pair *markets*)))
+                                                                 (find-market pair)))
                                          (reduce #'+
                                                  (mapcar #'offer-volume
                                                          (remove (- (signum price)) placed
@@ -862,7 +865,7 @@
       (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
              (total-of (btc doge) (+ btc (/ doge doge/btc)))
              (factor-fund (fund factor) (* fund fund-factor factor)))
-        (let* ((market (gethash pair *markets*))
+        (let* ((market (find-market pair))
                (fee (slot-value fee-tracker 'fee))
                (total-btc (symbol-funds (market-base market)))
                (total-doge (symbol-funds (market-quote market)))
