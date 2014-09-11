@@ -108,7 +108,11 @@
 
 (defparameter *assets* (get-assets))
 
-(defstruct market name decimals quote base)
+(defclass market ()
+  ((name :initarg :name :reader name-of)
+   (decimals :initarg :decimals)
+   (quote :initarg :quote)
+   (base :initarg :base)))
 
 (defun get-markets ()
   (aprog1 (make-hash-table :test #'equalp)
@@ -196,7 +200,7 @@
   (with-slots (pair volume price) offer
     (flet ((post (type options)
              (awhen (post-limit gate type pair (abs price) volume
-                                (market-decimals (find-market pair))
+                                (slot-value (find-market pair) 'decimals)
                                 options)
                (with-json-slots (id order) it
                  (change-class offer 'placed :id id :text order)))))
@@ -225,7 +229,7 @@
   (mapcar-jso (lambda (id data)
                 (with-json-slots (descr vol oflags) data
                   (with-json-slots (pair type price order) descr
-                    (let* ((decimals (market-decimals (find-market pair)))
+                    (let* ((decimals (slot-value (find-market pair) 'decimals))
                            (price-int (parse-price price decimals))
                            (volume (read-from-string vol)))
                       (make-instance 'placed
@@ -371,7 +375,7 @@
                    :end (+ dot decimals))))
 
 (defun get-book (pair)
-  (let ((decimals (market-decimals (find-market pair))))
+  (let ((decimals (slot-value (find-market pair) 'decimals)))
     (with-json-slots (bids asks)
         (getjso pair (get-request "Depth" `(("pair" . ,pair))))
       (flet ((parser (class)
@@ -530,10 +534,8 @@
                       (filter (ignore-offers cdr placed))
                       (offer (when (with-slots (pair price volume) cdr
                                      (>= (asset-balance balance-tracker
-                                                        (funcall (if (< price 0)
-                                                                     'market-quote
-                                                                     'market-base)
-                                                                 (find-market pair)))
+                                                        (slot-value (find-market pair)
+                                                                    (if (< price 0) 'quote 'base)))
                                          (reduce #'+
                                                  (mapcar #'offer-volume
                                                          (remove (- (signum price)) placed
@@ -867,16 +869,16 @@
              (factor-fund (fund factor) (* fund fund-factor factor)))
         (let* ((market (find-market pair))
                (fee (slot-value fee-tracker 'fee))
-               (total-btc (symbol-funds (market-base market)))
-               (total-doge (symbol-funds (market-quote market)))
+               (total-btc (symbol-funds (slot-value market 'base)))
+               (total-doge (symbol-funds (slot-value market 'quote)))
                (total-fund (total-of total-btc total-doge))
                (investment (/ total-btc total-fund))
                (btc (factor-fund total-btc (* investment targeting-factor)))
                (doge (factor-fund total-doge (- 1 (* investment targeting-factor)))))
           ;; report funding
           ;; FIXME: modularize all this decimal point handling
-          (flet ((asset-decimals (reader)
-                   (slot-value (find-asset (funcall reader market)) 'decimals))
+          (flet ((asset-decimals (kind)
+                   (slot-value (find-asset (slot-value market kind)) 'decimals))
                  (depth-profit (depth)
                    (* 100 (1- (profit-margin (vwap account-tracker :type "buy"
                                                    :pair pair :depth depth)
@@ -889,9 +891,9 @@
                                        :format '((:hour 2) #\:
                                                  (:min 2) #\:
                                                  (:sec 2)))
-                    (asset-decimals 'market-base)  total-fund
-                    (asset-decimals 'market-base)  total-btc
-                    (asset-decimals 'market-quote) total-doge
+                    (asset-decimals 'base)  total-fund
+                    (asset-decimals 'base)  total-btc
+                    (asset-decimals 'quote) total-doge
                     (* 100 investment)
                     (* 100 (/ (total-of btc doge) total-fund))
                     (* 100 (/ (total-of (- btc) doge) total-fund))
