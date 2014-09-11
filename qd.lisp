@@ -106,7 +106,7 @@
 (defun find-asset (designator &optional (assets *assets*))
   (find designator assets :key 'name-of :test 'string-equal))
 
-(defparameter *assets* (get-assets))
+(defvar *assets* (get-assets))
 
 (defclass market ()
   ((name :initarg :name :reader name-of)
@@ -125,7 +125,7 @@
 (defun find-market (designator &optional (markets *markets*))
   (find designator markets :key 'name-of :test 'string-equal))
 
-(defparameter *markets* (get-markets))
+(defvar *markets* (get-markets))
 
 
 (defun open-orders (gate)
