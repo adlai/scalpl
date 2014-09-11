@@ -135,13 +135,6 @@
 (defun cancel-order (gate oid)
   (gate-request gate "CancelOrder" `(("txid" . ,oid))))
 
-(defun cancel-pair-orders (gate pair)
-  (mapjso (lambda (id order)
-            (declare (ignore id))
-            (when (string= pair (getjso* "descr.pair" order))
-              (cancel-order gate order)))
-          (open-orders gate)))
-
 (defparameter *validate* nil)
 
 (define-condition volume-too-low () ())
