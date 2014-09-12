@@ -904,7 +904,8 @@
                                            :price (1- (abs (slot-value (cadr (slot-value book-tracker ',side)) 'price))))))
                 ;; theoretically, this could exceed available volume, but
                 ;; that's highly unlikely with a fund-factor below ~3/2
-                (describe (ope-place ope (if (> investment 1/2) (urgent ask asks) (urgent bid bids))))))
+                (awhen (ope-place ope (if (> investment 1/2) (urgent ask asks) (urgent bid bids)))
+                  (format t "~&~A~%" (slot-value it 'text)))))
             (chanl:recv (slot-value ope 'output))))))))
 
 (defun dumbot-loop (maker)
