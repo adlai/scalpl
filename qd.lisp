@@ -63,14 +63,13 @@
    (base :initarg :base :reader base-asset)))
 
 (defun get-markets (&optional assets)
-  (flet ((process (asset) (if assets (find-asset asset assets) asset)))
-    (mapcar-jso (lambda (name data)
-                  (with-json-slots (pair_decimals quote base) data
-                    (make-instance 'market :name name
-                                   :base (process base)
-                                   :quote (process quote)
-                                   :decimals pair_decimals)))
-                (get-request "AssetPairs"))))
+  (mapcar-jso (lambda (name data)
+                (with-json-slots (pair_decimals quote base) data
+                  (make-instance 'market :name name
+                                 :base (find-asset base assets)
+                                 :quote (find-asset quote assets)
+                                 :decimals pair_decimals)))
+              (get-request "AssetPairs")))
 
 (defun find-market (designator &optional (markets *markets*))
   (find designator markets :key 'name-of :test 'string-equal))
