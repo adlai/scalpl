@@ -1,5 +1,5 @@
 (defpackage #:scalpl.bitfinex
-  (:use #:cl #:scalpl.util)
+  (:use #:cl #:anaphora #:st-json #:base64 #:scalpl.util)
   (:export #:get-request
            #:post-request
            #:path #:data
@@ -15,21 +15,29 @@
 (defun hmac-sha384 (message secret)
   (let ((hmac (ironclad:make-hmac secret 'ironclad:sha384)))
     (ironclad:update-hmac hmac message)
-    (base64:usb8-array-to-base64-string (ironclad:hmac-digest hmac))))
+    (usb8-array-to-base64-string (ironclad:hmac-digest hmac))))
 
 ;;; X-BFX-APIKEY = API key
 ;;; X-BFX-PAYLOAD = base64(json(request path, nonce, parameters...))
 ;;; X-BFX-SIGNATURE = Message signature using HMAC-SHA384 of payload and base64 decoded secret
 
+(defun nonce (&aux (now (local-time:now)))
+  (princ-to-string (+ (floor (local-time:nsec-of now) 1000)
+                      (* 1000000 (local-time:timestamp-to-unix now)))))
+
+(defun make-payload (data &optional path)
+  (let ((payload (if (null path) (jso) (jso "request" path "nonce" (nonce)))))
+    (dolist (pair data (string-to-base64-string (write-json-to-string payload)))
+      (destructuring-bind (key . val) pair (setf (getjso key payload) val)))))
+
 (defgeneric make-signer (secret)
   (:method ((secret string))
-    (lambda (path data nonce)
-      (hmac-sha384 (concatenate '(simple-array (unsigned-byte 8) (*))
-                                (map '(simple-array (unsigned-byte 8) (*)) 'char-code path)
-                                (hash-sha256 (map '(simple-array (unsigned-byte 8) (*))
-                                                  'char-code
-                                                  (concatenate 'string nonce (urlencode-params data)))))
-                   (base64:base64-string-to-usb8-array secret))))
+    (lambda (payload)
+      (string-downcase
+       (format nil "~X"
+               (base64-string-to-integer
+                (hmac-sha384 (map '(simple-array (unsigned-byte 8) (*)) 'char-code payload)
+                             (map '(simple-array (unsigned-byte 8) (*)) 'char-code secret)))))))
   (:method ((stream stream))
     (make-signer (read-line stream)))
   (:method ((path pathname))
@@ -44,7 +52,7 @@
       (make-key stream))))
 
 (defun decode-json (arg)
-  (st-json:read-json arg))
+  (st-json:read-json (map 'string 'code-char arg)))
 
 (defun raw-request (path &rest keys)
   (handler-case
@@ -93,18 +101,12 @@
     ))
 
 (defun get-request (path &optional data)
-  (raw-request (concatenate 'string path (urlencode-params data))
-               :parameters data))
+  (raw-request path :additional-headers `(("X-BFX-PAYLOAD" ,(make-payload data)))))
 
-(defun nonce (&aux (now (local-time:now)))
-  (princ-to-string (+ (floor (local-time:nsec-of now) 1000)
-                      (* 1000000 (local-time:timestamp-to-unix now)))))
-
-(defun post-request (method key signer &optional data &aux (nonce (nonce)))
-  (let ((path (concatenate 'string "/0/private/" method)))
-    (push (cons "nonce" nonce) data)
-    (raw-request (concatenate 'string "private/" method)
-                 :method :post
-                 :parameters data
+(defun post-request (method key signer &optional data)
+  (let* ((path (concatenate 'string "/v1/" method))
+         (payload (make-payload data path)))
+    (raw-request method :method :post
                  :additional-headers `(("X-BFX-APIKEY"  . ,key)
-                                       ("API-Sign" . ,(funcall signer path data nonce))))))
+                                       ("X-BFX-PAYLOAD" . ,payload)
+                                       ("X-BFX-SIGNATURE" . ,(funcall signer payload))))))
