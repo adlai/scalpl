@@ -1,12 +1,12 @@
-(defpackage #:scalpl.connection
+(defpackage #:scalpl.kraken
   (:use #:cl #:scalpl.util)
   (:export #:get-request
            #:post-request
-           #:path #:pair #:data
+           #:path #:data
            #:make-key #:make-signer
            #:request))
 
-(in-package #:scalpl.connection)
+(in-package #:scalpl.kraken)
 
 ;;; General Parameters
 (defparameter +base-path+ "https://api.kraken.com/0/")

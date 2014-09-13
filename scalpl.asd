@@ -16,6 +16,6 @@
                #:external-program)
   :serial t
   :components ((:file "util")
-               (:file "connection")
+               (:file "kraken")
                (:file "qd")
                ))
