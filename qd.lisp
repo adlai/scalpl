@@ -596,18 +596,24 @@
 ;; TINWGD 12:23:51 sell €473.95313 0.00028740 €0.13621
 ;; TPY7P4 12:23:51 sell €473.92213 0.00003772 €0.01788
 
-(defun dumbot-offers (book resilience funds max-orders &aux (acc 0) (share 0))
+(defun dumbot-offers (book resilience funds epsilon max-orders &aux (acc 0) (share 0))
   (do* ((cur book (cdr cur))
         (n 0 (1+ n)))
        ((or (and (> acc resilience) (> n (isqrt max-orders))) (null cur))
         (let* ((sorted (sort (subseq book 1 n) #'> :key (lambda (x) (offer-volume (cdr x)))))
                (n-orders (min max-orders n))
                (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
-               (total-shares (reduce #'+ (mapcar #'car relevant))))
+               (total-shares (reduce #'+ (mapcar #'car relevant)))
+               ;; we need the smallest order to be epsilon
+               ;; FIXME: ¿ e/f × n > 1 ?
+               (e/f (/ epsilon funds))
+               (x (/ (- (* e/f total-shares) (caar relevant))
+                     (- 1 (* e/f n-orders)))))
           (mapcar (lambda (order)
                     (with-slots (pair price) (cdr order)
-                      (make-instance 'offer :pair pair :price (1- price)
-                                     :volume (* funds (/ (car order) total-shares)))))
+                      (make-instance 'offer :pair pair :price (- price 3)
+                                     :volume (* funds (/ (+ x (car order))
+                                                         total-shares)))))
                   (sort relevant #'< :key (lambda (x) (offer-price (cdr x)))))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
@@ -650,10 +656,10 @@
           ;; the entire book at once...
           ;; TODO: properly deal with partial and completed orders
           (with-book ()
-            (chanl:send next-bids (dumbot-offers other-bids resilience quote 15))
+            (chanl:send next-bids (dumbot-offers other-bids resilience quote 0.5 15))
             (chanl:recv prioritizer-response))
           (with-book ()
-            (chanl:send next-asks (dumbot-offers other-asks resilience base 15))
+            (chanl:send next-asks (dumbot-offers other-asks resilience base 0.001 15))
             (chanl:recv prioritizer-response)))))
     (chanl:send output nil)))
 
