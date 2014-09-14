@@ -547,6 +547,8 @@
   (with-slots (next-bids next-asks prioritizer-response) ope
     (flet ((place (new) (ope-place ope new)))
       (flet ((update (target placed &aux percents cutoff)
+               ;; (dolist (o target)
+               ;;   (format t "~&~5@$ @ ~F" (offer-volume o) (offer-price o)))
                (fresh-line)
                (format-timestring t (now) :format '((:hour 2) #\: (:min 2) #\: (:sec 2)))
                (dolist (old placed (setf cutoff (third (sort percents #'>))))
