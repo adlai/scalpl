@@ -324,61 +324,70 @@
 ;;;
 
 (defclass account-tracker ()
+  ((gate :initarg :gate)
+   (treasurer :initarg :treasurer)
+   (ope :initarg :ope)
+   (lictors :initform nil)))
+
+(defclass balance-tracker ()
   ((balances :initarg :balances :initform nil)
-   (control :initform (make-instance 'channel))
+   (input :initform (make-instance 'channel))
+   (output :initform (make-instance 'channel))
    (gate :initarg :gate)
    (delay :initform 15)
-   (ope :initarg :ope)
-   (lictors :initform nil)
    updater worker))
 
-(defun account-worker-loop (tracker)
-  (with-slots (balances control) tracker
-    (let ((command (recv control)))
-      (destructuring-bind (car . cdr) command
-        (typecase car
-          ;; ( asset . channel )  <- send asset balance to channel
-          (string (send cdr (or (cdr (assoc car balances :test #'string=)) 0)))
-          ;; ( slot . value ) <- update slot with new value
-          (symbol (setf (slot-value tracker car) cdr)))))))
+(defun balance-worker-loop (tracker)
+  (with-slots (balances input output) tracker
+    (let ((command (recv input)))
+      (typecase command
+        (string (send output (or (cdr (assoc command balances
+                                             :test #'string=))
+                                 0)))
+        (cons (destructuring-bind (slot-name . value) command
+                (setf (slot-value tracker slot-name) value)))))))
 
-(defun account-updater-loop (tracker)
-  (with-slots (gate control delay) tracker
-    (awhen (gate-request gate "Balance")
-      (send control `(balances .
-                      ,(mapcar-jso (lambda (asset balance)
-                                     (cons asset (read-from-string balance)))
-                                   it))))
+(defgeneric asset-balance (tracker asset)
+  (:method ((tracker account-tracker) asset)
+    (asset-balance (slot-value tracker 'treasurer) asset))
+  (:method ((tracker balance-tracker) asset)
+    (with-slots (input output) tracker
+      (send input (name asset))
+      (recv output))))
+
+(defun balance-updater-loop (tracker)
+  (with-slots (gate input delay) tracker
+    (ignore-errors (send input `(balances . ,(account-balances gate))))
     (sleep delay)))
 
 (defmethod vwap ((tracker account-tracker) &key type market depth net)
   (vwap (getf (slot-value tracker 'lictors) market) :type type :depth depth :net net))
 
-(defmethod shared-initialize :after ((tracker account-tracker) (names t)
-                                     &key markets)
-  (with-slots (lictors updater worker gate ope) tracker
+(defmethod shared-initialize :after ((tracker balance-tracker) names &key)
+  (with-slots (updater worker) tracker
+    (when (or (not (slot-boundp tracker 'updater))
+              (eq :terminated (task-status updater)))
+      (setf updater
+            (pexec (:name "qdm-preα balance updater" :initial-bindings
+                          `((*read-default-float-format* double-float)))
+              (loop (balance-updater-loop tracker)))))
+    (when (or (not (slot-boundp tracker 'worker))
+              (eq :terminated (task-status worker)))
+      (setf worker (pexec (:name "qdm-preα balance worker")
+                     ;; TODO: just pexec anew each time...
+                     ;; you'll understand what you meant someday, right?
+                     (loop (balance-worker-loop tracker)))))))
+
+(defmethod shared-initialize :after
+    ((tracker account-tracker) names &key markets)
+  (with-slots (lictors treasurer gate ope) tracker
     (dolist (market markets)
       (setf (getf lictors market)
             (make-instance 'execution-tracker :market market :gate gate)))
     (unless (slot-boundp tracker 'ope)
       (setf ope (make-instance 'ope :gate gate :balance-tracker tracker)))
-    (when (or (not (slot-boundp tracker 'updater))
-              (eq :terminated (task-status updater)))
-      (setf updater
-            (pexec (:name "qdm-preα account updater"
-                    :initial-bindings `((*read-default-float-format* double-float)))
-              (loop (account-updater-loop tracker)))))
-    (when (or (not (slot-boundp tracker 'worker))
-              (eq :terminated (task-status worker)))
-      (setf worker (pexec (:name "qdm-preα account worker")
-                     ;; TODO: just pexec anew each time...
-                     ;; you'll understand what you meant someday, right?
-                     (loop (account-worker-loop tracker)))))))
-
-(defun asset-balance (tracker asset &aux (channel (make-instance 'channel)))
-  (with-slots (control) tracker
-    (send control (cons (name asset) channel))
-    (recv channel)))
+    (if (slot-boundp tracker 'treasurer) (reinitialize-instance treasurer)
+        (setf treasurer (make-instance 'balance-tracker :gate gate)))))
 
 (defun gapps-rate (from to)
   (getjso "rate" (read-json (drakma:http-request

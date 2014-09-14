@@ -198,6 +198,15 @@
                                :price (if (string= side "buy") (- price-int) price-int)))))
           (open-orders gate)))
 
+(defmethod account-balances ((gate bitfinex-gate))
+  (mapcar (lambda (balance)
+            (with-json-slots (currency amount) balance
+              (cons currency (parse-float amount))))
+          ;; TODO: signal on failure, rather than returning empty balances
+          ;; cf sibling method's comment in kraken.lisp
+          (remove "exchange" (gate-request gate "balances")
+                  :test-not #'string= :key (lambda (x) (getjso "type" x)))))
+
 (defmethod market-fee ((gate bitfinex-gate) market)
   (awhen (car (gate-request gate "account_infos"))
     ;; from this point, we assume the json object contains a "fees" key

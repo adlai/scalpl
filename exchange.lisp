@@ -11,7 +11,7 @@
            #:trade #:cost #:direction
            #:trades-tracker #:trades #:trades-since #:vwap
            #:book-tracker #:bids #:asks #:get-book
-           #:placed-offers #:market-fee
+           #:placed-offers #:account-balances #:market-fee
            #:execution #:fee #:net-cost
            #:execution-tracker #:execution-since
            #:post-offer #:cancel-offer))
@@ -344,6 +344,7 @@
 ;;;
 
 (defgeneric placed-offers (gate))
+(defgeneric account-balances (gate))
 (defgeneric market-fee (gate market))
 
 ;;;

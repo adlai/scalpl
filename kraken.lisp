@@ -268,6 +268,15 @@
                                                  (/ volume price-int (expt 10 decimals))))))))
               (open-orders gate)))
 
+(defmethod account-balances ((gate kraken-gate))
+  (remove-if #'zerop
+             ;; TODO: this signals !(typep () 'jso) on communication failure
+             ;; signaling is a Good Thing™, but let's be more helpful
+             (mapcar-jso (lambda (currency amount)
+                           (cons currency (parse-float amount)))
+                         (gate-request gate "Balance"))
+             :key #'cdr))
+
 (defmethod market-fee ((gate kraken-gate) market &aux (pair (name market)))
   (awhen (gate-request gate "TradeVolume" `(("pair" . ,pair)))
     (read-from-string (getjso "fee" (getjso pair (getjso "fees" it))))))
