@@ -106,7 +106,7 @@
                 (if (search "viqc" options)
                     (return
                       ;; such hard code
-                      (post-limit gate type pair price (+ volume 0.01) 0 options))
+                      (post-limit gate type pair price volume 0 options))
                     ;; (signal 'volume-too-low)
                     (return
                       (post-limit gate type pair price (* volume price) 0
@@ -548,7 +548,7 @@
     (flet ((place (new) (ope-place ope new)))
       (flet ((update (target placed &aux percents cutoff)
                ;; (dolist (o target)
-               ;;   (format t "~&~5@$ @ ~F" (offer-volume o) (offer-price o)))
+               ;;   (format t "~&~5@$ @ ~D" (offer-volume o) (offer-price o)))
                (fresh-line)
                (format-timestring t (now) :format '((:hour 2) #\: (:min 2) #\: (:sec 2)))
                (dolist (old placed (setf cutoff (third (sort percents #'>))))
@@ -613,7 +613,7 @@
                      (- 1 (* e/f n-orders)))))
           (mapcar (lambda (order)
                     (with-slots (pair price) (cdr order)
-                      (make-instance 'offer :pair pair :price (- price 3)
+                      (make-instance 'offer :pair pair :price (1- price)
                                      :volume (* funds (/ (+ x (car order))
                                                          total-shares)))))
                   (sort relevant #'< :key (lambda (x) (offer-price (cdr x)))))))
@@ -658,10 +658,10 @@
           ;; the entire book at once...
           ;; TODO: properly deal with partial and completed orders
           (with-book ()
-            (chanl:send next-bids (dumbot-offers other-bids resilience quote 0.5 15))
+            (chanl:send next-bids (dumbot-offers other-bids resilience quote 0.05 15))
             (chanl:recv prioritizer-response))
           (with-book ()
-            (chanl:send next-asks (dumbot-offers other-asks resilience base 0.001 15))
+            (chanl:send next-asks (dumbot-offers other-asks resilience base 0.0015 15))
             (chanl:recv prioritizer-response)))))
     (chanl:send output nil)))
 
