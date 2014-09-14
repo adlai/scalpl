@@ -58,24 +58,25 @@
 
 (defclass market ()
   ((name :initarg :name :reader name-of)
+   (altname :initarg :altname :reader altname-of)
    (decimals :initarg :decimals)
    (quote :initarg :quote :reader quote-asset)
    (base :initarg :base :reader base-asset)))
 
 (defun get-markets (&optional assets)
   (mapcar-jso (lambda (name data)
-                (with-json-slots (pair_decimals quote base) data
-                  (make-instance 'market :name name
+                (with-json-slots (pair_decimals quote base altname) data
+                  (make-instance 'market :name name :altname altname
                                  :base (find-asset base assets)
                                  :quote (find-asset quote assets)
                                  :decimals pair_decimals)))
               (get-request "AssetPairs")))
 
 (defun find-market (designator &optional (markets *markets*))
-  (find designator markets :key 'name-of :test 'string-equal))
+  (or (find designator markets :key 'name-of :test 'string-equal)
+      (find designator markets :key 'altname-of :test 'string-equal)))
 
 (defvar *markets* (get-markets *assets*))
-
 
 (defun open-orders (gate)
   (mapjso* (lambda (id order) (setf (getjso "id" order) id))
@@ -430,7 +431,7 @@
 (defun execution-worker-loop (tracker)
   (with-slots (trades control buffer) tracker
     ;; this is an example of where you need STATE MACHINES
-    (if (< (length trades) 50)          ; FIXME WOW
+    (if (< (length trades) 10)          ; FIXME WOW
         (push (chanl:recv buffer) trades)
         (chanl:select
           ((chanl:recv control channel) (chanl:send channel trades))
