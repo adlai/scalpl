@@ -610,8 +610,12 @@
                ;; we need the smallest order to be epsilon
                ;; FIXME: ¿ e/f × n > 1 ?
                (e/f (/ epsilon funds))
-               (x (/ (- (* e/f total-shares) (caar relevant))
-                     (- 1 (* e/f n-orders)))))
+               ;; temporary fix - disable scaling
+               ;; this means we get the largest m<n offers from the target,
+               ;; rather than m offers distributed throughout the n
+               (x (if (> e/f (/ n-orders)) 0
+                      (/ (- (* e/f total-shares) (caar relevant))
+                         (- 1 (* e/f n-orders))))))
           (mapcar (lambda (order)
                     (with-slots (pair price) (cdr order)
                       (make-instance 'offer :pair pair :price (1- price)
