@@ -546,7 +546,9 @@
 ;;; sends completion acknowledgement to prioritizer-response channel
 (defun ope-prioritizer-loop (ope)
   (with-slots (next-bids next-asks prioritizer-response) ope
-    (flet ((place (new) (ope-place ope new)))
+    (flet ((place (new) (ope-place ope new))
+           (amount-change (old new &aux (old-vol (offer-volume old)))
+             (/ (abs (- (offer-volume new) old-vol)) old-vol)))
       (flet ((update (target placed &aux percents cutoff)
                ;; (dolist (o target)
                ;;   (format t "~&~5@$ @ ~D" (offer-volume o) (offer-price o)))
@@ -554,17 +556,13 @@
                (format-timestring t (now) :format '((:hour 2) #\: (:min 2) #\: (:sec 2)))
                (dolist (old placed (setf cutoff (third (sort percents #'>))))
                  (awhen (find (offer-price old) target :key #'offer-price :test #'=)
-                   (push (/ (abs (- (offer-volume it) (offer-volume old)))
-                            (offer-volume old))
-                         percents)))
+                   (push (amount-change old it) percents)))
                (dolist (old placed (mapcar #'place target))
                  (format-timestring t (now) :format '(".." (:sec 2)))
                  (force-output)
                  (aif (aand1 (find (offer-price old) target
                                    :key #'offer-price :test #'=)
-                             (< (/ (abs (- (offer-volume it) (offer-volume old)))
-                                   (offer-volume old))
-                                (or cutoff 0)))
+                             (< (amount-change old it) (or cutoff 0)))
                       (setf target (remove it target))
                       (dolist (new (remove (offer-price old) target
                                            :key #'offer-price :test #'<)
