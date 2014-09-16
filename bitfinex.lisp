@@ -2,9 +2,7 @@
   (:use #:cl #:anaphora #:st-json #:base64 #:scalpl.util)
   (:export #:get-request
            #:post-request
-           #:path #:data
-           #:make-key #:make-signer
-           #:request))
+           #:make-key #:make-signer))
 
 (in-package #:scalpl.bitfinex)
 

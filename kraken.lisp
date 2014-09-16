@@ -2,9 +2,7 @@
   (:use #:cl #:scalpl.util)
   (:export #:get-request
            #:post-request
-           #:path #:data
-           #:make-key #:make-signer
-           #:request))
+           #:make-key #:make-signer))
 
 (in-package #:scalpl.kraken)
 
