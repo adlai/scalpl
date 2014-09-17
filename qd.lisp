@@ -125,7 +125,7 @@
 ;;;
 
 (defclass offer ()
-  ((pair :initarg :pair)
+  ((market :initarg :market)
    (volume :initarg :volume :accessor offer-volume)
    (price :initarg :price :reader offer-price)))
 
@@ -139,10 +139,10 @@
   (with-slots (price) bid (setf price (- price))))
 
 (defun post-offer (gate offer)
-  (with-slots (pair volume price) offer
+  (with-slots (market volume price) offer
     (flet ((post (type options)
-             (awhen (post-limit gate type pair (abs price) volume
-                                (slot-value (find-market pair) 'decimals)
+             (awhen (post-limit gate type (name-of market) (abs price) volume
+                                (slot-value market 'decimals)
                                 options)
                (with-json-slots (id order) it
                  (change-class offer 'placed :id id :text order)))))
@@ -161,7 +161,7 @@
          (let ((without-me (- (offer-volume offer) (offer-volume it))))
            (setf mine (remove it mine))
            (unless (< without-me 0.001)
-             (push (make-instance 'offer :pair (slot-value offer 'pair)
+             (push (make-instance 'offer :market (slot-value offer 'market)
                                   :price (offer-price offer)
                                   :volume without-me)
                    them)))
@@ -171,11 +171,12 @@
   (mapcar-jso (lambda (id data)
                 (with-json-slots (descr vol oflags) data
                   (with-json-slots (pair type price order) descr
-                    (let* ((decimals (slot-value (find-market pair) 'decimals))
+                    (let* ((market (find-market pair))
+                           (decimals (slot-value market 'decimals))
                            (price-int (parse-price price decimals))
                            (volume (read-from-string vol)))
                       (make-instance 'placed
-                                     :id id :text order :pair pair
+                                     :id id :text order :market market
                                      :price (if (string= type "buy") (- price-int) price-int)
                                      :volume (if (not (search "viqc" oflags)) volume
                                                  (/ volume price-int (expt 10 decimals))))))))
@@ -324,15 +325,15 @@
                     price-string (- end dot) delta)
               (floor int (expt 10 delta))))))))
 
-(defun get-book (pair)
-  (let ((decimals (slot-value (find-market pair) 'decimals)))
+(defun get-book (pair &aux (market (find-market pair)))
+  (let ((decimals (slot-value market 'decimals)))
     (with-json-slots (bids asks)
         (getjso pair (get-request "Depth" `(("pair" . ,pair))))
       (flet ((parser (class)
                (lambda (raw-order)
                  (destructuring-bind (price amount timestamp) raw-order
                    (declare (ignore timestamp))
-                   (make-instance class :pair pair
+                   (make-instance class :market market
                                   :price (parse-price price decimals)
                                   :volume (read-from-string amount))))))
         (values (mapcar (parser 'ask) asks)
@@ -482,9 +483,9 @@
                     (case car
                       (placed placed)
                       (filter (ignore-offers cdr placed))
-                      (offer (when (with-slots (pair price volume) cdr
+                      (offer (when (with-slots (market price volume) cdr
                                      (>= (asset-balance balance-tracker
-                                                        (slot-value (find-market pair)
+                                                        (slot-value market
                                                                     (if (< price 0) 'quote 'base)))
                                          (reduce #'+
                                                  (mapcar #'offer-volume
@@ -615,8 +616,8 @@
                       (/ (- (* e/f total-shares) (caar relevant))
                          (- 1 (* e/f n-orders))))))
           (mapcar (lambda (order)
-                    (with-slots (pair price) (cdr order)
-                      (make-instance 'offer :pair pair :price (1- price)
+                    (with-slots (market price) (cdr order)
+                      (make-instance 'offer :market market :price (1- price)
                                      :volume (* funds (/ (+ x (car order))
                                                          total-shares)))))
                   (sort relevant #'< :key (lambda (x) (offer-price (cdr x)))))))
@@ -866,7 +867,8 @@
             (chanl:send (slot-value ope 'input) (list fee btc doge resilience))
             (when (< (* investment (1+ (- investment))) 1/10)
               (macrolet ((urgent (class side)
-                           `(make-instance ',class :pair pair :volume (* total-fund 1/12)
+                           `(make-instance ',class :market (find-market pair)
+                                           :volume (* total-fund 1/12)
                                            :price (1- (abs (slot-value (cadr (slot-value book-tracker ',side)) 'price))))))
                 ;; theoretically, this could exceed available volume, but
                 ;; that's highly unlikely with a fund-factor below ~3/2
