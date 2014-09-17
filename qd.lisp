@@ -771,7 +771,7 @@
                              :want-stream t))))
 
 (defclass fee-tracker ()
-  ((pair :initarg :pair :initform "XXBTZEUR")
+  ((pair :initarg :pair)
    (gate :initarg :gate)
    (delay :initform 67)
    fee thread))
@@ -782,12 +782,12 @@
 
 (defun fee-tracker-loop (tracker)
   (with-slots (pair gate delay fee) tracker
-    (setf fee (pair-fee gate pair))
+    (awhen (pair-fee gate pair) (setf fee it))
     (sleep delay)))
 
 (defmethod shared-initialize :after ((tracker fee-tracker) names &key)
   (with-slots (thread pair gate fee) tracker
-    (setf fee (pair-fee gate pair))
+    (loop (awhen (pair-fee gate pair) (setf fee it) (return)))
     (when (or (not (slot-boundp tracker 'thread))
               (eq :terminated (chanl:task-status thread)))
       (setf thread
