@@ -187,7 +187,7 @@
 ;;;
 
 (defclass trades-tracker ()
-  ((pair :initarg :pair)
+  ((market :initarg :market)
    (control :initform (make-instance 'chanl:channel))
    (buffer :initform (make-instance 'chanl:channel))
    (output :initform (make-instance 'chanl:channel))
@@ -199,7 +199,7 @@
   (multiple-value-bind (sec rem) (floor timestamp)
     (local-time:unix-to-timestamp sec :nsec (round (* (expt 10 9) rem)))))
 
-(defun trades-since (pair &optional since)
+(defun trades-since (market &optional since &aux (pair (name-of market)))
   (with-json-slots (last (trades pair))
       (get-request "Trades" `(("pair" . ,pair)
                               ,@(when since `(("since" . ,since)))))
@@ -262,27 +262,27 @@
       (t (sleep 0.2)))))
 
 (defun trades-updater-loop (tracker)
-  (with-slots (pair buffer delay last) tracker
+  (with-slots (market buffer delay last) tracker
     (multiple-value-bind (raw-trades until)
-        (handler-case (trades-since pair last)
-          (unbound-slot () (trades-since pair)))
+        (handler-case (trades-since market last)
+          (unbound-slot () (trades-since market)))
       (setf last until)
       (chanl:send buffer raw-trades)
       (sleep delay))))
 
 (defmethod shared-initialize :after ((tracker trades-tracker) (slots t) &key)
-  (with-slots (pair updater worker) tracker
+  (with-slots (updater worker market) tracker
     (when (or (not (slot-boundp tracker 'updater))
               (eq :terminated (chanl:task-status updater)))
       (setf updater
             (chanl:pexec
-                (:name (concatenate 'string "qdm-preα trades updater for " pair)
+                (:name (concatenate 'string "qdm-preα trades updater for " (name-of market))
                        :initial-bindings `((*read-default-float-format* double-float)))
               (loop (trades-updater-loop tracker)))))
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
-            (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " pair))
+            (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " (name-of market)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (trades-worker-loop tracker)))))))
@@ -891,7 +891,7 @@
   (with-slots (pair fee-tracker trades-tracker book-tracker account-tracker thread) maker
     ;; FIXME: wtf is this i don't even
     (unless (slot-boundp maker 'trades-tracker)
-      (setf trades-tracker (make-instance 'trades-tracker :pair pair))
+      (setf trades-tracker (make-instance 'trades-tracker :market (find-market pair)))
       (sleep 12))
     (unless (slot-boundp maker 'book-tracker)
       (setf book-tracker (make-instance 'book-tracker :pair pair))
