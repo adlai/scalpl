@@ -292,7 +292,7 @@
 ;;;
 
 (defclass book-tracker ()
-  ((pair :initarg :pair)
+  ((market :initarg :market)
    (control :initform (make-instance 'chanl:channel))
    (book-output :initform (make-instance 'chanl:channel))
    (delay :initarg :delay :initform 8)
@@ -325,7 +325,7 @@
                     price-string (- end dot) delta)
               (floor int (expt 10 delta))))))))
 
-(defun get-book (pair &aux (market (find-market pair)))
+(defun get-book (market &aux (pair (name-of market)))
   (let ((decimals (slot-value market 'decimals)))
     (with-json-slots (bids asks)
         (getjso pair (get-request "Depth" `(("pair" . ,pair))))
@@ -340,23 +340,23 @@
                 (mapcar (parser 'bid) bids))))))
 
 (defun book-updater-loop (tracker)
-  (with-slots (bids asks delay pair offers) tracker
-    (setf (values asks bids) (get-book pair))
+  (with-slots (bids asks delay market offers) tracker
+    (setf (values asks bids) (get-book market))
     (sleep delay)))
 
 (defmethod shared-initialize :after ((tracker book-tracker) (names t) &key)
-  (with-slots (updater worker pair) tracker
+  (with-slots (updater worker market) tracker
     (when (or (not (slot-boundp tracker 'updater))
               (eq :terminated (chanl:task-status updater)))
       (setf updater
             (chanl:pexec
-                (:name (concatenate 'string "qdm-preα book updater for " pair)
+                (:name (concatenate 'string "qdm-preα book updater for " (name-of market))
                        :initial-bindings `((*read-default-float-format* double-float)))
               (loop (book-updater-loop tracker)))))
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
-            (chanl:pexec (:name (concatenate 'string "qdm-preα book worker for " pair))
+            (chanl:pexec (:name (concatenate 'string "qdm-preα book worker for " (name-of market)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (book-worker-loop tracker)))))))
