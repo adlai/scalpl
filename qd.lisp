@@ -10,8 +10,10 @@
 ;;;
 
 (defclass gate ()
-  (key signer thread
-   (in :initform (make-instance 'chanl:channel))))
+  ((key    :initform (error "gate requires API key"))
+   (signer :initform (error "gate requires API secret"))
+   (in :initform (make-instance 'chanl:channel))
+   thread))
 
 (defun gate-loop (gate)
   (with-slots (key signer in) gate
@@ -23,9 +25,9 @@
          (chanl:send command
                      (multiple-value-list (post-request method key signer options))))))))
 
-(defmethod initialize-instance :before ((gate gate) &key key secret)
-  (setf (slot-value gate 'key) (make-key key)
-        (slot-value gate 'signer) (make-signer secret)))
+(defmethod shared-initialize :before ((gate gate) names &key key secret)
+  (when key    (setf (slot-value gate 'key)    (make-key    key)))
+  (when secret (setf (slot-value gate 'signer) (make-signer secret))))
 
 (defmethod shared-initialize :after ((gate gate) names &key)
   (when (or (not (slot-boundp gate 'thread))
