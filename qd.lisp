@@ -771,28 +771,28 @@
                              :want-stream t))))
 
 (defclass fee-tracker ()
-  ((pair :initarg :pair)
+  ((market :initarg :market)
    (gate :initarg :gate)
    (delay :initform 67)
    fee thread))
 
-(defun pair-fee (gate pair)
+(defun market-fee (gate market &aux (pair (name-of market)))
   (awhen (gate-request gate "TradeVolume" `(("pair" . ,pair)))
     (read-from-string (getjso "fee" (getjso pair (getjso "fees" it))))))
 
 (defun fee-tracker-loop (tracker)
-  (with-slots (pair gate delay fee) tracker
-    (awhen (pair-fee gate pair) (setf fee it))
+  (with-slots (market gate delay fee) tracker
+    (awhen (market-fee gate market) (setf fee it))
     (sleep delay)))
 
 (defmethod shared-initialize :after ((tracker fee-tracker) names &key)
-  (with-slots (thread pair gate fee) tracker
-    (loop (awhen (pair-fee gate pair) (setf fee it) (return)))
+  (with-slots (thread market gate fee) tracker
+    (loop (awhen (market-fee gate market) (setf fee it) (return)))
     (when (or (not (slot-boundp tracker 'thread))
               (eq :terminated (chanl:task-status thread)))
       (setf thread
             (chanl:pexec
-                (:name (concatenate 'string "qdm-preα fee tracker for " pair)
+                (:name (concatenate 'string "qdm-preα fee tracker for " (name-of market))
                  :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
@@ -900,8 +900,7 @@
       (sleep 12))
     ;; FIXME: ...
     (unless (slot-boundp maker 'fee-tracker)
-      (setf fee-tracker (make-instance 'fee-tracker :pair (name-of market)
-                                       :gate (slot-value account-tracker 'gate))))
+      (setf fee-tracker (make-instance 'fee-tracker :market market :gate gate)))
     ;; stitchy!
     (setf (slot-value (slot-value account-tracker 'ope) 'book-channel)
           (slot-value book-tracker 'book-output))
