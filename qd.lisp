@@ -799,7 +799,7 @@
               (loop (fee-tracker-loop tracker)))))))
 
 (defclass maker ()
-  ((pair :initarg :pair :initform "XXBTZEUR")
+  ((market :initarg :market)
    (fund-factor :initarg :fund-factor :initform 1)
    (resilience-factor :initarg :resilience :initform 1)
    (targeting-factor :initarg :targeting :initform 3/5)
@@ -812,7 +812,7 @@
 
 (defun %round (maker)
   (declare (optimize (debug 3)))
-  (with-slots (fund-factor resilience-factor targeting-factor pair
+  (with-slots (fund-factor resilience-factor targeting-factor market
                fee-tracker trades-tracker book-tracker account-tracker)
       maker
     ;; whoo!
@@ -828,7 +828,7 @@
       (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
              (total-of (btc doge) (+ btc (/ doge doge/btc)))
              (factor-fund (fund factor) (* fund fund-factor factor)))
-        (let* ((market (find-market pair))
+        (let* ((pair (name-of market))
                (fee (slot-value fee-tracker 'fee))
                (total-btc (symbol-funds (slot-value market 'base)))
                (total-doge (symbol-funds (slot-value market 'quote)))
@@ -867,8 +867,7 @@
             (chanl:send (slot-value ope 'input) (list fee btc doge resilience))
             (when (< (* investment (1+ (- investment))) 1/10)
               (macrolet ((urgent (class side)
-                           `(make-instance ',class :market (find-market pair)
-                                           :volume (* total-fund 1/12)
+                           `(make-instance ',class :market market :volume (* total-fund 1/12)
                                            :price (1- (abs (slot-value (cadr (slot-value book-tracker ',side)) 'price))))))
                 ;; theoretically, this could exceed available volume, but
                 ;; that's highly unlikely with a fund-factor below ~3/2
@@ -888,20 +887,20 @@
       (t (%round maker)))))
 
 (defmethod shared-initialize :after ((maker maker) (names t) &key gate)
-  (with-slots (pair fee-tracker trades-tracker book-tracker account-tracker thread) maker
+  (with-slots (market fee-tracker trades-tracker book-tracker account-tracker thread) maker
     ;; FIXME: wtf is this i don't even
     (unless (slot-boundp maker 'trades-tracker)
-      (setf trades-tracker (make-instance 'trades-tracker :market (find-market pair)))
+      (setf trades-tracker (make-instance 'trades-tracker :market market))
       (sleep 12))
     (unless (slot-boundp maker 'book-tracker)
-      (setf book-tracker (make-instance 'book-tracker :pair pair))
+      (setf book-tracker (make-instance 'book-tracker :pair (name-of market)))
       (sleep 12))
     (unless (slot-boundp maker 'account-tracker)
       (setf account-tracker (make-instance 'account-tracker :gate gate))
       (sleep 12))
     ;; FIXME: ...
     (unless (slot-boundp maker 'fee-tracker)
-      (setf fee-tracker (make-instance 'fee-tracker :pair pair
+      (setf fee-tracker (make-instance 'fee-tracker :pair (name-of market)
                                        :gate (slot-value account-tracker 'gate))))
     ;; stitchy!
     (setf (slot-value (slot-value account-tracker 'ope) 'book-channel)
@@ -910,7 +909,7 @@
               (eq :terminated (chanl:task-status thread)))
       (setf thread
             (chanl:pexec
-                (:name (concatenate 'string "qdm-preα " pair)
+                (:name (concatenate 'string "qdm-preα " (name-of market))
                  :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
@@ -958,7 +957,7 @@
                 maker))))
 
 (defvar *maker*
-  (make-instance 'maker
+  (make-instance 'maker :market (find-market "XXBTZEUR")
                  :gate (make-instance 'gate
                                       :key #P "secrets/kraken.pubkey"
                                       :secret #P "secrets/kraken.secret")))
