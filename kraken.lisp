@@ -1,14 +1,14 @@
 (defpackage #:scalpl.kraken
-  (:use #:cl #:scalpl.util)
+  (:use #:cl #:scalpl.util #:scalpl.exchange)
   (:export #:get-request
            #:post-request
+           #:find-market #:*kraken*
            #:make-key #:make-signer))
 
 (in-package #:scalpl.kraken)
 
 ;;; General Parameters
 (defparameter +base-path+ "https://api.kraken.com/0/")
-(defparameter +base-domain+ "https://api.kraken.com")
 
 (defun hmac-sha512 (message secret)
   (let ((hmac (ironclad:make-hmac secret 'ironclad:sha512)))
@@ -120,3 +120,30 @@
                  :additional-headers `(("API-Key"  . ,key)
                                        ("API-Sign" . ,(funcall signer path data nonce))
                                        ("Content-Type" . "application/x-www-form-urlencoded")))))
+
+(defun get-assets ()
+  (mapcar-jso (lambda (name data)
+                (with-json-slots (altname decimals) data
+                  (make-instance 'asset :name name :decimals decimals)))
+              (get-request "Assets")))
+
+(defclass kraken-market (market) ((altname :initarg :altname :reader altname-of)))
+
+(defun get-markets (assets)
+  (mapcar-jso (lambda (name data)
+                (with-json-slots (pair_decimals quote base altname) data
+                  (make-instance 'kraken-market :name name :altname altname
+                                 :base (find-asset base assets)
+                                 :quote (find-asset quote assets)
+                                 :decimals pair_decimals)))
+              (get-request "AssetPairs")))
+
+(defvar *kraken*
+  (let ((assets (get-assets)))
+    (make-instance 'exchange :name "Kraken"
+                   :assets assets :markets (get-markets assets))))
+
+(defmethod find-market (designator (exchange (eql *kraken*)))
+  (or (call-next-method)
+      (with-slots (markets) *kraken*
+        (find designator markets :key 'altname-of :test 'string-equal))))

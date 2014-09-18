@@ -1,7 +1,7 @@
 ;;;; qd.lisp
 
 (defpackage #:scalpl.qd
-  (:use #:cl #:anaphora #:st-json #:local-time #:scalpl.util #:scalpl.kraken))
+  (:use #:cl #:anaphora #:st-json #:local-time #:scalpl.util #:scalpl.kraken #:scalpl.exchange))
 
 (in-package #:scalpl.qd)
 
@@ -40,43 +40,6 @@
     (chanl:send (slot-value gate 'in)
                 (list* out path options))
     (values-list (chanl:recv out))))
-
-(defclass asset ()
-  ((name :initarg :name :reader name-of)
-   (decimals :initarg :decimals)))
-
-(defun get-assets ()
-  (mapcar-jso (lambda (name data)
-                (with-json-slots (altname decimals) data
-                  (make-instance 'asset :name name :decimals decimals)))
-              (get-request "Assets")))
-
-(defun find-asset (designator &optional (assets *assets*))
-  (find designator assets :key 'name-of :test 'string-equal))
-
-(defvar *assets* (get-assets))
-
-(defclass market ()
-  ((name :initarg :name :reader name-of)
-   (altname :initarg :altname :reader altname-of)
-   (decimals :initarg :decimals)
-   (quote :initarg :quote :reader quote-asset)
-   (base :initarg :base :reader base-asset)))
-
-(defun get-markets (&optional assets)
-  (mapcar-jso (lambda (name data)
-                (with-json-slots (pair_decimals quote base altname) data
-                  (make-instance 'market :name name :altname altname
-                                 :base (find-asset base assets)
-                                 :quote (find-asset quote assets)
-                                 :decimals pair_decimals)))
-              (get-request "AssetPairs")))
-
-(defun find-market (designator &optional (markets *markets*))
-  (or (find designator markets :key 'name-of :test 'string-equal)
-      (find designator markets :key 'altname-of :test 'string-equal)))
-
-(defvar *markets* (get-markets *assets*))
 
 (defun open-orders (gate)
   (mapjso* (lambda (id order) (setf (getjso "id" order) id))
@@ -120,24 +83,6 @@
             (setf (getjso* "descr.id" info) (car (getjso* "txid" info)))
             (getjso "descr" info))))))
 
-;;;
-;;; Offers
-;;;
-
-(defclass offer ()
-  ((market :initarg :market)
-   (volume :initarg :volume :accessor offer-volume)
-   (price :initarg :price :reader offer-price)))
-
-(defclass placed (offer)
-  ((id :initarg :id :reader offer-id)
-   (text :initarg :text :reader offer-text)))
-
-(defclass bid (offer) ())
-(defclass ask (offer) ())
-(defmethod initialize-instance :after ((bid bid) &key)
-  (with-slots (price) bid (setf price (- price))))
-
 (defun post-offer (gate offer)
   (with-slots (market volume price) offer
     (flet ((post (type options)
@@ -171,7 +116,7 @@
   (mapcar-jso (lambda (id data)
                 (with-json-slots (descr vol oflags) data
                   (with-json-slots (pair type price order) descr
-                    (let* ((market (find-market pair))
+                    (let* ((market (find-market pair *kraken*))
                            (decimals (slot-value market 'decimals))
                            (price-int (parse-price price decimals))
                            (volume (read-from-string vol)))
@@ -955,7 +900,7 @@
                 maker))))
 
 (defvar *maker*
-  (make-instance 'maker :market (find-market "XXBTZEUR")
+  (make-instance 'maker :market (find-market "XXBTZEUR" *kraken*)
                  :gate (make-instance 'gate
                                       :key #P "secrets/kraken.pubkey"
                                       :secret #P "secrets/kraken.secret")))
