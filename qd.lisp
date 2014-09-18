@@ -892,7 +892,7 @@
       (setf trades-tracker (make-instance 'trades-tracker :market market))
       (sleep 12))
     (unless (slot-boundp maker 'book-tracker)
-      (setf book-tracker (make-instance 'book-tracker :pair (name-of market)))
+      (setf book-tracker (make-instance 'book-tracker :market market))
       (sleep 12))
     (unless (slot-boundp maker 'account-tracker)
       (setf account-tracker (make-instance 'account-tracker :gate gate))
