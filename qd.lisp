@@ -548,7 +548,7 @@
 (defun dumbot-offers (book resilience funds epsilon max-orders &aux (acc 0) (share 0))
   (do* ((cur book (cdr cur))
         (n 0 (1+ n)))
-       ((or (and (> acc resilience) (> n (isqrt max-orders))) (null cur))
+       ((or (and (> acc resilience) (> n max-orders)) (null cur))
         (let* ((sorted (sort (subseq book 1 n) #'> :key (lambda (x) (offer-volume (cdr x)))))
                (n-orders (min max-orders n))
                (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
@@ -813,12 +813,13 @@
             (chanl:send (slot-value ope 'input) (list fee btc doge resilience))
             (when (< (* investment (1+ (- investment))) 1/10)
               (macrolet ((urgent (class side)
-                           `(make-instance ',class :market market :volume (* total-fund 1/12)
+                           `(make-instance ',class :market market
+                                           :volume (abs (/ (- (/ total-fund 2) investment) 12))
                                            :price (1- (abs (slot-value (cadr (slot-value book-tracker ',side)) 'price))))))
                 ;; theoretically, this could exceed available volume, but
                 ;; that's highly unlikely with a fund-factor below ~3/2
                 (awhen (ope-place ope (if (> investment 1/2) (urgent ask asks) (urgent bid bids)))
-                  (format t "~&~A~%" (slot-value it 'text)))))
+                  (format t "~&~A~%" (offer-text it)))))
             (chanl:recv (slot-value ope 'output))))))))
 
 (defun dumbot-loop (maker)
