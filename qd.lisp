@@ -721,13 +721,13 @@
                                   (gate-request gate "Balance"))))
     (sleep delay)))
 
-(defmethod vwap ((tracker account-tracker) &key type pair depth)
+(defmethod vwap ((tracker account-tracker) &key type market depth)
   (let ((c (make-instance 'chanl:channel)))
     (chanl:send (slot-value (slot-value tracker 'lictor) 'control) c)
     (let ((trades (remove type (chanl:recv c)
                           :key (lambda (c) (getjso "type" c)) :test #'string/=)))
-      (when pair
-        (setf trades (remove pair trades
+      (when market
+        (setf trades (remove (name-of market) trades
                              :key (lambda (c) (getjso "pair" c)) :test #'string/=)))
       (when depth
         (setf trades (loop for trade in trades collect trade
@@ -828,8 +828,7 @@
       (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
              (total-of (btc doge) (+ btc (/ doge doge/btc)))
              (factor-fund (fund factor) (* fund fund-factor factor)))
-        (let* ((pair (name-of market))
-               (fee (slot-value fee-tracker 'fee))
+        (let* ((fee (slot-value fee-tracker 'fee))
                (total-btc (symbol-funds (slot-value market 'base)))
                (total-doge (symbol-funds (slot-value market 'quote)))
                (total-fund (total-of total-btc total-doge))
@@ -842,9 +841,9 @@
                    (slot-value (slot-value market kind) 'decimals))
                  (depth-profit (depth)
                    (* 100 (1- (profit-margin (vwap account-tracker :type "buy"
-                                                   :pair pair :depth depth)
+                                                   :market market :depth depth)
                                              (vwap account-tracker :type "sell"
-                                                   :pair pair :depth depth)
+                                                   :market market :depth depth)
                                              fee)))))
             ;; time, total, base, quote, invested, risked, risk bias, pulse
             (format t "~&~A ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$~%"
