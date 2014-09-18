@@ -12,8 +12,8 @@
 
 (defun hmac-sha384 (message secret)
   (let ((hmac (ironclad:make-hmac secret 'ironclad:sha384)))
-    (ironclad:update-hmac hmac message)
-    (usb8-array-to-base64-string (ironclad:hmac-digest hmac))))
+    (ironclad:update-hmac hmac (string-octets message))
+    (ironclad:octets-to-integer (ironclad:hmac-digest hmac))))
 
 ;;; X-BFX-APIKEY = API key
 ;;; X-BFX-PAYLOAD = base64(json(request path, nonce, parameters...))
@@ -29,18 +29,11 @@
       (destructuring-bind (key . val) pair (setf (getjso key payload) val)))))
 
 (defgeneric make-signer (secret)
-  (:method ((secret string))
-    (lambda (payload)
-      (string-downcase
-       (format nil "~X"
-               (base64-string-to-integer
-                (hmac-sha384 (map '(simple-array (unsigned-byte 8) (*)) 'char-code payload)
-                             (map '(simple-array (unsigned-byte 8) (*)) 'char-code secret)))))))
-  (:method ((stream stream))
-    (make-signer (read-line stream)))
-  (:method ((path pathname))
-    (with-open-file (stream path)
-      (make-signer stream))))
+  (:method ((secret simple-array))
+    (lambda (payload) (format nil "~(~96,'0X~)" (hmac-sha384 payload secret))))
+  (:method ((secret string)) (make-signer (string-octets secret)))
+  (:method ((stream stream)) (make-signer (read-line stream)))
+  (:method ((path pathname)) (with-open-file (stream path) (make-signer stream))))
 
 (defgeneric make-key (key)
   (:method ((key string)) key)
