@@ -1,5 +1,5 @@
 (defpackage #:scalpl.bitfinex
-  (:use #:cl #:anaphora #:st-json #:base64 #:scalpl.util #:scalpl.exchange)
+  (:use #:cl #:anaphora #:local-time #:st-json #:base64 #:scalpl.util #:scalpl.exchange)
   (:export #:get-request
            #:post-request
            #:find-market #:*bitfinex*
@@ -19,9 +19,13 @@
 ;;; X-BFX-PAYLOAD = base64(json(request path, nonce, parameters...))
 ;;; X-BFX-SIGNATURE = Message signature using HMAC-SHA384 of payload and base64 decoded secret
 
-(defun nonce (&aux (now (local-time:now)))
-  (princ-to-string (+ (floor (local-time:nsec-of now) 1000)
-                      (* 1000000 (local-time:timestamp-to-unix now)))))
+;;; generate max 1 nonce per second
+(defvar *last-nonce* (now))
+
+(defun nonce (&aux (now (now)) (delta (timestamp-difference now *last-nonce*)))
+  (when (> 1 delta) (sleep (- 1 delta)))
+  (princ-to-string (+ (floor (nsec-of now) 1000)
+                      (* 1000000 (timestamp-to-unix now)))))
 
 (defun make-payload (data &optional path)
   (let ((payload (if (null path) (jso) (jso "request" path "nonce" (nonce)))))
