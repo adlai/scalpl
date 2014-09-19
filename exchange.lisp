@@ -11,6 +11,11 @@
 
 (in-package #:scalpl.exchange)
 
+;;; TODO
+;;; This file should lay out the interface that each exchange client needs to
+;;; implement. Each exchange client should instantiate the exchange class and
+;;; specialize methods on generic functions, which should be defined here.
+
 ;;;
 ;;; Exchanges
 ;;;
