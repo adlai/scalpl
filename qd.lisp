@@ -50,10 +50,6 @@
 (defun cancel-order (gate oid)
   (gate-request gate "CancelOrder" `(("txid" . ,oid))))
 
-(defparameter *validate* nil)
-
-(define-condition volume-too-low () ())
-
 (defun post-limit (gate type pair price volume decimals &optional options)
   (let ((price (/ price (expt 10d0 decimals))))
     (multiple-value-bind (info errors)
@@ -64,7 +60,6 @@
                         ("volume" . ,(format nil "~F" volume))
                         ("price" . ,(format nil "~F" price))
                         ,@(when options `(("oflags" . ,options)))
-                        ,@(when *validate* `(("validate" . "true")))
                         ))
       (if errors
           (dolist (message errors)
@@ -73,7 +68,6 @@
                     (return
                       ;; such hard code
                       (post-limit gate type pair price volume 0 options))
-                    ;; (signal 'volume-too-low)
                     (return
                       (post-limit gate type pair price (* volume price) 0
                                   (apply #'concatenate 'string "viqc"
