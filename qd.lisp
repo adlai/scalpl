@@ -800,24 +800,29 @@
                     (depth-profit nil)
                     (depth-profit 12)
                     (depth-profit 1)
-                    (depth-profit 1/12)))
-          (force-output)
-          (with-slots (ope) account-tracker
-            (chanl:send (slot-value ope 'input) (list fee btc doge resilience))
-            ;; distance from target equilibrium ( magic number 1/2 = target )
-            (let ((lopsidedness (abs (- 1/2 investment))))
-              ;; soft limit test: are we within (magic) 33% of the target?
-              (when (> lopsidedness 1/3)
-                (macrolet ((urgent (class side)
-                             `(make-instance ',class :market market
-                                             ;; jump back (magic) 1/7th of distance to target
-                                             :volume (* total-fund lopsidedness 1/7)
-                                             :price (1- (abs (slot-value (cadr (slot-value book-tracker ',side)) 'price))))))
-                  ;; theoretically, this could exceed available volume, but
-                  ;; that's highly unlikely with a fund-factor below ~3/2
-                  (awhen (ope-place ope (if (> investment 1/2) (urgent ask asks) (urgent bid bids)))
-                    (format t "~&~A~%" (offer-text it))))))
-            (chanl:recv (slot-value ope 'output))))))))
+                    (depth-profit 1/12))
+            (force-output)
+            (with-slots (ope) account-tracker
+              (chanl:send (slot-value ope 'input) (list fee btc doge resilience))
+              ;; distance from target equilibrium ( magic number 1/2 = target )
+              (let ((lopsidedness (abs (- 1/2 investment))))
+                ;; soft limit test: are we within (magic) 33% of the target?
+                (when (> lopsidedness 1/4)
+                  (flet ((urgent (class side fund)
+                           (let ((price (1- (abs (slot-value (cadr (slot-value book-tracker side)) 'price)))))
+                             (make-instance class :market market
+                                            ;; jump back (magic) 1/7th of distance to target
+                                            :volume (* fund lopsidedness 1/29)
+                                            :price price))))
+                    ;; ugh
+                    (sleep 2)
+                    ;; theoretically, this could exceed available volume, but
+                    ;; that's highly unlikely with a fund-factor below ~3/2
+                    (awhen (ope-place ope (if (> investment 1/2)
+                                              (urgent 'ask 'asks total-btc)
+                                              (urgent 'bid 'bids total-doge)))
+                      (describe it)))))
+              (chanl:recv (slot-value ope 'output)))))))))
 
 (defun dumbot-loop (maker)
   (with-slots (control) maker
