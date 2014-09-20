@@ -779,7 +779,7 @@
           ;; FIXME: modularize all this decimal point handling
           (flet ((asset-decimals (kind)
                    (slot-value (slot-value market kind) 'decimals))
-                 (depth-profit (depth)
+                 (depth-profit (&optional depth)
                    (* 100 (1- (profit-margin (vwap account-tracker :type "buy"
                                                    :market market :depth depth)
                                              (vwap account-tracker :type "sell"
@@ -797,10 +797,10 @@
                     (* 100 investment)
                     (* 100 (/ (total-of btc doge) total-fund))
                     (* 100 (/ (total-of (- btc) doge) total-fund))
-                    (depth-profit 17.15)
-                    (depth-profit 2.45)
-                    (depth-profit 0.35)
-                    (depth-profit 0.05)))
+                    (depth-profit nil)
+                    (depth-profit 12)
+                    (depth-profit 1)
+                    (depth-profit 1/12)))
           (force-output)
           (with-slots (ope) account-tracker
             (chanl:send (slot-value ope 'input) (list fee btc doge resilience))
