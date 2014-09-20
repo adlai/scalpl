@@ -415,14 +415,15 @@
    (balance-tracker :initarg :balance-tracker)
    thread))
 
+(defun offers-spending (ope asset)
+  (remove asset (slot-value ope 'placed)
+          :key #'consumed-asset :test-not #'eq))
+
 (defun balance-guarded-place (ope offer)
   (with-slots (gate placed balance-tracker) ope
     (let ((asset (consumed-asset offer)))
       (when (>= (asset-balance balance-tracker asset)
-                (reduce #'+ (mapcar #'offer-volume
-                                    (remove asset placed
-                                            :key #'consumed-asset
-                                            :test-not #'eq))
+                (reduce #'+ (mapcar #'offer-volume (offers-spending ope asset))
                         :initial-value (offer-volume offer)))
         (awhen1 (post-offer gate offer) (push it placed))))))
 
