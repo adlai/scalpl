@@ -75,6 +75,16 @@
 (defmethod initialize-instance :after ((bid bid) &key)
   (with-slots (price) bid (setf price (- price))))
 
+(defmethod shared-initialize :after ((offer placed) names &key)
+  (unless (slot-boundp offer 'text)
+    (setf (slot-value offer 'text)
+          (with-output-to-string (s) (describe offer s)))))
+
+(defmethod print-object ((offer offer) stream)
+  (print-unreadable-object (offer stream :type t :identity t)
+    (with-slots (volume price) offer
+      (format stream "~A @ ~A" volume price))))
+
 (defgeneric asset-consumed-by (offer)
   (:method ((bid bid)) (slot-value (slot-value bid 'market) 'quote))
   (:method ((ask ask)) (slot-value (slot-value ask 'market) 'base))
