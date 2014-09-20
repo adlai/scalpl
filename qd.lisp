@@ -417,13 +417,13 @@
 
 (defun balance-guarded-place (ope offer)
   (with-slots (gate placed balance-tracker) ope
-    (with-slots (market price volume) offer
-      (when (>= (asset-balance balance-tracker
-                               (slot-value market (if (< price 0) 'quote 'base)))
-                (reduce #'+ (mapcar #'offer-volume (remove (- (signum price)) placed
-                                                           :key (lambda (offer)
-                                                                  (signum (offer-price offer)))))
-                        :initial-value volume))
+    (let ((asset (consumed-asset offer)))
+      (when (>= (asset-balance balance-tracker asset)
+                (reduce #'+ (mapcar #'offer-volume
+                                    (remove asset placed
+                                            :key #'consumed-asset
+                                            :test-not #'eq))
+                        :initial-value (offer-volume offer)))
         (awhen1 (post-offer gate offer) (push it placed))))))
 
 ;;; receives messages in the control channel, outputs from the gate

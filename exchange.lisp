@@ -6,7 +6,7 @@
            #:asset #:find-asset #:name-of
            #:market #:find-market #:decimals #:base #:quote
            #:offer #:placed #:bid #:ask #:offer-price #:offer-volume
-           #:volume #:price #:offer-id #:offer-text
+           #:volume #:price #:offer-id #:offer-text #:consumed-asset
            ))
 
 (in-package #:scalpl.exchange)
@@ -85,7 +85,7 @@
     (with-slots (volume price) offer
       (format stream "~A @ ~A" volume price))))
 
-(defgeneric asset-consumed-by (offer)
+(defgeneric consumed-asset (offer)
   (:method ((bid bid)) (slot-value (slot-value bid 'market) 'quote))
   (:method ((ask ask)) (slot-value (slot-value ask 'market) 'base))
   (:method ((offer offer))
