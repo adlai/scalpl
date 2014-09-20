@@ -82,8 +82,11 @@
 
 (defmethod print-object ((offer offer) stream)
   (print-unreadable-object (offer stream :type t :identity t)
-    (with-slots (volume price) offer
-      (format stream "~A @ ~A" volume price))))
+    (with-slots (volume price market) offer
+      (with-slots (decimals) (consumed-asset offer)
+        (let ((market-decimals (slot-value market 'decimals)))
+          (format stream "~V$ @ ~V$" decimals volume market-decimals
+                  (/ (abs price) (expt 10 market-decimals))))))))
 
 (defgeneric consumed-asset (offer)
   (:method ((bid bid)) (slot-value (slot-value bid 'market) 'quote))
