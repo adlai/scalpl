@@ -804,15 +804,19 @@
           (force-output)
           (with-slots (ope) account-tracker
             (chanl:send (slot-value ope 'input) (list fee btc doge resilience))
-            (when (< (* investment (1+ (- investment))) 1/10)
-              (macrolet ((urgent (class side)
-                           `(make-instance ',class :market market
-                                           :volume (* total-fund (abs (/ (- 1/2 investment) 12)))
-                                           :price (1- (abs (slot-value (cadr (slot-value book-tracker ',side)) 'price))))))
-                ;; theoretically, this could exceed available volume, but
-                ;; that's highly unlikely with a fund-factor below ~3/2
-                (awhen (ope-place ope (if (> investment 1/2) (urgent ask asks) (urgent bid bids)))
-                  (format t "~&~A~%" (offer-text it)))))
+            ;; distance from target equilibrium ( magic number 1/2 = target )
+            (let ((lopsidedness (abs (- 1/2 investment))))
+              ;; soft limit test: are we within (magic) 33% of the target?
+              (when (> lopsidedness 1/3)
+                (macrolet ((urgent (class side)
+                             `(make-instance ',class :market market
+                                             ;; jump back (magic) 1/7th of distance to target
+                                             :volume (* total-fund lopsidedness 1/7)
+                                             :price (1- (abs (slot-value (cadr (slot-value book-tracker ',side)) 'price))))))
+                  ;; theoretically, this could exceed available volume, but
+                  ;; that's highly unlikely with a fund-factor below ~3/2
+                  (awhen (ope-place ope (if (> investment 1/2) (urgent ask asks) (urgent bid bids)))
+                    (format t "~&~A~%" (offer-text it))))))
             (chanl:recv (slot-value ope 'output))))))))
 
 (defun dumbot-loop (maker)
