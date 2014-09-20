@@ -415,6 +415,17 @@
    (balance-tracker :initarg :balance-tracker)
    thread))
 
+(defun balance-guarded-place (ope offer)
+  (with-slots (gate placed balance-tracker) ope
+    (with-slots (market price volume) offer
+      (when (>= (asset-balance balance-tracker
+                               (slot-value market (if (< price 0) 'quote 'base)))
+                (reduce #'+ (mapcar #'offer-volume (remove (- (signum price)) placed
+                                                           :key (lambda (offer)
+                                                                  (signum (offer-price offer)))))
+                        :initial-value volume))
+        (awhen1 (post-offer gate offer) (push it placed))))))
+
 ;;; receives messages in the control channel, outputs from the gate
 (defun ope-supplicant-loop (ope)
   (with-slots (gate control response placed balance-tracker) ope
@@ -424,17 +435,7 @@
                     (case car
                       (placed placed)
                       (filter (ignore-offers cdr placed))
-                      (offer (when (with-slots (market price volume) cdr
-                                     (>= (asset-balance balance-tracker
-                                                        (slot-value market
-                                                                    (if (< price 0) 'quote 'base)))
-                                         (reduce #'+
-                                                 (mapcar #'offer-volume
-                                                         (remove (- (signum price)) placed
-                                                                 :key (lambda (offer)
-                                                                        (signum (offer-price offer)))))
-                                                 :initial-value volume)))
-                               (awhen1 (post-offer gate cdr) (push it placed))))
+                      (offer (balance-guarded-place ope cdr))
                       (cancel (awhen1 (cancel-offer gate cdr)
                                 (setf placed (remove cdr placed))))))))))
 
