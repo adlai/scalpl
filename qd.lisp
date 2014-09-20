@@ -807,7 +807,7 @@
             (when (< (* investment (1+ (- investment))) 1/10)
               (macrolet ((urgent (class side)
                            `(make-instance ',class :market market
-                                           :volume (abs (/ (- (/ total-fund 2) investment) 12))
+                                           :volume (* total-fund (abs (/ (- 1/2 investment) 12)))
                                            :price (1- (abs (slot-value (cadr (slot-value book-tracker ',side)) 'price))))))
                 ;; theoretically, this could exceed available volume, but
                 ;; that's highly unlikely with a fund-factor below ~3/2
