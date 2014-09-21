@@ -11,19 +11,16 @@
            #:jso-keys
            #:urlencode-params
            #:awhen1 #:aand1
+           #:string-octets
            ))
 
 (in-package #:scalpl.util)
 
 ;;; Actually useful
 
-(defun goxstamp (stamp)
-  (multiple-value-bind (sec nsec) (floor stamp 1000000)
-    (local-time:unix-to-timestamp sec :nsec nsec)))
-
-(defun currency-pair (c1 c2)
-  "c1 and c2 should be three-letter keywords such as :btc or :usd"
-  (format nil "~A~A" c1 c2))
+(defun string-octets (string)
+  (declare (type string string))
+  (map '(simple-array (unsigned-byte 8) (*)) 'char-code string))
 
 (defmacro once-only ((&rest names) &body body)
   (let ((gensyms (loop for n in names collect (gensym (symbol-name n)))))
