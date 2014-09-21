@@ -76,6 +76,7 @@
             (getjso "descr" info))))))
 
 (defun post-offer (gate offer)
+  ;; (format t "~&place  ~A~%" offer)
   (with-slots (market volume price) offer
     (flet ((post (type options)
              (awhen (post-limit gate type (name-of market) (abs price) volume
@@ -88,6 +89,7 @@
           (post "sell" nil)))))
 
 (defun cancel-offer (gate offer)
+  ;; (format t "~&cancel ~A~%" offer)
   (multiple-value-bind (ret err) (cancel-order gate (offer-id offer))
     (or ret (search "Unknown order" (car err)))))
 
@@ -819,7 +821,7 @@
                     (awhen (ope-place ope (if (> investment 1/2)
                                               (urgent 'ask 'asks total-btc)
                                               (urgent 'bid 'bids total-doge)))
-                      (describe it)))))
+                      (format t "~&~A~%" it)))))
               (chanl:recv (slot-value ope 'output)))))))))
 
 (defun dumbot-loop (maker)
