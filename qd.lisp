@@ -63,15 +63,11 @@
                         ))
       (if errors
           (dolist (message errors)
-            (if (search "volume" message)
-                (if (search "viqc" options)
-                    (return
-                      ;; such hard code
-                      (post-limit gate type pair price volume 0 options))
-                    (return
-                      (post-limit gate type pair price (* volume price) 0
-                                  (apply #'concatenate 'string "viqc"
-                                         (when options '("," options))))))
+            (if (and (search "volume" message) (not (search "viqc" options)))
+                (return
+                  (post-limit gate type pair price (* volume price) 0
+                              (apply #'concatenate 'string "viqc"
+                                     (when options '("," options)))))
                 (format t "~&~A~%" message)))
           (progn
             ;; theoretically, we could get several order IDs here,
