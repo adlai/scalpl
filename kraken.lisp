@@ -158,7 +158,34 @@
                        (when secret (values :secret (make-signer secret)))))
 
 ;;;
-;;; Offer Manipulation API
+;;; Data API
+;;;
+
+(defun open-orders (gate)
+  (mapjso* (lambda (id order) (setf (getjso "id" order) id))
+           (getjso "open" (gate-request gate "OpenOrders"))))
+
+(defmethod placed-offers (gate)
+  (mapcar-jso (lambda (id data)
+                (with-json-slots (descr vol oflags) data
+                  (with-json-slots (pair type price order) descr
+                    (let* ((market (find-market pair *kraken*))
+                           (decimals (slot-value market 'decimals))
+                           (price-int (parse-price price decimals))
+                           (volume (read-from-string vol)))
+                      (make-instance 'placed
+                                     :id id :text order :market market
+                                     :price (if (string= type "buy") (- price-int) price-int)
+                                     :volume (if (not (search "viqc" oflags)) volume
+                                                 (/ volume price-int (expt 10 decimals))))))))
+              (open-orders gate)))
+
+(defmethod market-fee ((gate kraken-gate) market &aux (pair (name-of market)))
+  (awhen (gate-request gate "TradeVolume" `(("pair" . ,pair)))
+    (read-from-string (getjso "fee" (getjso pair (getjso "fees" it))))))
+
+;;;
+;;; Action API
 ;;;
 
 (defun post-limit (gate type pair price volume decimals &optional options)
@@ -206,22 +233,3 @@
   ;; (format t "~&cancel ~A~%" offer)
   (multiple-value-bind (ret err) (cancel-order gate (offer-id offer))
     (or ret (search "Unknown order" (car err)))))
-
-(defun open-orders (gate)
-  (mapjso* (lambda (id order) (setf (getjso "id" order) id))
-           (getjso "open" (gate-request gate "OpenOrders"))))
-
-(defmethod placed-offers (gate)
-  (mapcar-jso (lambda (id data)
-                (with-json-slots (descr vol oflags) data
-                  (with-json-slots (pair type price order) descr
-                    (let* ((market (find-market pair *kraken*))
-                           (decimals (slot-value market 'decimals))
-                           (price-int (parse-price price decimals))
-                           (volume (read-from-string vol)))
-                      (make-instance 'placed
-                                     :id id :text order :market market
-                                     :price (if (string= type "buy") (- price-int) price-int)
-                                     :volume (if (not (search "viqc" oflags)) volume
-                                                 (/ volume price-int (expt 10 decimals))))))))
-              (open-orders gate)))

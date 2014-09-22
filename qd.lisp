@@ -595,10 +595,6 @@
    (delay :initform 67)
    fee thread))
 
-(defun market-fee (gate market &aux (pair (name-of market)))
-  (awhen (gate-request gate "TradeVolume" `(("pair" . ,pair)))
-    (read-from-string (getjso "fee" (getjso pair (getjso "fees" it))))))
-
 (defun fee-tracker-loop (tracker)
   (with-slots (market gate delay fee) tracker
     (awhen (market-fee gate market) (setf fee it))

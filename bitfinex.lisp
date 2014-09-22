@@ -147,7 +147,33 @@
                        (when secret (values :secret (make-signer secret)))))
 
 ;;;
-;;; Offer Manipulation API
+;;; Data API
+;;;
+
+(defun open-orders (gate)
+  (gate-request gate "orders"))
+
+(defun placed-offers (gate)
+  (mapcar (lambda (offer)
+            (with-json-slots (id symbol side price remaining_amount oflags) offer
+              (let* ((market (find-market symbol *bitfinex*))
+                     (decimals (slot-value market 'decimals))
+                     (price-int (parse-price price decimals))
+                     (volume (read-from-string remaining_amount)))
+                (make-instance 'placed :id id :market market :volume volume
+                               :price (if (string= side "buy") (- price-int) price-int)))))
+          (open-orders gate)))
+
+(defmethod market-fee ((gate bitfinex-gate) market)
+  (awhen (car (gate-request gate "account_infos"))
+    (read-from-string
+     (getjso "maker_fees"
+             (find (name-of (slot-value market 'base))
+                   (getjso "fees" it) :test #'string-equal
+                   :key (lambda (x) (getjso "pairs" x)))))))
+
+;;;
+;;; Action API
 ;;;
 
 (defun post-limit (gate type pair price volume decimals)
@@ -187,17 +213,3 @@
   ;; (format t "~&cancel ~A~%" offer)
   (multiple-value-bind (ret err) (cancel-order gate (offer-id offer))
     (or ret (string= "Order could not be cancelled." (getjso "message" err)))))
-
-(defun open-orders (gate)
-  (gate-request gate "orders"))
-
-(defun placed-offers (gate)
-  (mapcar (lambda (offer)
-            (with-json-slots (id symbol side price remaining_amount oflags) offer
-              (let* ((market (find-market symbol *bitfinex*))
-                     (decimals (slot-value market 'decimals))
-                     (price-int (parse-price price decimals))
-                     (volume (read-from-string remaining_amount)))
-                (make-instance 'placed :id id :market market :volume volume
-                               :price (if (string= side "buy") (- price-int) price-int)))))
-          (open-orders gate)))

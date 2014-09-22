@@ -9,7 +9,7 @@
            #:volume #:price #:offer-id #:offer-text #:consumed-asset
            #:parse-timestamp #:gate #:gate-post #:gate-request
            #:thread ; UGH
-           #:post-offer #:cancel-offer #:placed-offers
+           #:post-offer #:cancel-offer #:placed-offers #:market-fee
            ))
 
 (in-package #:scalpl.exchange)
@@ -136,9 +136,15 @@
     (values-list (chanl:recv out))))
 
 ;;;
-;;; Offer Manipulation API
+;;; Data API
+;;;
+
+(defgeneric placed-offers (gate))
+(defgeneric market-fee (gate market))
+
+;;;
+;;; Action API
 ;;;
 
 (defgeneric post-offer (gate offer))
 (defgeneric cancel-offer (gate offer))
-(defgeneric placed-offers (gate))
