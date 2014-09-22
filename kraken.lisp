@@ -1,5 +1,5 @@
 (defpackage #:scalpl.kraken
-  (:use #:cl #:scalpl.util #:scalpl.exchange)
+  (:use #:cl #:anaphora #:st-json #:scalpl.util #:scalpl.exchange)
   (:export #:get-request
            #:post-request
            #:find-market #:*kraken* #:kraken-gate
@@ -156,3 +156,72 @@
   (multiple-value-call #'call-next-method gate names
                        (when pubkey (values :pubkey (make-key pubkey)))
                        (when secret (values :secret (make-signer secret)))))
+
+;;;
+;;; Offer Manipulation API
+;;;
+
+(defun post-limit (gate type pair price volume decimals &optional options)
+  (let ((price (/ price (expt 10d0 decimals))))
+    (multiple-value-bind (info errors)
+        (gate-request gate "AddOrder"
+                      `(("ordertype" . "limit")
+                        ("type" . ,type)
+                        ("pair" . ,pair)
+                        ("volume" . ,(format nil "~F" volume))
+                        ("price" . ,(format nil "~F" price))
+                        ,@(when options `(("oflags" . ,options)))
+                        ))
+      (if errors
+          (dolist (message errors)
+            (if (and (search "volume" message) (not (search "viqc" options)))
+                (return
+                  (post-limit gate type pair price (* volume price) 0
+                              (apply #'concatenate 'string "viqc"
+                                     (when options '("," options)))))
+                (format t "~&~A~%" message)))
+          (progn
+            ;; theoretically, we could get several order IDs here,
+            ;; but we're not using any of kraken's fancy forex nonsense
+            (setf (getjso* "descr.id" info) (car (getjso* "txid" info)))
+            (getjso "descr" info))))))
+
+(defmethod post-offer ((gate kraken-gate) offer)
+  ;; (format t "~&place  ~A~%" offer)
+  (with-slots (market volume price) offer
+    (flet ((post (type options)
+             (awhen (post-limit gate type (name-of market) (abs price) volume
+                                (slot-value market 'decimals)
+                                options)
+               (with-json-slots (id order) it
+                 (change-class offer 'placed :id id :text order)))))
+      (if (< price 0)
+          (post "buy" "viqc")
+          (post "sell" nil)))))
+
+(defun cancel-order (gate oid)
+  (gate-request gate "CancelOrder" `(("txid" . ,oid))))
+
+(defmethod cancel-offer ((gate kraken-gate) offer)
+  ;; (format t "~&cancel ~A~%" offer)
+  (multiple-value-bind (ret err) (cancel-order gate (offer-id offer))
+    (or ret (search "Unknown order" (car err)))))
+
+(defun open-orders (gate)
+  (mapjso* (lambda (id order) (setf (getjso "id" order) id))
+           (getjso "open" (gate-request gate "OpenOrders"))))
+
+(defmethod placed-offers (gate)
+  (mapcar-jso (lambda (id data)
+                (with-json-slots (descr vol oflags) data
+                  (with-json-slots (pair type price order) descr
+                    (let* ((market (find-market pair *kraken*))
+                           (decimals (slot-value market 'decimals))
+                           (price-int (parse-price price decimals))
+                           (volume (read-from-string vol)))
+                      (make-instance 'placed
+                                     :id id :text order :market market
+                                     :price (if (string= type "buy") (- price-int) price-int)
+                                     :volume (if (not (search "viqc" oflags)) volume
+                                                 (/ volume price-int (expt 10 decimals))))))))
+              (open-orders gate)))

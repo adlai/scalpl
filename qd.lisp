@@ -5,84 +5,6 @@
 
 (in-package #:scalpl.qd)
 
-(defun open-orders (gate)
-  (mapjso* (lambda (id order) (setf (getjso "id" order) id))
-           (getjso "open" (gate-request gate "OpenOrders"))))
-
-(defun cancel-order (gate oid)
-  (gate-request gate "CancelOrder" `(("txid" . ,oid))))
-
-(defun post-limit (gate type pair price volume decimals &optional options)
-  (let ((price (/ price (expt 10d0 decimals))))
-    (multiple-value-bind (info errors)
-        (gate-request gate "AddOrder"
-                      `(("ordertype" . "limit")
-                        ("type" . ,type)
-                        ("pair" . ,pair)
-                        ("volume" . ,(format nil "~F" volume))
-                        ("price" . ,(format nil "~F" price))
-                        ,@(when options `(("oflags" . ,options)))
-                        ))
-      (if errors
-          (dolist (message errors)
-            (if (and (search "volume" message) (not (search "viqc" options)))
-                (return
-                  (post-limit gate type pair price (* volume price) 0
-                              (apply #'concatenate 'string "viqc"
-                                     (when options '("," options)))))
-                (format t "~&~A~%" message)))
-          (progn
-            ;; theoretically, we could get several order IDs here,
-            ;; but we're not using any of kraken's fancy forex nonsense
-            (setf (getjso* "descr.id" info) (car (getjso* "txid" info)))
-            (getjso "descr" info))))))
-
-(defun post-offer (gate offer)
-  ;; (format t "~&place  ~A~%" offer)
-  (with-slots (market volume price) offer
-    (flet ((post (type options)
-             (awhen (post-limit gate type (name-of market) (abs price) volume
-                                (slot-value market 'decimals)
-                                options)
-               (with-json-slots (id order) it
-                 (change-class offer 'placed :id id :text order)))))
-      (if (< price 0)
-          (post "buy" "viqc")
-          (post "sell" nil)))))
-
-(defun cancel-offer (gate offer)
-  ;; (format t "~&cancel ~A~%" offer)
-  (multiple-value-bind (ret err) (cancel-order gate (offer-id offer))
-    (or ret (search "Unknown order" (car err)))))
-
-;;; TODO: deal with partially completed orders
-(defun ignore-offers (open mine &aux them)
-  (dolist (offer open (nreverse them))
-    (aif (find (offer-price offer) mine :test #'= :key #'offer-price)
-         (let ((without-me (- (offer-volume offer) (offer-volume it))))
-           (setf mine (remove it mine))
-           (unless (< without-me 0.001)
-             (push (make-instance 'offer :market (slot-value offer 'market)
-                                  :price (offer-price offer)
-                                  :volume without-me)
-                   them)))
-         (push offer them))))
-
-(defun placed-offers (gate)
-  (mapcar-jso (lambda (id data)
-                (with-json-slots (descr vol oflags) data
-                  (with-json-slots (pair type price order) descr
-                    (let* ((market (find-market pair *kraken*))
-                           (decimals (slot-value market 'decimals))
-                           (price-int (parse-price price decimals))
-                           (volume (read-from-string vol)))
-                      (make-instance 'placed
-                                     :id id :text order :market market
-                                     :price (if (string= type "buy") (- price-int) price-int)
-                                     :volume (if (not (search "viqc" oflags)) volume
-                                                 (/ volume price-int (expt 10 decimals))))))))
-              (open-orders gate)))
-
 ;;;
 ;;; TRADES
 ;;;
@@ -368,6 +290,19 @@
                 (reduce #'+ (mapcar #'offer-volume (offers-spending ope asset))
                         :initial-value (offer-volume offer)))
         (awhen1 (post-offer gate offer) (push it placed))))))
+
+;;; TODO: deal with partially completed orders
+(defun ignore-offers (open mine &aux them)
+  (dolist (offer open (nreverse them))
+    (aif (find (offer-price offer) mine :test #'= :key #'offer-price)
+         (let ((without-me (- (offer-volume offer) (offer-volume it))))
+           (setf mine (remove it mine))
+           (unless (< without-me 0.001)
+             (push (make-instance 'offer :market (slot-value offer 'market)
+                                  :price (offer-price offer)
+                                  :volume without-me)
+                   them)))
+         (push offer them))))
 
 ;;; receives messages in the control channel, outputs from the gate
 (defun ope-supplicant-loop (ope)

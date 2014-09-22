@@ -145,3 +145,59 @@
   (multiple-value-call #'call-next-method gate names
                        (when pubkey (values :pubkey (make-key pubkey)))
                        (when secret (values :secret (make-signer secret)))))
+
+;;;
+;;; Offer Manipulation API
+;;;
+
+(defun post-limit (gate type pair price volume decimals)
+  (let ((price (/ price (expt 10d0 decimals))))
+    (when (string-equal type "buy")
+      (setf volume (/ volume price)))
+    (when (>= volume 0.001)
+      (multiple-value-bind (info error)
+          (gate-request gate "order/new"
+                        `(("type" . "exchange limit")
+                          ("exchange" . "bitfinex") ; lold habits
+                          ("side" . ,type)
+                          ("symbol" . ,pair)
+                          ("amount" . ,(format nil "~V$" 3 volume))
+                          ("price" . ,(format nil "~V$" decimals price))
+                          ))
+        (if error (warn (getjso "message" error)) info)))))
+
+(defun post-offer (gate offer)
+  ;; (format t "~&place  ~A~%" offer)
+  (with-slots (market volume price) offer
+    (flet ((post (type)
+             (awhen (post-limit gate type (name-of market) (abs price) volume
+                                (slot-value market 'decimals))
+               (with-json-slots (order_id) it
+                 (change-class offer 'placed :id order_id)))))
+      (post (if (< price 0) "buy" "sell")))))
+
+;;; the order object returned will (always?) indicate that the order hasn't yet
+;;; been cancelled; however, in situations where bfx has failed to cancel the
+;;; order, we get 400 Bad Request + error message; so if we have any primary
+;;; return value, we can treat that as a successful cancellation.
+(defun cancel-order (gate oid)
+  (gate-request gate "order/cancel" `(("order_id" . ,oid))))
+
+(defun cancel-offer (gate offer)
+  ;; (format t "~&cancel ~A~%" offer)
+  (multiple-value-bind (ret err) (cancel-order gate (offer-id offer))
+    (or ret (string= "Order could not be cancelled." (getjso "message" err)))))
+
+(defun open-orders (gate)
+  (gate-request gate "orders"))
+
+(defun placed-offers (gate)
+  (mapcar (lambda (offer)
+            (with-json-slots (id symbol side price remaining_amount oflags) offer
+              (let* ((market (find-market symbol *bitfinex*))
+                     (decimals (slot-value market 'decimals))
+                     (price-int (parse-price price decimals))
+                     (volume (read-from-string remaining_amount)))
+                (make-instance 'placed :id id :market market :volume volume
+                               :price (if (string= side "buy") (- price-int) price-int)))))
+          (open-orders gate)))

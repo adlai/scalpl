@@ -9,6 +9,7 @@
            #:volume #:price #:offer-id #:offer-text #:consumed-asset
            #:parse-timestamp #:gate #:gate-post #:gate-request
            #:thread ; UGH
+           #:post-offer #:cancel-offer #:placed-offers
            ))
 
 (in-package #:scalpl.exchange)
@@ -133,3 +134,11 @@
   (let ((out (make-instance 'chanl:channel)))
     (chanl:send (slot-value gate 'in) (list* out path options))
     (values-list (chanl:recv out))))
+
+;;;
+;;; Offer Manipulation API
+;;;
+
+(defgeneric post-offer (gate offer))
+(defgeneric cancel-offer (gate offer))
+(defgeneric placed-offers (gate))
