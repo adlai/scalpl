@@ -375,13 +375,13 @@
               (eq :terminated (chanl:task-status updater)))
       (setf updater
             (chanl:pexec
-                (:name (concatenate 'string "qdm-preα trades updater for " (name market))
+                (:name (concatenate 'string "qdm-preα execution updater for " (name market))
                        :initial-bindings `((*read-default-float-format* double-float)))
               (loop (execution-updater-loop tracker)))))
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
-            (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " (name market)))
+            (chanl:pexec (:name (concatenate 'string "qdm-preα execution worker for " (name market)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (execution-worker-loop tracker)))))))

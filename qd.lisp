@@ -110,7 +110,7 @@
            (amount-change (old new &aux (old-vol (volume old)))
              (/ (abs (- (volume new) old-vol)) old-vol)))
       (flet ((update (target placed &aux percents cutoff)
-               ;; (dolist (o target)
+               ;; (dolist (o target (force-output))
                ;;   (format t "~&~5@$ @ ~D" (volume o) (price o)))
                (dolist (old placed (setf cutoff (third (sort percents #'>))))
                  (awhen (find (price old) target :key #'price :test #'=)
