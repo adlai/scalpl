@@ -94,7 +94,7 @@
           (with-output-to-string (s) (describe offer s)))))
 
 (defmethod print-object ((offer offer) stream)
-  (print-unreadable-object (offer stream :type t :identity t)
+  (print-unreadable-object (offer stream :type t)
     (with-slots (volume price market) offer
       (with-slots (name decimals) (consumed-asset offer)
         (let ((market-decimals (slot-value market 'decimals)))

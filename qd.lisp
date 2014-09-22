@@ -342,12 +342,10 @@
                ;; (dolist (o target)
                ;;   (format t "~&~5@$ @ ~D" (offer-volume o) (offer-price o)))
                (fresh-line)
-               ;; (format-timestring t (now) :format '((:hour 2) #\: (:min 2) #\: (:sec 2)))
                (dolist (old placed (setf cutoff (third (sort percents #'>))))
                  (awhen (find (offer-price old) target :key #'offer-price :test #'=)
                    (push (amount-change old it) percents)))
                (dolist (old placed (mapcar #'place target))
-                 ;; (format-timestring t (now) :format '(".." (:sec 2)))
                  (aif (aand1 (find (offer-price old) target
                                    :key #'offer-price :test #'=)
                              (< (amount-change old it) (or cutoff 0)))
