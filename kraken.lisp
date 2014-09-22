@@ -175,6 +175,21 @@
         (values (mapcar (parser 'ask) asks)
                 (mapcar (parser 'bid) bids))))))
 
+(defmethod trades-since ((market kraken-market) &optional since)
+  (with-json-slots (last (trades (name-of market)))
+      (get-request "Trades" `(("pair" . ,(name-of market))
+                              ,@(when since `(("since" . ,since)))))
+    (values (mapcar (lambda (trade)
+                      (destructuring-bind (price volume time side kind data) trade
+                        (let ((price  (read-from-string price))
+                              (volume (read-from-string volume)))
+                          (list (parse-timestamp *kraken* time)
+                                ;; FIXME - "cost" later gets treated as precise
+                                volume price (* volume price)
+                                (concatenate 'string side kind data)))))
+                    trades)
+            last)))
+
 ;;;
 ;;; Private Data API
 ;;;

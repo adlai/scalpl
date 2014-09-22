@@ -9,7 +9,7 @@
            #:volume #:price #:offer-id #:offer-text #:consumed-asset
            #:parse-timestamp #:gate #:gate-post #:gate-request
            #:thread ; UGH
-           #:get-book
+           #:get-book #:trades-since
            #:placed-offers #:market-fee
            #:post-offer #:cancel-offer
            ))
@@ -142,6 +142,7 @@
 ;;;
 
 (defgeneric get-book (market))
+(defgeneric trades-since (market &optional since))
 
 ;;;
 ;;; Private Data API

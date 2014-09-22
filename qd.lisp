@@ -18,21 +18,6 @@
    (trades :initform nil)
    last updater worker))
 
-(defun trades-since (market &optional since &aux (pair (name-of market)))
-  (with-json-slots (last (trades pair))
-      (get-request "Trades" `(("pair" . ,pair)
-                              ,@(when since `(("since" . ,since)))))
-    (values (mapcar (lambda (trade)
-                      (destructuring-bind (price volume time side kind data) trade
-                        (let ((price  (read-from-string price))
-                              (volume (read-from-string volume)))
-                          (list (parse-timestamp *kraken* time)
-                                ;; FIXME - "cost" later gets treated as precise
-                                volume price (* volume price)
-                                (concatenate 'string side kind data)))))
-                    trades)
-            last)))
-
 (defgeneric vwap (tracker &key since type depth &allow-other-keys)
   (:method ((tracker trades-tracker) &key since depth type)
     (let ((trades (slot-value tracker 'trades)))
@@ -72,9 +57,7 @@
                            (let* ((volume (+ (second prev) (second next)))
                                   (cost (+ (fourth prev) (fourth next)))
                                   (price (/ cost volume)))
-                             (cons (list (first prev)
-                                         volume price cost
-                                         (fifth prev))
+                             (cons (list (first prev) volume price cost (fifth prev))
                                    (cdr acc)))
                            (cons next acc)))
                      raw-trades :initial-value trades)))
@@ -82,12 +65,11 @@
 
 (defun trades-updater-loop (tracker)
   (with-slots (market buffer delay last) tracker
-    (multiple-value-bind (raw-trades until)
+    (multiple-value-bind (trades until)
         (handler-case (trades-since market last)
           (unbound-slot () (trades-since market)))
-      (setf last until)
-      (chanl:send buffer raw-trades)
-      (sleep delay))))
+      (when trades (setf last until) (chanl:send buffer trades)))
+    (sleep delay)))
 
 (defmethod shared-initialize :after ((tracker trades-tracker) (slots t) &key)
   (with-slots (updater worker market) tracker
