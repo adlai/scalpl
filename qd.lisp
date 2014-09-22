@@ -395,19 +395,22 @@
                (total-shares (reduce #'+ (mapcar #'car relevant)))
                ;; we need the smallest order to be epsilon
                ;; FIXME: ¿ e/f × n > 1 ?
-               (e/f (/ epsilon funds))
-               ;; temporary fix - disable scaling
-               ;; this means we get the largest m<n offers from the target,
-               ;; rather than m offers distributed throughout the n
-               (x (if (> e/f (/ n-orders)) 0
-                      (/ (- (* e/f total-shares) (caar relevant))
-                         (- 1 (* e/f n-orders))))))
-          (mapcar (lambda (order)
-                    (with-slots (market price) (cdr order)
-                      (make-instance 'offer :market market :price (1- price)
-                                     :volume (* funds (/ (+ x (car order))
-                                                         total-shares)))))
-                  (sort relevant #'< :key (lambda (x) (offer-price (cdr x)))))))
+               (e/f (/ epsilon funds)))
+          (flet ((liquidator (bonus total)
+                   (lambda (order)
+                     (with-slots (market price) (cdr order)
+                       (make-instance 'offer :market market :price (- price 3)
+                                      :volume (* funds (/ (+ bonus (car order))
+                                                          total)))))))
+            (mapcar (if (> epsilon (/ funds n-orders))
+                        (liquidator 0 total-shares)
+                        ;; temporary fix - disable scaling
+                        ;; this means we get the largest m<n offers from the target,
+                        ;; rather than m offers distributed throughout the n
+                        (let ((bonus (/ (- (* e/f total-shares) (caar relevant))
+                                        (- 1 (* e/f n-orders)))))
+                          (liquidator bonus (+ total-shares (* bonus n-orders)))))
+                    (sort relevant #'< :key (lambda (x) (offer-price (cdr x))))))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
     (with-slots (volume) (car cur)
