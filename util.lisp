@@ -13,19 +13,25 @@
 
 ;;; Actually useful
 
-;;; TODO: define these conditions!
+(define-condition price-precision-problem ()
+  ((price-string :initarg :price-string)
+   (expected     :initarg :expected)
+   (delta        :initarg :delta))
+  (:report
+   (lambda (condition stream)
+     (with-slots (price-string expected delta) condition
+       (format stream "Price string ~S contains ~D decimals (expected ~D)."
+               price-string (+ expected delta) expected)))))
+
 (defun parse-price (price-string decimals)
   (let ((dot (position #\. price-string)))
     (multiple-value-bind (int end) (parse-integer (remove #\. price-string))
       (let ((delta (- end dot decimals)))
-        (case (signum delta)
-          (-1 (warn "Price string ~S specifies only ~D decimal~:*~P (short by ~D)"
-                    price-string (- end dot) (- delta))
-              (* int (expt 10 (- delta))))
-          (0 int)
-          (+1 (warn "Price string ~S specifies ~D decimal~:*~P (~D too many)"
-                    price-string (- end dot) delta)
-              (floor int (expt 10 delta))))))))
+        (if (zerop delta) int
+            (values (if (> delta 0)
+                        (floor int (expt 10 delta))
+                        (* int (expt 10 (- delta))))
+                    delta))))))
 
 (defun string-octets (string)
   (declare (type string string))
