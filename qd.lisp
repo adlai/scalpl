@@ -246,20 +246,6 @@
           (t (sleep 0.2)))
       (unbound-slot ()))))
 
-;;; TODO: define these conditions!
-(defun parse-price (price-string decimals)
-  (let ((dot (position #\. price-string)))
-    (multiple-value-bind (int end) (parse-integer (remove #\. price-string))
-      (let ((delta (- end dot decimals)))
-        (case (signum delta)
-          (-1 (warn "Price string ~S specifies only ~D decimal~:*~P (short by ~D)"
-                    price-string (- end dot) (- delta))
-              (* int (expt 10 (- delta))))
-          (0 int)
-          (+1 (warn "Price string ~S specifies ~D decimal~:*~P (~D too many)"
-                    price-string (- end dot) delta)
-              (floor int (expt 10 delta))))))))
-
 (defun get-book (market &aux (pair (name-of market)))
   (let ((decimals (slot-value market 'decimals)))
     (with-json-slots (bids asks)

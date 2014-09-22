@@ -1,22 +1,31 @@
 (defpackage #:scalpl.util
   (:use #:cl #:st-json)
-  (:export #:mapcar-slots
-           #:bound-slot-names
-           #:as-alist
-           #:currency-pair
-           #:with-json-slots
+  (:export #:with-json-slots
            #:mapcar-jso
            #:mapjso*
-           #:goxstamp
-           #:jso-keys
            #:urlencode-params
            #:awhen1 #:aand1
            #:string-octets
+           #:parse-price
            ))
 
 (in-package #:scalpl.util)
 
 ;;; Actually useful
+
+;;; TODO: define these conditions!
+(defun parse-price (price-string decimals)
+  (let ((dot (position #\. price-string)))
+    (multiple-value-bind (int end) (parse-integer (remove #\. price-string))
+      (let ((delta (- end dot decimals)))
+        (case (signum delta)
+          (-1 (warn "Price string ~S specifies only ~D decimal~:*~P (short by ~D)"
+                    price-string (- end dot) (- delta))
+              (* int (expt 10 (- delta))))
+          (0 int)
+          (+1 (warn "Price string ~S specifies ~D decimal~:*~P (~D too many)"
+                    price-string (- end dot) delta)
+              (floor int (expt 10 delta))))))))
 
 (defun string-octets (string)
   (declare (type string string))
@@ -40,13 +49,6 @@
                                            ,object))))
                   slot-bindings)
        ,@body)))
-
-(defun jso-keys (jso &aux keys)
-  (mapjso (lambda (key val)
-            (declare (ignore val))
-            (push key keys))
-          jso)
-  keys)
 
 (defun mapcar-jso (thunk jso &aux list)
   (mapjso (lambda (key val)
