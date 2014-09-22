@@ -241,7 +241,10 @@
 
 (defun ope-scalper-loop (ope)
   (with-slots (input output book-channel prioritizer) ope
-    (destructuring-bind (fee primary counter resilience) (recv input)
+    (destructuring-bind (fee primary counter resilience &optional
+                             ;; magic numbers, to be parametrized
+                             (order-count 15) (epsilon 0.001))
+        (recv input)
       ;; Now run that algorithm thingy
       (flet ((filter-book (book) (ope-filter ope book))
              (place (new) (ope-place ope new)))
@@ -271,15 +274,21 @@
                                         (volume (pop other-asks))))
                               (0 (pop other-bids) (pop other-asks))))
                           (unless (zerop ,amount) ,@body)))))
+          ;; TODO: Refactor prioritizer API into send-side and recv-side
+          ;; TODO: Rework flow so both sides are updated on each book query...
+          ;; TODO: using two prioritizers (bid / ask), and an alternator?
+          ;; TODO: properly deal with partial and completed orders
           (with-slots (next-bids next-asks prioritizer-response) prioritizer
-            ;; Need to rework this flow so the worker (actor calculating priorities) gets
-            ;; the entire book at once...
-            ;; TODO: properly deal with partial and completed orders
             (do-side (counter)
-              (send next-bids (dumbot-offers other-bids resilience counter 0.1 15))
+              (send next-bids
+                    (dumbot-offers other-bids resilience counter
+                                   (* epsilon (- (price (first other-bids)))
+                                      (expt 10 (- (decimals (market (first other-bids))))))
+                                   order-count))
               (recv prioritizer-response))
             (do-side (primary)
-              (send next-asks (dumbot-offers other-asks resilience primary 0.001 15))
+              (send next-asks (dumbot-offers other-asks resilience primary
+                                             epsilon order-count))
               (recv prioritizer-response))))))
     (send output nil)))
 
