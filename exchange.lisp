@@ -7,7 +7,8 @@
            #:market #:find-market #:decimals #:base #:quote
            #:offer #:placed #:bid #:ask #:offer-price #:offer-volume
            #:volume #:price #:offer-id #:offer-text #:consumed-asset
-           #:parse-timestamp
+           #:parse-timestamp #:gate #:gate-post #:gate-request
+           #:thread ; UGH
            ))
 
 (in-package #:scalpl.exchange)
@@ -103,3 +104,32 @@
   (:method ((offer offer))
     (with-slots (market price) offer
       (slot-value market (if (> price 0) 'base 'quote)))))
+
+;;;
+;;; Rate Gate
+;;;
+
+(defclass gate ()
+  ((pubkey :initarg :pubkey :initform (error "gate requires API pubkey"))
+   (secret :initarg :secret :initform (error "gate requires API secret"))
+   (in     :initarg :in     :initform (make-instance 'chanl:channel))
+   (thread :initarg :thread)))
+
+(defgeneric gate-post (gate pubkey secret request))
+
+(defun gate-loop (gate)
+  (with-slots (pubkey secret in) gate
+    (destructuring-bind (ret . request) (chanl:recv in)
+      (chanl:send ret (gate-post gate pubkey secret request)))))
+
+(defmethod shared-initialize :after ((gate gate) names &key)
+  (when (or (not (slot-boundp gate 'thread))
+            (eq :terminated (chanl:task-status (slot-value gate 'thread))))
+    (setf (slot-value gate 'thread)
+          (chanl:pexec (:name "qdm-preα gate")
+            (loop (gate-loop gate))))))
+
+(defun gate-request (gate path &optional options)
+  (let ((out (make-instance 'chanl:channel)))
+    (chanl:send (slot-value gate 'in) (list* out path options))
+    (values-list (chanl:recv out))))

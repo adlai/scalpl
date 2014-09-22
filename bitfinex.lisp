@@ -2,7 +2,7 @@
   (:use #:cl #:anaphora #:local-time #:st-json #:base64 #:scalpl.util #:scalpl.exchange)
   (:export #:get-request
            #:post-request
-           #:find-market #:*bitfinex*
+           #:find-market #:*bitfinex* #:bitfinex-gate
            #:make-key #:make-signer))
 
 (in-package #:scalpl.bitfinex)
@@ -134,3 +134,14 @@
   (let ((assets (get-assets)))
     (make-instance 'exchange :name "Bitfinex"
                    :assets assets :markets (get-markets assets))))
+
+(defclass bitfinex-gate (gate) ())
+
+(defmethod gate-post ((gate bitfinex-gate) key secret request)
+  (destructuring-bind (command . options) request
+    (multiple-value-list (post-request command key secret options))))
+
+(defmethod shared-initialize ((gate bitfinex-gate) names &key pubkey secret)
+  (multiple-value-call #'call-next-method gate names
+                       (when pubkey (values :pubkey (make-key pubkey)))
+                       (when secret (values :secret (make-signer secret)))))

@@ -2,7 +2,7 @@
   (:use #:cl #:scalpl.util #:scalpl.exchange)
   (:export #:get-request
            #:post-request
-           #:find-market #:*kraken*
+           #:find-market #:*kraken* #:kraken-gate
            #:make-key #:make-signer))
 
 (in-package #:scalpl.kraken)
@@ -22,6 +22,7 @@
 ;;; API-Sign = Message signature using HMAC-SHA512 of (URI path + SHA256(nonce + POST data)) and base64 decoded secret API key
 
 (defgeneric make-signer (secret)
+  (:method ((signer function)) signer)
   (:method ((secret string))
     (lambda (path data nonce)
       (hmac-sha512 (concatenate '(simple-array (unsigned-byte 8) (*))
@@ -30,11 +31,8 @@
                                                   'char-code
                                                   (concatenate 'string nonce (urlencode-params data)))))
                    (base64:base64-string-to-usb8-array secret))))
-  (:method ((stream stream))
-    (make-signer (read-line stream)))
-  (:method ((path pathname))
-    (with-open-file (stream path)
-      (make-signer stream))))
+  (:method ((stream stream)) (make-signer (read-line stream)))
+  (:method ((path pathname)) (with-open-file (stream path) (make-signer stream))))
 
 (defgeneric make-key (key)
   (:method ((key string)) key)
@@ -147,3 +145,14 @@
   (or (call-next-method)
       (with-slots (markets) *kraken*
         (find designator markets :key 'altname-of :test 'string-equal))))
+
+(defclass kraken-gate (gate) ())
+
+(defmethod gate-post ((gate kraken-gate) key secret request)
+  (destructuring-bind (command . options) request
+    (multiple-value-list (post-request command key secret options))))
+
+(defmethod shared-initialize ((gate kraken-gate) names &key pubkey secret)
+  (multiple-value-call #'call-next-method gate names
+                       (when pubkey (values :pubkey (make-key pubkey)))
+                       (when secret (values :secret (make-signer secret)))))

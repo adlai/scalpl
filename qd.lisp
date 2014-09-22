@@ -5,44 +5,6 @@
 
 (in-package #:scalpl.qd)
 
-;;;
-;;; Rate Gate
-;;;
-
-(defclass gate ()
-  ((key    :initform (error "gate requires API key"))
-   (signer :initform (error "gate requires API secret"))
-   (in :initform (make-instance 'chanl:channel))
-   thread))
-
-(defun gate-loop (gate)
-  (with-slots (key signer in) gate
-    ;;                   / command structure \
-    (destructuring-bind (command method &rest options) (chanl:recv in)
-      (typecase command
-        (symbol (setf (slot-value gate command) (apply method options)))
-        (chanl:channel
-         (chanl:send command
-                     (multiple-value-list (post-request method key signer options))))))))
-
-(defmethod shared-initialize :before ((gate gate) names &key key secret)
-  (when key    (setf (slot-value gate 'key)    (make-key    key)))
-  (when secret (setf (slot-value gate 'signer) (make-signer secret))))
-
-(defmethod shared-initialize :after ((gate gate) names &key)
-  (when (or (not (slot-boundp gate 'thread))
-            (eq :terminated (chanl:task-status (slot-value gate 'thread))))
-    (setf (slot-value gate 'thread)
-          (chanl:pexec (:name "qdm-preα gate"
-                        :initial-bindings `((*read-default-float-format* double-float)))
-            (loop (gate-loop gate))))))
-
-(defun gate-request (gate path &optional options)
-  (let ((out (make-instance 'chanl:channel)))
-    (chanl:send (slot-value gate 'in)
-                (list* out path options))
-    (values-list (chanl:recv out))))
-
 (defun open-orders (gate)
   (mapjso* (lambda (id order) (setf (getjso "id" order) id))
            (getjso "open" (gate-request gate "OpenOrders"))))
@@ -888,6 +850,6 @@
 
 (defvar *maker*
   (make-instance 'maker :market (find-market "XXBTZEUR" *kraken*)
-                 :gate (make-instance 'gate
-                                      :key #P "secrets/kraken.pubkey"
+                 :gate (make-instance 'kraken-gate
+                                      :pubkey #P "secrets/kraken.pubkey"
                                       :secret #P "secrets/kraken.secret")))
