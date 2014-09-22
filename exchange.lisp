@@ -7,6 +7,7 @@
            #:market #:find-market #:decimals #:base #:quote
            #:offer #:placed #:bid #:ask #:offer-price #:offer-volume
            #:volume #:price #:offer-id #:offer-text #:consumed-asset
+           #:parse-timestamp
            ))
 
 (in-package #:scalpl.exchange)
@@ -24,6 +25,14 @@
   ((name :initarg :name)
    (assets :initarg :assets)
    (markets :initarg :markets)))
+
+(defgeneric parse-timestamp (exchange timestamp)
+  ;; most common is a unix timestamp
+  (:method ((exchange exchange) (timestamp real))
+    (multiple-value-bind (sec nsec) (floor timestamp)
+      (unix-to-timestamp sec :nsec (round (* (expt 10 9) nsec)))))
+  (:method ((exchange exchange) (timestamp string))
+    (parse-timestamp exchange (read-from-string timestamp))))
 
 ;;;
 ;;; Assets

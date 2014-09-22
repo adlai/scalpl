@@ -134,10 +134,6 @@
    (trades :initform nil)
    last updater worker))
 
-(defun kraken-timestamp (timestamp)
-  (multiple-value-bind (sec rem) (floor timestamp)
-    (local-time:unix-to-timestamp sec :nsec (round (* (expt 10 9) rem)))))
-
 (defun trades-since (market &optional since &aux (pair (name-of market)))
   (with-json-slots (last (trades pair))
       (get-request "Trades" `(("pair" . ,pair)
@@ -146,7 +142,7 @@
                       (destructuring-bind (price volume time side kind data) trade
                         (let ((price  (read-from-string price))
                               (volume (read-from-string volume)))
-                          (list (kraken-timestamp time)
+                          (list (parse-timestamp *kraken* time)
                                 ;; FIXME - "cost" later gets treated as precise
                                 volume price (* volume price)
                                 (concatenate 'string side kind data)))))
@@ -347,7 +343,7 @@
                                             (read-from-string (getjso key data))))
                                 '("price" "cost" "fee" "vol"))
                            (with-json-slots (txid time) data
-                             (setf txid tid time (kraken-timestamp time)))
+                             (setf txid tid time (parse-timestamp *kraken* time)))
                            (vector-push data chunk))
                          trades-jso)))
           (when (zerop total)
