@@ -367,7 +367,7 @@
 (defun execution-worker-loop (tracker)
   (with-slots (trades control buffer) tracker
     ;; this is an example of where you need STATE MACHINES
-    (if (< (length trades) 10)          ; FIXME WOW
+    (if (< (length trades) 50)          ; FIXME WOW
         (push (chanl:recv buffer) trades)
         (chanl:select
           ((chanl:recv control channel) (chanl:send channel trades))

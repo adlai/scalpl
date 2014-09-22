@@ -1,14 +1,14 @@
 (defpackage #:scalpl.bitfinex
-  (:use #:cl #:anaphora #:st-json #:base64 #:scalpl.util)
+  (:use #:cl #:anaphora #:st-json #:base64 #:scalpl.util #:scalpl.exchange)
   (:export #:get-request
            #:post-request
+           #:find-market #:*bitfinex*
            #:make-key #:make-signer))
 
 (in-package #:scalpl.bitfinex)
 
 ;;; General Parameters
 (defparameter +base-path+ "https://api.bitfinex.com/v1/")
-(defparameter +base-domain+ "https://api.bitfinex.com")
 
 (defun hmac-sha384 (message secret)
   (let ((hmac (ironclad:make-hmac secret 'ironclad:sha384)))
@@ -108,3 +108,32 @@
                  :additional-headers `(("X-BFX-APIKEY"  . ,key)
                                        ("X-BFX-PAYLOAD" . ,payload)
                                        ("X-BFX-SIGNATURE" . ,(funcall signer payload))))))
+
+(defun get-assets ()
+  (mapcar (lambda (name) (make-instance 'asset :name name :decimals 8))
+          (delete-duplicates (mapcan (lambda (sym)
+                                       (list (subseq sym 0 3) (subseq sym 3)))
+                                     (get-request "symbols"))
+                             :test #'string=)))
+
+(defun detect-market-precision (name)
+  (reduce 'max (with-json-slots (asks bids)
+                   (get-request (format nil "book/~A" name))
+                 (mapcar (lambda (offer &aux (price (getjso "price" offer)))
+                           (- (length price) (position #\. price) 1))
+                         (append (subseq bids 0 (floor (length bids) 2))
+                                 (subseq asks 0 (floor (length asks) 2)))))))
+
+(defun get-markets (assets &aux markets)
+  (dolist (name (get-request "symbols") markets)
+    (push (make-instance
+           'market :name name
+           :base (find-asset (subseq name 0 3) assets)
+           :quote (find-asset (subseq name 3) assets)
+           :decimals (detect-market-precision name))
+          markets)))
+
+(defvar *bitfinex*
+  (let ((assets (get-assets)))
+    (make-instance 'exchange :name "Bitfinex"
+                   :assets assets :markets (get-markets assets))))
