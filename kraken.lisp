@@ -158,7 +158,25 @@
                        (when secret (values :secret (make-signer secret)))))
 
 ;;;
-;;; Data API
+;;; Public Data API
+;;;
+
+(defmethod get-book ((market kraken-market) &aux (pair (name-of market)))
+  (let ((decimals (slot-value market 'decimals)))
+    (with-json-slots (bids asks)
+        (getjso pair (get-request "Depth" `(("pair" . ,pair))))
+      (flet ((parser (class)
+               (lambda (raw-order)
+                 (destructuring-bind (price amount timestamp) raw-order
+                   (declare (ignore timestamp))
+                   (make-instance class :market market
+                                  :price (parse-price price decimals)
+                                  :volume (read-from-string amount))))))
+        (values (mapcar (parser 'ask) asks)
+                (mapcar (parser 'bid) bids))))))
+
+;;;
+;;; Private Data API
 ;;;
 
 (defun open-orders (gate)

@@ -130,20 +130,6 @@
           (t (sleep 0.2)))
       (unbound-slot ()))))
 
-(defun get-book (market &aux (pair (name-of market)))
-  (let ((decimals (slot-value market 'decimals)))
-    (with-json-slots (bids asks)
-        (getjso pair (get-request "Depth" `(("pair" . ,pair))))
-      (flet ((parser (class)
-               (lambda (raw-order)
-                 (destructuring-bind (price amount timestamp) raw-order
-                   (declare (ignore timestamp))
-                   (make-instance class :market market
-                                  :price (parse-price price decimals)
-                                  :volume (read-from-string amount))))))
-        (values (mapcar (parser 'ask) asks)
-                (mapcar (parser 'bid) bids))))))
-
 (defun book-updater-loop (tracker)
   (with-slots (bids asks delay market offers) tracker
     (setf (values asks bids) (get-book market))

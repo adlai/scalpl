@@ -121,10 +121,12 @@
                          (append (subseq bids 0 (floor (length bids) 2))
                                  (subseq asks 0 (floor (length asks) 2)))))))
 
+(defclass bitfinex-market (market) ())
+
 (defun get-markets (assets &aux markets)
   (dolist (name (get-request "symbols") markets)
     (push (make-instance
-           'market :name name
+           'bitfinex-market :name name
            :base (find-asset (subseq name 0 3) assets)
            :quote (find-asset (subseq name 3) assets)
            :decimals (detect-market-precision name))
@@ -147,13 +149,31 @@
                        (when secret (values :secret (make-signer secret)))))
 
 ;;;
-;;; Data API
+;;; Public Data API
+;;;
+
+(defmethod get-book ((market bitfinex-market) &aux (pair (name-of market)))
+  (let ((decimals (slot-value market 'decimals)))
+    (with-json-slots (bids asks)
+        (get-request (format nil "book/~A" pair)
+                     '(("limit_asks" . 100) ("limit_bids" . 100)))
+      (flet ((parser (class)
+               (lambda (raw-order)
+                 (with-json-slots (price amount) raw-order
+                   (make-instance class :market market
+                                  :price (parse-price price decimals)
+                                  :volume (read-from-string amount))))))
+        (values (mapcar (parser 'ask) asks)
+                (mapcar (parser 'bid) bids))))))
+
+;;;
+;;; Private Data API
 ;;;
 
 (defun open-orders (gate)
   (gate-request gate "orders"))
 
-(defun placed-offers (gate)
+(defmethod placed-offers ((gate bitfinex-gate))
   (mapcar (lambda (offer)
             (with-json-slots (id symbol side price remaining_amount oflags) offer
               (let* ((market (find-market symbol *bitfinex*))
@@ -192,7 +212,7 @@
                           ))
         (if error (warn (getjso "message" error)) info)))))
 
-(defun post-offer (gate offer)
+(defmethod post-offer ((gate bitfinex-gate) offer)
   ;; (format t "~&place  ~A~%" offer)
   (with-slots (market volume price) offer
     (flet ((post (type)
@@ -209,7 +229,7 @@
 (defun cancel-order (gate oid)
   (gate-request gate "order/cancel" `(("order_id" . ,oid))))
 
-(defun cancel-offer (gate offer)
+(defmethod cancel-offer ((gate bitfinex-gate) offer)
   ;; (format t "~&cancel ~A~%" offer)
   (multiple-value-bind (ret err) (cancel-order gate (offer-id offer))
     (or ret (string= "Order could not be cancelled." (getjso "message" err)))))

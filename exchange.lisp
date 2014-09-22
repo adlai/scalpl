@@ -9,7 +9,9 @@
            #:volume #:price #:offer-id #:offer-text #:consumed-asset
            #:parse-timestamp #:gate #:gate-post #:gate-request
            #:thread ; UGH
-           #:post-offer #:cancel-offer #:placed-offers #:market-fee
+           #:get-book
+           #:placed-offers #:market-fee
+           #:post-offer #:cancel-offer
            ))
 
 (in-package #:scalpl.exchange)
@@ -136,7 +138,13 @@
     (values-list (chanl:recv out))))
 
 ;;;
-;;; Data API
+;;; Public Data API
+;;;
+
+(defgeneric get-book (market))
+
+;;;
+;;; Private Data API
 ;;;
 
 (defgeneric placed-offers (gate))
