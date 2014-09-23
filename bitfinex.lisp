@@ -234,9 +234,6 @@
                  (change-class offer 'placed :id order_id)))))
       (post (if (< price 0) "buy" "sell")))))
 
-;; (defmethod update-instance-for-different-class :after ((offer offer) (placed placed) &key)
-;;   (format t "~&@~A ~A" (format-timestring nil (now) :format '((:sec 2))) placed))
-
 ;;; the order object returned will (always?) indicate that the order hasn't yet
 ;;; been cancelled; however, in situations where bfx has failed to cancel the
 ;;; order, we get 400 Bad Request + error message; so if we have any primary

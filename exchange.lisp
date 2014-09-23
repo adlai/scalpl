@@ -108,6 +108,9 @@
     (with-slots (market price) offer
       (slot-value market (if (> price 0) 'base 'quote)))))
 
+;; (defmethod update-instance-for-different-class :after ((offer offer) (placed placed) &key)
+;;   (format t "~&@~A ~A" (format-timestring nil (now) :format '((:sec 2))) placed))
+
 ;;;
 ;;; Rate Gate
 ;;;
