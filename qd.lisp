@@ -651,7 +651,7 @@
               ;; distance from target equilibrium ( magic number 1/2 = target )
               (let ((lopsidedness (abs (- 1/2 investment))))
                 ;; soft limit test: are we within (magic) 33% of the target?
-                (when (> lopsidedness 1/4)
+                (when (> lopsidedness 1/8)
                   (flet ((urgent (class side fund)
                            (let ((price (1- (slot-value (cadr (slot-value book-tracker side)) 'price))))
                              (make-instance class :market market
