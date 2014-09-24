@@ -168,39 +168,39 @@
 ;;; that for profitability calculations, rather than fee at time of calculation.
 (defun trades-history-chunk (tracker &key until since)
   (with-slots (delay) tracker
-    (with-json-slots (count trades)
-        (apply #'raw-trades-history tracker
+    (awhen (apply #'raw-trades-history tracker
                (append (when until `(:until ,until))
                        (when since `(:since ,since))))
-      (let* ((total (parse-integer count))
-             (chunk (make-array (list total) :fill-pointer 0)))
-        (flet ((process (trades-jso)
-                 (mapjso (lambda (tid data)
-                           (map nil (lambda (key)
-                                      (setf (getjso key data)
-                                            (read-from-string (getjso key data))))
-                                '("price" "cost" "fee" "vol"))
-                           (with-json-slots (txid time) data
-                             (setf txid tid time (parse-timestamp *kraken* time)))
-                           (vector-push data chunk))
-                         trades-jso)))
-          (when (zerop total)
-            (return-from trades-history-chunk chunk))
-          (process trades)
-          (unless until
-            (setf until (getjso "txid" (elt chunk 0))))
-          (loop
-             (when (= total (fill-pointer chunk))
-               (return (sort chunk #'timestamp<
-                             :key (lambda (o) (getjso "time" o)))))
-             (sleep delay)
-             (with-json-slots (count trades)
-                 (apply #'raw-trades-history tracker
-                        :until until :ofs (princ-to-string (fill-pointer chunk))
-                        (when since `(:since ,since)))
-               (let ((next-total (parse-integer count)))
-                 (assert (= total next-total))
-                 (process trades)))))))))
+      (with-json-slots (count trades) it
+          (let* ((total (parse-integer count))
+                 (chunk (make-array (list total) :fill-pointer 0)))
+            (flet ((process (trades-jso)
+                     (mapjso (lambda (tid data)
+                               (map nil (lambda (key)
+                                          (setf (getjso key data)
+                                                (read-from-string (getjso key data))))
+                                    '("price" "cost" "fee" "vol"))
+                               (with-json-slots (txid time) data
+                                 (setf txid tid time (parse-timestamp *kraken* time)))
+                               (vector-push data chunk))
+                             trades-jso)))
+              (when (zerop total)
+                (return-from trades-history-chunk chunk))
+              (process trades)
+              (unless until
+                (setf until (getjso "txid" (elt chunk 0))))
+              (loop
+                 (when (= total (fill-pointer chunk))
+                   (return (sort chunk #'timestamp<
+                                 :key (lambda (o) (getjso "time" o)))))
+                 (sleep delay)
+                 (with-json-slots (count trades)
+                     (apply #'raw-trades-history tracker
+                            :until until :ofs (princ-to-string (fill-pointer chunk))
+                            (when since `(:since ,since)))
+                   (let ((next-total (parse-integer count)))
+                     (assert (= total next-total))
+                     (process trades))))))))))
 
 (defun execution-worker-loop (tracker)
   (with-slots (trades control buffer) tracker
@@ -358,8 +358,7 @@
                (chanl:send prioritizer-response t)))
         (chanl:select
           ((chanl:recv next-bids to-bid) (update to-bid (nth-value 0 (ope-placed ope))))
-          ((chanl:recv next-asks to-ask) (update to-ask (nth-value 1 (ope-placed ope))))
-          (otherwise (sleep 0.2)))))))
+          ((chanl:recv next-asks to-ask) (update to-ask (nth-value 1 (ope-placed ope)))))))))
 
 (defun profit-margin (bid ask fee-percent)
   (* (/ ask bid) (- 1 (/ fee-percent 100))))
@@ -502,11 +501,12 @@
 
 (defun account-updater-loop (tracker)
   (with-slots (gate control delay) tracker
-    (chanl:send control
-                (cons 'balances
-                      (mapcar-jso (lambda (asset balance)
-                                    (cons asset (read-from-string balance)))
-                                  (gate-request gate "Balance"))))
+    (awhen (gate-request gate "Balance")
+      (chanl:send control
+                  (cons 'balances
+                        (mapcar-jso (lambda (asset balance)
+                                      (cons asset (read-from-string balance)))
+                                    it))))
     (sleep delay)))
 
 (defmethod vwap ((tracker account-tracker) &key type market depth)
