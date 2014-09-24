@@ -8,8 +8,8 @@
            #:offer #:placed #:bid #:ask #:offer #:offer
            #:volume #:price #:uid #:consumed-asset
            #:parse-timestamp #:gate #:gate-post #:gate-request
-           #:thread ; UGH
-           #:get-book #:trades-since
+           #:thread #:control #:updater #:worker #:output ; UGH
+           #:get-book #:trades-since #:trades-tracker #:vwap
            #:placed-offers #:market-fee
            #:post-offer #:cancel-offer
            ))
@@ -148,6 +148,85 @@
    (timestamp :initarg :timestamp :reader timestamp)))
 
 (defgeneric trades-since (market &optional since))
+
+(defclass trades-tracker ()
+  ((market :initarg :market)
+   (control :initform (make-instance 'chanl:channel))
+   (buffer :initform (make-instance 'chanl:channel))
+   (output :initform (make-instance 'chanl:channel))
+   (delay :initarg :delay :initform 27)
+   (trades :initform nil)
+   last updater worker))
+
+(defgeneric vwap (tracker &key since type depth &allow-other-keys)
+  (:method ((tracker trades-tracker) &key since depth type)
+    (let ((trades (slot-value tracker 'trades)))
+      (when since
+        (setf trades (remove since trades :key #'car :test #'timestamp>=)))
+      (when type
+        (setf trades (remove (ccase type (buy #\b) (sell #\s)) trades
+                             :key (lambda (trade) (char (fifth trade) 0))
+                             :test-not #'char=)))
+      (when depth
+        (setf trades (loop for trade in trades collect trade
+                           sum (second trade) into sum
+                           until (>= sum depth))))
+      (/ (reduce #'+ (mapcar #'fourth trades))
+         (reduce #'+ (mapcar #'second trades))))))
+
+(defun trades-worker-loop (tracker)
+  (with-slots (control buffer output trades) tracker
+    (chanl:select
+      ((chanl:recv control command)
+       ;; commands are (cons command args)
+       (case (car command)
+         ;; max - find max seen trade size
+         (max (chanl:send output (reduce #'max (mapcar #'second trades))))
+         ;; vwap - find vwap over recent trades
+         (vwap (chanl:send output (apply #'vwap tracker (cdr command))))
+         ;; pause - wait for any other command to restart
+         (pause (chanl:recv control))))
+      ((chanl:recv buffer raw-trades)
+       (unless trades (push (pop raw-trades) trades))
+       (setf trades
+             (reduce (lambda (acc next &aux (prev (first acc)))
+                       (if (and (> 0.3
+                                   (local-time:timestamp-difference (first next)
+                                                                    (first prev)))
+                                (string= (fifth prev) (fifth next)))
+                           (let* ((volume (+ (second prev) (second next)))
+                                  (cost (+ (fourth prev) (fourth next)))
+                                  (price (/ cost volume)))
+                             (cons (list (first prev) volume price cost (fifth prev))
+                                   (cdr acc)))
+                           (cons next acc)))
+                     raw-trades :initial-value trades)))
+      (t (sleep 0.2)))))
+
+(defun trades-updater-loop (tracker)
+  (with-slots (market buffer delay last) tracker
+    (multiple-value-bind (trades until)
+        (handler-case (trades-since market last)
+          (unbound-slot () (trades-since market)))
+      (when trades (setf last until) (chanl:send buffer trades)))
+    (sleep delay)))
+
+(defmethod shared-initialize :after ((tracker trades-tracker) (slots t) &key)
+  (with-slots (updater worker market) tracker
+    (when (or (not (slot-boundp tracker 'updater))
+              (eq :terminated (chanl:task-status updater)))
+      (setf updater
+            (chanl:pexec
+                (:name (concatenate 'string "qdm-preα trades updater for " (name market))
+                       :initial-bindings `((*read-default-float-format* double-float)))
+              (loop (trades-updater-loop tracker)))))
+    (when (or (not (slot-boundp tracker 'worker))
+              (eq :terminated (chanl:task-status worker)))
+      (setf worker
+            (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " (name market)))
+              ;; TODO: just pexec anew each time...
+              ;; you'll understand what you meant someday, right?
+              (loop (trades-worker-loop tracker)))))))
 
 ;;;
 ;;; Private Data API
