@@ -341,7 +341,6 @@
       (flet ((update (target placed &aux percents cutoff)
                ;; (dolist (o target)
                ;;   (format t "~&~5@$ @ ~D" (offer-volume o) (offer-price o)))
-               (fresh-line)
                (dolist (old placed (setf cutoff (third (sort percents #'>))))
                  (awhen (find (offer-price old) target :key #'offer-price :test #'=)
                    (push (amount-change old it) percents)))
@@ -630,7 +629,7 @@
                                                    :market market :depth depth)
                                              fee)))))
             ;; time, total, base, quote, invested, risked, risk bias, pulse
-            (format t "~&~A ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$~%"
+            (format t "~&~A ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$"
                     (format-timestring nil (now)
                                        :format '((:hour 2) #\:
                                                  (:min 2) #\:
@@ -665,7 +664,7 @@
                     (awhen (ope-place ope (if (> investment 1/2)
                                               (urgent 'ask 'asks total-btc)
                                               (urgent 'bid 'bids total-doge)))
-                      (format t "~&~A~%" it)))))
+                      (format t " ~A" it) (force-output)))))
               (chanl:recv (slot-value ope 'output)))))))))
 
 (defun dumbot-loop (maker)
