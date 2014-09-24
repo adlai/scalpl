@@ -7,11 +7,30 @@
            #:awhen1 #:aand1
            #:string-octets
            #:parse-price
+           #:rehome-symbol
+           #:rehome-class
            ))
 
 (in-package #:scalpl.util)
 
 ;;; Actually useful
+
+(defun rehome-symbol (symbol new-home &aux (old-home (symbol-package symbol)))
+  (unintern symbol old-home)
+  (import (list symbol) new-home)
+  (import (list symbol) old-home))
+
+(defgeneric rehome-class (class new-home)
+  (:method ((class symbol) new-home)
+    (rehome-class (find-class class) (find-package new-home)))
+  (:method ((class class) (new-home package))
+    (let ((old-home (symbol-package (class-name class)))
+          (symbols (list* (class-name class)
+                          (mapcar 'sb-mop:slot-definition-name
+                                  (sb-mop:class-direct-slots class)))))
+      (mapc (lambda (symbol) (unintern symbol old-home)) symbols)
+      (import symbols new-home)
+      (import symbols old-home))))
 
 (define-condition price-precision-problem ()
   ((price-string :initarg :price-string)
