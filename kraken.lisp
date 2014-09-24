@@ -139,6 +139,7 @@
 (defvar *kraken*
   (let ((assets (get-assets)))
     (make-instance 'exchange :name "Kraken"
+                   :sensitivity 0.3
                    :assets assets :markets (get-markets assets))))
 
 (defmethod find-market (designator (exchange (eql *kraken*)))

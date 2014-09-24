@@ -28,7 +28,8 @@
 (defclass exchange ()
   ((name    :initarg :name    :reader name)
    (assets  :initarg :assets  :reader assets)
-   (markets :initarg :markets :reader markets)))
+   (markets :initarg :markets :reader markets)
+   (market-timestamp-sensitivity :initarg :sensitivity)))
 
 (defmethod shared-initialize :after ((exchange exchange) names &key)
   (with-slots (assets markets) exchange
@@ -181,6 +182,19 @@
       (/ (reduce #'+ (mapcar #'fourth trades))
          (reduce #'+ (mapcar #'second trades))))))
 
+(defgeneric trades-mergeable? (trades-tracker prev next)
+  (:method-combination and)
+  (:method and ((tracker trades-tracker) (prev list) (next list))
+    (with-slots (market-timestamp-sensitivity)
+        (reduce 'slot-value '(market exchange) :initial-value tracker)
+      (> market-timestamp-sensitivity
+         (timestamp-difference (first next) (first prev)))))
+  (:method and ((tracker trades-tracker) (prev trade) (next trade))
+    (with-slots (market-timestamp-sensitivity)
+        (reduce 'slot-value '(market exchange) :initial-value tracker)
+      (> market-timestamp-sensitivity
+         (timestamp-difference (timestamp next) (timestamp prev))))))
+
 (defun trades-worker-loop (tracker)
   (with-slots (control buffer output trades) tracker
     (chanl:select
@@ -197,10 +211,7 @@
        (unless trades (push (pop raw-trades) trades))
        (setf trades
              (reduce (lambda (acc next &aux (prev (first acc)))
-                       (if (and (> 0.3
-                                   (local-time:timestamp-difference (first next)
-                                                                    (first prev)))
-                                (string= (fifth prev) (fifth next)))
+                       (if (trades-mergeable? tracker prev next)
                            (let* ((volume (+ (second prev) (second next)))
                                   (cost (+ (fourth prev) (fourth next)))
                                   (price (/ cost volume)))

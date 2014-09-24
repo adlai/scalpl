@@ -135,6 +135,7 @@
 (defvar *bitfinex*
   (let ((assets (get-assets)))
     (make-instance 'exchange :name "Bitfinex"
+                   :sensitivity 1
                    :assets assets :markets (get-markets assets))))
 
 (defclass bitfinex-gate (gate) ())
