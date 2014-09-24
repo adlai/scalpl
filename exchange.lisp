@@ -26,9 +26,14 @@
 ;;;
 
 (defclass exchange ()
-  ((name :initarg :name)
-   (assets :initarg :assets)
-   (markets :initarg :markets)))
+  ((name    :initarg :name    :reader name)
+   (assets  :initarg :assets  :reader assets)
+   (markets :initarg :markets :reader markets)))
+
+(defmethod shared-initialize :after ((exchange exchange) names &key)
+  (with-slots (assets markets) exchange
+    (dolist (asset assets) (setf (slot-value asset 'exchange) exchange))
+    (dolist (market markets) (setf (slot-value market 'exchange) exchange))))
 
 (defgeneric parse-timestamp (exchange timestamp)
   ;; most common is a unix timestamp
@@ -43,8 +48,9 @@
 ;;;
 
 (defclass asset ()
-  ((name :initarg :name :reader name)
-   (decimals :initarg :decimals)))
+  ((name     :initarg :name     :reader name)
+   (decimals :initarg :decimals :reader decimals)
+   (exchange :initarg :exchange :reader exchange)))
 
 (defgeneric find-asset (designator exchange)
   (:method (designator (assets list))
@@ -58,10 +64,11 @@
 ;;;
 
 (defclass market ()
-  ((name :initarg :name :reader name)
-   (decimals :initarg :decimals)
-   (quote :initarg :quote :reader quote-asset)
-   (base :initarg :base :reader base-asset)))
+  ((name     :initarg :name     :reader name)
+   (decimals :initarg :decimals :reader decimals)
+   (exchange :initarg :exchange :reader exchange)
+   (quote    :initarg :quote    :reader quote-asset)
+   (base     :initarg :base     :reader base-asset)))
 
 (defgeneric find-market (designator exchange)
   (:method (designator (markets list))
@@ -75,12 +82,12 @@
 ;;;
 
 (defclass offer ()
-  ((market :initarg :market)
+  ((market :initarg :market :reader market)
    (volume :initarg :volume :accessor volume)
-   (price :initarg :price :reader price)))
+   (price  :initarg :price  :reader price)))
 
 (defclass placed (offer)
-  ((uid :initarg :uid :reader uid)))
+  ((uid    :initarg :uid    :reader uid)))
 
 (defclass bid (offer) ())
 (defclass ask (offer) ())
@@ -150,12 +157,12 @@
 (defgeneric trades-since (market &optional since))
 
 (defclass trades-tracker ()
-  ((market :initarg :market)
+  ((market  :initarg :market :reader market)
+   (delay   :initarg :delay :initform 27)
    (control :initform (make-instance 'chanl:channel))
-   (buffer :initform (make-instance 'chanl:channel))
-   (output :initform (make-instance 'chanl:channel))
-   (delay :initarg :delay :initform 27)
-   (trades :initform nil)
+   (buffer  :initform (make-instance 'chanl:channel))
+   (output  :initform (make-instance 'chanl:channel))
+   (trades  :initform nil)
    last updater worker))
 
 (defgeneric vwap (tracker &key since type depth &allow-other-keys)
