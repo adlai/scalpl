@@ -77,13 +77,13 @@
               (eq :terminated (chanl:task-status updater)))
       (setf updater
             (chanl:pexec
-                (:name (concatenate 'string "qdm-preα trades updater for " (name-of market))
+                (:name (concatenate 'string "qdm-preα trades updater for " (name market))
                        :initial-bindings `((*read-default-float-format* double-float)))
               (loop (trades-updater-loop tracker)))))
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
-            (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " (name-of market)))
+            (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " (name market)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (trades-worker-loop tracker)))))))
@@ -123,13 +123,13 @@
               (eq :terminated (chanl:task-status updater)))
       (setf updater
             (chanl:pexec
-                (:name (concatenate 'string "qdm-preα book updater for " (name-of market))
+                (:name (concatenate 'string "qdm-preα book updater for " (name market))
                        :initial-bindings `((*read-default-float-format* double-float)))
               (loop (book-updater-loop tracker)))))
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
-            (chanl:pexec (:name (concatenate 'string "qdm-preα book worker for " (name-of market)))
+            (chanl:pexec (:name (concatenate 'string "qdm-preα book worker for " (name market)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (book-worker-loop tracker)))))))
@@ -255,19 +255,20 @@
   (with-slots (gate placed balance-tracker) ope
     (let ((asset (consumed-asset offer)))
       (when (>= (asset-balance balance-tracker asset)
-                (reduce #'+ (mapcar #'offer-volume (offers-spending ope asset))
-                        :initial-value (offer-volume offer)))
+                (reduce #'+ (mapcar #'volume (offers-spending ope asset))
+                        :initial-value (volume offer)))
         (awhen1 (post-offer gate offer) (push it placed))))))
 
 ;;; TODO: deal with partially completed orders
 (defun ignore-offers (open mine &aux them)
+  (declare (optimize (debug 3)))
   (dolist (offer open (nreverse them))
-    (aif (find (offer-price offer) mine :test #'= :key #'offer-price)
-         (let ((without-me (- (offer-volume offer) (offer-volume it))))
+    (aif (find (price offer) mine :test #'= :key #'price)
+         (let ((without-me (- (volume offer) (volume it))))
            (setf mine (remove it mine))
            (unless (< without-me 0.001)
              (push (make-instance 'offer :market (slot-value offer 'market)
-                                  :price (offer-price offer)
+                                  :price (price offer)
                                   :volume without-me)
                    them)))
          (push offer them))))
@@ -307,9 +308,9 @@
 (defun ope-placed (ope)
   (with-slots (control response) ope
     (chanl:send control '(placed))
-    (let ((all (sort (copy-list (chanl:recv response)) #'< :key #'offer-price)))
+    (let ((all (sort (copy-list (chanl:recv response)) #'< :key #'price)))
       (flet ((split (sign)
-               (remove sign all :key (lambda (x) (signum (offer-price x))))))
+               (remove sign all :key (lambda (x) (signum (price x))))))
         ;;       bids       asks
         (values (split 1) (split -1))))))
 
@@ -336,21 +337,21 @@
 (defun ope-prioritizer-loop (ope)
   (with-slots (next-bids next-asks prioritizer-response) ope
     (flet ((place (new) (ope-place ope new))
-           (amount-change (old new &aux (old-vol (offer-volume old)))
-             (/ (abs (- (offer-volume new) old-vol)) old-vol)))
+           (amount-change (old new &aux (old-vol (volume old)))
+             (/ (abs (- (volume new) old-vol)) old-vol)))
       (flet ((update (target placed &aux percents cutoff)
                ;; (dolist (o target)
-               ;;   (format t "~&~5@$ @ ~D" (offer-volume o) (offer-price o)))
+               ;;   (format t "~&~5@$ @ ~D" (volume o) (price o)))
                (dolist (old placed (setf cutoff (third (sort percents #'>))))
-                 (awhen (find (offer-price old) target :key #'offer-price :test #'=)
+                 (awhen (find (price old) target :key #'price :test #'=)
                    (push (amount-change old it) percents)))
                (dolist (old placed (mapcar #'place target))
-                 (aif (aand1 (find (offer-price old) target
-                                   :key #'offer-price :test #'=)
+                 (aif (aand1 (find (price old) target
+                                   :key #'price :test #'=)
                              (< (amount-change old it) (or cutoff 0)))
                       (setf target (remove it target))
-                      (dolist (new (remove (offer-price old) target
-                                           :key #'offer-price :test #'<)
+                      (dolist (new (remove (price old) target
+                                           :key #'price :test #'<)
                                (ope-cancel ope old))
                         (if (place new) (setf target (remove new target))
                             (return (ope-cancel ope old))))))
@@ -386,7 +387,7 @@
   (do* ((cur book (cdr cur))
         (n 0 (1+ n)))
        ((or (and (> acc resilience) (> n max-orders)) (null cur))
-        (let* ((sorted (sort (subseq book 1 n) #'> :key (lambda (x) (offer-volume (cdr x)))))
+        (let* ((sorted (sort (subseq book 1 n) #'> :key (lambda (x) (volume (cdr x)))))
                (n-orders (min max-orders n))
                (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
                (total-shares (reduce #'+ (mapcar #'car relevant)))
@@ -407,7 +408,7 @@
                         (let ((bonus (/ (- (* e/f total-shares) (caar relevant))
                                         (- 1 (* e/f n-orders)))))
                           (liquidator bonus (+ total-shares (* bonus n-orders)))))
-                    (sort relevant #'< :key (lambda (x) (offer-price (cdr x))))))))
+                    (sort relevant #'< :key (lambda (x) (price (cdr x))))))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
     (with-slots (volume) (car cur)
@@ -429,20 +430,20 @@
                         (let ((other-bids (filter-book market-bids))
                               (other-asks (filter-book market-asks)))
                           ;; NON STOP PARTY PROFIT MADNESS
-                          (do* ((best-bid (- (offer-price (car other-bids)))
-                                          (- (offer-price (car other-bids))))
-                                (best-ask (offer-price (car other-asks))
-                                          (offer-price (car other-asks)))
+                          (do* ((best-bid (- (price (car other-bids)))
+                                          (- (price (car other-bids))))
+                                (best-ask (price (car other-asks))
+                                          (price (car other-asks)))
                                 (spread (profit-margin (1+ best-bid) (1- best-ask) fee)
                                         (profit-margin (1+ best-bid) (1- best-ask) fee)))
                                ((> spread 1))
                             (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
-                                                     (- (offer-volume (car other-bids))
-                                                        (offer-volume (car other-asks))))))
-                              (-1 (decf (offer-volume (car other-asks))
-                                        (offer-volume (pop other-bids))))
-                              (+1 (decf (offer-volume (car other-bids))
-                                        (offer-volume (pop other-asks))))
+                                                     (- (volume (car other-bids))
+                                                        (volume (car other-asks))))))
+                              (-1 (decf (volume (car other-asks))
+                                        (volume (pop other-bids))))
+                              (+1 (decf (volume (car other-bids))
+                                        (volume (pop other-asks))))
                               (0 (pop other-bids) (pop other-asks))))
                           ,@body))))
           ;; Need to rework this flow so the worker (actor calculating priorities) gets
@@ -514,7 +515,7 @@
     (let ((trades (remove type (chanl:recv c)
                           :key (lambda (c) (getjso "type" c)) :test #'string/=)))
       (when market
-        (setf trades (remove (name-of market) trades
+        (setf trades (remove (name market) trades
                              :key (lambda (c) (getjso "pair" c)) :test #'string/=)))
       (when depth
         (setf trades (loop for trade in trades collect trade
@@ -548,7 +549,7 @@
 
 (defun asset-balance (tracker asset &aux (channel (make-instance 'chanl:channel)))
   (with-slots (control) tracker
-    (chanl:send control (cons (name-of asset) channel))
+    (chanl:send control (cons (name asset) channel))
     (chanl:recv channel)))
 
 (defun gapps-rate (from to)
@@ -575,7 +576,7 @@
               (eq :terminated (chanl:task-status thread)))
       (setf thread
             (chanl:pexec
-                (:name (concatenate 'string "qdm-preα fee tracker for " (name-of market))
+                (:name (concatenate 'string "qdm-preα fee tracker for " (name market))
                  :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
@@ -700,7 +701,7 @@
               (eq :terminated (chanl:task-status thread)))
       (setf thread
             (chanl:pexec
-                (:name (concatenate 'string "qdm-preα " (name-of market))
+                (:name (concatenate 'string "qdm-preα " (name market))
                  :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?

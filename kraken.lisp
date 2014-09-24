@@ -125,7 +125,7 @@
                   (make-instance 'asset :name name :decimals decimals)))
               (get-request "Assets")))
 
-(defclass kraken-market (market) ((altname :initarg :altname :reader altname-of)))
+(defclass kraken-market (market) ((altname :initarg :altname :reader altname)))
 
 (defun get-markets (assets)
   (mapcar-jso (lambda (name data)
@@ -144,7 +144,7 @@
 (defmethod find-market (designator (exchange (eql *kraken*)))
   (or (call-next-method)
       (with-slots (markets) *kraken*
-        (find designator markets :key 'altname-of :test 'string-equal))))
+        (find designator markets :key 'altname :test 'string-equal))))
 
 (defclass kraken-gate (gate) ())
 
@@ -161,7 +161,7 @@
 ;;; Public Data API
 ;;;
 
-(defmethod get-book ((market kraken-market) &aux (pair (name-of market)))
+(defmethod get-book ((market kraken-market) &aux (pair (name market)))
   (let ((decimals (slot-value market 'decimals)))
     (with-json-slots (bids asks)
         (getjso pair (get-request "Depth" `(("pair" . ,pair))))
@@ -176,8 +176,8 @@
                 (mapcar (parser 'bid) bids))))))
 
 (defmethod trades-since ((market kraken-market) &optional since)
-  (with-json-slots (last (trades (name-of market)))
-      (get-request "Trades" `(("pair" . ,(name-of market))
+  (with-json-slots (last (trades (name market)))
+      (get-request "Trades" `(("pair" . ,(name market))
                               ,@(when since `(("since" . ,since)))))
     (values (mapcar (lambda (trade)
                       (destructuring-bind (price volume time side kind data) trade
@@ -206,14 +206,13 @@
                            (decimals (slot-value market 'decimals))
                            (price-int (parse-price price decimals))
                            (volume (read-from-string vol)))
-                      (make-instance 'placed
-                                     :id id :text order :market market
+                      (make-instance 'placed :uid id :market market
                                      :price (if (string= type "buy") (- price-int) price-int)
                                      :volume (if (not (search "viqc" oflags)) volume
                                                  (/ volume price-int (expt 10 decimals))))))))
               (open-orders gate)))
 
-(defmethod market-fee ((gate kraken-gate) market &aux (pair (name-of market)))
+(defmethod market-fee ((gate kraken-gate) market &aux (pair (name market)))
   (awhen (gate-request gate "TradeVolume" `(("pair" . ,pair)))
     (read-from-string (getjso "fee" (getjso pair (getjso "fees" it))))))
 
@@ -250,11 +249,11 @@
   ;; (format t "~&place  ~A~%" offer)
   (with-slots (market volume price) offer
     (flet ((post (type options)
-             (awhen (post-limit gate type (name-of market) (abs price) volume
+             (awhen (post-limit gate type (name market) (abs price) volume
                                 (slot-value market 'decimals)
                                 options)
                (with-json-slots (id order) it
-                 (change-class offer 'placed :id id :text order)))))
+                 (change-class offer 'placed :uid id)))))
       (if (< price 0)
           (post "buy" "viqc")
           (post "sell" nil)))))
@@ -264,5 +263,5 @@
 
 (defmethod cancel-offer ((gate kraken-gate) offer)
   ;; (format t "~&cancel ~A~%" offer)
-  (multiple-value-bind (ret err) (cancel-order gate (offer-id offer))
+  (multiple-value-bind (ret err) (cancel-order gate (uid offer))
     (or ret (search "Unknown order" (car err)))))

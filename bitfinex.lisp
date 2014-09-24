@@ -152,7 +152,7 @@
 ;;; Public Data API
 ;;;
 
-(defmethod get-book ((market bitfinex-market) &aux (pair (name-of market)))
+(defmethod get-book ((market bitfinex-market) &aux (pair (name market)))
   (let ((decimals (slot-value market 'decimals)))
     (with-json-slots (bids asks)
         (get-request (format nil "book/~A" pair)
@@ -174,7 +174,7 @@
                      (list (parse-timestamp *bitfinex* timestamp)
                            ;; FIXME - "cost" later gets treated as precise
                            volume price (* volume price) type))))
-               (get-request (format nil "trades/~A" (name-of market))
+               (get-request (format nil "trades/~A" (name market))
                             `(,@(when since `(("timestamp" . ,(princ-to-string since)))))))
        (values it (timestamp-to-unix (timestamp+ (caar it) 1 :sec)))
        (values nil nil)))               ; for SBCL's type inference
@@ -193,7 +193,7 @@
                      (decimals (slot-value market 'decimals))
                      (price-int (parse-price price decimals))
                      (volume (read-from-string remaining_amount)))
-                (make-instance 'placed :id id :market market :volume volume
+                (make-instance 'placed :uid id :market market :volume volume
                                :price (if (string= side "buy") (- price-int) price-int)))))
           (open-orders gate)))
 
@@ -201,7 +201,7 @@
   (awhen (car (gate-request gate "account_infos"))
     (read-from-string
      (getjso "maker_fees"
-             (find (name-of (slot-value market 'base))
+             (find (name (slot-value market 'base))
                    (getjso "fees" it) :test #'string-equal
                    :key (lambda (x) (getjso "pairs" x)))))))
 
@@ -228,10 +228,10 @@
 (defmethod post-offer ((gate bitfinex-gate) offer)
   (with-slots (market volume price) offer
     (flet ((post (type)
-             (awhen (post-limit gate type (name-of market) (abs price) volume
+             (awhen (post-limit gate type (name market) (abs price) volume
                                 (slot-value market 'decimals))
                (with-json-slots (order_id) it
-                 (change-class offer 'placed :id order_id)))))
+                 (change-class offer 'placed :uid order_id)))))
       (post (if (< price 0) "buy" "sell")))))
 
 ;;; the order object returned will (always?) indicate that the order hasn't yet
@@ -243,5 +243,5 @@
 
 (defmethod cancel-offer ((gate bitfinex-gate) offer)
   ;; (format t "~&cancel ~A~%" offer)
-  (multiple-value-bind (ret err) (cancel-order gate (offer-id offer))
+  (multiple-value-bind (ret err) (cancel-order gate (uid offer))
     (or ret (string= "Order could not be cancelled." (getjso "message" err)))))

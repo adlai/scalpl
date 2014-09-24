@@ -3,10 +3,10 @@
 (defpackage #:scalpl.exchange
   (:use #:cl #:anaphora #:st-json #:local-time #:scalpl.util)
   (:export #:exchange #:assets #:markets
-           #:asset #:find-asset #:name-of
+           #:asset #:find-asset #:name
            #:market #:find-market #:decimals #:base #:quote
-           #:offer #:placed #:bid #:ask #:offer-price #:offer-volume
-           #:volume #:price #:offer-id #:offer-text #:consumed-asset
+           #:offer #:placed #:bid #:ask #:offer #:offer
+           #:volume #:price #:uid #:consumed-asset
            #:parse-timestamp #:gate #:gate-post #:gate-request
            #:thread ; UGH
            #:get-book #:trades-since
@@ -43,12 +43,12 @@
 ;;;
 
 (defclass asset ()
-  ((name :initarg :name :reader name-of)
+  ((name :initarg :name :reader name)
    (decimals :initarg :decimals)))
 
 (defgeneric find-asset (designator exchange)
   (:method (designator (assets list))
-    (find designator assets :key 'name-of :test 'string-equal))
+    (find designator assets :key 'name :test 'string-equal))
   (:method (designator (exchange exchange))
     (with-slots (assets) exchange
       (find-market designator assets))))
@@ -58,14 +58,14 @@
 ;;;
 
 (defclass market ()
-  ((name :initarg :name :reader name-of)
+  ((name :initarg :name :reader name)
    (decimals :initarg :decimals)
    (quote :initarg :quote :reader quote-asset)
    (base :initarg :base :reader base-asset)))
 
 (defgeneric find-market (designator exchange)
   (:method (designator (markets list))
-    (find designator markets :key 'name-of :test 'string-equal))
+    (find designator markets :key 'name :test 'string-equal))
   (:method (designator (exchange exchange))
     (with-slots (markets) exchange
       (find-market designator markets))))
@@ -76,22 +76,16 @@
 
 (defclass offer ()
   ((market :initarg :market)
-   (volume :initarg :volume :accessor offer-volume)
-   (price :initarg :price :reader offer-price)))
+   (volume :initarg :volume :accessor volume)
+   (price :initarg :price :reader price)))
 
 (defclass placed (offer)
-  ((id :initarg :id :reader offer-id)
-   (text :initarg :text :reader offer-text)))
+  ((uid :initarg :uid :reader uid)))
 
 (defclass bid (offer) ())
 (defclass ask (offer) ())
 (defmethod initialize-instance :after ((bid bid) &key)
   (with-slots (price) bid (setf price (- price))))
-
-(defmethod shared-initialize :after ((offer placed) names &key)
-  (unless (slot-boundp offer 'text)
-    (setf (slot-value offer 'text)
-          (with-output-to-string (s) (describe offer s)))))
 
 (defmethod print-object ((offer offer) stream)
   (print-unreadable-object (offer stream :type t)
@@ -145,6 +139,14 @@
 ;;;
 
 (defgeneric get-book (market))
+
+(defclass trade ()
+  ((market    :initarg :market    :reader market)
+   (volume    :initarg :volume    :reader volume)
+   (price     :initarg :price     :reader price)
+   (cost      :initarg :cost      :reader cost)
+   (timestamp :initarg :timestamp :reader timestamp)))
+
 (defgeneric trades-since (market &optional since))
 
 ;;;
