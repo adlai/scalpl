@@ -316,15 +316,17 @@
                        (make-instance 'offer :market market :price (- price 3)
                                       :volume (* funds (/ (+ bonus (car order))
                                                           total)))))))
-            (mapcar (if (> epsilon (/ funds n-orders))
-                        (liquidator 0 total-shares)
-                        ;; temporary fix - disable scaling
-                        ;; this means we get the largest m<n offers from the target,
-                        ;; rather than m offers distributed throughout the n
-                        (let ((bonus (/ (- (* e/f total-shares) (caar relevant))
-                                        (- 1 (* e/f n-orders)))))
-                          (liquidator bonus (+ total-shares (* bonus n-orders)))))
-                    (sort relevant #'< :key (lambda (x) (price (cdr x))))))))
+            (let ((sorted (sort relevant #'< :key (lambda (x) (price (cdr x))))))
+              (if (> epsilon (/ funds n-orders))
+                  ;; temporary fix - disable scaling
+                  ;; this means we get the largest m<n offers from the target,
+                  ;; rather than m offers distributed throughout the n
+                  (remove-if (lambda (offer) (< (volume offer) epsilon))
+                             (mapcar (liquidator 0 total-shares) sorted))
+                  (mapcar (let ((bonus (/ (- (* e/f total-shares) (caar relevant))
+                                          (- 1 (* e/f n-orders)))))
+                            (liquidator bonus (+ total-shares (* bonus n-orders))))
+                          sorted))))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
     (with-slots (volume) (car cur)
