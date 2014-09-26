@@ -1,5 +1,5 @@
 (defpackage #:scalpl.kraken
-  (:use #:cl #:anaphora #:st-json #:scalpl.util #:scalpl.exchange)
+  (:use #:cl #:anaphora #:st-json #:local-time #:scalpl.util #:scalpl.exchange)
   (:export #:get-request
            #:post-request
            #:find-market #:*kraken* #:kraken-gate
@@ -105,9 +105,9 @@
                             (urlencode-params data))
                :parameters data))
 
-(defun nonce (&aux (now (local-time:now)))
-  (princ-to-string (+ (floor (local-time:nsec-of now) 1000)
-                      (* 1000000 (local-time:timestamp-to-unix now)))))
+(defun nonce (&aux (now (now)))
+  (princ-to-string (+ (floor (nsec-of now) 1000)
+                      (* 1000000 (timestamp-to-unix now)))))
 
 (defun post-request (method key signer &optional data &aux (nonce (nonce)))
   (let ((path (concatenate 'string "/0/private/" method)))
