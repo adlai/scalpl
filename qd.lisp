@@ -64,28 +64,12 @@
    (since :initform (timestamp- (now) 6 :hour) :initarg :since)
    worker updater))
 
-(defun raw-trades-history (tracker &key since until ofs)
-  (macrolet ((check-bound (bound)
-               `(setf ,bound
-                      (ctypecase ,bound
-                        (null nil)      ; (typep nil nil) -> nil
-                        (string ,bound)
-                        (timestamp
-                         (princ-to-string (timestamp-to-unix ,bound)))
-                        (jso (getjso "txid" ,bound))))))
-    (check-bound since)
-    (check-bound until))
-  (gate-request (slot-value tracker 'gate) "TradesHistory"
-                (append (when since `(("start" . ,since)))
-                        (when until `(("end" . ,until)))
-                        (when ofs `(("ofs" . ,ofs))))))
-
 ;;; TODO: We have the fees paid for each order in the data from the exchange,
 ;;; so we should be able to calculate the _net_ price for each trade, and use
 ;;; that for profitability calculations, rather than fee at time of calculation.
 (defun trades-history-chunk (tracker &key until since)
-  (with-slots (delay) tracker
-    (awhen (apply #'raw-trades-history tracker
+  (with-slots (delay gate) tracker
+    (awhen (apply #'execution-history gate
                (append (when until `(:until ,until))
                        (when since `(:since ,since))))
       (with-json-slots (count trades) it

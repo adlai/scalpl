@@ -217,6 +217,22 @@
   (awhen (gate-request gate "TradeVolume" `(("pair" . ,pair)))
     (read-from-string (getjso "fee" (getjso pair (getjso "fees" it))))))
 
+(defmethod execution-history ((gate kraken-gate) &key since until ofs)
+  (macrolet ((fix-bound (bound)
+               `(setf ,bound
+                      (ctypecase ,bound
+                        (null nil)      ; (typep nil nil) -> nil
+                        (string ,bound)
+                        (timestamp
+                         (princ-to-string (timestamp-to-unix ,bound)))
+                        (jso (getjso "txid" ,bound))))))
+    (fix-bound since)
+    (fix-bound until))
+  (gate-request gate "TradesHistory"
+                (append (when since `(("start" . ,since)))
+                        (when until `(( "end"  . ,until)))
+                        (when ofs   `(( "ofs"  .  ,ofs))))))
+
 ;;;
 ;;; Action API
 ;;;

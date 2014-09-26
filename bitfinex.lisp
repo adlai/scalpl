@@ -206,6 +206,24 @@
                    (getjso "fees" it) :test #'string-equal
                    :key (lambda (x) (getjso "pairs" x)))))))
 
+(defmethod execution-history ((gate bitfinex-gate) &key since until ofs pair)
+  (macrolet ((fix-bound (bound)
+               `(setf ,bound
+                      (ctypecase ,bound
+                        (null nil)      ; (typep nil nil) -> nil
+                        (string ,bound)
+                        (timestamp
+                         (princ-to-string (timestamp-to-unix ,bound)))
+                        (jso (princ-to-string (timestamp-to-unix (getjso "timestamp" ,bound))))))))
+    (fix-bound since)
+    (assert (null until))
+    (assert (null ofs)))
+  (gate-request gate "mytrades"
+                (append (when since `(("timestamp" . ,since)))
+                        (when until `(( "end" . ,until)))
+                        (when ofs `(( "ofs" . ,ofs)))
+                        `(("symbol" . ,pair)))))
+
 ;;;
 ;;; Action API
 ;;;

@@ -10,7 +10,7 @@
            #:parse-timestamp #:gate #:gate-post #:gate-request
            #:thread #:control #:updater #:worker #:output ; UGH
            #:get-book #:trades-since #:trades-tracker #:vwap
-           #:placed-offers #:market-fee
+           #:placed-offers #:market-fee #:execution-history
            #:post-offer #:cancel-offer
            ))
 
@@ -252,6 +252,7 @@
 
 (defgeneric placed-offers (gate))
 (defgeneric market-fee (gate market))
+(defgeneric execution-history (gate &key))
 
 ;;;
 ;;; Action API
