@@ -179,8 +179,10 @@
         (setf trades (loop for trade in trades collect trade
                            sum (second trade) into sum
                            until (>= sum depth))))
-      (/ (reduce #'+ (mapcar #'fourth trades))
-         (reduce #'+ (mapcar #'second trades))))))
+      (handler-case
+          (/ (reduce #'+ (mapcar #'fourth trades))
+             (reduce #'+ (mapcar #'second trades)))
+        (division-by-zero () 0)))))
 
 (defgeneric trades-mergeable? (trades-tracker prev next)
   (:method-combination and)
@@ -216,7 +218,8 @@
        ;; commands are (cons command args)
        (case (car command)
          ;; max - find max seen trade size
-         (max (chanl:send output (reduce #'max (mapcar #'second trades))))
+         (max (chanl:send output (reduce #'max (mapcar #'second trades)
+                                         :initial-value 0)))
          ;; vwap - find vwap over recent trades
          (vwap (chanl:send output (apply #'vwap tracker (cdr command))))
          ;; pause - wait for any other command to restart
