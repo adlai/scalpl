@@ -495,11 +495,12 @@
    (trades-tracker :initarg :trades-tracker)
    (book-tracker :initarg :book-tracker)
    (account-tracker :initarg :account-tracker)
+   (name :initarg :name :accessor name)
    thread))
 
 (defun %round (maker)
   (declare (optimize (debug 3)))
-  (with-slots (fund-factor resilience-factor targeting-factor market
+  (with-slots (fund-factor resilience-factor targeting-factor market name
                fee-tracker trades-tracker book-tracker account-tracker)
       maker
     ;; whoo!
@@ -533,11 +534,12 @@
                                                    :market market :depth depth)
                                              fee)))))
             ;; time, total, base, quote, invested, risked, risk bias, pulse
-            (format t "~&~A ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$"
+            (format t "~&~A ~6@A ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$"
                     (format-timestring nil (now)
                                        :format '((:hour 2) #\:
                                                  (:min 2) #\:
                                                  (:sec 2)))
+                    name
                     (asset-decimals 'base)  total-fund
                     (asset-decimals 'base)  total-btc
                     (asset-decimals 'quote) total-doge
@@ -652,7 +654,7 @@
                 maker))))
 
 (defvar *maker*
-  (make-instance 'maker :market (find-market "XXBTZEUR" *kraken*)
+  (make-instance 'maker :market (find-market "XXBTZEUR" *kraken*) :name "proto"
                  :gate (make-instance 'kraken-gate
                                       :pubkey #P "secrets/kraken.pubkey"
                                       :secret #P "secrets/kraken.secret")))
