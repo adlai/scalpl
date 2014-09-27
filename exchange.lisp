@@ -195,6 +195,20 @@
       (> market-timestamp-sensitivity
          (timestamp-difference (timestamp next) (timestamp prev))))))
 
+(defgeneric merge-trades (trades-tracker prev next)
+  (:method ((tracker trades-tracker) (prev list) (next list))
+    (let* ((volume (+ (second prev) (second next)))
+           (cost   (+ (fourth prev) (fourth next)))
+           (price (/ cost volume)))
+      (list (first prev) volume price cost (fifth prev))))
+  (:method ((tracker trades-tracker) (prev trade) (next trade))
+    (let* ((volume (+ (volume prev) (volume next)))
+           (cost   (+ (cost   prev) (cost   next)))
+           (price (/ cost volume)))
+      (make-instance 'trade :market (market prev)
+                     :timestamp (timestamp prev) :cost cost
+                     :volume volume :price price))))
+
 (defun trades-worker-loop (tracker)
   (with-slots (control buffer output trades) tracker
     (chanl:select
