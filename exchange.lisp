@@ -36,6 +36,10 @@
     (dolist (asset assets) (setf (slot-value asset 'exchange) exchange))
     (dolist (market markets) (setf (slot-value market 'exchange) exchange))))
 
+(defmethod print-object ((exchange exchange) stream)
+  (print-unreadable-object (exchange stream :type nil :identity nil)
+    (princ (name exchange) stream)))
+
 (defgeneric parse-timestamp (exchange timestamp)
   ;; most common is a unix timestamp
   (:method ((exchange exchange) (timestamp real))
@@ -52,6 +56,10 @@
   ((name     :initarg :name     :reader name)
    (decimals :initarg :decimals :reader decimals)
    (exchange :initarg :exchange :reader exchange)))
+
+(defmethod print-object ((asset asset) stream)
+  (print-unreadable-object (asset stream :type nil :identity nil)
+    (format stream "~A on ~A" (name asset) (exchange asset))))
 
 (defgeneric find-asset (designator exchange)
   (:method (designator (assets list))
@@ -70,6 +78,10 @@
    (exchange :initarg :exchange :reader exchange)
    (quote    :initarg :quote    :reader quote-asset)
    (base     :initarg :base     :reader base-asset)))
+
+(defmethod print-object ((market market) stream)
+  (print-unreadable-object (market stream :type nil :identity nil)
+    (format stream "~A on ~A" (name market) (exchange market))))
 
 (defgeneric find-market (designator exchange)
   (:method (designator (markets list))
