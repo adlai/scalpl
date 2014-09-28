@@ -114,7 +114,7 @@
 (defun execution-updater-loop (tracker)
   (with-slots (since gate buffer) tracker
     (loop
-       for trade across (trades-history-chunk tracker :since since)
+       for trade across (or (trades-history-chunk tracker :since since) #())
        do (chanl:send buffer trade)
        finally (when trade (setf since trade)))))
 
