@@ -144,7 +144,15 @@
 
 (defmethod gate-post ((gate kraken-gate) key secret request)
   (destructuring-bind (command . options) request
-    (multiple-value-list (post-request command key secret options))))
+    (let (result errors)
+      (loop
+         (setf (values result errors)
+               (post-request command key secret options))
+         (if (and errors (search "Temporary lockout" (car errors)))
+             (progn (format t "~&Temporary lockout, waiting 30 minutes...~%")
+                    (finish-output)
+                    (sleep (* 60 30)))
+             (return (list result errors)))))))
 
 (defmethod shared-initialize ((gate kraken-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
