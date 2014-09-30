@@ -9,11 +9,18 @@
            #:parse-price
            #:rehome-symbol
            #:rehome-class
+           #:slot-reduce
            ))
 
 (in-package #:scalpl.util)
 
 ;;; Actually useful
+
+;;; right now this is only for convenience at the REPL
+;;; as was suggested in #lisp, if there's ever a need to do this in the actual
+;;; code, it's a red flag that some abstraction is missing
+(defmacro slot-reduce (root &rest slots)
+  `(reduce 'slot-value ',slots :initial-value ,root))
 
 (defun rehome-symbol (symbol new-home &aux (old-home (symbol-package symbol)))
   (unintern symbol old-home)
