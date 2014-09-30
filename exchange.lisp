@@ -9,8 +9,8 @@
            #:volume #:price #:uid #:consumed-asset
            #:parse-timestamp #:gate #:gate-post #:gate-request
            #:thread #:control #:updater #:worker #:output ; UGH
-           #:get-book #:trades-since #:trades-tracker #:vwap
-           #:placed-offers #:market-fee #:execution-history
+           #:get-book #:trades-since #:trades-tracker #:book-tracker
+           #:placed-offers #:market-fee #:execution-history #:vwap
            #:post-offer #:cancel-offer
            ))
 
@@ -274,6 +274,52 @@
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (trades-worker-loop tracker)))))))
+
+;;;
+;;; ORDER BOOK
+;;;
+
+(defclass book-tracker ()
+  ((market :initarg :market)
+   (control :initform (make-instance 'chanl:channel))
+   (book-output :initform (make-instance 'chanl:channel))
+   (delay :initarg :delay :initform 8)
+   bids asks updater worker))
+
+(defun book-worker-loop (tracker)
+  (with-slots (control bids asks book-output) tracker
+    (handler-case
+        (chanl:select
+          ((chanl:recv control command)
+           ;; commands are (cons command args)
+           (case (car command)
+             ;; pause - wait for any other command to restart
+             (pause (chanl:recv control))))
+          ((chanl:send book-output (cons bids asks)))
+          (t (sleep 0.2)))
+      (unbound-slot ()))))
+
+(defun book-updater-loop (tracker)
+  (with-slots (bids asks delay market offers) tracker
+    (setf (values asks bids) (get-book market))
+    (sleep delay)))
+
+(defmethod shared-initialize :after ((tracker book-tracker) (names t) &key)
+  (with-slots (updater worker market) tracker
+    (when (or (not (slot-boundp tracker 'updater))
+              (eq :terminated (chanl:task-status updater)))
+      (setf updater
+            (chanl:pexec
+                (:name (concatenate 'string "qdm-preα book updater for " (name market))
+                       :initial-bindings `((*read-default-float-format* double-float)))
+              (loop (book-updater-loop tracker)))))
+    (when (or (not (slot-boundp tracker 'worker))
+              (eq :terminated (chanl:task-status worker)))
+      (setf worker
+            (chanl:pexec (:name (concatenate 'string "qdm-preα book worker for " (name market)))
+              ;; TODO: just pexec anew each time...
+              ;; you'll understand what you meant someday, right?
+              (loop (book-worker-loop tracker)))))))
 
 ;;;
 ;;; Private Data API
