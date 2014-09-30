@@ -228,21 +228,37 @@
 ;;; Action API
 ;;;
 
+(defun post-raw-limit (gate type pair amount price)
+  (multiple-value-bind (info error)
+      (gate-request gate "order/new"
+                    `(("type" . "exchange limit")
+                      ("exchange" . "bitfinex") ; lold habits
+                      ("side" . ,type)
+                      ("symbol" . ,pair)
+                      ("amount" . ,amount)
+                      ("price" . ,price)
+                      ))
+    (if error (warn (getjso "message" error)) info)))
+
 (defun post-limit (gate type pair price volume decimals)
   (let ((price (/ price (expt 10d0 decimals))))
-    (when (string-equal type "buy")
-      (setf volume (/ volume price)))
-    (when (>= volume 0.001)
-      (multiple-value-bind (info error)
-          (gate-request gate "order/new"
-                        `(("type" . "exchange limit")
-                          ("exchange" . "bitfinex") ; lold habits
-                          ("side" . ,type)
-                          ("symbol" . ,pair)
-                          ("amount" . ,(format nil "~V$" 3 volume))
-                          ("price" . ,(format nil "~V$" decimals price))
-                          ))
-        (if error (warn (getjso "message" error)) info)))))
+    ;; bitfinex always wants volume in the base currency units
+    (when (string-equal type "buy") (setf volume (/ volume price)))
+    ;; FIXME: these hardcoded numbers are btcusd-specific!
+    (flet ((post (chunk)
+             (post-raw-limit gate type pair
+                             (format nil "~V$" 3 chunk)
+                             (format nil "~V$" decimals price))))
+      ;; minimal order is 0.001 btc
+      (when (>= volume 0.001)
+        ;; maximal order is 2000 btc
+        (if (< volume 2000) (post volume)
+            ;; if the order doesn't fit, we break it apart into chunks
+            (let* ((num-chunks (1+ (floor volume 2000)))
+                   (chunk-vol (/ volume num-chunks))
+                   offers)
+              (dotimes (blub num-chunks (jso "order_id" offers))
+                (awhen (post chunk-vol) (push (getjso "order_id" it) offers)))))))))
 
 (defmethod post-offer ((gate bitfinex-gate) offer)
   (with-slots (market volume price) offer
@@ -258,7 +274,10 @@
 ;;; order, we get 400 Bad Request + error message; so if we have any primary
 ;;; return value, we can treat that as a successful cancellation.
 (defun cancel-order (gate oid)
-  (gate-request gate "order/cancel" `(("order_id" . ,oid))))
+  (typecase oid
+    (integer (gate-request gate "order/cancel" `(("order_id" . ,oid))))
+    ;; if any cancellation fails, notany #'null ensures that we'll try again
+    (list (notany #'null (mapcar (lambda (id) (cancel-order gate id)) oid)))))
 
 (defmethod cancel-offer ((gate bitfinex-gate) offer)
   ;; (format t "~&cancel ~A~%" offer)
