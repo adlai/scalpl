@@ -22,6 +22,14 @@
 (defmacro slot-reduce (root &rest slots)
   `(reduce 'slot-value ',slots :initial-value ,root))
 
+(defmacro setf-slot-reduce (root &rest slots-and-value)
+  (let ((path (butlast slots-and-value 2))
+        (tail (last slots-and-value 2)))
+    (destructuring-bind (slot new-value) tail
+      `(setf (slot-value (slot-reduce ,root ,@path) ',slot) ,new-value))))
+
+(defsetf slot-reduce setf-slot-reduce)
+
 (defun rehome-symbol (symbol new-home &aux (old-home (symbol-package symbol)))
   (unintern symbol old-home)
   (import (list symbol) new-home)
