@@ -22,13 +22,10 @@
 (defmacro slot-reduce (root &rest slots)
   `(reduce 'slot-value ',slots :initial-value ,root))
 
-(defmacro setf-slot-reduce (root &rest slots-and-value)
-  (let ((path (butlast slots-and-value 2))
-        (tail (last slots-and-value 2)))
-    (destructuring-bind (slot new-value) tail
-      `(setf (slot-value (slot-reduce ,root ,@path) ',slot) ,new-value))))
-
-(defsetf slot-reduce setf-slot-reduce)
+(define-setf-expander slot-reduce (root &rest slots &environment env)
+  (assert (not (null slots)) (slots) "must supply at least one slot")
+  (let ((path (butlast slots)) (end (car (last slots))))
+    (get-setf-expansion `(slot-value (slot-reduce ,root ,@path) ',end) env)))
 
 (defun rehome-symbol (symbol new-home &aux (old-home (symbol-package symbol)))
   (unintern symbol old-home)
