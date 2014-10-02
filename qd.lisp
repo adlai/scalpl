@@ -49,13 +49,13 @@
                    (return (sort chunk #'timestamp<
                                  :key (lambda (o) (getjso "time" o)))))
                  (sleep delay)
-                 (with-json-slots (count trades)
-                     (apply #'raw-trades-history tracker
-                            :until until :ofs (princ-to-string (fill-pointer chunk))
-                            (when since `(:since ,since)))
-                   (let ((next-total (parse-integer count)))
-                     (assert (= total next-total))
-                     (process trades))))))))))
+                 (awhen (apply #'execution-history gate
+                               :until until :ofs (princ-to-string (fill-pointer chunk))
+                               (when since `(:since ,since)))
+                   (with-json-slots (count trades) it
+                     (let ((next-total (parse-integer count)))
+                       (assert (= total next-total))
+                       (process trades)))))))))))
 
 (defun execution-worker-loop (tracker)
   (with-slots (trades control buffer) tracker
