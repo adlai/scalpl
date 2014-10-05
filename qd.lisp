@@ -66,14 +66,15 @@
       (t (sleep 0.2)))))
 
 (defun execution-updater-loop (tracker)
-  (with-slots (since gate buffer) tracker
+  (with-slots (delay since buffer) tracker
     (loop
        for trade across (or (trades-history-chunk tracker :since since) #())
        do (chanl:send buffer trade)
-       finally (when trade (setf since trade)))))
+       finally (when trade (setf since trade)))
+    (sleep delay)))
 
 (defmethod shared-initialize :after ((tracker execution-tracker) slots &key)
-  (with-slots (delay worker updater) tracker
+  (with-slots (worker updater) tracker
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
@@ -84,9 +85,7 @@
       (setf updater
             (chanl:pexec (:name "qdm-preα execution updater"
                           :initial-bindings '((*read-default-float-format* double-float)))
-              (loop
-                 (sleep delay)
-                 (execution-updater-loop tracker)))))))
+              (loop (execution-updater-loop tracker)))))))
 
 ;;;
 ;;;  ENGINE
