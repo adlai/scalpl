@@ -306,7 +306,7 @@
             (chanl:send next-bids (dumbot-offers other-bids resilience quote 0.05 15))
             (chanl:recv prioritizer-response))
           (with-book ()
-            (chanl:send next-asks (dumbot-offers other-asks resilience base 0.0015 15))
+            (chanl:send next-asks (dumbot-offers other-asks resilience base 0.01 15))
             (chanl:recv prioritizer-response)))))
     (chanl:send output nil)))
 
@@ -509,10 +509,10 @@
                 ;; soft limit test: are we within (magic) 33% of the target?
                 (when (> lopsidedness 1/8)
                   (flet ((urgent (class side fund)
-                           (let ((price (1- (slot-value (cadr (slot-value book-tracker side)) 'price))))
+                           (let ((price (1- (slot-value (fourth (slot-value book-tracker side)) 'price))))
                              (make-instance class :market market
                                             ;; jump back (magic) 1/7th of distance to target
-                                            :volume (* fund lopsidedness 1/29)
+                                            :volume (* fund lopsidedness 1/23)
                                             :price (abs price)))))
                     ;; ugh
                     (sleep 2)
