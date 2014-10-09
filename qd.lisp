@@ -363,9 +363,9 @@
                                     it))))
     (sleep delay)))
 
-(defmethod vwap ((tracker account-tracker) &key type market depth)
+(defmethod vwap ((tracker execution-tracker) &key type market depth)
   (let ((c (make-instance 'chanl:channel)))
-    (chanl:send (slot-value (slot-value tracker 'lictor) 'control) c)
+    (chanl:send (slot-value tracker 'control) c)
     (let ((trades (remove type (chanl:recv c)
                           :key (lambda (c) (getjso "type" c)) :test #'string/=)))
       (when market
@@ -377,6 +377,9 @@
                            until (>= sum depth))))
       (/ (reduce '+ (mapcar (lambda (x) (getjso "cost" x)) trades))
          (reduce '+ (mapcar (lambda (x) (getjso "vol" x)) trades))))))
+
+(defmethod vwap ((tracker account-tracker) &key type market depth)
+  (vwap (slot-value tracker 'lictor) :type type :depth depth :market market))
 
 (defmethod shared-initialize :after ((tracker account-tracker) (names t) &key)
   (with-slots (updater worker lictor gate ope) tracker
