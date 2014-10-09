@@ -303,10 +303,10 @@
           ;; the entire book at once...
           ;; TODO: properly deal with partial and completed orders
           (with-book ()
-            (chanl:send next-bids (dumbot-offers other-bids resilience quote 0.05 15))
+            (chanl:send next-bids (dumbot-offers other-bids resilience quote 0.01 15))
             (chanl:recv prioritizer-response))
           (with-book ()
-            (chanl:send next-asks (dumbot-offers other-asks resilience base 0.01 15))
+            (chanl:send next-asks (dumbot-offers other-asks resilience base 0.0001 15))
             (chanl:recv prioritizer-response)))))
     (chanl:send output nil)))
 

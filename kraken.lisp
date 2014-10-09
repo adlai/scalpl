@@ -239,26 +239,17 @@
 ;;; Action API
 ;;;
 
-(defun post-limit (gate type market price volume decimals &optional options)
+(defun post-limit (gate type market price volume decimals)
   (with-slots ((pair name) (vol-decimals decimals)) market
     (let ((price (/ price (expt 10d0 decimals))))
+      (when (string= type "sell") (setf volume (* volume price)))
       (multiple-value-bind (info errors)
           (gate-request gate "AddOrder"
-                        `(("ordertype" . "limit")
-                          ("type" . ,type)
-                          ("pair" . ,pair)
+                        `(("ordertype" . "limit") ("oflags" . "viqc")
+                          ("type" . ,type) ("pair" . ,pair)
                           ("volume" . ,(format nil "~V$" vol-decimals volume))
-                          ("price" . ,(format nil "~F" price))
-                          ,@(when options `(("oflags" . ,options)))
-                          ))
-        (if errors
-            (dolist (message errors)
-              (if (and (search "volume" message) (not (search "viqc" options)))
-                  (return
-                    (post-limit gate type pair price (* volume price) 0
-                                (apply #'concatenate 'string "viqc"
-                                       (when options '("," options)))))
-                  (format t "~&~A~%" message)))
+                          ("price" . ,(format nil "~V$" decimals price))))
+        (if errors (dolist (message errors) (warn "~&~A~%" message))
             (progn
               ;; theoretically, we could get several order IDs here,
               ;; but we're not using any of kraken's fancy forex nonsense
@@ -268,15 +259,12 @@
 (defmethod post-offer ((gate kraken-gate) offer)
   ;; (format t "~&place  ~A~%" offer)
   (with-slots (market volume price) offer
-    (flet ((post (type options)
+    (flet ((post (type)
              (awhen (post-limit gate type market (abs price) volume
-                                (slot-value market 'decimals)
-                                options)
+                                (slot-value market 'decimals))
                (with-json-slots (id order) it
                  (change-class offer 'placed :uid id)))))
-      (if (< price 0)
-          (post "buy" "viqc")
-          (post "sell" nil)))))
+      (if (< price 0) (post "buy") (post "sell")))))
 
 (defun cancel-order (gate oid)
   (gate-request gate "CancelOrder" `(("txid" . ,oid))))
