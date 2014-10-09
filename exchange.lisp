@@ -160,6 +160,11 @@
 
 (defgeneric get-book (market))
 
+;;; should trade direction be represented as:
+;;; a boolean slot?
+;;; slots for (consumed|earned)×(volume|asset)?
+;;; distinct buy and sell mixin classes/objects?
+
 (defclass trade ()
   ((market    :initarg :market    :reader market)
    (volume    :initarg :volume    :reader volume)
