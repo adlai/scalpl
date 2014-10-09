@@ -18,5 +18,6 @@
   :components ((:file "util")
                (:file "exchange")
                (:file "kraken")
+               (:file "bitfinex")
                (:file "qd")
                ))

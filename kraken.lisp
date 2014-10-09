@@ -185,10 +185,11 @@
                       (destructuring-bind (price volume time side kind data) trade
                         (let ((price  (read-from-string price))
                               (volume (read-from-string volume)))
-                          (list (parse-timestamp *kraken* time)
-                                ;; FIXME - "cost" later gets treated as precise
-                                volume price (* volume price)
-                                (concatenate 'string side kind data)))))
+                          (make-instance 'trade :market market
+                                         :timestamp (parse-timestamp *kraken* time)
+                                         ;; FIXME - "cost" later gets treated as precise
+                                         :volume volume :price price :cost (* volume price)
+                                         :direction (concatenate 'string side kind data)))))
                     trades)
             last)))
 

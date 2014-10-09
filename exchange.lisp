@@ -6,7 +6,7 @@
            #:asset #:find-asset #:name
            #:market #:find-market #:decimals #:base #:quote
            #:offer #:placed #:bid #:ask #:offer #:offer
-           #:volume #:price #:uid #:consumed-asset
+           #:volume #:price #:uid #:consumed-asset #:trade
            #:parse-timestamp #:gate #:gate-post #:gate-request
            #:thread #:control #:updater #:worker #:output ; UGH
            #:get-book #:trades-since #:trades-tracker #:book-tracker
@@ -170,7 +170,15 @@
    (volume    :initarg :volume    :reader volume)
    (price     :initarg :price     :reader price)
    (cost      :initarg :cost      :reader cost)
-   (timestamp :initarg :timestamp :reader timestamp)))
+   (timestamp :initarg :timestamp :reader timestamp)
+   (direction :initarg :direction :reader direction)))
+
+(defmethod timestamp ((trade list)) (first trade))
+(defmethod volume    ((trade list)) (second trade))
+(defmethod price     ((trade list)) (third trade))
+(defmethod cost      ((trade list)) (fourth trade))
+(defmethod direction ((trade list)) (fifth trade))
+(defmethod market    ((trade list)) (sixth trade))
 
 (defgeneric trades-since (market &optional since))
 
@@ -186,41 +194,31 @@
 (defgeneric vwap (tracker &key since type depth &allow-other-keys)
   (:method ((tracker trades-tracker) &key since depth type)
     (let ((trades (slot-value tracker 'trades)))
-      (when since
-        (setf trades (remove since trades :key #'car :test #'timestamp>=)))
+      (when since (setf trades (remove since trades
+                                       :key #'timestamp :test #'timestamp>=)))
       (when type
         (setf trades (remove (ccase type (buy #\b) (sell #\s)) trades
-                             :key (lambda (trade) (char (fifth trade) 0))
+                             :key (lambda (trade) (char (direction trade) 0))
                              :test-not #'char=)))
       (when depth
         (setf trades (loop for trade in trades collect trade
-                           sum (second trade) into sum
+                           sum (volume trade) into sum
                            until (>= sum depth))))
       (handler-case
-          (/ (reduce #'+ (mapcar #'fourth trades))
-             (reduce #'+ (mapcar #'second trades)))
+          (/ (reduce #'+ (mapcar #'cost trades))
+             (reduce #'+ (mapcar #'volume trades)))
         (division-by-zero () 0)))))
 
 (defgeneric trades-mergeable? (trades-tracker prev next)
   (:method-combination and)
-  (:method and ((tracker trades-tracker) (prev list) (next list))
+  (:method and ((tracker trades-tracker) prev next)
     (with-slots (market-timestamp-sensitivity)
-        (reduce 'slot-value '(market exchange) :initial-value tracker)
-      (> market-timestamp-sensitivity
-         (timestamp-difference (first next) (first prev)))))
-  (:method and ((tracker trades-tracker) (prev trade) (next trade))
-    (with-slots (market-timestamp-sensitivity)
-        (reduce 'slot-value '(market exchange) :initial-value tracker)
+        (slot-reduce tracker market exchange)
       (> market-timestamp-sensitivity
          (timestamp-difference (timestamp next) (timestamp prev))))))
 
 (defgeneric merge-trades (trades-tracker prev next)
-  (:method ((tracker trades-tracker) (prev list) (next list))
-    (let* ((volume (+ (second prev) (second next)))
-           (cost   (+ (fourth prev) (fourth next)))
-           (price (/ cost volume)))
-      (list (first prev) volume price cost (fifth prev))))
-  (:method ((tracker trades-tracker) (prev trade) (next trade))
+  (:method ((tracker trades-tracker) prev next)
     (let* ((volume (+ (volume prev) (volume next)))
            (cost   (+ (cost   prev) (cost   next)))
            (price (/ cost volume)))
@@ -229,13 +227,13 @@
                      :volume volume :price price))))
 
 (defun trades-worker-loop (tracker)
-  (with-slots (control buffer output trades) tracker
+  (with-slots (control buffer output trades market) tracker
     (chanl:select
       ((chanl:recv control command)
        ;; commands are (cons command args)
        (case (car command)
          ;; max - find max seen trade size
-         (max (chanl:send output (reduce #'max (mapcar #'second trades)
+         (max (chanl:send output (reduce #'max (mapcar #'volume trades)
                                          :initial-value 0)))
          ;; vwap - find vwap over recent trades
          (vwap (chanl:send output (apply #'vwap tracker (cdr command))))
@@ -246,11 +244,7 @@
        (setf trades
              (reduce (lambda (acc next &aux (prev (first acc)))
                        (if (trades-mergeable? tracker prev next)
-                           (let* ((volume (+ (second prev) (second next)))
-                                  (cost (+ (fourth prev) (fourth next)))
-                                  (price (/ cost volume)))
-                             (cons (list (first prev) volume price cost (fifth prev))
-                                   (cdr acc)))
+                           (cons (merge-trades tracker prev next) (cdr acc))
                            (cons next acc)))
                      raw-trades :initial-value trades)))
       (t (sleep 0.2)))))
