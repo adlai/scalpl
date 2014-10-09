@@ -238,31 +238,31 @@
 ;;; Action API
 ;;;
 
-(defun post-limit (gate type market price volume decimals
-                   &optional options &aux (pair (name market)))
-  (let ((price (/ price (expt 10d0 decimals))))
-    (multiple-value-bind (info errors)
-        (gate-request gate "AddOrder"
-                      `(("ordertype" . "limit")
-                        ("type" . ,type)
-                        ("pair" . ,pair)
-                        ("volume" . ,(format nil "~F" volume))
-                        ("price" . ,(format nil "~F" price))
-                        ,@(when options `(("oflags" . ,options)))
-                        ))
-      (if errors
-          (dolist (message errors)
-            (if (and (search "volume" message) (not (search "viqc" options)))
-                (return
-                  (post-limit gate type pair price (* volume price) 0
-                              (apply #'concatenate 'string "viqc"
-                                     (when options '("," options)))))
-                (format t "~&~A~%" message)))
-          (progn
-            ;; theoretically, we could get several order IDs here,
-            ;; but we're not using any of kraken's fancy forex nonsense
-            (setf (getjso* "descr.id" info) (car (getjso* "txid" info)))
-            (getjso "descr" info))))))
+(defun post-limit (gate type market price volume decimals &optional options)
+  (with-slots ((pair name) (vol-decimals decimals)) market
+    (let ((price (/ price (expt 10d0 decimals))))
+      (multiple-value-bind (info errors)
+          (gate-request gate "AddOrder"
+                        `(("ordertype" . "limit")
+                          ("type" . ,type)
+                          ("pair" . ,pair)
+                          ("volume" . ,(format nil "~V$" vol-decimals volume))
+                          ("price" . ,(format nil "~F" price))
+                          ,@(when options `(("oflags" . ,options)))
+                          ))
+        (if errors
+            (dolist (message errors)
+              (if (and (search "volume" message) (not (search "viqc" options)))
+                  (return
+                    (post-limit gate type pair price (* volume price) 0
+                                (apply #'concatenate 'string "viqc"
+                                       (when options '("," options)))))
+                  (format t "~&~A~%" message)))
+            (progn
+              ;; theoretically, we could get several order IDs here,
+              ;; but we're not using any of kraken's fancy forex nonsense
+              (setf (getjso* "descr.id" info) (car (getjso* "txid" info)))
+              (getjso "descr" info)))))))
 
 (defmethod post-offer ((gate kraken-gate) offer)
   ;; (format t "~&place  ~A~%" offer)
