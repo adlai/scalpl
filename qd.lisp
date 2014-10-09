@@ -485,7 +485,8 @@
                                                    :market market :depth depth)
                                              fee)))))
             ;; time, total, base, quote, invested, risked, risk bias, pulse
-            (format t "~&~A ~6@A ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$"
+            (format t "~&~A ~6@A ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~
+                       ~6@$ ~6@$ ~6@$ ~6@$ ~6@$ ~6@$"
                     (format-timestring nil (now)
                                        :format '((:hour 2) #\:
                                                  (:min 2) #\:
@@ -498,9 +499,11 @@
                     (* 100 (/ (total-of btc doge) total-fund))
                     (* 100 (/ (total-of (- btc) doge) total-fund))
                     (depth-profit)
-                    (depth-profit (* total-fund 12))
+                    (depth-profit (* total-fund 16))
+                    (depth-profit (* total-fund 4))
                     (depth-profit total-fund)
-                    (depth-profit (/ total-fund 12)))
+                    (depth-profit (/ total-fund 4))
+                    (depth-profit (/ total-fund 16)))
             (force-output)
             (with-slots (ope) account-tracker
               (chanl:send (slot-value ope 'input) (list fee btc doge resilience))
