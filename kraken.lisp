@@ -238,7 +238,8 @@
 ;;; Action API
 ;;;
 
-(defun post-limit (gate type pair price volume decimals &optional options)
+(defun post-limit (gate type market price volume decimals
+                   &optional options &aux (pair (name market)))
   (let ((price (/ price (expt 10d0 decimals))))
     (multiple-value-bind (info errors)
         (gate-request gate "AddOrder"
@@ -267,7 +268,7 @@
   ;; (format t "~&place  ~A~%" offer)
   (with-slots (market volume price) offer
     (flet ((post (type options)
-             (awhen (post-limit gate type (name market) (abs price) volume
+             (awhen (post-limit gate type market (abs price) volume
                                 (slot-value market 'decimals)
                                 options)
                (with-json-slots (id order) it
