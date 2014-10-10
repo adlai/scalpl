@@ -173,13 +173,6 @@
    (timestamp :initarg :timestamp :reader timestamp)
    (direction :initarg :direction :reader direction)))
 
-(defmethod timestamp ((trade list)) (first trade))
-(defmethod volume    ((trade list)) (second trade))
-(defmethod price     ((trade list)) (third trade))
-(defmethod cost      ((trade list)) (fourth trade))
-(defmethod direction ((trade list)) (fifth trade))
-(defmethod market    ((trade list)) (sixth trade))
-
 (defgeneric trades-since (market &optional since))
 
 (defclass trades-tracker ()
