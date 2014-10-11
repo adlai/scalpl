@@ -7,6 +7,7 @@
   :serial t
   :author "Adlai Chandrasekhar <munchking@gmail.com>"
   :depends-on (#:anaphora
+               #:parse-float
                #:drakma
                #:st-json
                #:cl-base64
