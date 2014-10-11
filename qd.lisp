@@ -482,11 +482,11 @@
           (flet ((asset-decimals (kind)
                    (slot-value (slot-value market kind) 'decimals))
                  (depth-profit (&optional depth)
-                   (* 100 (1- (profit-margin (vwap account-tracker :type "buy"
-                                                   :market market :depth depth)
-                                             (vwap account-tracker :type "sell"
-                                                   :market market :depth depth)
-                                             fee)))))
+                   (flet ((vwap (side) (vwap account-tracker :type side
+                                             :market market :depth depth)))
+                     (handler-case
+                         (* 100 (1- (profit-margin (vwap "buy") (vwap "sell") fee)))
+                       (division-by-zero () 0)))))
             ;; time, total, base, quote, invested, risked, risk bias, pulse
             (format t "~&~A ~6@A ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~
                        ~6@$ ~6@$ ~6@$ ~6@$ ~6@$ ~6@$"
