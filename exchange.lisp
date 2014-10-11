@@ -3,7 +3,7 @@
 (defpackage #:scalpl.exchange
   (:use #:cl #:anaphora #:st-json #:local-time #:scalpl.util)
   (:export #:exchange #:assets #:markets
-           #:asset #:find-asset #:name
+           #:asset #:find-asset #:name #:bids #:asks
            #:market #:find-market #:decimals #:base #:quote
            #:offer #:placed #:bid #:ask #:offer #:offer
            #:volume #:price #:uid #:consumed-asset #:trade
@@ -274,12 +274,12 @@
 (defclass book-tracker ()
   ((market :initarg :market)
    (control :initform (make-instance 'chanl:channel))
-   (book-output :initform (make-instance 'chanl:channel))
+   (output :initform (make-instance 'chanl:channel))
    (delay :initarg :delay :initform 8)
    bids asks updater worker))
 
 (defun book-worker-loop (tracker)
-  (with-slots (control bids asks book-output) tracker
+  (with-slots (control bids asks output) tracker
     (handler-case
         (chanl:select
           ((chanl:recv control command)
@@ -287,7 +287,7 @@
            (case (car command)
              ;; pause - wait for any other command to restart
              (pause (chanl:recv control))))
-          ((chanl:send book-output (cons bids asks)))
+          ((chanl:send output (cons bids asks)))
           (t (sleep 0.2)))
       (unbound-slot ()))))
 
