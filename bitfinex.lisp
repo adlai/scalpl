@@ -205,11 +205,13 @@
 
 (defmethod market-fee ((gate bitfinex-gate) market)
   (awhen (car (gate-request gate "account_infos"))
-    (read-from-string
-     (getjso "maker_fees"
-             (find (name (slot-value market 'base))
+    ;; from this point, we assume the json object contains a "fees" key
+    (flet ((asset-fee (role)
+             (find (name (slot-value market role))
                    (getjso "fees" it) :test #'string-equal
-                   :key (lambda (x) (getjso "pairs" x)))))))
+                   :key (lambda (x) (getjso "pairs" x)))))
+      (awhen (or (asset-fee 'base) (asset-fee 'quote))
+        (parse-float (getjso "maker_fees" it))))))
 
 (defmethod execution-history ((gate bitfinex-gate) &key since until ofs pair)
   (macrolet ((fix-bound (bound)
