@@ -10,6 +10,7 @@
            #:rehome-symbol
            #:rehome-class
            #:slot-reduce
+           #:once-only
            ))
 
 (in-package #:scalpl.util)

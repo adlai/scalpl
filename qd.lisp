@@ -610,8 +610,21 @@
                 (slot-value maker 'fee-tracker)
                 maker))))
 
-(defvar *maker*
-  (make-instance 'maker :market (find-market "XXBTZEUR" *kraken*) :name "proto"
-                 :gate (make-instance 'kraken-gate
-                                      :pubkey #P "secrets/kraken.pubkey"
-                                      :secret #P "secrets/kraken.secret")))
+(defmacro define-maker (name &rest keys
+                        &key market gate
+                          ;; just for interactive convenience
+                          fund-factor targeting resilience
+                          fee-tracker trades-tracker
+                          book-tracker account-tracker)
+  (declare (ignore fund-factor targeting resilience fee-tracker
+                   trades-tracker book-tracker account-tracker))
+  (dolist (key '(:market :gate)) (remf keys key))
+  `(defvar ,name (make-instance 'maker :market ,market :gate ,gate
+                                :name ,(string-trim "*+<>" name)
+                                ,@keys)))
+
+#+nil
+(define-maker *maker* (find-market "market" *exchange*)
+  (make-instance 'kraken-gate
+                 :pubkey #P "secrets/some.pubkey"
+                 :secret #P "secrets/some.secret"))
