@@ -11,7 +11,7 @@
            #:thread #:control #:updater #:worker #:output ; UGH
            #:get-book #:trades-since #:trades-tracker #:book-tracker
            #:placed-offers #:market-fee #:execution-history #:vwap
-           #:post-offer #:cancel-offer
+           #:post-offer #:cancel-offer #:execution
            ))
 
 (in-package #:scalpl.exchange)
@@ -321,6 +321,12 @@
 
 (defgeneric placed-offers (gate))
 (defgeneric market-fee (gate market))
+
+(defclass execution (trade)
+  ((uid :initarg :uid :reader :uid)
+   (fee :initarg :fee :reader :fee)
+   (net-cost :reader :net-cost)))
+
 (defgeneric execution-history (gate &key))
 
 ;;;

@@ -219,6 +219,13 @@
   (awhen (gate-request gate "TradeVolume" `(("pair" . ,pair)))
     (read-from-string (getjso "fee" (getjso pair (getjso "fees" it))))))
 
+(defun executionize-json (market txid json)
+  (with-json-slots (price fee cost vol time type) json
+    (make-instance 'execution :fee (parse-float fee) :direction type
+                   :price (parse-float price) :cost (parse-float cost)
+                   :volume (parse-float vol) :market market :uid txid
+                   :timestamp (parse-timestamp (exchange market) time))))
+
 (defmethod execution-history ((gate kraken-gate) &key since until ofs)
   (macrolet ((fix-bound (bound)
                `(setf ,bound
