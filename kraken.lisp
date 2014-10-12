@@ -142,6 +142,10 @@
 
 (defclass kraken-gate (gate) ())
 
+;;; kraken-gate needs to also store a counter, and have a thread which
+;;; sleeps and sends counter increment messages. then each actual gate
+;;; reading can be tested against the counter to prevent overflows
+
 (defmethod gate-post ((gate kraken-gate) key secret request)
   (destructuring-bind (command . options) request
     (let (result errors)
