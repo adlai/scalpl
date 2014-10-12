@@ -206,9 +206,10 @@
   (:method-combination and)
   (:method and ((tracker trades-tracker) prev next)
     (with-slots (market-timestamp-sensitivity)
-        (slot-reduce tracker market exchange)
-      (> market-timestamp-sensitivity
-         (timestamp-difference (timestamp next) (timestamp prev))))))
+        (slot-reduce tracker market exchange) ; !
+      (and (string= (direction prev) (direction next))
+           (> market-timestamp-sensitivity
+              (timestamp-difference (timestamp next) (timestamp prev)))))))
 
 (defgeneric merge-trades (trades-tracker prev next)
   (:method ((tracker trades-tracker) prev next)
@@ -217,7 +218,8 @@
            (price (/ cost volume)))
       (make-instance 'trade :market (market prev)
                      :timestamp (timestamp prev) :cost cost
-                     :volume volume :price price))))
+                     :volume volume :price price
+                     :direction (direction prev)))))
 
 (defun trades-worker-loop (tracker)
   (with-slots (control buffer output trades market) tracker
