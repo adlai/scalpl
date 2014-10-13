@@ -277,7 +277,7 @@
         ;; program entity ("actor"?) which receives updated order books, and
         ;; currently-placed offersets, and produces filtered books
         ;; Whether filtered books are pushed or pulled is TBD
-        (macrolet ((with-book (() &body body)
+        (macrolet ((do-side ((amount) &body body)
                      `(destructuring-bind (market-bids . market-asks)
                           (chanl:recv book-channel)
                         (let ((other-bids (filter-book market-bids))
@@ -298,14 +298,14 @@
                               (+1 (decf (volume (car other-bids))
                                         (volume (pop other-asks))))
                               (0 (pop other-bids) (pop other-asks))))
-                          ,@body))))
+                          (unless (zerop ,amount) ,@body)))))
           ;; Need to rework this flow so the worker (actor calculating priorities) gets
           ;; the entire book at once...
           ;; TODO: properly deal with partial and completed orders
-          (with-book ()
+          (do-side (quote)
             (chanl:send next-bids (dumbot-offers other-bids resilience quote 0.01 15))
             (chanl:recv prioritizer-response))
-          (with-book ()
+          (do-side (base)
             (chanl:send next-asks (dumbot-offers other-asks resilience base 0.0001 15))
             (chanl:recv prioritizer-response)))))
     (chanl:send output nil)))
