@@ -464,9 +464,7 @@
           (resilience (* resilience-factor
                          (chanl:recv (slot-value trades-tracker 'output))))
           ;; TODO: doge is cute but let's move on
-          (doge/btc (with-slots (control output) trades-tracker
-                      (chanl:send control `(vwap :since ,(timestamp- (now) 4 :hour)))
-                      (chanl:recv output))))
+          (doge/btc (vwap trades-tracker :since (timestamp- (now) 4 :hour))))
       (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
              (total-of (btc doge) (+ btc (/ doge doge/btc)))
              (factor-fund (fund factor) (* fund fund-factor factor)))

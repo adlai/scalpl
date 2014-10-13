@@ -230,8 +230,6 @@
          ;; max - find max seen trade size
          (max (chanl:send output (reduce #'max (mapcar #'volume trades)
                                          :initial-value 0)))
-         ;; vwap - find vwap over recent trades
-         (vwap (chanl:send output (apply #'vwap tracker (cdr command))))
          ;; pause - wait for any other command to restart
          (pause (chanl:recv control))))
       ((chanl:recv buffer raw-trades)
