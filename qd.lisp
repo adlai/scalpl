@@ -557,7 +557,7 @@
     (unless (slot-boundp maker 'fee-tracker)
       (setf fee-tracker (make-instance 'fee-tracker :market market :gate gate)))
     ;; stitchy!
-    (setf (slot-value (slot-value account-tracker 'ope) 'output)
+    (setf (slot-value (slot-value account-tracker 'ope) 'book-channel)
           (slot-value book-tracker 'output))
     (when (or (not (slot-boundp maker 'thread))
               (eq :terminated (chanl:task-status thread)))
