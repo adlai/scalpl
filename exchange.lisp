@@ -11,7 +11,7 @@
            #:thread #:control #:updater #:worker #:output ; UGH
            #:get-book #:trades-since #:trades-tracker #:book-tracker
            #:placed-offers #:market-fee #:execution-history #:vwap
-           #:post-offer #:cancel-offer #:execution
+           #:post-offer #:cancel-offer #:execution #:execution-tracker
            ))
 
 (in-package #:scalpl.exchange)
@@ -325,10 +325,23 @@
 (defgeneric placed-offers (gate))
 (defgeneric market-fee (gate market))
 
+;;;
+;;; EXECUTION TRACKING
+;;;
+
 (defclass execution (trade)
   ((uid :initarg :uid :reader :uid)
    (fee :initarg :fee :reader :fee)
    (net-cost :reader :net-cost)))
+
+(defclass execution-tracker ()
+  ((gate :initarg :gate)
+   (delay :initform 30 :initarg :delay)
+   (trades :initform nil)
+   (control :initform (make-instance 'chanl:channel))
+   (buffer :initform (make-instance 'chanl:channel))
+   (since :initform (timestamp- (now) 6 :hour) :initarg :since)
+   worker updater))
 
 (defgeneric execution-history (gate &key))
 

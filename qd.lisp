@@ -5,19 +5,6 @@
 
 (in-package #:scalpl.qd)
 
-;;;
-;;; EXECUTION TRACKING
-;;;
-
-(defclass execution-tracker ()
-  ((gate :initarg :gate)
-   (delay :initform 30)
-   (trades :initform nil)
-   (control :initform (make-instance 'chanl:channel))
-   (buffer :initform (make-instance 'chanl:channel))
-   (since :initform (timestamp- (now) 6 :hour) :initarg :since)
-   worker updater))
-
 ;;; TODO: We have the fees paid for each order in the data from the exchange,
 ;;; so we should be able to calculate the _net_ price for each trade, and use
 ;;; that for profitability calculations, rather than fee at time of calculation.
