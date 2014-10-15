@@ -183,19 +183,23 @@
 
 (defmethod trades-since ((market kraken-market) &optional since)
   (with-json-slots (last (trades (name market)))
-      (get-request "Trades" `(("pair" . ,(name market))
-                              ,@(when since `(("since" . ,since)))))
-    (values (mapcar (lambda (trade)
-                      (destructuring-bind (price volume time side kind data) trade
-                        (let ((price  (read-from-string price))
-                              (volume (read-from-string volume)))
-                          (make-instance 'trade :market market
-                                         :timestamp (parse-timestamp *kraken* time)
-                                         ;; FIXME - "cost" later gets treated as precise
-                                         :volume volume :price price :cost (* volume price)
-                                         :direction (concatenate 'string side kind data)))))
-                    trades)
-            last)))
+      (get-request "Trades"
+                   (aif (timestamp since)
+                        `(("pair" . ,(name market))
+                          ("since"
+                           . ,(format nil "~D~A" (timestamp-to-unix it)
+                                      (format-timestring nil it :format '(:nsec)))))
+                        `(("pair" . ,(name market)))))
+    (mapcar (lambda (trade)
+              (destructuring-bind (price volume time side kind data) trade
+                (let ((price  (read-from-string price))
+                      (volume (read-from-string volume)))
+                  (make-instance 'trade :market market
+                                 :timestamp (parse-timestamp *kraken* time)
+                                 ;; FIXME - "cost" later gets treated as precise
+                                 :volume volume :price price :cost (* volume price)
+                                 :direction (concatenate 'string side kind data)))))
+            trades)))
 
 ;;;
 ;;; Private Data API

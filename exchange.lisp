@@ -189,7 +189,7 @@
    (buffer  :initform (make-instance 'chanl:channel))
    (output  :initform (make-instance 'chanl:channel))
    (trades  :initform nil)
-   last updater worker))
+   updater worker))
 
 (defgeneric vwap (tracker &key since type depth &allow-other-keys)
   (:method ((tracker trades-tracker) &key since depth type)
@@ -233,31 +233,26 @@
 
 (defun trades-worker-loop (tracker)
   (with-slots (control buffer output trades market) tracker
-    (chanl:select
-      ((chanl:recv control command)
-       ;; commands are (cons command args)
-       (case (car command)
-         ;; max - find max seen trade size
-         (max (chanl:send output (reduce #'max (mapcar #'volume trades)
-                                         :initial-value 0)))
-         ;; pause - wait for any other command to restart
-         (pause (chanl:recv control))))
-      ((chanl:recv buffer raw-trades)
-       (unless trades (push (pop raw-trades) trades))
-       (setf trades
-             (reduce (lambda (acc next &aux (prev (first acc)))
-                       (if (trades-mergeable? tracker prev next)
-                           (cons (merge-trades tracker prev next) (cdr acc))
-                           (cons next acc)))
-                     raw-trades :initial-value trades)))
-      (t (sleep 0.2)))))
+    (let ((last (car trades)))
+      (select
+        ((recv control command)
+         ;; commands are (cons command args)
+         (case (car command)
+           ;; max - find max seen trade size
+           (max (send output (reduce #'max (mapcar #'volume trades)
+                                     :initial-value 0)))
+           ;; pause - wait for any other command to restart
+           (pause (recv control))))
+        ((send buffer last))
+        ((recv buffer next)
+         (if (trades-mergeable? tracker last next)
+             (setf (car trades) (merge-trades tracker last next))
+             (push next trades)))
+        (t (sleep 0.2))))))
 
 (defun trades-updater-loop (tracker)
-  (with-slots (market buffer delay last) tracker
-    (multiple-value-bind (trades until)
-        (handler-case (trades-since market last)
-          (unbound-slot () (trades-since market)))
-      (when trades (setf last until) (chanl:send buffer trades)))
+  (with-slots (market buffer delay) tracker
+    (dolist (trade (trades-since market (recv buffer))) (send buffer trade))
     (sleep delay)))
 
 (defmethod shared-initialize :after ((tracker trades-tracker) (slots t) &key)

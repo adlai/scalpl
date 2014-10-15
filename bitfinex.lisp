@@ -172,18 +172,17 @@
                 (mapcar (parser 'bid) bids))))))
 
 (defmethod trades-since ((market bitfinex-market) &optional since)
-  (aif (mapcar (lambda (trade)
-                 (with-json-slots (price amount timestamp type) trade
-                   (let ((price  (read-from-string price))
-                         (volume (read-from-string amount)))
-                     (make-instance 'trade :market market :direction type
-                                    :timestamp (parse-timestamp *bitfinex* timestamp)
-                                    ;; FIXME - "cost" later gets treated as precise
-                                    :volume volume :price price :cost (* volume price)))))
-               (get-request (format nil "trades/~A" (name market))
-                            `(,@(when since `(("timestamp" . ,(princ-to-string since)))))))
-       (values it (timestamp-to-unix (timestamp+ (timestamp (first it)) 1 :sec)))
-       (values nil nil)))               ; for SBCL's type inference
+  (mapcar (lambda (trade)
+            (with-json-slots (price amount timestamp type) trade
+              (let ((price  (read-from-string price))
+                    (volume (read-from-string amount)))
+                (make-instance 'trade :market market :direction type
+                               :timestamp (parse-timestamp *bitfinex* timestamp)
+                               ;; FIXME - "cost" later gets treated as precise
+                               :volume volume :price price :cost (* volume price)))))
+          (reverse (get-request (format nil "trades/~A" (name market))
+                                (when since
+                                  `(("timestamp" . ,(princ-to-string (timestamp-to-unix (timestamp+ (timestamp since) 1 :sec))))))))))
 
 ;;;
 ;;; Private Data API
