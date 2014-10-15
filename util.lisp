@@ -1,5 +1,5 @@
 (defpackage #:scalpl.util
-  (:use #:cl #:st-json #:parse-float)
+  (:use #:cl #:st-json #:parse-float #:string-case)
   (:export #:with-json-slots
            #:mapcar-jso
            #:mapjso*
@@ -12,6 +12,7 @@
            #:slot-reduce
            #:once-only
            #:parse-float
+           #:string-case
            ))
 
 (in-package #:scalpl.util)
