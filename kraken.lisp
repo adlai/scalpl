@@ -140,28 +140,56 @@
       (with-slots (markets) *kraken*
         (find designator markets :key 'altname :test 'string-equal))))
 
-(defclass kraken-gate (gate) ())
+(defclass kraken-gate (gate)
+  ((count :initform 0) (delay :initform 19/3)  ; why not delay=5 ?
+   (mint :initform (make-instance 'chanl:channel))
+   (tokens :initform (make-instance 'chanl:channel))
+   token-minter token-handler))
 
-;;; kraken-gate needs to also store a counter, and have a thread which
-;;; sleeps and sends counter increment messages. then each actual gate
-;;; reading can be tested against the counter to prevent overflows
+(defun request-cost (request)
+  (string-case (request :default 1)
+    ("AddOrder" 0) ("CancelOrder" 0)
+    ("Ledgers" 2) ("QueryLedgers" 2)
+    ("TradesHistory" 2) ("QueryTrades" 2)))
+
+(defun token-minter-loop (gate)
+  (with-slots (mint delay) gate
+    (chanl:send mint 1)
+    (sleep delay)))
+
+(defun token-handler-loop (gate)
+  (with-slots (mint count tokens) gate
+    (case count
+      (5 (chanl:recv mint) (decf count))
+      (0 (chanl:send tokens t) (incf count))
+      (t (chanl:select
+           ((chanl:recv mint delta) (decf count delta))
+           ((chanl:send tokens t) (incf count))
+           (t (sleep 0.2)))))))
 
 (defmethod gate-post ((gate kraken-gate) key secret request)
   (destructuring-bind (command . options) request
-    (let (result errors)
-      (loop
-         (setf (values result errors)
-               (post-request command key secret options))
-         (if (and errors (search "Temporary lockout" (car errors)))
-             (progn (format t "~&Temporary lockout, waiting 30 minutes...~%")
-                    (finish-output)
-                    (sleep (* 60 30)))
-             (return (list result errors)))))))
+    ;; FIXME: this prevents add/cancel requests from going through while
+    ;; other requests wait for tokens. possible solution - queue closures
+    ;; with their associated cost, execute most expensive affordable request
+    (dotimes (i (request-cost command)) (chanl:recv (slot-value gate 'tokens)))
+    (multiple-value-list (post-request command key secret options))))
 
 (defmethod shared-initialize ((gate kraken-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
                        (when pubkey (values :pubkey (make-key pubkey)))
                        (when secret (values :secret (make-signer secret)))))
+
+(defmethod shared-initialize :after ((gate kraken-gate) names &key)
+  (with-slots (token-minter token-handler) gate
+    (when (or (not (slot-boundp gate 'token-minter))
+              (eq :terminated (chanl:task-status token-minter)))
+      (setf token-minter (chanl:pexec (:name "kraken token minter")
+                           (loop (token-minter-loop gate)))))
+    (when (or (not (slot-boundp gate 'token-handler))
+              (eq :terminated (chanl:task-status token-handler)))
+      (setf token-handler (chanl:pexec (:name "kraken token handler")
+                           (loop (token-handler-loop gate)))))))
 
 ;;;
 ;;; Public Data API
