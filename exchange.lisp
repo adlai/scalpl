@@ -173,6 +173,13 @@
    (timestamp :initarg :timestamp :reader timestamp)
    (direction :initarg :direction :reader direction)))
 
+(defmethod print-object ((trade trade) stream)
+  (print-unreadable-object (trade stream :identity nil)
+    (with-slots (market volume price timestamp direction) trade
+      (with-slots (base decimals) market
+        (format stream "~A ~A at ~V$: ~V$" timestamp
+                direction decimals price (decimals base) volume)))))
+
 (defgeneric trades-since (market &optional since))
 
 (defclass trades-tracker ()
