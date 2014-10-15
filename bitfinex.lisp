@@ -100,7 +100,7 @@
     ))
 
 (defun get-request (path &optional data)
-  (raw-request path :additional-headers `(("X-BFX-PAYLOAD" ,(make-payload data)))))
+  (raw-request path :parameters data))
 
 (defun post-request (method key signer &optional data)
   (let* ((path (concatenate 'string "/v1/" method))
