@@ -211,7 +211,8 @@
 
 (defgeneric trades-mergeable? (trades-tracker prev next)
   (:method-combination and)
-  (:method and ((tracker trades-tracker) prev next)
+  (:method and (tracker (prev null) next))
+  (:method and ((tracker trades-tracker) (prev trade) (next trade))
     (with-slots (market-timestamp-sensitivity)
         (slot-reduce tracker market exchange) ; !
       (and (string= (direction prev) (direction next))
@@ -219,7 +220,7 @@
               (timestamp-difference (timestamp next) (timestamp prev)))))))
 
 (defgeneric merge-trades (trades-tracker prev next)
-  (:method ((tracker trades-tracker) prev next)
+  (:method ((tracker trades-tracker) (prev trade) (next trade))
     (let* ((volume (+ (volume prev) (volume next)))
            (cost   (+ (cost   prev) (cost   next)))
            (price (/ cost volume)))
@@ -227,6 +228,8 @@
                      :timestamp (timestamp prev) :cost cost
                      :volume volume :price price
                      :direction (direction prev)))))
+
+(defmethod timestamp ((object null)))
 
 (defun trades-worker-loop (tracker)
   (with-slots (control buffer output trades market) tracker
