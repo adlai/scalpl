@@ -10,7 +10,7 @@
            #:parse-timestamp #:gate #:gate-post #:gate-request
            #:thread #:control #:updater #:worker #:output ; UGH
            #:get-book #:trades-since #:trades-tracker #:book-tracker
-           #:placed-offers #:market-fee #:execution-history #:vwap
+           #:placed-offers #:market-fee #:execution-since #:vwap
            #:post-offer #:cancel-offer #:execution #:execution-tracker
            ))
 
@@ -338,14 +338,67 @@
 
 (defclass execution-tracker ()
   ((gate :initarg :gate)
+   ;; TODO: is this the right model for a general execution tracking API?
+   ;; bitfinex requires tracking distinct markets, kraken doesn't
+   ;; keep your eyes open, for now we'll specify a single market per tracker
+   (market :initarg :market)
    (delay :initform 30 :initarg :delay)
    (trades :initform nil)
    (control :initform (make-instance 'chanl:channel))
    (buffer :initform (make-instance 'chanl:channel))
-   (since :initform (timestamp- (now) 6 :hour) :initarg :since)
    worker updater))
 
-(defgeneric execution-history (gate &key))
+(defgeneric execution-since (gate market since))
+
+(defun execution-worker-loop (tracker)
+  (with-slots (control buffer trades) tracker
+    (let ((last (car trades)))
+      (select
+        ((recv control command)
+         ;; commands are (cons command args)
+         (case (car command)
+           ;; pause - wait for any other command to restart
+           (pause (recv control))))
+        ((send buffer last))
+        ((recv buffer next) (push next trades))
+        (t (sleep 0.2))))))
+
+(defun execution-updater-loop (tracker)
+  (with-slots (gate market buffer delay) tracker
+    (dolist (trade (execution-since gate market (recv buffer)))
+      (send buffer trade))
+    (sleep delay)))
+
+(defmethod shared-initialize :after ((tracker execution-tracker) (slots t) &key)
+  (with-slots (updater worker market) tracker
+    (when (or (not (slot-boundp tracker 'updater))
+              (eq :terminated (chanl:task-status updater)))
+      (setf updater
+            (chanl:pexec
+                (:name (concatenate 'string "qdm-preα trades updater for " (name market))
+                       :initial-bindings `((*read-default-float-format* double-float)))
+              (loop (execution-updater-loop tracker)))))
+    (when (or (not (slot-boundp tracker 'worker))
+              (eq :terminated (chanl:task-status worker)))
+      (setf worker
+            (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " (name market)))
+              ;; TODO: just pexec anew each time...
+              ;; you'll understand what you meant someday, right?
+              (loop (execution-worker-loop tracker)))))))
+
+;;; TODO: We have the fees paid for each order in the data from the exchange,
+;;; so we should be able to calculate the _net_ price for each trade, and use
+;;; that for profitability calculations, rather than fee at time of calculation.
+
+(defmethod vwap ((tracker execution-tracker) &key type depth)
+  (let ((trades (remove type (slot-value tracker 'trades)
+                        :key #'direction :test #'string/=)))
+    (when depth
+      (setf trades (loop for trade in trades collect trade
+                      sum (volume trade) into sum
+                      until (>= sum depth))))
+    (/ (reduce '+ (mapcar #'cost trades))
+       (reduce '+ (mapcar #'volume trades)))))
 
 ;;;
 ;;; Action API

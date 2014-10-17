@@ -212,23 +212,32 @@
       (awhen (or (asset-fee 'base) (asset-fee 'quote))
         (parse-float (getjso "maker_fees" it))))))
 
-(defmethod execution-history ((gate bitfinex-gate) &key since until ofs pair)
-  (macrolet ((fix-bound (bound)
-               `(setf ,bound
-                      (ctypecase ,bound
-                        (null nil)      ; (typep nil nil) -> nil
-                        (string ,bound)
-                        (timestamp
-                         (princ-to-string (timestamp-to-unix ,bound)))
-                        (jso (princ-to-string (timestamp-to-unix (getjso "timestamp" ,bound))))))))
-    (fix-bound since)
-    (assert (null until))
-    (assert (null ofs)))
+(defun execution-parser (market)
+  (lambda (json)
+    (with-json-slots (price fee_amount amount timestamp type tid) json
+      (let* ((volume (parse-float amount))
+             (price (parse-float price))
+             (cost (* volume price)))
+        (make-instance 'execution
+                       :direction type
+                       :cost cost
+                       :uid tid
+                       :price price
+                       :volume volume
+                       :fee (parse-float fee_amount)
+                       :market market
+                       :timestamp (parse-timestamp *bitfinex* timestamp))))))
+
+(defun raw-executions (gate symbol &optional last)
   (gate-request gate "mytrades"
-                (append (when since `(("timestamp" . ,since)))
-                        (when until `(( "end" . ,until)))
-                        (when ofs `(( "ofs" . ,ofs)))
-                        `(("symbol" . ,pair)))))
+                `(("symbol" . ,symbol)
+                  ,@(when last
+                      `(("timestamp"
+                         . ,(princ-to-string (timestamp-to-unix (timestamp last)))))))))
+
+(defmethod execution-since ((gate bitfinex-gate) (market bitfinex-market) since)
+  (mapcar (execution-parser market)
+          (raw-executions gate (name market) since)))
 
 ;;;
 ;;; Action API

@@ -255,28 +255,58 @@
   (awhen (gate-request gate "TradeVolume" `(("pair" . ,pair)))
     (read-from-string (getjso "fee" (getjso pair (getjso "fees" it))))))
 
-(defun executionize-json (market txid json)
-  (with-json-slots (price fee cost vol time type) json
-    (make-instance 'execution :fee (parse-float fee) :direction type
+(defun parse-execution (txid json)
+  (declare (optimize (debug 3)))
+  (with-json-slots (price pair fee cost vol time type) json
+    (make-instance 'execution :fee (parse-float fee) :direction type :uid txid
                    :price (parse-float price) :cost (parse-float cost)
-                   :volume (parse-float vol) :market market :uid txid
-                   :timestamp (parse-timestamp (exchange market) time))))
+                   :volume (parse-float vol) :market (find-market pair *kraken*)
+                   :timestamp (parse-timestamp *kraken* time))))
 
-(defmethod execution-history ((gate kraken-gate) &key since until ofs)
-  (macrolet ((fix-bound (bound)
-               `(setf ,bound
-                      (ctypecase ,bound
-                        (null nil)      ; (typep nil nil) -> nil
-                        (string ,bound)
-                        (timestamp
-                         (princ-to-string (timestamp-to-unix ,bound)))
-                        (jso (getjso "txid" ,bound))))))
-    (fix-bound since)
-    (fix-bound until))
-  (gate-request gate "TradesHistory"
-                (append (when since `(("start" . ,since)))
-                        (when until `(( "end"  . ,until)))
-                        (when ofs   `(( "ofs"  .  ,ofs))))))
+(defun raw-executions (gate &optional last)
+  (gate-request gate "TradesHistory" (when last `(("start" . ,(uid last))))))
+
+(defmethod execution-since ((gate kraken-gate) (market kraken-market) since)
+  (with-json-slots (trades) (raw-executions gate since)
+    (remove market (mapcar-jso #'parse-execution trades)
+            :key #'market :test-not #'eq)))
+
+#+nil
+(defun trades-history-chunk (tracker &key until since)
+  (with-slots (delay gate) tracker
+    (awhen (apply #'execution-history gate
+               (append (when until `(:until ,until))
+                       (when since `(:since ,since))))
+      (with-json-slots (count trades) it
+          (let* ((total (parse-integer count))
+                 (chunk (make-array (list total) :fill-pointer 0)))
+            (flet ((process (trades-jso)
+                     (mapjso (lambda (tid data)
+                               (map nil (lambda (key)
+                                          (setf (getjso key data)
+                                                (read-from-string (getjso key data))))
+                                    '("price" "cost" "fee" "vol"))
+                               (with-json-slots (txid time) data
+                                 (setf txid tid time (parse-timestamp *kraken* time)))
+                               (vector-push data chunk))
+                             trades-jso)))
+              (when (zerop total)
+                (return-from trades-history-chunk chunk))
+              (process trades)
+              (unless until
+                (setf until (getjso "txid" (elt chunk 0))))
+              (loop
+                 (when (= total (fill-pointer chunk))
+                   (return (sort chunk #'timestamp<
+                                 :key (lambda (o) (getjso "time" o)))))
+                 (sleep delay)
+                 (awhen (apply #'execution-history gate
+                               :until until :ofs (princ-to-string (fill-pointer chunk))
+                               (when since `(:since ,since)))
+                   (with-json-slots (count trades) it
+                     (let ((next-total (parse-integer count)))
+                       (assert (= total next-total))
+                       (process trades)))))))))))
 
 ;;;
 ;;; Action API
