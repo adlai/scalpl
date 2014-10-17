@@ -238,6 +238,8 @@
         ((recv control command)
          ;; commands are (cons command args)
          (case (car command)
+           ;; should this really be a 'command' and not just an operation
+           ;; calculated by another actor on (slot-value tracker 'trades)?
            ;; max - find max seen trade size
            (max (send output (reduce #'max (mapcar #'volume trades)
                                      :initial-value 0)))
