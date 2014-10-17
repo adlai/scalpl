@@ -325,8 +325,8 @@
    (control :initform (make-instance 'chanl:channel))
    (gate :initarg :gate)
    (delay :initform 15)
-   (lictor :initarg :lictor)
    (ope :initarg :ope)
+   (lictors :initform nil)
    updater worker))
 
 (defun account-worker-loop (tracker)
@@ -350,31 +350,15 @@
                                     it))))
     (sleep delay)))
 
-(defmethod vwap ((tracker execution-tracker) &key type market depth)
-  (let ((c (make-instance 'chanl:channel)))
-    (chanl:send (slot-value tracker 'control) c)
-    (let ((trades (remove type (chanl:recv c)
-                          :key (lambda (c) (getjso "type" c)) :test #'string/=)))
-      (when market
-        (setf trades (remove (name market) trades
-                             :key (lambda (c) (getjso "pair" c)) :test #'string/=)))
-      (when depth
-        (setf trades (loop for trade in trades collect trade
-                           sum (getjso "vol" trade) into sum
-                           until (>= sum depth))))
-      (/ (reduce '+ (mapcar (lambda (x) (getjso "cost" x)) trades))
-         (reduce '+ (mapcar (lambda (x) (getjso "vol" x)) trades))))))
-
 (defmethod vwap ((tracker account-tracker) &key type market depth)
-  (vwap (slot-value tracker 'lictor) :type type :depth depth :market market))
+  (vwap (getf (slot-value tracker 'lictors) market) :type type :depth depth))
 
-(defmethod shared-initialize :after ((tracker account-tracker) (names t) &key)
-  (with-slots (updater worker lictor gate ope) tracker
-    (unless (slot-boundp tracker 'lictor)
-      (setf lictor (make-instance 'execution-tracker :gate gate))
-      ;; if this tracker has no trades, we can't calculate vwap
-      ;; crappy solution... ideally w/condition system?
-      (sleep 3))
+(defmethod shared-initialize :after ((tracker account-tracker) (names t)
+                                     &key markets)
+  (with-slots (lictors updater worker gate ope) tracker
+    (dolist (market markets)
+      (setf (getf lictors market)
+            (make-instance 'execution-tracker :market market :gate gate)))
     (unless (slot-boundp tracker 'ope)
       (setf ope (make-instance 'ope :gate gate :balance-tracker tracker)))
     (when (or (not (slot-boundp tracker 'updater))
