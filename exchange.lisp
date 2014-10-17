@@ -332,9 +332,9 @@
 ;;;
 
 (defclass execution (trade)
-  ((uid :initarg :uid :reader :uid)
-   (fee :initarg :fee :reader :fee)
-   (net-cost :reader :net-cost)))
+  ((uid :initarg :uid :reader uid)
+   (fee :initarg :fee :reader fee)
+   (net-cost :reader net-cost)))
 
 (defclass execution-tracker ()
   ((gate :initarg :gate)
