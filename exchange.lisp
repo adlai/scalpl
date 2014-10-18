@@ -46,7 +46,8 @@
     (multiple-value-bind (sec nsec) (floor timestamp)
       (unix-to-timestamp sec :nsec (round (* (expt 10 9) nsec)))))
   (:method ((exchange exchange) (timestamp string))
-    (parse-timestamp exchange (read-from-string timestamp))))
+    ;; asdfjkshanueodaoseitcgaeosundantheoudvwe;ercgu
+    (parse-timestamp exchange (parse-float timestamp :type 'double-float))))
 
 ;;;
 ;;; Assets
@@ -262,12 +263,13 @@
       (setf updater
             (chanl:pexec
                 (:name (concatenate 'string "qdm-preα trades updater for " (name market))
-                       :initial-bindings `((*read-default-float-format* double-float)))
+                 :initial-bindings `((*read-default-float-format* double-float)))
               (loop (trades-updater-loop tracker)))))
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
-            (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " (name market)))
+            (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " (name market))
+                          :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (trades-worker-loop tracker)))))))
@@ -376,12 +378,13 @@
       (setf updater
             (chanl:pexec
                 (:name (concatenate 'string "qdm-preα execution updater for " (name market))
-                       :initial-bindings `((*read-default-float-format* double-float)))
+                 :initial-bindings `((*read-default-float-format* double-float)))
               (loop (execution-updater-loop tracker)))))
     (when (or (not (slot-boundp tracker 'worker))
               (eq :terminated (chanl:task-status worker)))
       (setf worker
-            (chanl:pexec (:name (concatenate 'string "qdm-preα execution worker for " (name market)))
+            (chanl:pexec (:name (concatenate 'string "qdm-preα execution worker for " (name market))
+                          :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (execution-worker-loop tracker)))))))
