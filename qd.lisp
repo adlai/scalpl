@@ -451,7 +451,7 @@
       (setf book-tracker (make-instance 'book-tracker :market market))
       (sleep 12))
     (unless (slot-boundp maker 'account-tracker)
-      (setf account-tracker (make-instance 'account-tracker :gate gate))
+      (setf account-tracker (make-instance 'account-tracker :gate gate :markets `(,market)))
       (sleep 12))
     ;; FIXME: ...
     (unless (slot-boundp maker 'fee-tracker)
