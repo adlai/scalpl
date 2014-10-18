@@ -1,9 +1,5 @@
-(defpackage #:scalpl.bitfinex
-  (:use #:cl #:anaphora #:local-time #:st-json #:base64 #:scalpl.util #:scalpl.exchange)
-  (:export #:get-request
-           #:post-request
-           #:find-market #:*bitfinex* #:bitfinex-gate
-           #:make-key #:make-signer))
+(defpackage #:scalpl.bitfinex (:nicknames #:bitfinex) (:export #:*bitfinex*)
+  (:use #:cl #:anaphora #:local-time #:st-json #:base64 #:scalpl.util #:scalpl.exchange))
 
 (in-package #:scalpl.bitfinex)
 

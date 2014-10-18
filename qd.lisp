@@ -1,7 +1,7 @@
 ;;;; qd.lisp
 
 (defpackage #:scalpl.qd
-  (:use #:cl #:anaphora #:st-json #:local-time #:scalpl.util #:scalpl.kraken #:scalpl.exchange))
+  (:use #:cl #:anaphora #:st-json #:local-time #:scalpl.util #:scalpl.exchange))
 
 (in-package #:scalpl.qd)
 

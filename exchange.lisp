@@ -158,8 +158,6 @@
 ;;; Public Data API
 ;;;
 
-(defgeneric get-book (market))
-
 ;;; should trade direction be represented as:
 ;;; a boolean slot?
 ;;; slots for (consumed|earned)×(volume|asset)?
@@ -297,6 +295,8 @@
           ((chanl:send output (cons bids asks)))
           (t (sleep 0.2)))
       (unbound-slot ()))))
+
+(defgeneric get-book (market))
 
 (defun book-updater-loop (tracker)
   (with-slots (bids asks delay market offers) tracker
