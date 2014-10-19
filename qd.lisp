@@ -85,19 +85,16 @@
 ;;; response: placed offer if successful, nil if not
 (defun ope-place (ope offer)
   (with-slots (control response) ope
-    (send control (cons 'offer offer))
-    (recv response)))
+    (send control (cons 'offer offer)) (recv response)))
 
 ;;; response: {count: "1"} if successful, nil if not
 (defun ope-cancel (ope offer)
   (with-slots (control response) ope
-    (send control (cons 'cancel offer))
-    (recv response)))
+    (send control (cons 'cancel offer)) (recv response)))
 
 (defun ope-filter (ope book)
   (with-slots (control response) ope
-    (send control (cons 'filter book))
-    (recv response)))
+    (send control (cons 'filter book)) (recv response)))
 
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
@@ -401,7 +398,7 @@
                     (depth-profit (/ total-fund 16)))
             (force-output)
             (with-slots (ope) account-tracker
-              (chanl:send (slot-value ope 'input) (list fee btc doge resilience))
+              (send (slot-value ope 'input) (list fee btc doge resilience))
               ;; distance from target equilibrium ( magic number 1/2 = target )
               (let ((lopsidedness (abs (- 1/2 investment))))
                 ;; soft limit test: are we within (magic) 33% of the target?
