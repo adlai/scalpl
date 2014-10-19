@@ -208,12 +208,11 @@
 (defmethod trades-since ((market kraken-market) &optional since)
   (with-json-slots (last (trades (name market)))
       (get-request "Trades"
-                   (aif (timestamp since)
-                        `(("pair" . ,(name market))
-                          ("since"
-                           . ,(format nil "~D~A" (timestamp-to-unix it)
-                                      (format-timestring nil it :format '(:nsec)))))
-                        `(("pair" . ,(name market)))))
+                   `(("pair" . ,(name market)) .
+                     ,(awhen (timestamp since)
+                        `(("since"
+                           . ,(format nil "~D~9,'0D"
+                                      (timestamp-to-unix it) (nsec-of it)))))))
     (mapcar (lambda (trade)
               (destructuring-bind (price volume time side kind data) trade
                 (let ((price  (read-from-string price))
