@@ -377,7 +377,7 @@
                          (* 100 (1- (profit-margin (vwap "buy") (vwap "sell") fee)))
                        (division-by-zero () 0)))))
             ;; time, total, base, quote, invested, risked, risk bias, pulse
-            (format t "~&~A ~6@A ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~
+            (format t "~&~A ~6@A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~
                        ~6@$ ~6@$ ~6@$ ~6@$ ~6@$ ~6@$"
                     (format-timestring nil (now)
                                        :format '((:hour 2) #\:
@@ -385,6 +385,7 @@
                                                  (:sec 2)))
                     name
                     (asset-decimals 'base)  total-fund
+                    (asset-decimals 'quote) (* total-fund doge/btc)
                     (asset-decimals 'base)  total-btc
                     (asset-decimals 'quote) total-doge
                     (* 100 investment)
