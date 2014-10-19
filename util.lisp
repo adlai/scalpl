@@ -1,5 +1,5 @@
 (defpackage #:scalpl.util
-  (:use #:cl #:st-json #:parse-float #:string-case)
+  (:use #:cl #:st-json #:parse-float #:string-case #:chanl)
   (:export #:with-json-slots
            #:mapcar-jso
            #:mapjso*
@@ -13,6 +13,9 @@
            #:once-only
            #:parse-float
            #:string-case
+           ;; from chanl
+           #:kill #:pexec #:channel #:send #:recv #:select
+           #:pooled-tasks #:task-thread #:task-status
            ))
 
 (in-package #:scalpl.util)

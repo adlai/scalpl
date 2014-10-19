@@ -1,7 +1,7 @@
 ;;;; exchange.lisp
 
 (defpackage #:scalpl.exchange
-  (:use #:cl #:anaphora #:st-json #:local-time #:scalpl.util #:chanl)
+  (:use #:cl #:anaphora #:st-json #:local-time #:scalpl.util)
   (:export #:exchange #:assets #:markets
            #:asset #:find-asset #:name #:bids #:asks
            #:market #:find-market #:decimals #:base #:quote
@@ -133,27 +133,26 @@
 (defclass gate ()
   ((pubkey :initarg :pubkey :initform (error "gate requires API pubkey"))
    (secret :initarg :secret :initform (error "gate requires API secret"))
-   (in     :initarg :in     :initform (make-instance 'chanl:channel))
+   (in     :initarg :in     :initform (make-instance 'channel))
    (thread :initarg :thread)))
 
 (defgeneric gate-post (gate pubkey secret request))
 
 (defun gate-loop (gate)
   (with-slots (pubkey secret in) gate
-    (destructuring-bind (ret . request) (chanl:recv in)
-      (chanl:send ret (gate-post gate pubkey secret request)))))
+    (destructuring-bind (ret . request) (recv in)
+      (send ret (gate-post gate pubkey secret request)))))
 
 (defmethod shared-initialize :after ((gate gate) names &key)
-  (when (or (not (slot-boundp gate 'thread))
-            (eq :terminated (chanl:task-status (slot-value gate 'thread))))
-    (setf (slot-value gate 'thread)
-          (chanl:pexec (:name "qdm-preα gate")
-            (loop (gate-loop gate))))))
+  (with-slots (thread) gate
+    (when (or (not (slot-boundp gate 'thread))
+              (eq :terminated (task-status thread)))
+      (setf thread (pexec (:name "qdm-preα gate") (loop (gate-loop gate)))))))
 
 (defun gate-request (gate path &optional options)
-  (let ((out (make-instance 'chanl:channel)))
-    (chanl:send (slot-value gate 'in) (list* out path options))
-    (values-list (chanl:recv out))))
+  (let ((out (make-instance 'channel)))
+    (send (slot-value gate 'in) (list* out path options))
+    (values-list (recv out))))
 
 ;;;
 ;;; Public Data API
@@ -184,9 +183,9 @@
 (defclass trades-tracker ()
   ((market  :initarg :market :reader market)
    (delay   :initarg :delay :initform 27)
-   (control :initform (make-instance 'chanl:channel))
-   (buffer  :initform (make-instance 'chanl:channel))
-   (output  :initform (make-instance 'chanl:channel))
+   (control :initform (make-instance 'channel))
+   (buffer  :initform (make-instance 'channel))
+   (output  :initform (make-instance 'channel))
    (trades  :initform nil)
    updater worker))
 
@@ -259,16 +258,16 @@
 (defmethod shared-initialize :after ((tracker trades-tracker) (slots t) &key)
   (with-slots (updater worker market) tracker
     (when (or (not (slot-boundp tracker 'updater))
-              (eq :terminated (chanl:task-status updater)))
+              (eq :terminated (task-status updater)))
       (setf updater
-            (chanl:pexec
+            (pexec
                 (:name (concatenate 'string "qdm-preα trades updater for " (name market))
                  :initial-bindings `((*read-default-float-format* double-float)))
               (loop (trades-updater-loop tracker)))))
     (when (or (not (slot-boundp tracker 'worker))
-              (eq :terminated (chanl:task-status worker)))
+              (eq :terminated (task-status worker)))
       (setf worker
-            (chanl:pexec (:name (concatenate 'string "qdm-preα trades worker for " (name market))
+            (pexec (:name (concatenate 'string "qdm-preα trades worker for " (name market))
                           :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
@@ -280,21 +279,21 @@
 
 (defclass book-tracker ()
   ((market :initarg :market)
-   (control :initform (make-instance 'chanl:channel))
-   (output :initform (make-instance 'chanl:channel))
+   (control :initform (make-instance 'channel))
+   (output :initform (make-instance 'channel))
    (delay :initarg :delay :initform 8)
    bids asks updater worker))
 
 (defun book-worker-loop (tracker)
   (with-slots (control bids asks output) tracker
     (handler-case
-        (chanl:select
-          ((chanl:recv control command)
+        (select
+          ((recv control command)
            ;; commands are (cons command args)
            (case (car command)
              ;; pause - wait for any other command to restart
-             (pause (chanl:recv control))))
-          ((chanl:send output (cons bids asks)))
+             (pause (recv control))))
+          ((send output (cons bids asks)))
           (t (sleep 0.2)))
       (unbound-slot ()))))
 
@@ -308,16 +307,16 @@
 (defmethod shared-initialize :after ((tracker book-tracker) (names t) &key)
   (with-slots (updater worker market) tracker
     (when (or (not (slot-boundp tracker 'updater))
-              (eq :terminated (chanl:task-status updater)))
+              (eq :terminated (task-status updater)))
       (setf updater
-            (chanl:pexec
+            (pexec
                 (:name (concatenate 'string "qdm-preα book updater for " (name market))
                        :initial-bindings `((*read-default-float-format* double-float)))
               (loop (book-updater-loop tracker)))))
     (when (or (not (slot-boundp tracker 'worker))
-              (eq :terminated (chanl:task-status worker)))
+              (eq :terminated (task-status worker)))
       (setf worker
-            (chanl:pexec (:name (concatenate 'string "qdm-preα book worker for " (name market)))
+            (pexec (:name (concatenate 'string "qdm-preα book worker for " (name market)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (book-worker-loop tracker)))))))
@@ -346,8 +345,8 @@
    (market :initarg :market)
    (delay :initform 30 :initarg :delay)
    (trades :initform nil)
-   (control :initform (make-instance 'chanl:channel))
-   (buffer :initform (make-instance 'chanl:channel))
+   (control :initform (make-instance 'channel))
+   (buffer :initform (make-instance 'channel))
    worker updater))
 
 (defgeneric execution-since (gate market since))
@@ -374,16 +373,16 @@
 (defmethod shared-initialize :after ((tracker execution-tracker) (slots t) &key)
   (with-slots (updater worker market) tracker
     (when (or (not (slot-boundp tracker 'updater))
-              (eq :terminated (chanl:task-status updater)))
+              (eq :terminated (task-status updater)))
       (setf updater
-            (chanl:pexec
+            (pexec
                 (:name (concatenate 'string "qdm-preα execution updater for " (name market))
                  :initial-bindings `((*read-default-float-format* double-float)))
               (loop (execution-updater-loop tracker)))))
     (when (or (not (slot-boundp tracker 'worker))
-              (eq :terminated (chanl:task-status worker)))
+              (eq :terminated (task-status worker)))
       (setf worker
-            (chanl:pexec (:name (concatenate 'string "qdm-preα execution worker for " (name market))
+            (pexec (:name (concatenate 'string "qdm-preα execution worker for " (name market))
                           :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?

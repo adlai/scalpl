@@ -138,8 +138,8 @@
 
 (defclass kraken-gate (gate)
   ((count :initform 0) (delay :initform 19/3)  ; why not delay=5 ?
-   (mint :initform (make-instance 'chanl:channel))
-   (tokens :initform (make-instance 'chanl:channel))
+   (mint :initform (make-instance 'channel))
+   (tokens :initform (make-instance 'channel))
    token-minter token-handler))
 
 (defun request-cost (request)
@@ -150,17 +150,17 @@
 
 (defun token-minter-loop (gate)
   (with-slots (mint delay) gate
-    (chanl:send mint 1)
+    (send mint 1)
     (sleep delay)))
 
 (defun token-handler-loop (gate)
   (with-slots (mint count tokens) gate
     (case count
-      (5 (chanl:recv mint) (decf count))
-      (0 (chanl:send tokens t) (incf count))
-      (t (chanl:select
-           ((chanl:recv mint delta) (decf count delta))
-           ((chanl:send tokens t) (incf count))
+      (5 (recv mint) (decf count))
+      (0 (send tokens t) (incf count))
+      (t (select
+           ((recv mint delta) (decf count delta))
+           ((send tokens t) (incf count))
            (t (sleep 0.2)))))))
 
 (defmethod gate-post ((gate kraken-gate) key secret request)
@@ -168,7 +168,7 @@
     ;; FIXME: this prevents add/cancel requests from going through while
     ;; other requests wait for tokens. possible solution - queue closures
     ;; with their associated cost, execute most expensive affordable request
-    (dotimes (i (request-cost command)) (chanl:recv (slot-value gate 'tokens)))
+    (dotimes (i (request-cost command)) (recv (slot-value gate 'tokens)))
     (multiple-value-list (post-request command key secret options))))
 
 (defmethod shared-initialize ((gate kraken-gate) names &key pubkey secret)
@@ -179,12 +179,12 @@
 (defmethod shared-initialize :after ((gate kraken-gate) names &key)
   (with-slots (token-minter token-handler) gate
     (when (or (not (slot-boundp gate 'token-minter))
-              (eq :terminated (chanl:task-status token-minter)))
-      (setf token-minter (chanl:pexec (:name "kraken token minter")
+              (eq :terminated (task-status token-minter)))
+      (setf token-minter (pexec (:name "kraken token minter")
                            (loop (token-minter-loop gate)))))
     (when (or (not (slot-boundp gate 'token-handler))
-              (eq :terminated (chanl:task-status token-handler)))
-      (setf token-handler (chanl:pexec (:name "kraken token handler")
+              (eq :terminated (task-status token-handler)))
+      (setf token-handler (pexec (:name "kraken token handler")
                            (loop (token-handler-loop gate)))))))
 
 ;;;

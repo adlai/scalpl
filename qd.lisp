@@ -46,39 +46,37 @@
 ;;; receives messages in the control channel, outputs from the gate
 (defun ope-supplicant-loop (ope)
   (with-slots (gate control response placed balance-tracker) ope
-    (let ((command (chanl:recv control)))
+    (let ((command (recv control)))
       (destructuring-bind (car . cdr) command
-        (chanl:send response
-                    (case car
-                      (placed placed)
-                      (filter (ignore-offers cdr placed))
-                      (offer (balance-guarded-place ope cdr))
-                      (cancel (awhen1 (cancel-offer gate cdr)
-                                (setf placed (remove cdr placed))))))))))
+        (send response (case car
+                         (placed placed)
+                         (filter (ignore-offers cdr placed))
+                         (offer (balance-guarded-place ope cdr))
+                         (cancel (awhen1 (cancel-offer gate cdr)
+                                   (setf placed (remove cdr placed))))))))))
 
 (defmethod shared-initialize :after ((supplicant ope-supplicant) slots &key)
   (with-slots (thread) supplicant
     (when (or (not (slot-boundp supplicant 'thread))
-              (eq :terminated (chanl:task-status thread)))
-      (setf thread
-            (chanl:pexec (:name "qdm-preα ope supplicant")
-              (loop (ope-supplicant-loop supplicant)))))))
+              (eq :terminated (task-status thread)))
+      (setf thread (pexec (:name "qdm-preα ope supplicant")
+                     (loop (ope-supplicant-loop supplicant)))))))
 
 (defclass ope ()
-  ((input :initform (make-instance 'chanl:channel))
-   (output :initform (make-instance 'chanl:channel))
-   (next-bids :initform (make-instance 'chanl:channel))
-   (next-asks :initform (make-instance 'chanl:channel))
-   (prioritizer-response :initform (make-instance 'chanl:channel))
-   (control :initform (make-instance 'chanl:channel))
-   (response :initform (make-instance 'chanl:channel))
+  ((input :initform (make-instance 'channel))
+   (output :initform (make-instance 'channel))
+   (next-bids :initform (make-instance 'channel))
+   (next-asks :initform (make-instance 'channel))
+   (prioritizer-response :initform (make-instance 'channel))
+   (control :initform (make-instance 'channel))
+   (response :initform (make-instance 'channel))
    (book-channel :initarg :book-channel)
    supplicant prioritizer scalper))
 
 (defun ope-placed (ope)
   (with-slots (control response) ope
-    (chanl:send control '(placed))
-    (let ((all (sort (copy-list (chanl:recv response)) #'< :key #'price)))
+    (send control '(placed))
+    (let ((all (sort (copy-list (recv response)) #'< :key #'price)))
       (flet ((split (sign)
                (remove sign all :key (lambda (x) (signum (price x))))))
         ;;       bids       asks
@@ -87,19 +85,19 @@
 ;;; response: placed offer if successful, nil if not
 (defun ope-place (ope offer)
   (with-slots (control response) ope
-    (chanl:send control (cons 'offer offer))
-    (chanl:recv response)))
+    (send control (cons 'offer offer))
+    (recv response)))
 
 ;;; response: {count: "1"} if successful, nil if not
 (defun ope-cancel (ope offer)
   (with-slots (control response) ope
-    (chanl:send control (cons 'cancel offer))
-    (chanl:recv response)))
+    (send control (cons 'cancel offer))
+    (recv response)))
 
 (defun ope-filter (ope book)
   (with-slots (control response) ope
-    (chanl:send control (cons 'filter book))
-    (chanl:recv response)))
+    (send control (cons 'filter book))
+    (recv response)))
 
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
@@ -125,10 +123,10 @@
                                (ope-cancel ope old))
                         (if (place new) (setf target (remove new target))
                             (return (ope-cancel ope old))))))
-               (chanl:send prioritizer-response t)))
-        (chanl:select
-          ((chanl:recv next-bids to-bid) (update to-bid (nth-value 0 (ope-placed ope))))
-          ((chanl:recv next-asks to-ask) (update to-ask (nth-value 1 (ope-placed ope)))))))))
+               (send prioritizer-response t)))
+        (select
+          ((recv next-bids to-bid) (update to-bid (nth-value 0 (ope-placed ope))))
+          ((recv next-asks to-ask) (update to-ask (nth-value 1 (ope-placed ope)))))))))
 
 (defun profit-margin (bid ask fee-percent)
   (* (/ ask bid) (- 1 (/ fee-percent 100))))
@@ -187,7 +185,7 @@
 
 (defun ope-scalper-loop (ope)
   (with-slots (input output book-channel next-bids next-asks prioritizer-response) ope
-    (destructuring-bind (fee base quote resilience) (chanl:recv input)
+    (destructuring-bind (fee base quote resilience) (recv input)
       ;; Now run that algorithm thingy
       (flet ((filter-book (book) (ope-filter ope book))
              (place (new) (ope-place ope new)))
@@ -197,7 +195,7 @@
         ;; Whether filtered books are pushed or pulled is TBD
         (macrolet ((do-side ((amount) &body body)
                      `(destructuring-bind (market-bids . market-asks)
-                          (chanl:recv book-channel)
+                          (recv book-channel)
                         (let ((other-bids (filter-book market-bids))
                               (other-asks (filter-book market-asks)))
                           ;; NON STOP PARTY PROFIT MADNESS
@@ -221,12 +219,12 @@
           ;; the entire book at once...
           ;; TODO: properly deal with partial and completed orders
           (do-side (quote)
-            (chanl:send next-bids (dumbot-offers other-bids resilience quote 0.01 15))
-            (chanl:recv prioritizer-response))
+            (send next-bids (dumbot-offers other-bids resilience quote 0.01 15))
+            (recv prioritizer-response))
           (do-side (base)
-            (chanl:send next-asks (dumbot-offers other-asks resilience base 0.0001 15))
-            (chanl:recv prioritizer-response)))))
-    (chanl:send output nil)))
+            (send next-asks (dumbot-offers other-asks resilience base 0.0001 15))
+            (recv prioritizer-response)))))
+    (send output nil)))
 
 (defmethod shared-initialize :after ((ope ope) slots &key gate balance-tracker)
   (with-slots (supplicant prioritizer scalper control response) ope
@@ -236,16 +234,13 @@
                                       :control control :response response
                                       :balance-tracker balance-tracker)))
     (when (or (not (slot-boundp ope 'prioritizer))
-              (eq :terminated (chanl:task-status prioritizer)))
-      (setf prioritizer
-            (chanl:pexec (:name "qdm-preα ope prioritizer")
-              (loop (ope-prioritizer-loop ope)))))
+              (eq :terminated (task-status prioritizer)))
+      (setf prioritizer (pexec (:name "qdm-preα ope prioritizer")
+                          (loop (ope-prioritizer-loop ope)))))
     (when (or (not (slot-boundp ope 'scalper))
-              (eq :terminated (chanl:task-status scalper)))
-      (setf scalper
-            (chanl:pexec (:name "qdm-preα ope scalper"
-                          :initial-bindings `((*read-default-float-format* double-float)))
-              (loop (ope-scalper-loop ope)))))))
+              (eq :terminated (task-status scalper)))
+      (setf scalper (pexec (:name "qdm-preα ope scalper")
+                      (loop (ope-scalper-loop ope)))))))
 
 ;;;
 ;;; ACCOUNT TRACKING
@@ -253,7 +248,7 @@
 
 (defclass account-tracker ()
   ((balances :initarg :balances :initform nil)
-   (control :initform (make-instance 'chanl:channel))
+   (control :initform (make-instance 'channel))
    (gate :initarg :gate)
    (delay :initform 15)
    (ope :initarg :ope)
@@ -262,23 +257,21 @@
 
 (defun account-worker-loop (tracker)
   (with-slots (balances control) tracker
-    (let ((command (chanl:recv control)))
+    (let ((command (recv control)))
       (destructuring-bind (car . cdr) command
         (typecase car
           ;; ( asset . channel )  <- send asset balance to channel
-          (string
-           (chanl:send cdr (or (cdr (assoc car balances :test #'string=)) 0)))
+          (string (send cdr (or (cdr (assoc car balances :test #'string=)) 0)))
           ;; ( slot . value ) <- update slot with new value
           (symbol (setf (slot-value tracker car) cdr)))))))
 
 (defun account-updater-loop (tracker)
   (with-slots (gate control delay) tracker
     (awhen (gate-request gate "Balance")
-      (chanl:send control
-                  (cons 'balances
-                        (mapcar-jso (lambda (asset balance)
-                                      (cons asset (read-from-string balance)))
-                                    it))))
+      (send control `(balances .
+                      ,(mapcar-jso (lambda (asset balance)
+                                     (cons asset (read-from-string balance)))
+                                   it))))
     (sleep delay)))
 
 (defmethod vwap ((tracker account-tracker) &key type market depth)
@@ -293,23 +286,22 @@
     (unless (slot-boundp tracker 'ope)
       (setf ope (make-instance 'ope :gate gate :balance-tracker tracker)))
     (when (or (not (slot-boundp tracker 'updater))
-              (eq :terminated (chanl:task-status updater)))
+              (eq :terminated (task-status updater)))
       (setf updater
-            (chanl:pexec (:name "qdm-preα account updater"
-                          :initial-bindings `((*read-default-float-format* double-float)))
+            (pexec (:name "qdm-preα account updater"
+                    :initial-bindings `((*read-default-float-format* double-float)))
               (loop (account-updater-loop tracker)))))
     (when (or (not (slot-boundp tracker 'worker))
-              (eq :terminated (chanl:task-status worker)))
-      (setf worker
-            (chanl:pexec (:name "qdm-preα account worker")
-              ;; TODO: just pexec anew each time...
-              ;; you'll understand what you meant someday, right?
-              (loop (account-worker-loop tracker)))))))
+              (eq :terminated (task-status worker)))
+      (setf worker (pexec (:name "qdm-preα account worker")
+                     ;; TODO: just pexec anew each time...
+                     ;; you'll understand what you meant someday, right?
+                     (loop (account-worker-loop tracker)))))))
 
-(defun asset-balance (tracker asset &aux (channel (make-instance 'chanl:channel)))
+(defun asset-balance (tracker asset &aux (channel (make-instance 'channel)))
   (with-slots (control) tracker
-    (chanl:send control (cons (name asset) channel))
-    (chanl:recv channel)))
+    (send control (cons (name asset) channel))
+    (recv channel)))
 
 (defun gapps-rate (from to)
   (getjso "rate" (read-json (drakma:http-request
@@ -332,9 +324,9 @@
   (with-slots (thread market gate fee) tracker
     (loop (awhen (market-fee gate market) (setf fee it) (return)))
     (when (or (not (slot-boundp tracker 'thread))
-              (eq :terminated (chanl:task-status thread)))
+              (eq :terminated (task-status thread)))
       (setf thread
-            (chanl:pexec
+            (pexec
                 (:name (concatenate 'string "qdm-preα fee tracker for " (name market))
                  :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
@@ -346,7 +338,7 @@
    (fund-factor :initarg :fund-factor :initform 1)
    (resilience-factor :initarg :resilience :initform 1)
    (targeting-factor :initarg :targeting :initform 3/5)
-   (control :initform (make-instance 'chanl:channel))
+   (control :initform (make-instance 'channel))
    (fee-tracker :initarg :fee-tracker)
    (trades-tracker :initarg :trades-tracker)
    (book-tracker :initarg :book-tracker)
@@ -360,11 +352,11 @@
                fee-tracker trades-tracker book-tracker account-tracker)
       maker
     ;; whoo!
-    (chanl:send (slot-value trades-tracker 'control) '(max))
+    (send (slot-value trades-tracker 'control) '(max))
     ;; Get our balances
     (let (;; TODO: split into base resilience and quote resilience
           (resilience (* resilience-factor
-                         (chanl:recv (slot-value trades-tracker 'output))))
+                         (recv (slot-value trades-tracker 'output))))
           ;; TODO: doge is cute but let's move on
           (doge/btc (vwap trades-tracker :since (timestamp- (now) 4 :hour))))
       (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
@@ -428,16 +420,16 @@
                                               (urgent 'ask 'asks total-btc)
                                               (urgent 'bid 'bids total-doge)))
                       (format t " ~A" it) (force-output)))))
-              (chanl:recv (slot-value ope 'output)))))))))
+              (recv (slot-value ope 'output)))))))))
 
 (defun dumbot-loop (maker)
   (with-slots (control) maker
-    (chanl:select
-      ((chanl:recv control command)
+    (select
+      ((recv control command)
        ;; commands are (cons command args)
        (case (car command)
          ;; pause - wait for any other command to restart
-         (pause (chanl:recv control))
+         (pause (recv control))
          (stream (setf *standard-output* (cdr command)))))
       (t (%round maker)))))
 
@@ -460,27 +452,25 @@
     (setf (slot-value (slot-value account-tracker 'ope) 'book-channel)
           (slot-value book-tracker 'output))
     (when (or (not (slot-boundp maker 'thread))
-              (eq :terminated (chanl:task-status thread)))
+              (eq :terminated (task-status thread)))
       (setf thread
-            (chanl:pexec
+            (pexec
                 (:name (concatenate 'string "qdm-preα " (name market))
                  :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (dumbot-loop maker)))))))
 
-(defun pause-maker (maker)
-  (with-slots (control) maker
-    (chanl:send control '(pause))))
+(defun pause-maker (maker) (send (slot-value maker 'control) '(pause)))
 
 (defun reset-the-net (maker &optional (revive t))
   (flet ((ensure-death (list)
            (let ((thread (reduce #'slot-value list :initial-value maker)))
              (tagbody
-                (if (eq :terminated (chanl:task-status thread)) (go end)
-                    (chanl:kill (chanl:task-thread thread)))
+                (if (eq :terminated (task-status thread)) (go end)
+                    (kill (task-thread thread)))
               loop
-                (if (eq :terminated (chanl:task-status thread)) (go end) (go loop))
+                (if (eq :terminated (task-status thread)) (go end) (go loop))
               end))))
     (mapc #'ensure-death
           `((thread)
