@@ -161,7 +161,7 @@
           (flet ((liquidator (bonus total)
                    (lambda (order)
                      (with-slots (market price) (cdr order)
-                       (make-instance 'offer :market market :price (- price 3)
+                       (make-instance 'offer :market market :price (1- price)
                                       :volume (* funds (/ (+ bonus (car order))
                                                           total)))))))
             (let ((sorted (sort relevant #'< :key (lambda (x) (price (cdr x))))))
@@ -216,10 +216,10 @@
           ;; the entire book at once...
           ;; TODO: properly deal with partial and completed orders
           (do-side (quote)
-            (send next-bids (dumbot-offers other-bids resilience quote 0.01 15))
+            (send next-bids (dumbot-offers other-bids resilience quote 0.1 15))
             (recv prioritizer-response))
           (do-side (base)
-            (send next-asks (dumbot-offers other-asks resilience base 0.0001 15))
+            (send next-asks (dumbot-offers other-asks resilience base 0.001 15))
             (recv prioritizer-response)))))
     (send output nil)))
 
@@ -355,7 +355,7 @@
           (resilience (* resilience-factor
                          (recv (slot-value trades-tracker 'output))))
           ;; TODO: doge is cute but let's move on
-          (doge/btc (vwap trades-tracker :since (timestamp- (now) 4 :hour))))
+          (doge/btc (vwap trades-tracker :depth 50 :type :buy)))
       (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
              (total-of (btc doge) (+ btc (/ doge doge/btc)))
              (factor-fund (fund factor) (* fund fund-factor factor)))
@@ -403,7 +403,7 @@
               ;; distance from target equilibrium ( magic number 1/2 = target )
               (let ((lopsidedness (abs (- 1/2 investment))))
                 ;; soft limit test: are we within (magic) 33% of the target?
-                (when (> lopsidedness 1/8)
+                (when (> lopsidedness 1/4)
                   (flet ((urgent (class side fund)
                            (let ((price (1- (slot-value (fourth (slot-value book-tracker side)) 'price))))
                              (make-instance class :market market
@@ -488,15 +488,18 @@
             (fee-tracker thread))))
   (when revive
     (mapc 'reinitialize-instance
-          (list (slot-value maker 'book-tracker)
-                (slot-value maker 'account-tracker)
-                (slot-value maker 'trades-tracker)
-                (slot-value (slot-value maker 'account-tracker) 'gate)
-                (slot-value (slot-value maker 'account-tracker) 'lictor)
-                (slot-value (slot-value maker 'account-tracker) 'ope)
-                (slot-value (slot-value (slot-value maker 'account-tracker) 'ope) 'supplicant)
-                (slot-value maker 'fee-tracker)
-                maker))))
+          (list* (slot-value maker 'book-tracker)
+                 (slot-value maker 'account-tracker)
+                 (slot-value maker 'trades-tracker)
+                 (slot-value (slot-value maker 'account-tracker) 'gate)
+                 (slot-value (slot-value maker 'account-tracker) 'ope)
+                 (slot-value (slot-value (slot-value maker 'account-tracker) 'ope) 'supplicant)
+                 (slot-value maker 'fee-tracker)
+                 maker
+                 (loop
+                    for (key value) on
+                      (slot-reduce maker account-tracker lictors)
+                    by #'cddr collect value)))))
 
 (defmacro define-maker (name &rest keys
                         &key market gate
