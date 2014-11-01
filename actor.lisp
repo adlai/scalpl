@@ -18,41 +18,51 @@
 ;;; client, and state machine on the channel side serves as the server
 
 (defclass actor ()
-  ((thread :documentation "Thread performing this actor's behavior")
+  ((task :documentation "Task performing this actor's behavior")
    (control :documentation "Channel for controlling this actor")
-   (default :documentation "Default command in absence of control messages"
-            :initarg :default :initform (error "Must supply default state"))
    (children :allocation :class :initform nil
              :documentation "Children of this actor")
-   (channels :allocation :class :initform nil
+   (channels :allocation :class :initform '(control)
              :documentation "Channel slot names")))
 
-(defmethod initialize-instance :before ((actor actor) &key)
-  (flet ((initialize (slot)
-           (setf (slot-value actor slot)
-                 (make-instance 'chanl:channel))))
-    (initialize 'control)
-    (mapc #'initialize (slot-value actor 'channels))))
+(defgeneric channels (actor)
+  (:method-combination append)
+  (:method :around ((actor actor))
+    (remove-duplicates (call-next-method)))
+  (:method append ((actor actor))
+    (slot-value actor 'channels)))
 
-(defgeneric perform (actor command)
-  (:method ((actor actor) (command function))
-    (funcall command actor)))
+(defmethod initialize-instance :before ((actor actor) &key)
+  (dolist (slot (channels actor))
+    (setf (slot-value actor slot) (make-instance 'channel))))
+
+(defgeneric execute (actor command)
+  (:method ((actor actor) (command function)) (funcall command actor)))
+
+(defgeneric perform (actor)
+  (:method ((actor actor)) (execute actor (recv (slot-value actor 'control)))))
 
 (defgeneric christen (actor)
-  (:documentation "Generates a name for `actor', after slot initialization")
-  (:method ((actor actor)) (format nil "actor for ~A" actor)))
+  ;; (:method-combination print-unreadable-object :type t :identity t)
+  (:method ((actor actor))
+    (with-output-to-string (out)
+      (print-unreadable-object (actor out :type t :identity t)))))
 
-(defun kill-actor (actor)
-  ;; todo: timeout for chanl:kill ?
-  (chanl:send (slot-value actor 'control) nil))
+(defgeneric ensure-running (actor)
+  (:method ((actor actor))
+    (when (or (not (slot-boundp actor 'task))
+              (eq :terminated (task-status (slot-value actor 'task))))
+      (setf (slot-value actor 'task)
+            (chanl:pexec (:name (christen actor)
+                          :initial-bindings `((*read-default-float-format* double-float)))
+              (loop (perform actor)))))))
+
+(defgeneric halt (actor)
+  (:documentation "Signals `actor' to terminate")
+  (:method ((actor actor)) (send (slot-value actor 'control) nil)))
 
 (defmethod reinitialize-instance :before ((actor actor) &key kill)
   (when kill (kill-actor actor)))
 
 (defmethod shared-initialize :after ((actor actor) slot-names &key)
-  (when (or (not (slot-boundp actor 'thread))
-            (eq :terminated (chanl:task-status (slot-value actor 'thread))))
-    (setf (slot-value actor 'thread)
-          (chanl:pexec (:name (christen actor)
-                        :initial-bindings `((*read-default-float-format* double-float)))
-            (perform actor (chanl:recv (slot-value actor 'control)))))))
+  (ensure-running actor))
