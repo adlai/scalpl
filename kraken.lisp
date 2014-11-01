@@ -54,6 +54,7 @@
         (case status
           (200 (with-json-slots (result error)
                    (decode-json (map 'string 'code-char body))
+                 (when error (mapc #'warn error))
                  (values result error)))
           (502 (format t "~&Retrying after 502...~%")
                (sleep 1)
@@ -169,6 +170,7 @@
     ;; other requests wait for tokens. possible solution - queue closures
     ;; with their associated cost, execute most expensive affordable request
     (dotimes (i (request-cost command)) (recv (slot-value gate 'tokens)))
+    ;; (format t "~&~A ~A~&" (now) command)
     (multiple-value-list (post-request command key secret options))))
 
 (defmethod shared-initialize ((gate kraken-gate) names &key pubkey secret)
@@ -194,7 +196,7 @@
 (defmethod get-book ((market kraken-market) &aux (pair (name market)))
   (let ((decimals (slot-value market 'decimals)))
     (with-json-slots (bids asks)
-        (getjso pair (get-request "Depth" `(("pair" . ,pair))))
+        (getjso pair (get-request "Depth" `(("pair" . ,pair) ("count" . "200"))))
       (flet ((parser (class)
                (lambda (raw-order)
                  (destructuring-bind (price amount timestamp) raw-order
@@ -229,8 +231,11 @@
 ;;;
 
 (defun open-orders (gate)
-  (mapjso* (lambda (id order) (setf (getjso "id" order) id))
-           (getjso "open" (gate-request gate "OpenOrders"))))
+  (aif (gate-request gate "OpenOrders")
+       (mapjso* (lambda (id order)
+                  (setf (getjso "id" order) id))
+                (getjso "open" it))
+       (jso)))
 
 (defmethod placed-offers (gate)
   (mapcar-jso (lambda (id data)
@@ -262,9 +267,10 @@
   (gate-request gate "TradesHistory" (when last `(("start" . ,(uid last))))))
 
 (defmethod execution-since ((gate kraken-gate) (market kraken-market) since)
-  (with-json-slots (trades) (raw-executions gate since)
-    (remove market (mapcar-jso #'parse-execution trades)
-            :key #'market :test-not #'eq)))
+  (awhen (raw-executions gate since)
+    (with-json-slots (trades) it
+        (remove market (mapcar-jso #'parse-execution trades)
+                :key #'market :test-not #'eq))))
 
 #+nil
 (defun trades-history-chunk (tracker &key until since)
