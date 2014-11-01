@@ -195,7 +195,7 @@
       (when since (setf trades (remove since trades
                                        :key #'timestamp :test #'timestamp>=)))
       (when type
-        (setf trades (remove (ccase type (buy #\b) (sell #\s)) trades
+        (setf trades (remove (ccase type (:buy #\b) (:sell #\s)) trades
                              :key (lambda (trade) (char (direction trade) 0))
                              :test-not #'char=)))
       (when depth
@@ -207,6 +207,11 @@
              (reduce #'+ (mapcar #'volume trades)))
         (division-by-zero () 0)))))
 
+;;; look at us, thinking of the future already
+;;; we also dispatch on trades-tracker so that exchange-specific methods can
+;;; dispatch on just the tracker argument, rather than both prev and next
+;;; face it, sometimes you just gotta (eval '(expt +evil+ 1/2))
+
 (defgeneric trades-mergeable? (trades-tracker prev next)
   (:method-combination and)
   (:method and (tracker (prev null) next))
@@ -217,13 +222,17 @@
            (> market-timestamp-sensitivity
               (timestamp-difference (timestamp next) (timestamp prev)))))))
 
+;; (defgeneric same-trades? (trades-tracker prev next)
+;;   (:method-combination and)
+;;   (:method and ()))
+
 (defgeneric merge-trades (trades-tracker prev next)
   (:method ((tracker trades-tracker) (prev trade) (next trade))
     (let* ((volume (+ (volume prev) (volume next)))
            (cost   (+ (cost   prev) (cost   next)))
            (price (/ cost volume)))
       (make-instance 'trade :market (market prev)
-                     :timestamp (timestamp prev) :cost cost
+                     :timestamp (timestamp next) :cost cost
                      :volume volume :price price
                      :direction (direction prev)))))
 
