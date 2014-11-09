@@ -37,9 +37,6 @@
     (with-open-file (stream path)
       (make-key stream))))
 
-(defun decode-json (arg)
-  (st-json:read-json arg))
-
 (defun raw-request (path &rest keys)
   (handler-case
       (multiple-value-bind (body status)
@@ -53,7 +50,7 @@
                  keys)
         (case status
           (200 (with-json-slots (result error)
-                   (decode-json (map 'string 'code-char body))
+                   (read-json (map 'string 'code-char body))
                  (when error (mapc #'warn error))
                  (values result error)))
           (502 (format t "~&Retrying after 502...~%")
