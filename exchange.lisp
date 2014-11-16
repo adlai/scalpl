@@ -12,7 +12,7 @@
            #:get-book #:trades-since #:trades-tracker #:book-tracker
            #:placed-offers #:market-fee #:execution-since #:vwap
            #:post-offer #:cancel-offer #:execution #:execution-tracker
-           ))
+           #:direction #:cost #:fee))
 
 (in-package #:scalpl.exchange)
 
