@@ -267,10 +267,15 @@
 (defun parse-execution (txid json)
   (declare (optimize (debug 3)))
   (with-json-slots (price pair fee cost vol time type) json
-    (make-instance 'execution :fee (parse-float fee) :direction type :uid txid
-                   :price (parse-float price) :cost (parse-float cost)
-                   :volume (parse-float vol) :market (find-market pair *kraken*)
-                   :timestamp (parse-timestamp *kraken* time))))
+    (let ((fee (parse-float fee))
+          (cost (parse-float cost)))
+      (make-instance 'execution :fee fee :direction type :uid txid
+                     :price (parse-float price) :cost cost
+                     :volume (parse-float vol) :market (find-market pair *kraken*)
+                     :timestamp (parse-timestamp *kraken* time)
+                     :net (string-case (type)
+                            ("buy" (+ cost fee))
+                            ("sell" (- cost fee)))))))
 
 (defun raw-executions (gate &optional last)
   (gate-request gate "TradesHistory" (when last `(("start" . ,(uid last))))))

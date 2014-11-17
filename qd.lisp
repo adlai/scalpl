@@ -271,8 +271,8 @@
                                    it))))
     (sleep delay)))
 
-(defmethod vwap ((tracker account-tracker) &key type market depth)
-  (vwap (getf (slot-value tracker 'lictors) market) :type type :depth depth))
+(defmethod vwap ((tracker account-tracker) &key type market depth net)
+  (vwap (getf (slot-value tracker 'lictors) market) :type type :depth depth :net net))
 
 (defmethod shared-initialize :after ((tracker account-tracker) (names t)
                                      &key markets)
@@ -371,10 +371,10 @@
           (flet ((asset-decimals (kind)
                    (slot-value (slot-value market kind) 'decimals))
                  (depth-profit (&optional depth)
-                   (flet ((vwap (side) (vwap account-tracker :type side
+                   (flet ((vwap (side) (vwap account-tracker :type side :net t
                                              :market market :depth depth)))
                      (handler-case
-                         (* 100 (1- (profit-margin (vwap "buy") (vwap "sell") fee)))
+                         (* 100 (1- (profit-margin (vwap "buy") (vwap "sell") 0)))
                        (division-by-zero () 0)))))
             ;; time, total, base, quote, invested, risked, risk bias, pulse
             (format t "~&~A ~6@A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~
