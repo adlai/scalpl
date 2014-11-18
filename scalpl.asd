@@ -14,6 +14,8 @@
                #:cl-base64
                #:ironclad
                #:local-time
+               #:closer-mop
+               #:rucksack
                #:chanl
                #:external-program)
   :serial t

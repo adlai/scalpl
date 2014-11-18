@@ -1,5 +1,5 @@
 (defpackage #:scalpl.util
-  (:use #:cl #:st-json #:parse-float #:string-case #:chanl)
+  (:use #:c2cl #:st-json #:parse-float #:string-case #:chanl)
   (:export #:with-json-slots
            #:mapcar-jso
            #:mapjso*
@@ -43,9 +43,9 @@
     (rehome-class (find-class class) (find-package new-home)))
   (:method ((class class) (new-home package))
     (let ((old-home (symbol-package (class-name class)))
-          (symbols (list* (class-name class)
-                          (mapcar 'sb-mop:slot-definition-name
-                                  (sb-mop:class-direct-slots class)))))
+          (symbols (cons (class-name class)
+                         (mapcar 'slot-definition-name
+                                 (class-direct-slots class)))))
       (mapc (lambda (symbol) (unintern symbol old-home)) symbols)
       (import symbols new-home)
       (import symbols old-home))))
