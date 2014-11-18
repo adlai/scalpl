@@ -127,8 +127,8 @@
   (dolist (name (get-request "symbols") markets)
     (push (make-instance
            'bitfinex-market :name name
-           :base (find-asset (subseq name 0 3) assets)
-           :quote (find-asset (subseq name 3) assets)
+           :primary (find-asset (subseq name 0 3) assets)
+           :counter (find-asset (subseq name 3) assets)
            :decimals (detect-market-precision name))
           markets)))
 
@@ -205,7 +205,7 @@
              (find (name (slot-value market role))
                    (getjso "fees" it) :test #'string-equal
                    :key (lambda (x) (getjso "pairs" x)))))
-      (awhen (or (asset-fee 'base) (asset-fee 'quote))
+      (awhen (or (asset-fee 'primary) (asset-fee 'counter))
         (parse-float (getjso "maker_fees" it))))))
 
 (defun execution-parser (market)
@@ -253,7 +253,7 @@
 
 (defun post-limit (gate type pair price volume decimals)
   (let ((price (/ price (expt 10d0 decimals))))
-    ;; bitfinex always wants volume in the base currency units
+    ;; bitfinex always wants volume in the primary currency units
     (when (string-equal type "buy") (setf volume (/ volume price)))
     ;; FIXME: these hardcoded numbers are btcusd-specific!
     (flet ((post (chunk)

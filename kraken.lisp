@@ -130,8 +130,8 @@
   (mapcar-jso (lambda (name data)
                 (with-json-slots (pair_decimals quote base altname) data
                   (make-instance 'kraken-market :name name :altname altname
-                                 :base (find-asset base assets)
-                                 :quote (find-asset quote assets)
+                                 :primary (find-asset base assets)
+                                 :counter (find-asset quote assets)
                                  :decimals pair_decimals)))
               (get-request "AssetPairs")))
 

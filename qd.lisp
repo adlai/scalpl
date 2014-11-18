@@ -182,7 +182,7 @@
 
 (defun ope-scalper-loop (ope)
   (with-slots (input output book-channel next-bids next-asks prioritizer-response) ope
-    (destructuring-bind (fee base quote resilience) (recv input)
+    (destructuring-bind (fee primary counter resilience) (recv input)
       ;; Now run that algorithm thingy
       (flet ((filter-book (book) (ope-filter ope book))
              (place (new) (ope-place ope new)))
@@ -215,11 +215,11 @@
           ;; Need to rework this flow so the worker (actor calculating priorities) gets
           ;; the entire book at once...
           ;; TODO: properly deal with partial and completed orders
-          (do-side (quote)
-            (send next-bids (dumbot-offers other-bids resilience quote 0.1 15))
+          (do-side (counter)
+            (send next-bids (dumbot-offers other-bids resilience counter 0.1 15))
             (recv prioritizer-response))
-          (do-side (base)
-            (send next-asks (dumbot-offers other-asks resilience base 0.001 15))
+          (do-side (primary)
+            (send next-asks (dumbot-offers other-asks resilience primary 0.001 15))
             (recv prioritizer-response)))))
     (send output nil)))
 
@@ -351,7 +351,7 @@
     ;; whoo!
     (send (slot-value trades-tracker 'control) '(max))
     ;; Get our balances
-    (let (;; TODO: split into base resilience and quote resilience
+    (let (;; TODO: split into primary resilience and counter resilience
           (resilience (* resilience-factor
                          (recv (slot-value trades-tracker 'output))))
           ;; TODO: doge is cute but let's move on
@@ -360,8 +360,8 @@
              (total-of (btc doge) (+ btc (/ doge doge/btc)))
              (factor-fund (fund factor) (* fund fund-factor factor)))
         (let* ((fee (slot-value fee-tracker 'fee))
-               (total-btc (symbol-funds (slot-value market 'base)))
-               (total-doge (symbol-funds (slot-value market 'quote)))
+               (total-btc (symbol-funds (slot-value market 'primary)))
+               (total-doge (symbol-funds (slot-value market 'counter)))
                (total-fund (total-of total-btc total-doge))
                (investment (/ total-btc total-fund))
                (btc (factor-fund total-btc (* investment targeting-factor)))
@@ -376,7 +376,7 @@
                      (handler-case
                          (* 100 (1- (profit-margin (vwap "buy") (vwap "sell"))))
                        (division-by-zero () 0)))))
-            ;; time, total, base, quote, invested, risked, risk bias, pulse
+            ;; time, total, primary, counter, invested, risked, risk bias, pulse
             (format t "~&~A ~6@A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~
                        ~6@$ ~6@$ ~6@$ ~6@$ ~6@$ ~6@$"
                     (format-timestring nil (now)
@@ -384,10 +384,10 @@
                                                  (:min 2) #\:
                                                  (:sec 2)))
                     name
-                    (asset-decimals 'base)  total-fund
-                    (asset-decimals 'quote) (* total-fund doge/btc)
-                    (asset-decimals 'base)  total-btc
-                    (asset-decimals 'quote) total-doge
+                    (asset-decimals 'primary)  total-fund
+                    (asset-decimals 'counter) (* total-fund doge/btc)
+                    (asset-decimals 'primary)  total-btc
+                    (asset-decimals 'counter) total-doge
                     (* 100 investment)
                     (* 100 (/ (total-of btc doge) total-fund))
                     (* 100 (/ (total-of (- btc) doge) total-fund))

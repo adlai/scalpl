@@ -3,7 +3,8 @@
 (defpackage #:scalpl.exchange
   (:use #:cl #:anaphora #:local-time #:scalpl.util)
   (:export #:exchange #:name #:assets #:markets #:parse-timestamp
-           #:asset #:find-asset #:market #:decimals #:base #:quote #:find-market
+           #:asset #:find-asset
+           #:market #:decimals #:primary #:counter #:find-market
            #:offer #:volume #:price #:placed #:uid #:bid #:ask #:consumed-asset
            #:gate #:gate-post #:gate-request
            #:thread #:control #:updater #:worker #:output ; coming soon: actors!
@@ -79,8 +80,8 @@
   ((name     :initarg :name     :reader name)
    (decimals :initarg :decimals :reader decimals)
    (exchange :initarg :exchange :reader exchange)
-   (quote    :initarg :quote    :reader quote-asset)
-   (base     :initarg :base     :reader base-asset)))
+   (counter  :initarg :counter  :reader counter)
+   (primary  :initarg :primary  :reader primary)))
 
 (defmethod print-object ((market market) stream)
   (print-unreadable-object (market stream :type nil :identity nil)
@@ -119,11 +120,11 @@
                   (/ (abs price) (expt 10 market-decimals))))))))
 
 (defgeneric consumed-asset (offer)
-  (:method ((bid bid)) (slot-value (slot-value bid 'market) 'quote))
-  (:method ((ask ask)) (slot-value (slot-value ask 'market) 'base))
+  (:method ((bid bid)) (slot-value (slot-value bid 'market) 'counter))
+  (:method ((ask ask)) (slot-value (slot-value ask 'market) 'primary))
   (:method ((offer offer))
     (with-slots (market price) offer
-      (slot-value market (if (> price 0) 'base 'quote)))))
+      (slot-value market (if (> price 0) 'primary 'counter)))))
 
 ;; (defmethod update-instance-for-different-class :after ((offer offer) (placed placed) &key)
 ;;   (format t "~&@~A ~A" (format-timestring nil (now) :format '((:sec 2))) placed))
