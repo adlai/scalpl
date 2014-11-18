@@ -125,7 +125,7 @@
           ((recv next-bids to-bid) (update to-bid (nth-value 0 (ope-placed ope))))
           ((recv next-asks to-ask) (update to-ask (nth-value 1 (ope-placed ope)))))))))
 
-(defun profit-margin (bid ask fee-percent)
+(defun profit-margin (bid ask &optional (fee-percent 0))
   (* (/ ask bid) (- 1 (/ fee-percent 100))))
 
 ;;; Lossy trades
@@ -331,7 +331,7 @@
               (loop (fee-tracker-loop tracker)))))))
 
 (defclass maker ()
-  ((market :initarg :market)
+  ((market :initarg :market :reader market)
    (fund-factor :initarg :fund-factor :initform 1)
    (resilience-factor :initarg :resilience :initform 1)
    (targeting-factor :initarg :targeting :initform 3/5)
@@ -374,7 +374,7 @@
                    (flet ((vwap (side) (vwap account-tracker :type side :net t
                                              :market market :depth depth)))
                      (handler-case
-                         (* 100 (1- (profit-margin (vwap "buy") (vwap "sell") 0)))
+                         (* 100 (1- (profit-margin (vwap "buy") (vwap "sell"))))
                        (division-by-zero () 0)))))
             ;; time, total, base, quote, invested, risked, risk bias, pulse
             (format t "~&~A ~6@A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~
