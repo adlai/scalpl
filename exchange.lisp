@@ -2,17 +2,18 @@
 
 (defpackage #:scalpl.exchange
   (:use #:cl #:anaphora #:local-time #:scalpl.util)
-  (:export #:exchange #:assets #:markets
-           #:asset #:find-asset #:name #:bids #:asks
-           #:market #:find-market #:decimals #:base #:quote
-           #:offer #:placed #:bid #:ask #:offer #:offer
-           #:volume #:price #:uid #:consumed-asset #:trade
-           #:parse-timestamp #:gate #:gate-post #:gate-request
-           #:thread #:control #:updater #:worker #:output ; UGH
-           #:get-book #:trades-since #:trades-tracker #:book-tracker
-           #:placed-offers #:market-fee #:execution-since #:vwap
-           #:post-offer #:cancel-offer #:execution #:execution-tracker
-           #:direction #:cost #:fee))
+  (:export #:exchange #:name #:assets #:markets #:parse-timestamp
+           #:asset #:find-asset #:market #:decimals #:base #:quote #:find-market
+           #:offer #:volume #:price #:placed #:uid #:bid #:ask #:consumed-asset
+           #:gate #:gate-post #:gate-request
+           #:thread #:control #:updater #:worker #:output ; coming soon: actors!
+           #:trade #:cost #:direction
+           #:trades-tracker #:trades #:trades-since #:vwap
+           #:book-tracker #:bids #:asks #:get-book
+           #:placed-offers #:market-fee
+           #:execution #:fee #:net-cost
+           #:execution-tracker #:execution-since
+           #:post-offer #:cancel-offer))
 
 (in-package #:scalpl.exchange)
 
@@ -29,6 +30,7 @@
   ((name    :initarg :name    :reader name)
    (assets  :initarg :assets  :reader assets)
    (markets :initarg :markets :reader markets)
+   ;; FIXME: broken af
    (market-timestamp-sensitivity :initarg :sensitivity)))
 
 (defmethod shared-initialize :after ((exchange exchange) names &key)
