@@ -177,9 +177,9 @@
 (defmethod print-object ((trade trade) stream)
   (print-unreadable-object (trade stream :identity nil)
     (with-slots (market volume price timestamp direction) trade
-      (with-slots (base decimals) market
+      (with-slots (primary decimals) market
         (format stream "~A ~A at ~V$: ~V$" timestamp
-                direction decimals price (decimals base) volume)))))
+                direction decimals price (decimals primary) volume)))))
 
 (defgeneric trades-since (market &optional since))
 
