@@ -147,8 +147,13 @@
 ;; TINWGD 12:23:51 sell €473.95313 0.00028740 €0.13621
 ;; TPY7P4 12:23:51 sell €473.92213 0.00003772 €0.01788
 
-(defun dumbot-offers (book resilience funds epsilon max-orders &aux (acc 0) (share 0))
-  (do* ((remaining-offers book (rest remaining-offers))
+(defun dumbot-offers (foreign-offers   ; w/ope-filter to avoid feedback
+                      resilience       ; scalar•asset target offer depth to fill
+                      funds            ; scalar•asset target total offer volume
+                      epsilon          ; scalar•asset size of smallest order
+                      max-orders       ; target amount of offers
+                      &aux (acc 0) (share 0))
+  (do* ((remaining-offers foreign-offers (rest remaining-offers))
         (n   0    (1+ n)))
        ((or (and (> acc resilience) (> n max-orders)) (null remaining-offers))
         (let* ((sorted (sort (subseq book 1 n) #'> :key (lambda (x) (volume (cdr x)))))
