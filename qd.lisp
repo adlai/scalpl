@@ -12,11 +12,9 @@
 (defclass ope ()
   ((input :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
-   (next-bids :initform (make-instance 'channel))
-   (next-asks :initform (make-instance 'channel))
-   (prioritizer-response :initform (make-instance 'channel))
    (book-channel :initarg :book-channel)
-   supplicant prioritizer scalper))
+   (supplicant :initarg :supplicant)
+   prioritizer scalper))
 
 (defclass ope-supplicant ()
   ((gate :initarg :gate)
@@ -25,6 +23,12 @@
    (response :initarg :response :initform (make-instance 'channel))
    (balance-tracker :initarg :balance-tracker)
    thread))
+
+(defclass ope-prioritizer ()
+  ((next-bids :initform (make-instance 'channel))
+   (next-asks :initform (make-instance 'channel))
+   (prioritizer-response :initform (make-instance 'channel))
+   (supplicant :initarg :supplicant) thread))
 
 (defgeneric offers-spending (ope asset))
 (defmethod offers-spending ((ope ope) asset)
@@ -80,6 +84,8 @@
 (defgeneric ope-placed (ope))
 (defmethod ope-placed ((ope ope))
   (ope-placed (slot-value ope 'supplicant)))
+(defmethod ope-placed ((ope ope-prioritizer))
+  (ope-placed (slot-value ope 'supplicant)))
 (defmethod ope-placed ((ope ope-supplicant))
   (with-slots (control response) ope
     (send control '(placed))
@@ -93,13 +99,19 @@
 (defgeneric ope-place (ope offer))
 (defmethod ope-place ((ope ope) offer)
   (ope-place (slot-value ope 'supplicant) offer))
+(defmethod ope-place ((ope ope-prioritizer) offer)
+  (ope-place (slot-value ope 'supplicant) offer))
 (defmethod ope-place ((ope ope-supplicant) offer)
   (with-slots (control response) ope
     (send control (cons 'offer offer)) (recv response)))
 
+;;; response: placed offer if successful, nil if not
+
 ;;; response: {count: "1"} if successful, nil if not
 (defgeneric ope-cancel (ope offer))
 (defmethod ope-cancel ((ope ope) offer)
+  (ope-cancel (slot-value ope 'supplicant) offer))
+(defmethod ope-cancel ((ope ope-prioritizer) offer)
   (ope-cancel (slot-value ope 'supplicant) offer))
 (defmethod ope-cancel ((ope ope-supplicant) offer)
   (with-slots (control response) ope
@@ -228,7 +240,7 @@
       (push (incf share (* 4/3 (incf acc volume))) (first remaining-offers)))))
 
 (defun ope-scalper-loop (ope)
-  (with-slots (input output book-channel next-bids next-asks prioritizer-response) ope
+  (with-slots (input output book-channel prioritizer) ope
     (destructuring-bind (fee primary counter resilience) (recv input)
       ;; Now run that algorithm thingy
       (flet ((filter-book (book) (ope-filter ope book))
@@ -259,16 +271,24 @@
                                         (volume (pop other-asks))))
                               (0 (pop other-bids) (pop other-asks))))
                           (unless (zerop ,amount) ,@body)))))
-          ;; Need to rework this flow so the worker (actor calculating priorities) gets
-          ;; the entire book at once...
-          ;; TODO: properly deal with partial and completed orders
-          (do-side (counter)
-            (send next-bids (dumbot-offers other-bids resilience counter 0.1 15))
-            (recv prioritizer-response))
-          (do-side (primary)
-            (send next-asks (dumbot-offers other-asks resilience primary 0.001 15))
-            (recv prioritizer-response)))))
+          (with-slots (next-bids next-asks prioritizer-response) prioritizer
+            ;; Need to rework this flow so the worker (actor calculating priorities) gets
+            ;; the entire book at once...
+            ;; TODO: properly deal with partial and completed orders
+            (do-side (counter)
+              (send next-bids (dumbot-offers other-bids resilience counter 0.1 15))
+              (recv prioritizer-response))
+            (do-side (primary)
+              (send next-asks (dumbot-offers other-asks resilience primary 0.001 15))
+              (recv prioritizer-response))))))
     (send output nil)))
+
+(defmethod shared-initialize :after ((prioritizer ope-prioritizer) slots &key)
+  (with-slots (thread) prioritizer
+    (when (or (not (slot-boundp prioritizer 'thread))
+              (eq :terminated (task-status thread)))
+      (setf thread (pexec (:name "qdm-preα ope prioritizer")
+                     (loop (ope-prioritizer-loop prioritizer)))))))
 
 (defmethod shared-initialize :after ((ope ope) slots &key gate balance-tracker)
   (with-slots (supplicant prioritizer scalper) ope
@@ -276,10 +296,9 @@
       (setf supplicant (make-instance 'ope-supplicant :gate gate
                                       :placed (placed-offers gate)
                                       :balance-tracker balance-tracker)))
-    (when (or (not (slot-boundp ope 'prioritizer))
-              (eq :terminated (task-status prioritizer)))
-      (setf prioritizer (pexec (:name "qdm-preα ope prioritizer")
-                          (loop (ope-prioritizer-loop ope)))))
+    (if (slot-boundp ope 'prioritizer)
+        (reinitialize-instance prioritizer :supplicant supplicant)
+        (setf prioritizer (make-instance 'ope-prioritizer :supplicant supplicant)))
     (when (or (not (slot-boundp ope 'scalper))
               (eq :terminated (task-status scalper)))
       (setf scalper (pexec (:name "qdm-preα ope scalper")
