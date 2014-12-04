@@ -9,6 +9,17 @@
 ;;;  ENGINE
 ;;;
 
+(defclass ope ()
+  ((input :initform (make-instance 'channel))
+   (output :initform (make-instance 'channel))
+   (next-bids :initform (make-instance 'channel))
+   (next-asks :initform (make-instance 'channel))
+   (prioritizer-response :initform (make-instance 'channel))
+   (control :initform (make-instance 'channel))
+   (response :initform (make-instance 'channel))
+   (book-channel :initarg :book-channel)
+   supplicant prioritizer scalper))
+
 (defclass ope-supplicant ()
   ((gate :initarg :gate)
    (placed :initform nil :initarg :placed)
@@ -17,11 +28,17 @@
    (balance-tracker :initarg :balance-tracker)
    thread))
 
-(defun offers-spending (ope asset)
+(defgeneric offers-spending (ope asset))
+(defmethod offers-spending ((ope ope) asset)
+  (offers-spending (slot-value ope 'supplicant) asset))
+(defmethod offers-spending ((ope ope-supplicant) asset)
   (remove asset (slot-value ope 'placed)
           :key #'consumed-asset :test-not #'eq))
 
-(defun balance-guarded-place (ope offer)
+(defgeneric balance-guarded-place (ope offer))
+(defmethod balance-guarded-place ((ope ope) offer)
+  (balance-guarded-place (slot-value ope 'supplicant) offer))
+(defmethod balance-guarded-place ((ope ope-supplicant) offer)
   (with-slots (gate placed balance-tracker) ope
     (let ((asset (consumed-asset offer)))
       (when (>= (asset-balance balance-tracker asset)
@@ -62,18 +79,10 @@
       (setf thread (pexec (:name "qdm-preα ope supplicant")
                      (loop (ope-supplicant-loop supplicant)))))))
 
-(defclass ope ()
-  ((input :initform (make-instance 'channel))
-   (output :initform (make-instance 'channel))
-   (next-bids :initform (make-instance 'channel))
-   (next-asks :initform (make-instance 'channel))
-   (prioritizer-response :initform (make-instance 'channel))
-   (control :initform (make-instance 'channel))
-   (response :initform (make-instance 'channel))
-   (book-channel :initarg :book-channel)
-   supplicant prioritizer scalper))
-
-(defun ope-placed (ope)
+(defgeneric ope-placed (ope))
+(defmethod ope-placed ((ope ope))
+  (ope-placed (slot-value ope 'supplicant)))
+(defmethod ope-placed ((ope ope-supplicant))
   (with-slots (control response) ope
     (send control '(placed))
     (let ((all (sort (copy-list (recv response)) #'< :key #'price)))
@@ -83,16 +92,25 @@
         (values (split 1) (split -1))))))
 
 ;;; response: placed offer if successful, nil if not
-(defun ope-place (ope offer)
+(defgeneric ope-place (ope offer))
+(defmethod ope-place ((ope ope) offer)
+  (ope-place (slot-value ope 'supplicant) offer))
+(defmethod ope-place ((ope ope-supplicant) offer)
   (with-slots (control response) ope
     (send control (cons 'offer offer)) (recv response)))
 
 ;;; response: {count: "1"} if successful, nil if not
-(defun ope-cancel (ope offer)
+(defgeneric ope-cancel (ope offer))
+(defmethod ope-cancel ((ope ope) offer)
+  (ope-cancel (slot-value ope 'supplicant) offer))
+(defmethod ope-cancel ((ope ope-supplicant) offer)
   (with-slots (control response) ope
     (send control (cons 'cancel offer)) (recv response)))
 
-(defun ope-filter (ope book)
+(defgeneric ope-filter (ope book))
+(defmethod ope-filter ((ope ope) book)
+  (ope-filter (slot-value ope 'supplicant) book))
+(defmethod ope-filter ((ope ope-supplicant) book)
   (with-slots (control response) ope
     (send control (cons 'filter book)) (recv response)))
 
