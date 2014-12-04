@@ -16,7 +16,7 @@
                #:local-time
                #:closer-mop
                #:rucksack
-               #:chanl
+               #:chanl #:chanl.examples
                #:external-program)
   :serial t
   :components ((:file "util")
