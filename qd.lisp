@@ -154,10 +154,11 @@
                       max-orders       ; target amount of offers
                       &aux (acc 0) (share 0))
   (do* ((remaining-offers foreign-offers (rest remaining-offers))
-        (n   0    (1+ n)))
-       ((or (and (> acc resilience) (> n max-orders)) (null remaining-offers))
-        (let* ((sorted (sort (subseq book 1 n) #'> :key (lambda (x) (volume (cdr x)))))
-               ;; when we detect [oversized-epsilon], instead of this...
+        (processed-tally         0       (1+   processed-tally)))
+       ((or (null remaining-offers)  ; EITHER: processed entire order book
+            (and (> acc resilience)  ;     OR: (   BOTH: processed past resilience
+                 (> processed-tally max-orders))) ; AND: processed enough orders )
+        (let* (;; when we detect [oversized-epsilon], instead of this...
                ;; QD> (pprint (dumbot-offers other-offers 10 100 7 15))
                ;; (#<OFFER  7.5420 ZEUR @ 305.00000>
                ;;  #<OFFER  9.2493 ZEUR @ 304.81204>
@@ -174,8 +175,11 @@
                ;;  #<OFFER 26.2884 ZEUR @ 304.81305>
                ;;  #<OFFER 30.1433 ZEUR @ 304.81204>) Σ(cost) = 100.0
                ;; by properly decreasing n-orders at this point in the algo
-               (n-orders (min max-orders n))
-               (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
+               (n-orders (min max-orders processed-tally))
+               (relevant (cons (first foreign-offers)
+                               (subseq (sort (subseq foreign-offers 1 processed-tally)
+                                             #'> :key (lambda (x) (volume (cdr x))))
+                                       0 (1- n-orders))))
                (total-shares (reduce #'+ (mapcar #'car relevant)))
                ;; we need the smallest order to be epsilon
                ;; FIXME: ¿ e/f × n > 1 ?
