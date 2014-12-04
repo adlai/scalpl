@@ -15,16 +15,14 @@
    (next-bids :initform (make-instance 'channel))
    (next-asks :initform (make-instance 'channel))
    (prioritizer-response :initform (make-instance 'channel))
-   (control :initform (make-instance 'channel))
-   (response :initform (make-instance 'channel))
    (book-channel :initarg :book-channel)
    supplicant prioritizer scalper))
 
 (defclass ope-supplicant ()
   ((gate :initarg :gate)
    (placed :initform nil :initarg :placed)
-   (control :initarg :control)
-   (response :initarg :response)
+   (control :initarg :control :initform (make-instance 'channel))
+   (response :initarg :response :initform (make-instance 'channel))
    (balance-tracker :initarg :balance-tracker)
    thread))
 
@@ -273,11 +271,10 @@
     (send output nil)))
 
 (defmethod shared-initialize :after ((ope ope) slots &key gate balance-tracker)
-  (with-slots (supplicant prioritizer scalper control response) ope
+  (with-slots (supplicant prioritizer scalper) ope
     (unless (slot-boundp ope 'supplicant)
       (setf supplicant (make-instance 'ope-supplicant :gate gate
                                       :placed (placed-offers gate)
-                                      :control control :response response
                                       :balance-tracker balance-tracker)))
     (when (or (not (slot-boundp ope 'prioritizer))
               (eq :terminated (task-status prioritizer)))
