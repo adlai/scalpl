@@ -148,9 +148,9 @@
 ;; TPY7P4 12:23:51 sell €473.92213 0.00003772 €0.01788
 
 (defun dumbot-offers (book resilience funds epsilon max-orders &aux (acc 0) (share 0))
-  (do* ((cur book (cdr cur))
-        (n 0 (1+ n)))
-       ((or (and (> acc resilience) (> n max-orders)) (null cur))
+  (do* ((remaining-offers book (rest remaining-offers))
+        (n   0    (1+ n)))
+       ((or (and (> acc resilience) (> n max-orders)) (null remaining-offers))
         (let* ((sorted (sort (subseq book 1 n) #'> :key (lambda (x) (volume (cdr x)))))
                (n-orders (min max-orders n))
                (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
@@ -177,8 +177,8 @@
                           sorted))))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
-    (with-slots (volume) (car cur)
-      (push (incf share (* 4/3 (incf acc volume))) (car cur)))))
+    (with-slots (volume) (first remaining-offers)
+      (push (incf share (* 4/3 (incf acc volume))) (first remaining-offers)))))
 
 (defun ope-scalper-loop (ope)
   (with-slots (input output book-channel next-bids next-asks prioritizer-response) ope
