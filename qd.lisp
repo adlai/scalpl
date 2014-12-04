@@ -152,6 +152,23 @@
         (n   0    (1+ n)))
        ((or (and (> acc resilience) (> n max-orders)) (null remaining-offers))
         (let* ((sorted (sort (subseq book 1 n) #'> :key (lambda (x) (volume (cdr x)))))
+               ;; when we detect [oversized-epsilon], instead of this...
+               ;; QD> (pprint (dumbot-offers other-offers 10 100 7 15))
+               ;; (#<OFFER  7.5420 ZEUR @ 305.00000>
+               ;;  #<OFFER  9.2493 ZEUR @ 304.81204>
+               ;;  #<OFFER 11.0758 ZEUR @ 304.61755>
+               ;;  #<OFFER 14.8739 ZEUR @ 304.58615>
+               ;;  #<OFFER 17.0687 ZEUR @ 304.58517>
+               ;;  #<OFFER 19.4865 ZEUR @ 304.50754>) Σ(cost) = 76.27
+               ;; ... we should do this!
+               ;; QD> (pprint (dumbot-offers other-offers 10 100 7 6))
+               ;; (#<OFFER  7.0000 ZEUR @ 305.84740>
+               ;;  #<OFFER 10.0092 ZEUR @ 305.72740>
+               ;;  #<OFFER 12.0460 ZEUR @ 305.50000>
+               ;;  #<OFFER 14.5131 ZEUR @ 305.42197>
+               ;;  #<OFFER 26.2884 ZEUR @ 304.81305>
+               ;;  #<OFFER 30.1433 ZEUR @ 304.81204>) Σ(cost) = 100.0
+               ;; by properly decreasing n-orders at this point in the algo
                (n-orders (min max-orders n))
                (relevant (cons (car book) (subseq sorted 0 (1- n-orders))))
                (total-shares (reduce #'+ (mapcar #'car relevant)))
@@ -165,6 +182,7 @@
                                       :volume (* funds (/ (+ bonus (car order))
                                                           total)))))))
             (let ((sorted (sort relevant #'< :key (lambda (x) (price (cdr x))))))
+              ;; [oversized-epsilon]
               (if (> epsilon (/ funds n-orders))
                   ;; temporary fix - disable scaling
                   ;; this means we get the largest m<n offers from the target,
