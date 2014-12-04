@@ -174,13 +174,14 @@
                ;;  #<OFFER 14.5131 ZEUR @ 305.42197>
                ;;  #<OFFER 26.2884 ZEUR @ 304.81305>
                ;;  #<OFFER 30.1433 ZEUR @ 304.81204>) Σ(cost) = 100.0
-               ;; by properly decreasing n-orders at this point in the algo
-               (n-orders (min max-orders processed-tally))
-               (relevant (cons (first foreign-offers)
-                               (subseq (sort (subseq foreign-offers 1 processed-tally)
-                                             #'> :key (lambda (x) (volume (cdr x))))
-                                       0 (1- n-orders))))
-               (total-shares (reduce #'+ (mapcar #'car relevant)))
+               ;; by properly decreasing target-stair-count, here:
+               (target-stair-count (min max-orders processed-tally))
+               (chosen-stair-set        ; the (shares . foreign-offer)s to fight
+                (cons (first foreign-offers)
+                      (subseq (sort (subseq foreign-offers 1 processed-tally)
+                                    #'> :key (lambda (x) (volume (cdr x))))
+                              0 (1- target-stair-count))))
+               (total-shares (reduce #'+ (mapcar #'car chosen-stair-set)))
                ;; we need the smallest order to be epsilon
                ;; FIXME: ¿ e/f × n > 1 ?
                (e/f (/ epsilon funds)))
@@ -190,17 +191,20 @@
                        (make-instance 'offer :market market :price (1- price)
                                       :volume (* funds (/ (+ bonus (car order))
                                                           total)))))))
-            (let ((sorted (sort relevant #'< :key (lambda (x) (price (cdr x))))))
+            (let ((sorted (sort chosen-stair-set #'<
+                                :key (lambda (x) (price (cdr x))))))
               ;; [oversized-epsilon]
-              (if (> epsilon (/ funds n-orders))
+              (if (> epsilon (/ funds target-stair-count))
                   ;; temporary fix - disable scaling
                   ;; this means we get the largest m<n offers from the target,
                   ;; rather than m offers distributed throughout the n
                   (remove-if (lambda (offer) (< (volume offer) epsilon))
                              (mapcar (liquidator 0 total-shares) sorted))
-                  (mapcar (let ((bonus (/ (- (* e/f total-shares) (caar relevant))
-                                          (- 1 (* e/f n-orders)))))
-                            (liquidator bonus (+ total-shares (* bonus n-orders))))
+                  (mapcar (let ((bonus (/ (- (* e/f total-shares)
+                                             (caar chosen-stair-set))
+                                          (- 1 (* e/f target-stair-count)))))
+                            (liquidator bonus (+ total-shares
+                                                 (* bonus target-stair-count))))
                           sorted))))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
