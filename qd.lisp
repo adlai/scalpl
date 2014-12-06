@@ -64,7 +64,7 @@
 
 ;;; receives messages in the control channel, outputs from the gate
 (defun ope-supplicant-loop (ope)
-  (with-slots (gate control response placed balance-tracker) ope
+  (with-slots (gate control response placed) ope
     (let ((command (recv control)))
       (destructuring-bind (car . cdr) command
         (send response (case car
@@ -292,10 +292,16 @@
 
 (defmethod shared-initialize :after ((ope ope) slots &key gate balance-tracker)
   (with-slots (supplicant prioritizer scalper) ope
-    (unless (slot-boundp ope 'supplicant)
-      (setf supplicant (make-instance 'ope-supplicant :gate gate
-                                      :placed (placed-offers gate)
-                                      :balance-tracker balance-tracker)))
+    (if (slot-boundp ope 'supplicant)
+        (multiple-value-call 'reinitialize-instance supplicant
+                             (if (null gate) (values) (values :gate gate))
+                             (if (null balance-tracker) (values)
+                                 (values :balance-tracker balance-tracker)))
+        (setf supplicant
+              (multiple-value-call 'make-instance 'ope-supplicant
+                                   :placed (placed-offers gate) :gate gate
+                                   (if (null balance-tracker) (values)
+                                       (values :balance-tracker balance-tracker)))))
     (if (slot-boundp ope 'prioritizer)
         (reinitialize-instance prioritizer :supplicant supplicant)
         (setf prioritizer (make-instance 'ope-prioritizer :supplicant supplicant)))
