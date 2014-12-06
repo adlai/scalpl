@@ -434,7 +434,7 @@
                (total-btc (symbol-funds (slot-value market 'primary)))
                (total-doge (symbol-funds (slot-value market 'counter)))
                (total-fund (total-of total-btc total-doge))
-               (investment (/ total-btc total-fund))
+               (investment (if (zerop total-fund) 0 (/ total-btc total-fund)))
                (btc (factor-fund total-btc (* investment targeting-factor)))
                (doge (factor-fund total-doge (- 1 (* investment targeting-factor)))))
           ;; report funding
@@ -460,8 +460,10 @@
                     (asset-decimals 'primary)  total-btc
                     (asset-decimals 'counter) total-doge
                     (* 100 investment)
-                    (* 100 (/ (total-of btc doge) total-fund))
-                    (* 100 (/ (total-of (- btc) doge) total-fund))
+                    (* 100 (if (zerop total-fund) 0
+                               (/ (total-of btc doge) total-fund)))
+                    (* 100 (if (zerop total-fund) 0
+                               (/ (total-of (- btc) doge) total-fund)))
                     (depth-profit)
                     (depth-profit (* total-fund 16))
                     (depth-profit (* total-fund 4))
