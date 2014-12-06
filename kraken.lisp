@@ -39,25 +39,33 @@
 
 (defun raw-request (path &rest keys)
   (handler-case
-      (multiple-value-bind (body status)
-          (apply #'drakma:http-request
-                 (concatenate 'string +base-path+ path)
-                 ;; Mystery crash on the morning of 2014-06-04
-                 ;; entered an infinite loop of usocket:timeout-error
-                 ;; lasted for hours, continued upon restart
-                 ;; other programs on the same computer not affected - just sbcl
-                 :connection-timeout 60
-                 keys)
-        (case status
-          (200 (with-json-slots (result error)
-                   (read-json (map 'string 'code-char body))
-                 (when error (mapc #'warn error))
-                 (values result error)))
-          (502 (format t "~&Retrying after 502...~%")
-               (sleep 1)
-               (apply #'raw-request path keys))
-          (t (cerror "Retry request" "HTTP Error ~D" status)
-             (apply #'raw-request path keys))))
+      (handler-bind ((drakma::simple-error #'describe))
+        ;; (setf *break-on-signals* 'drakma::simple-error)
+        (multiple-value-bind (body status)
+            (apply #'drakma:http-request
+                   (concatenate 'string +base-path+ path)
+                   ;; Mystery crash on the morning of 2014-06-04
+                   ;; entered an infinite loop of usocket:timeout-error
+                   ;; lasted for hours, continued upon restart
+                   ;; other programs on the same computer not affected - just sbcl
+                   :connection-timeout 60
+                   keys)
+          (case status
+            (200 (with-json-slots (result error)
+                     (read-json (map 'string 'code-char body))
+                   (when error (mapc #'warn error))
+                   (values result error)))
+            (404 (with-json-slots (result error)
+                     (read-json (map 'string 'code-char body))
+                   (format t "~&Aborting after 404...~%")
+                   (describe error)
+                   (values result error))
+                 (values nil t))
+            (502 (format t "~&Retrying after 502...~%")
+                 (sleep 1)
+                 (apply #'raw-request path keys))
+            (t (cerror "Retry request" "HTTP Error ~D" status)
+               (apply #'raw-request path keys)))))
     (drakma::drakma-simple-error ()
       (format t "~&Retrying after drakma SIMPLE crap...~%")
       (sleep 1)
