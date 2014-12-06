@@ -150,7 +150,9 @@
   (with-slots (thread) gate
     (when (or (not (slot-boundp gate 'thread))
               (eq :terminated (task-status thread)))
-      (setf thread (pexec (:name "qdm-preα gate") (loop (gate-loop gate)))))))
+      (setf thread (pexec (:name "qdm-preα gate" :initial-bindings
+                                 '((*read-default-float-format* double-float)))
+                     (loop (gate-loop gate)))))))
 
 (defun gate-request (gate path &optional options)
   (let ((out (make-instance 'channel)))
