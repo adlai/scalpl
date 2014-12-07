@@ -220,7 +220,7 @@
                    (declare (ignore timestamp))
                    (make-instance class :market market
                                   :price (parse-price price decimals)
-                                  :volume (read-from-string amount))))))
+                                  :volume (parse-float amount))))))
         (values (mapcar (parser 'ask) asks)
                 (mapcar (parser 'bid) bids))))))
 
@@ -282,7 +282,6 @@
     (read-from-string (getjso "fee" (getjso pair (getjso "fees" it))))))
 
 (defun parse-execution (txid json)
-  (declare (optimize (debug 3)))
   (with-json-slots (price pair fee cost vol time type) json
     (let ((fee (parse-float fee))
           (cost (parse-float cost)))

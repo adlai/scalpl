@@ -50,7 +50,6 @@
 
 ;;; TODO: deal with partially completed orders
 (defun ignore-offers (open mine &aux them)
-  (declare (optimize (debug 3)))
   (dolist (offer open (nreverse them))
     (aif (find (price offer) mine :test #'= :key #'price)
          (let ((without-me (- (volume offer) (volume it))))
@@ -433,7 +432,6 @@
    thread))
 
 (defun %round (maker)
-  (declare (optimize (debug 3)))
   (with-slots (fund-factor resilience-factor targeting-factor market name
                fee-tracker trades-tracker book-tracker account-tracker)
       maker
