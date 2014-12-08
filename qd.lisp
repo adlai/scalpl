@@ -466,7 +466,7 @@
                        (division-by-zero () 0)))))
             ;; time, total, primary, counter, invested, risked, risk bias, pulse
             (format t "~&~A ~6@A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~
-                       ~6@$ ~6@$ ~6@$ ~6@$ ~6@$ ~6@$"
+                       ~6@$ ~6@$ ~6@$ ~6@$"
                     (format-timestring nil (now)
                                        :format '((:hour 2) #\:
                                                  (:min 2) #\:
@@ -482,8 +482,6 @@
                     (* 100 (if (zerop total-fund) 0
                                (/ (total-of (- btc) doge) total-fund)))
                     (depth-profit)
-                    (depth-profit (* total-fund 16))
-                    (depth-profit (* total-fund 4))
                     (depth-profit total-fund)
                     (depth-profit (/ total-fund 4))
                     (depth-profit (/ total-fund 16)))
