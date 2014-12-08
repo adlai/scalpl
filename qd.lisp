@@ -186,24 +186,8 @@
        ((or (null remaining-offers)  ; EITHER: processed entire order book
             (and (> acc resilience)  ;     OR: (   BOTH: processed past resilience
                  (> processed-tally max-orders))) ; AND: processed enough orders )
-        (let* (;; when we detect [oversized-epsilon], instead of this...
-               ;; QD> (pprint (dumbot-offers other-offers 10 100 7 15))
-               ;; (#<OFFER  7.5420 ZEUR @ 305.00000>
-               ;;  #<OFFER  9.2493 ZEUR @ 304.81204>
-               ;;  #<OFFER 11.0758 ZEUR @ 304.61755>
-               ;;  #<OFFER 14.8739 ZEUR @ 304.58615>
-               ;;  #<OFFER 17.0687 ZEUR @ 304.58517>
-               ;;  #<OFFER 19.4865 ZEUR @ 304.50754>) Σ(cost) = 76.27
-               ;; ... we should do this!
-               ;; QD> (pprint (dumbot-offers other-offers 10 100 7 6))
-               ;; (#<OFFER  7.0000 ZEUR @ 305.84740>
-               ;;  #<OFFER 10.0092 ZEUR @ 305.72740>
-               ;;  #<OFFER 12.0460 ZEUR @ 305.50000>
-               ;;  #<OFFER 14.5131 ZEUR @ 305.42197>
-               ;;  #<OFFER 26.2884 ZEUR @ 304.81305>
-               ;;  #<OFFER 30.1433 ZEUR @ 304.81204>) Σ(cost) = 100.0
-               ;; by properly decreasing target-stair-count, here:
-               (target-stair-count (min max-orders processed-tally))
+        (let* ((target-stair-count (min (floor (/ funds epsilon 4/3))  ; ygni!
+                                        max-orders processed-tally))
                (chosen-stair-set        ; the (shares . foreign-offer)s to fight
                 (cons (first foreign-offers)
                       (subseq (sort (subseq foreign-offers 1 processed-tally)
@@ -211,29 +195,19 @@
                               0 (1- target-stair-count))))
                (total-shares (reduce #'+ (mapcar #'car chosen-stair-set)))
                ;; we need the smallest order to be epsilon
-               ;; FIXME: ¿ e/f × n > 1 ?
-               (e/f (/ epsilon funds)))
-          (flet ((liquidator (bonus total)
-                   (lambda (order)
-                     (with-slots (market price) (cdr order)
-                       (make-instance 'offer :market market :price (1- price)
-                                      :volume (* funds (/ (+ bonus (car order))
-                                                          total)))))))
-            (let ((sorted (sort chosen-stair-set #'<
-                                :key (lambda (x) (price (cdr x))))))
-              ;; [oversized-epsilon]
-              (if (> epsilon (/ funds target-stair-count))
-                  ;; temporary fix - disable scaling
-                  ;; this means we get the largest m<n offers from the target,
-                  ;; rather than m offers distributed throughout the n
-                  (remove-if (lambda (offer) (< (volume offer) epsilon))
-                             (mapcar (liquidator 0 total-shares) sorted))
-                  (mapcar (let ((bonus (/ (- (* e/f total-shares)
-                                             (caar chosen-stair-set))
-                                          (- 1 (* e/f target-stair-count)))))
-                            (liquidator bonus (+ total-shares
-                                                 (* bonus target-stair-count))))
-                          sorted))))))
+               (e/f (/ epsilon funds))
+               (bonus (/ (- (* e/f total-shares) (caar chosen-stair-set))
+                         (- 1 (* e/f target-stair-count)))))
+          (mapcar (lambda (order)
+                    (with-slots (market price) (cdr order)
+                      (make-instance 'offer :market market :price (1- price)
+                                     :volume (* funds
+                                                (/ (+ bonus (car order))
+                                                   (+ total-shares
+                                                      (* bonus
+                                                         target-stair-count)))))))
+                  (sort chosen-stair-set #'<
+                        :key (lambda (x) (price (cdr x)))))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
     (with-slots (volume) (first remaining-offers)
