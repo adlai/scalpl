@@ -345,7 +345,11 @@
 
 (defgeneric placed-offers (gate))
 (defgeneric account-balances (gate))
-(defgeneric market-fee (gate market))
+
+(defgeneric market-fee (gate market)
+  (:method :around (gate market)
+    (actypecase (call-next-method)
+      (number `(,it . ,it)) (cons it))))
 
 ;;;
 ;;; EXECUTION TRACKING

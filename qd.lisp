@@ -152,8 +152,9 @@
           ((recv next-bids to-bid) (update to-bid (nth-value 0 (ope-placed ope))))
           ((recv next-asks to-ask) (update to-ask (nth-value 1 (ope-placed ope)))))))))
 
-(defun profit-margin (bid ask &optional (fee-percent 0))
-  (* (/ ask bid) (- 1 (/ fee-percent 100))))
+(defun profit-margin (bid ask &optional (fee '(0 . 0)))
+  (/ (* ask (- 1 (/ (cdr fee) 100)))
+     (* bid (+ 1 (/ (car fee) 100)))))
 
 ;;; Lossy trades
 
