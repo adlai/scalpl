@@ -9,7 +9,7 @@
 ;;;  ENGINE
 ;;;
 
-(defclass ope ()
+(defclass ope-scalper ()
   ((input :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
    (book-channel :initarg :book-channel)
@@ -86,7 +86,7 @@
 
 ;;; response: placed offer if successful, nil if not
 (defgeneric ope-place (ope offer))
-(defmethod ope-place ((ope ope) offer)
+(defmethod ope-place ((ope ope-scalper) offer)
   (ope-place (slot-value ope 'supplicant) offer))
 (defmethod ope-place ((ope ope-prioritizer) offer)
   (ope-place (slot-value ope 'supplicant) offer))
@@ -114,8 +114,8 @@
 
 (defun fee-server-loop (tracker)
   (with-slots (input output fee) tracker
-    (select ((recv input new) (setf fee new))
-            ((send output fee)) (t (sleep 1/7)))))
+    (ignore-errors (select ((recv input new) (setf fee new))
+                           ((send output fee)) (t (sleep 1/7))))))
 
 (defmethod shared-initialize :after ((tracker fee-tracker) names &key)
   (with-slots (updater server market) tracker
@@ -298,56 +298,31 @@
       (push (incf share (* 4/3 (incf acc volume))) (first remaining-offers)))))
 
 (defun ope-scalper-loop (ope)
-  (with-slots (input output book-channel prioritizer supplicant) ope
-    (destructuring-bind (fee primary counter resilience &optional
-                             ;; magic numbers, to be parametrized
-                             (order-count 15) (epsilon 0.001))
+  (with-slots (input output filter prioritizer) ope
+    (destructuring-bind (primary counter resilience &optional
+                                 ;; magic numbers, to be parametrized
+                                 (order-count 15) (epsilon 0.001))
         (recv input)
       ;; Now run that algorithm thingy
-      (flet ((filter-book (book)
-               (with-slots (control response) supplicant
-                 (send control `(filter . ,book)) (recv response))))
-        ;; The entire with-book operation needs to be turned into a separate
-        ;; program entity ("actor"?) which receives updated order books, and
-        ;; currently-placed offersets, and produces filtered books
-        ;; Whether filtered books are pushed or pulled is TBD
-        (macrolet ((do-side ((amount) &body body)
-                     `(destructuring-bind (market-bids . market-asks)
-                          (recv book-channel)
-                        (let ((other-bids (filter-book market-bids))
-                              (other-asks (filter-book market-asks)))
-                          (do* ((best-bid (- (price (car other-bids)))
-                                          (- (price (car other-bids))))
-                                (best-ask (price (car other-asks))
-                                          (price (car other-asks)))
-                                (spread (profit-margin (1+ best-bid) (1- best-ask) fee)
-                                        (profit-margin (1+ best-bid) (1- best-ask) fee)))
-                               ((> spread 1))
-                            (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
-                                                     (- (volume (car other-bids))
-                                                        (volume (car other-asks))))))
-                              (-1 (decf (volume (car other-asks))
-                                        (volume (pop other-bids))))
-                              (+1 (decf (volume (car other-bids))
-                                        (volume (pop other-asks))))
-                              (0 (pop other-bids) (pop other-asks))))
-                          (unless (zerop ,amount) ,@body)))))
-          ;; TODO: Refactor prioritizer API into send-side and recv-side
-          ;; TODO: Rework flow so both sides are updated on each book query...
-          ;; TODO: using two prioritizers (bid / ask), and an alternator?
-          ;; TODO: properly deal with partial and completed orders
-          (with-slots (next-bids next-asks prioritizer-response) prioritizer
-            (do-side (counter)
-              (send next-bids
-                    (dumbot-offers other-bids resilience counter
-                                   (* epsilon (- (price (first other-bids)))
-                                      (expt 10 (- (decimals (market (first other-bids))))))
-                                   order-count))
-              (recv prioritizer-response))
-            (do-side (primary)
-              (send next-asks (dumbot-offers other-asks resilience primary
-                                             epsilon order-count))
-              (recv prioritizer-response))))))
+      (macrolet ((do-side ((amount side) &body body)
+                   `(let ((,side (recv (slot-value filter ',side))))
+                      (unless (zerop ,amount) ,@body))))
+        ;; TODO: Refactor prioritizer API into send-side and recv-side
+        ;; TODO: Rework flow so both sides are updated on each book query...
+        ;; TODO: using two prioritizers (bid / ask), and an alternator?
+        ;; TODO: properly deal with partial and completed orders
+        (with-slots (next-bids next-asks prioritizer-response) prioritizer
+          (do-side (counter bids)
+            (send next-bids
+                  (dumbot-offers bids resilience counter
+                                 (* epsilon (- (price (first bids)))
+                                    (expt 10 (- (decimals (market (first bids))))))
+                                 order-count))
+            (recv prioritizer-response))
+          (do-side (primary asks)
+            (send next-asks (dumbot-offers asks resilience primary
+                                           epsilon order-count))
+            (recv prioritizer-response)))))
     (send output nil)))
 
 (defmethod shared-initialize :after ((prioritizer ope-prioritizer) slots &key)
@@ -357,21 +332,24 @@
       (setf thread (pexec (:name "qdm-preα ope prioritizer")
                      (loop (ope-prioritizer-loop prioritizer)))))))
 
-(defmethod shared-initialize :after ((ope ope) slots &key gate balance-tracker)
-  (with-slots (supplicant prioritizer scalper) ope
-    (if (slot-boundp ope 'supplicant)
-        (multiple-value-call 'reinitialize-instance supplicant
-                             (if (null gate) (values) (values :gate gate))
-                             (if (null balance-tracker) (values)
-                                 (values :balance-tracker balance-tracker)))
-        (setf supplicant
-              (multiple-value-call 'make-instance 'ope-supplicant
-                                   :placed (placed-offers gate) :gate gate
-                                   (if (null balance-tracker) (values)
-                                       (values :balance-tracker balance-tracker)))))
+(defmethod shared-initialize :after
+    ((ope ope-scalper) slots &key gate market balance-tracker)
+  (with-slots (filter prioritizer supplicant) ope
+    (unless (slot-boundp ope 'supplicant)
+      (setf supplicant (multiple-value-call 'make-instance
+                         'ope-supplicant :gate gate :placed (placed-offers gate)
+                         (if (null balance-tracker) (values)
+                             (values :balance-tracker balance-tracker)))))
     (if (slot-boundp ope 'prioritizer)
-        (reinitialize-instance prioritizer :supplicant supplicant)
-        (setf prioritizer (make-instance 'ope-prioritizer :supplicant supplicant)))
+        (reinitialize-instance prioritizer    :supplicant supplicant)
+        (setf prioritizer
+              (make-instance 'ope-prioritizer :supplicant supplicant)))
+    (unless (slot-boundp ope 'filter)
+      (setf filter (make-instance 'ope-filter :market market :gate gate)))))
+
+(defmethod shared-initialize :around ((ope ope-scalper) slots &key)
+  (call-next-method)                    ; another after-after method...
+  (with-slots (scalper) ope
     (when (or (not (slot-boundp ope 'scalper))
               (eq :terminated (task-status scalper)))
       (setf scalper (pexec (:name "qdm-preα ope scalper")
@@ -459,7 +437,6 @@
    (resilience-factor :initarg :resilience :initform 1)
    (targeting-factor :initarg :targeting :initform 3/5)
    (control :initform (make-instance 'channel))
-   (fee-tracker :initarg :fee-tracker)
    (trades-tracker :initarg :trades-tracker)
    (book-tracker :initarg :book-tracker)
    (account-tracker :initarg :account-tracker)
@@ -492,8 +469,8 @@
   (force-output))
 
 (defun %round (maker)
-  (with-slots (fund-factor resilience-factor targeting-factor market name
-               fee-tracker trades-tracker book-tracker account-tracker)
+  (with-slots (fund-factor resilience-factor targeting-factor
+               market name trades-tracker book-tracker account-tracker)
       maker
     ;; whoo!
     (send (slot-value trades-tracker 'control) '(max))
@@ -517,7 +494,7 @@
                       (dbz-guard (/ (total-of    btc  doge) total-fund))
                       (dbz-guard (/ (total-of (- btc) doge) total-fund)))
           (with-slots (ope) account-tracker
-            (send (slot-value ope 'input) (list fee-tracker btc doge resilience))
+            (send (slot-value ope 'input) (list btc doge resilience))
             ;; distance from target equilibrium ( magic number 1/2 = target )
             (let ((lopsidedness (abs (- 1/2 investment))))
               ;; soft limit test: are we within (magic) 33% of the target?
@@ -550,7 +527,7 @@
       (t (%round maker)))))
 
 (defmethod shared-initialize :after ((maker maker) (names t) &key gate)
-  (with-slots (market fee-tracker trades-tracker book-tracker account-tracker thread) maker
+  (with-slots (market trades-tracker book-tracker account-tracker thread) maker
     ;; FIXME: wtf is this i don't even
     (unless (slot-boundp maker 'trades-tracker)
       (setf trades-tracker (make-instance 'trades-tracker :market market))
@@ -561,9 +538,6 @@
     (unless (slot-boundp maker 'account-tracker)
       (setf account-tracker (make-instance 'account-tracker :gate gate :markets `(,market)))
       (sleep 12))
-    ;; FIXME: ...
-    (unless (slot-boundp maker 'fee-tracker)
-      (setf fee-tracker (make-instance 'fee-tracker :market market :gate gate)))
     ;; stitchy!
     (setf (slot-value (slot-value account-tracker 'ope) 'book-channel)
           (slot-value book-tracker 'output))
