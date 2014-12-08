@@ -14,6 +14,7 @@
    (output :initform (make-instance 'channel))
    (book-channel :initarg :book-channel)
    (supplicant :initarg :supplicant)
+   (filter :initarg :filter)
    prioritizer scalper))
 
 (defclass ope-supplicant ()
@@ -136,6 +137,71 @@
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (fee-server-loop tracker)))))))
+
+(defclass ope-filter ()
+  ((bids       :initarg :bids       :initform (make-instance 'channel))
+   (asks       :initarg :asks       :initform (make-instance 'channel))
+   (book       :initarg :book       :initform (error "must link book source"))
+   (fee        :initarg :fee        :initform (error "must link fee source"))
+   (supplicant :initarg :supplicant :initform (error "must link supplicant"))
+   (frequency  :initarg :frequency  :initform 1/7)
+   foreigners thread))
+
+(defun ope-filter-loop (ope)
+  (with-slots (book bids asks foreigners frequency supplicant fee) ope
+    (destructuring-bind (bids . asks) (recv (slot-value book 'output))
+      (flet ((filter-book (side)
+               (with-slots (control response) supplicant
+                 (send control `(filter . ,side)) (recv response))))
+        (let ((other-bids (filter-book bids))
+              (other-asks (filter-book asks)))
+          (loop
+             for best-bid = (1+ (- (price (car other-bids))))
+             for best-ask = (1-    (price (car other-asks)))
+             for spread = (profit-margin best-bid best-ask fee)
+             until (> spread 1) do
+               (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
+                                        (- (volume (car other-bids))
+                                           (volume (car other-asks))))))
+                 (-1 (decf (volume (car other-asks)) (volume (pop other-bids))))
+                 (+1 (decf (volume (car other-bids)) (volume (pop other-asks))))
+                 (0 (pop other-bids) (pop other-asks)))
+             finally (setf foreigners (cons other-bids other-asks))))))
+    (select ((send bids (car foreigners)))
+            ((send asks (cdr foreigners)))
+            (t (sleep frequency)))))
+
+(defmethod shared-initialize :after ((ope ope-filter) slots &key gate market)
+  (with-slots (book fee supplicant) ope
+    (unless (slot-boundp ope 'book)
+      (setf book
+            (make-instance 'book-tracker :market market)))
+    (unless (slot-boundp ope 'fee)
+      (setf fee
+            (make-instance 'fee-tracker  :market market :gate gate)))
+    (unless (slot-boundp ope 'supplicant)
+      (setf supplicant
+            (make-instance 'ope-supplicant              :gate gate)))))
+
+(defmethod shared-initialize :around ((ope ope-filter) slots &key)
+  (call-next-method)                    ; this is an after-after method...
+  (with-slots (fee thread) ope
+    (when (or (not (slot-boundp ope 'thread))
+              (eq :terminated (task-status thread)))
+      (setf thread
+            (pexec (:name (concatenate
+                           'string "qdm-preα ope filter for " (name (market fee))))
+              (loop (ope-filter-loop ope)))))))
+
+(defmethod reinitialize-instance :after ((ope ope-filter) &key gate market)
+  (with-slots (book fee supplicant) ope
+    (multiple-value-call 'reinitialize-instance book
+                         (if (null market) (values) (values :market market)))
+    (multiple-value-call 'reinitialize-instance fee
+                         (if (null market) (values) (values :market market))
+                         (if (null gate) (values) (values :gate gate)))
+    (multiple-value-call 'reinitialize-instance supplicant
+                         (if (null gate) (values) (values :gate gate)))))
 
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
