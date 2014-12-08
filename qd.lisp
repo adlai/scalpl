@@ -246,8 +246,7 @@
                              (order-count 15) (epsilon 0.001))
         (recv input)
       ;; Now run that algorithm thingy
-      (flet ((filter-book (book) (ope-filter ope book))
-             (place (new) (ope-place ope new)))
+      (flet ((filter-book (book) (ope-filter ope book)))
         ;; The entire with-book operation needs to be turned into a separate
         ;; program entity ("actor"?) which receives updated order books, and
         ;; currently-placed offersets, and produces filtered books
