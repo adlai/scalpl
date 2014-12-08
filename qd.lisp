@@ -383,6 +383,31 @@
    (name :initarg :name :accessor name)
    thread))
 
+(defun makereport (maker total-fund doge/btc total-btc total-doge investment risked skew)
+  (with-slots (market account-tracker) maker
+    (flet ((asset-decimals (kind) (decimals (slot-value market kind)))
+           (depth-profit (&optional depth)
+             (flet ((vwap (side) (vwap account-tracker :type side :net t
+                                       :market market :depth depth)))
+               (dbz-guard (* 100 (1- (profit-margin (vwap "buy")
+                                                    (vwap "sell"))))))))
+      ;; FIXME: modularize all this decimal point handling
+      ;; time, total, primary, counter, invested, risked, risk bias, pulse
+      (format t "~&~6@A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$"
+              (format-timestring nil (now) :format '((:hour 2) #\:
+                                                     (:min  2) #\:
+                                                     (:sec  2)))
+              (asset-decimals 'primary)    total-fund
+              (asset-decimals 'counter) (* total-fund doge/btc)
+              (asset-decimals 'primary)    total-btc
+              (asset-decimals 'counter)    total-doge
+              (* 100 investment) (* 100 risked) (* 100 skew)
+              (depth-profit)
+              (depth-profit    total-fund)
+              (depth-profit (/ total-fund  4))
+              (depth-profit (/ total-fund 16)))))
+  (force-output))
+
 (defun %round (maker)
   (with-slots (fund-factor resilience-factor targeting-factor market name
                fee-tracker trades-tracker book-tracker account-tracker)
@@ -402,62 +427,34 @@
                (total-btc (symbol-funds (slot-value market 'primary)))
                (total-doge (symbol-funds (slot-value market 'counter)))
                (total-fund (total-of total-btc total-doge))
-               (investment (if (zerop total-fund) 0 (/ total-btc total-fund)))
+               (investment (dbz-guard (/ total-btc total-fund)))
                (btc (factor-fund total-btc (* investment targeting-factor)))
                (doge (factor-fund total-doge (- 1 (* investment targeting-factor)))))
           ;; report funding
-          ;; FIXME: modularize all this decimal point handling
-          (flet ((asset-decimals (kind)
-                   (slot-value (slot-value market kind) 'decimals))
-                 (depth-profit (&optional depth)
-                   (flet ((vwap (side) (vwap account-tracker :type side :net t
-                                             :market market :depth depth)))
-                     (handler-case
-                         (* 100 (1- (profit-margin (vwap "buy") (vwap "sell"))))
-                       (division-by-zero () 0)))))
-            ;; time, total, primary, counter, invested, risked, risk bias, pulse
-            (format t "~&~A ~6@A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~
-                       ~6@$ ~6@$ ~6@$ ~6@$"
-                    (format-timestring nil (now)
-                                       :format '((:hour 2) #\:
-                                                 (:min 2) #\:
-                                                 (:sec 2)))
-                    name
-                    (asset-decimals 'primary)  total-fund
-                    (asset-decimals 'counter) (* total-fund doge/btc)
-                    (asset-decimals 'primary)  total-btc
-                    (asset-decimals 'counter) total-doge
-                    (* 100 investment)
-                    (* 100 (if (zerop total-fund) 0
-                               (/ (total-of btc doge) total-fund)))
-                    (* 100 (if (zerop total-fund) 0
-                               (/ (total-of (- btc) doge) total-fund)))
-                    (depth-profit)
-                    (depth-profit total-fund)
-                    (depth-profit (/ total-fund 4))
-                    (depth-profit (/ total-fund 16)))
-            (force-output)
-            (with-slots (ope) account-tracker
-              (send (slot-value ope 'input) (list fee btc doge resilience))
-              ;; distance from target equilibrium ( magic number 1/2 = target )
-              (let ((lopsidedness (abs (- 1/2 investment))))
-                ;; soft limit test: are we within (magic) 33% of the target?
-                (when (> lopsidedness 1/4)
-                  (flet ((urgent (class side fund)
-                           (let ((price (1- (slot-value (fourth (slot-value book-tracker side)) 'price))))
-                             (make-instance class :market market
-                                            ;; jump back (magic) 1/7th of distance to target
-                                            :volume (* fund lopsidedness 1/23)
-                                            :price (abs price)))))
-                    ;; ugh
-                    (sleep 2)
-                    ;; theoretically, this could exceed available volume, but
-                    ;; that's highly unlikely with a fund-factor below ~3/2
-                    (awhen (ope-place ope (if (> investment 1/2)
-                                              (urgent 'ask 'asks total-btc)
-                                              (urgent 'bid 'bids total-doge)))
-                      (format t " ~A" it) (force-output)))))
-              (recv (slot-value ope 'output)))))))))
+          (makereport maker total-fund doge/btc total-btc total-doge investment
+                      (dbz-guard (/ (total-of    btc  doge) total-fund))
+                      (dbz-guard (/ (total-of (- btc) doge) total-fund)))
+          (with-slots (ope) account-tracker
+            (send (slot-value ope 'input) (list fee btc doge resilience))
+            ;; distance from target equilibrium ( magic number 1/2 = target )
+            (let ((lopsidedness (abs (- 1/2 investment))))
+              ;; soft limit test: are we within (magic) 33% of the target?
+              (when (> lopsidedness 1/4)
+                (flet ((urgent (class side fund)
+                         (let ((price (1- (slot-value (fourth (slot-value book-tracker side)) 'price))))
+                           (make-instance class :market market
+                                          ;; jump back (magic) 1/7th of distance to target
+                                          :volume (* fund lopsidedness 1/23)
+                                          :price (abs price)))))
+                  ;; ugh
+                  (sleep 2)
+                  ;; theoretically, this could exceed available volume, but
+                  ;; that's highly unlikely with a fund-factor below ~3/2
+                  (awhen (ope-place ope (if (> investment 1/2)
+                                            (urgent 'ask 'asks total-btc)
+                                            (urgent 'bid 'bids total-doge)))
+                    (format t " ~A" it) (force-output)))))
+            (recv (slot-value ope 'output))))))))
 
 (defun dumbot-loop (maker)
   (with-slots (control) maker
