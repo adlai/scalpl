@@ -98,6 +98,45 @@
   (with-slots (control response) (slot-value ope 'supplicant)
     (send control (cons 'cancel offer)) (recv response)))
 
+(defclass fee-tracker ()
+  ((market :initarg :market :accessor market)
+   (delay  :initarg :delay  :initform 67)
+   (gate   :initarg :gate)
+   (input  :initarg :input  :initform (make-instance 'channel))
+   (output :initarg :output :initform (make-instance 'channel))
+   fee updater server))
+
+(defun fee-updater-loop (tracker)
+  (with-slots (market gate delay input) tracker
+    (awhen (market-fee gate market) (send input it))
+    (sleep delay)))
+
+(defun fee-server-loop (tracker)
+  (with-slots (input output fee) tracker
+    (select ((recv input new) (setf fee new))
+            ((send output fee)) (t (sleep 1/7)))))
+
+(defmethod shared-initialize :after ((tracker fee-tracker) names &key)
+  (with-slots (updater server market) tracker
+    (when (or (not (slot-boundp tracker 'updater))
+              (eq :terminated (task-status updater)))
+      (setf updater
+            (pexec
+                (:name (concatenate 'string "qdm-preα fee updater for " (name market))
+                 :initial-bindings `((*read-default-float-format* double-float)))
+              ;; TODO: just pexec anew each time...
+              ;; you'll understand what you meant someday, right?
+              (loop (fee-updater-loop tracker)))))
+    (when (or (not (slot-boundp tracker 'server))
+              (eq :terminated (task-status server)))
+      (setf server
+            (pexec
+                (:name (concatenate 'string "qdm-preα fee server for " (name market))
+                 :initial-bindings `((*read-default-float-format* double-float)))
+              ;; TODO: just pexec anew each time...
+              ;; you'll understand what you meant someday, right?
+              (loop (fee-server-loop tracker)))))))
+
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
 ;;; sends completion acknowledgement to prioritizer-response channel
@@ -128,9 +167,12 @@
             ((recv next-bids to-bid) (update to-bid placed-bids))
             ((recv next-asks to-ask) (update to-ask placed-asks))))))))
 
-(defun profit-margin (bid ask &optional (fee '(0 . 0)))
-  (/ (* ask (- 1 (/ (cdr fee) 100)))
-     (* bid (+ 1 (/ (car fee) 100)))))
+(defun profit-margin (bid ask &optional fee-tracker)
+  (if (null fee-tracker) (/ ask bid)
+      (destructuring-bind (bid-fee . ask-fee)
+          (recv (slot-value fee-tracker 'output))
+        (/ (* ask (- 1 (/ ask-fee 100)))
+           (* bid (+ 1 (/ bid-fee 100)))))))
 
 ;;; Lossy trades
 
@@ -208,7 +250,6 @@
                           (recv book-channel)
                         (let ((other-bids (filter-book market-bids))
                               (other-asks (filter-book market-asks)))
-                          ;; NON STOP PARTY PROFIT MADNESS
                           (do* ((best-bid (- (price (car other-bids)))
                                           (- (price (car other-bids))))
                                 (best-ask (price (car other-asks))
@@ -346,30 +387,6 @@
                              :parameters `(("from" . ,from) ("to" . ,to))
                              :want-stream t))))
 
-(defclass fee-tracker ()
-  ((market :initarg :market)
-   (gate :initarg :gate)
-   (delay :initform 67)
-   fee thread))
-
-(defun fee-tracker-loop (tracker)
-  (with-slots (market gate delay fee) tracker
-    (awhen (market-fee gate market) (setf fee it))
-    (sleep delay)))
-
-(defmethod shared-initialize :after ((tracker fee-tracker) names &key)
-  (with-slots (thread market gate fee) tracker
-    (loop (awhen (market-fee gate market) (setf fee it) (return)))
-    (when (or (not (slot-boundp tracker 'thread))
-              (eq :terminated (task-status thread)))
-      (setf thread
-            (pexec
-                (:name (concatenate 'string "qdm-preα fee tracker for " (name market))
-                 :initial-bindings `((*read-default-float-format* double-float)))
-              ;; TODO: just pexec anew each time...
-              ;; you'll understand what you meant someday, right?
-              (loop (fee-tracker-loop tracker)))))))
-
 (defclass maker ()
   ((market :initarg :market :reader market)
    (fund-factor :initarg :fund-factor :initform 1)
@@ -393,7 +410,7 @@
                                                     (vwap "sell"))))))))
       ;; FIXME: modularize all this decimal point handling
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (format t "~&~6@A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$"
+      (format t "~&~6@A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$~%"
               (format-timestring nil (now) :format '((:hour 2) #\:
                                                      (:min  2) #\:
                                                      (:sec  2)))
@@ -423,8 +440,7 @@
       (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
              (total-of (btc doge) (+ btc (/ doge doge/btc)))
              (factor-fund (fund factor) (* fund fund-factor factor)))
-        (let* ((fee (slot-value fee-tracker 'fee))
-               (total-btc (symbol-funds (slot-value market 'primary)))
+        (let* ((total-btc (symbol-funds (slot-value market 'primary)))
                (total-doge (symbol-funds (slot-value market 'counter)))
                (total-fund (total-of total-btc total-doge))
                (investment (dbz-guard (/ total-btc total-fund)))
@@ -435,7 +451,7 @@
                       (dbz-guard (/ (total-of    btc  doge) total-fund))
                       (dbz-guard (/ (total-of (- btc) doge) total-fund)))
           (with-slots (ope) account-tracker
-            (send (slot-value ope 'input) (list fee btc doge resilience))
+            (send (slot-value ope 'input) (list fee-tracker btc doge resilience))
             ;; distance from target equilibrium ( magic number 1/2 = target )
             (let ((lopsidedness (abs (- 1/2 investment))))
               ;; soft limit test: are we within (magic) 33% of the target?
