@@ -1,18 +1,20 @@
 (defpackage #:scalpl.util
   (:use #:c2cl #:st-json #:parse-float #:string-case #:chanl #:chanl.examples)
-  (:export #:with-json-slots
-           #:mapcar-jso
-           #:mapjso*
-           #:urlencode-params
-           #:awhen1 #:aand1
-           #:string-octets
+  (:export #:once-only
+           #:dbz-guard
+           #:slot-reduce
+           #:with-json-slots
+           #:aand1
+           #:awhen1
            #:parse-price
+           #:parse-float
+           #:string-octets
+           #:mapcar-jso
            #:rehome-symbol
            #:rehome-class
-           #:slot-reduce
-           #:once-only
-           #:parse-float
            #:string-case
+           #:mapjso*
+           #:urlencode-params
            ;; from chanl
            #:kill #:pexec #:channel #:send #:recv #:select
            #:pooled-tasks #:task-thread #:task-status
@@ -23,6 +25,7 @@
 (in-package #:scalpl.util)
 
 ;;; Actually useful
+(defmacro dbz-guard (form) `(handler-case ,form (division-by-zero () 0)))
 
 ;;; right now this is only for convenience at the REPL
 ;;; as was suggested in #lisp, if there's ever a need to do this in the actual
