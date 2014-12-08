@@ -30,17 +30,11 @@
    (prioritizer-response :initform (make-instance 'channel))
    (supplicant :initarg :supplicant) thread))
 
-(defgeneric offers-spending (ope asset))
-(defmethod offers-spending ((ope ope) asset)
-  (offers-spending (slot-value ope 'supplicant) asset))
-(defmethod offers-spending ((ope ope-supplicant) asset)
+(defun offers-spending (ope asset)
   (remove asset (slot-value ope 'placed)
           :key #'consumed-asset :test-not #'eq))
 
-(defgeneric balance-guarded-place (ope offer))
-(defmethod balance-guarded-place ((ope ope) offer)
-  (balance-guarded-place (slot-value ope 'supplicant) offer))
-(defmethod balance-guarded-place ((ope ope-supplicant) offer)
+(defun balance-guarded-place (ope offer)
   (with-slots (gate placed balance-tracker) ope
     (let ((asset (consumed-asset offer)))
       (when (>= (asset-balance balance-tracker asset)
@@ -80,13 +74,8 @@
       (setf thread (pexec (:name "qdm-preα ope supplicant")
                      (loop (ope-supplicant-loop supplicant)))))))
 
-(defgeneric ope-placed (ope))
-(defmethod ope-placed ((ope ope))
-  (ope-placed (slot-value ope 'supplicant)))
-(defmethod ope-placed ((ope ope-prioritizer))
-  (ope-placed (slot-value ope 'supplicant)))
-(defmethod ope-placed ((ope ope-supplicant))
-  (with-slots (control response) ope
+(defun ope-placed (ope)
+  (with-slots (control response) (slot-value ope 'supplicant)
     (send control '(placed))
     (let ((all (sort (copy-list (recv response)) #'< :key #'price)))
       (flet ((split (sign)
@@ -104,24 +93,10 @@
   (with-slots (control response) ope
     (send control (cons 'offer offer)) (recv response)))
 
-;;; response: placed offer if successful, nil if not
-
 ;;; response: {count: "1"} if successful, nil if not
-(defgeneric ope-cancel (ope offer))
-(defmethod ope-cancel ((ope ope) offer)
-  (ope-cancel (slot-value ope 'supplicant) offer))
-(defmethod ope-cancel ((ope ope-prioritizer) offer)
-  (ope-cancel (slot-value ope 'supplicant) offer))
-(defmethod ope-cancel ((ope ope-supplicant) offer)
-  (with-slots (control response) ope
+(defun ope-cancel (ope offer)
+  (with-slots (control response) (slot-value ope 'supplicant)
     (send control (cons 'cancel offer)) (recv response)))
-
-(defgeneric ope-filter (ope book))
-(defmethod ope-filter ((ope ope) book)
-  (ope-filter (slot-value ope 'supplicant) book))
-(defmethod ope-filter ((ope ope-supplicant) book)
-  (with-slots (control response) ope
-    (send control (cons 'filter book)) (recv response)))
 
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
@@ -148,9 +123,10 @@
                         (if (place new) (setf target (remove new target))
                             (return (ope-cancel ope old))))))
                (send prioritizer-response t)))
-        (select
-          ((recv next-bids to-bid) (update to-bid (nth-value 0 (ope-placed ope))))
-          ((recv next-asks to-ask) (update to-ask (nth-value 1 (ope-placed ope)))))))))
+        (multiple-value-bind (placed-bids placed-asks) (ope-placed ope)
+          (select
+            ((recv next-bids to-bid) (update to-bid placed-bids))
+            ((recv next-asks to-ask) (update to-ask placed-asks))))))))
 
 (defun profit-margin (bid ask &optional (fee '(0 . 0)))
   (/ (* ask (- 1 (/ (cdr fee) 100)))
@@ -214,13 +190,15 @@
       (push (incf share (* 4/3 (incf acc volume))) (first remaining-offers)))))
 
 (defun ope-scalper-loop (ope)
-  (with-slots (input output book-channel prioritizer) ope
+  (with-slots (input output book-channel prioritizer supplicant) ope
     (destructuring-bind (fee primary counter resilience &optional
                              ;; magic numbers, to be parametrized
                              (order-count 15) (epsilon 0.001))
         (recv input)
       ;; Now run that algorithm thingy
-      (flet ((filter-book (book) (ope-filter ope book)))
+      (flet ((filter-book (book)
+               (with-slots (control response) supplicant
+                 (send control `(filter . ,book)) (recv response))))
         ;; The entire with-book operation needs to be turned into a separate
         ;; program entity ("actor"?) which receives updated order books, and
         ;; currently-placed offersets, and produces filtered books
