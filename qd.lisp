@@ -23,6 +23,7 @@
    (control :initarg :control :initform (make-instance 'channel))
    (response :initarg :response :initform (make-instance 'channel))
    (balance-tracker :initarg :balance-tracker)
+   (order-slots :initform 40 :initarg :order-slots)
    thread))
 
 (defclass ope-prioritizer ()
@@ -36,11 +37,12 @@
           :key #'consumed-asset :test-not #'eq))
 
 (defun balance-guarded-place (ope offer)
-  (with-slots (gate placed balance-tracker) ope
+  (with-slots (gate placed order-slots balance-tracker) ope
     (let ((asset (consumed-asset offer)))
-      (when (>= (asset-balance balance-tracker asset)
-                (reduce #'+ (mapcar #'volume (offers-spending ope asset))
-                        :initial-value (volume offer)))
+      (when (and (>= (asset-balance balance-tracker asset)
+                     (reduce #'+ (mapcar #'volume (offers-spending ope asset))
+                             :initial-value (volume offer)))
+                 (> order-slots (length placed)))
         (awhen1 (post-offer gate offer) (push it placed))))))
 
 ;;; TODO: deal with partially completed orders
