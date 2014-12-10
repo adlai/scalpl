@@ -5,6 +5,8 @@
 
 (defsystem #:scalpl
   :serial t
+  :license "public domain"
+  :description "Bitcoin exchange API & market maker"
   :author "Adlai Chandrasekhar <munchking@gmail.com>"
   :depends-on (#:anaphora
                #:string-case
