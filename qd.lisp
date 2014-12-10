@@ -335,7 +335,7 @@
                      (loop (ope-prioritizer-loop prioritizer)))))))
 
 (defmethod shared-initialize :after
-    ((ope ope-scalper) slots &key gate market balance-tracker)
+    ((ope ope-scalper) slots &key gate market balance-tracker fee)
   (with-slots (filter prioritizer supplicant) ope
     (unless (slot-boundp ope 'supplicant)
       (setf supplicant (multiple-value-call 'make-instance
@@ -346,8 +346,9 @@
         (reinitialize-instance prioritizer    :supplicant supplicant)
         (setf prioritizer
               (make-instance 'ope-prioritizer :supplicant supplicant)))
-    (unless (slot-boundp ope 'filter)
-      (setf filter (make-instance 'ope-filter :market market :gate gate)))))
+    (if (slot-boundp ope 'filter) (reinitialize-instance filter)
+        (setf filter (make-instance 'ope-filter :market market
+                                    :gate gate :fee fee)))))
 
 (defmethod shared-initialize :around ((ope ope-scalper) slots &key)
   (call-next-method)                    ; another after-after method...
