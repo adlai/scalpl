@@ -15,21 +15,23 @@
 ;;; X-BFX-PAYLOAD = base64(json(request path, nonce, parameters...))
 ;;; X-BFX-SIGNATURE = Message signature using HMAC-SHA384 of payload and base64 decoded secret
 
+(defconstant +kludge+ -1418334400000)   ; sometimes one cannot even
+
 ;;; generate max 1 nonce per second
 (defvar *last-nonce* (now))
 
 (defun nonce (&aux (now (now)) (delta (timestamp-difference now *last-nonce*)))
   (when (> 1 delta) (sleep (- 1 delta)))
-  (princ-to-string (+ (floor (nsec-of now) 1000)
-                      (* 1000000 (timestamp-to-unix now)))))
+  (princ-to-string (+ (floor (nsec-of now) 1000000)
+                      (* 1000 (timestamp-to-unix now))
+                      +kludge+)))
 
 (defun make-payload (data &optional path)
   (let ((payload (if (null path) (jso) (jso "request" path "nonce" (nonce)))))
     (dolist (pair data (string-to-base64-string (write-json-to-string payload)))
       (destructuring-bind (key . val) pair
         (setf (getjso key payload)
-              (if (string/= key "is_hidden") val  ; bfx abstraction leaktardation
-                  (string-case (val) ("true" :true) ("false" :false))))))))
+              (if (string= val "true") :true val)))))) ; de horror! de horror!
 
 (defgeneric make-signer (secret)
   (:method ((secret simple-array))
