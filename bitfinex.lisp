@@ -283,11 +283,14 @@
               (dotimes (blub num-chunks (jso "order_id" offers))
                 (awhen (post chunk-vol) (push (getjso "order_id" it) offers)))))))))
 
+(defclass hidden-offer (offer) ())
+
 (defmethod post-offer ((gate bitfinex-gate) offer)
   (with-slots (market volume price) offer
     (flet ((post (type)
              (awhen (post-limit gate type (name market) (abs price) volume
-                                (slot-value market 'decimals) nil)
+                                (slot-value market 'decimals)
+                                (typep offer 'hidden-offer))
                (with-json-slots (order_id) it
                  (change-class offer 'placed :uid order_id)))))
       (post (if (< price 0) "buy" "sell")))))
