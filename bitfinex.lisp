@@ -248,7 +248,7 @@
 ;;; Action API
 ;;;
 
-(defun post-raw-limit (gate type pair amount price)
+(defun post-raw-limit (gate type pair hidden amount price)
   (multiple-value-bind (info error)
       (gate-request gate "order/new"
                     `(("type" . "exchange limit")
@@ -257,16 +257,17 @@
                       ("symbol" . ,pair)
                       ("amount" . ,amount)
                       ("price" . ,price)
+                      ("hidden" . ,hidden)
                       ))
     (if error (warn (getjso "message" error)) info)))
 
-(defun post-limit (gate type pair price volume decimals)
+(defun post-limit (gate type pair price volume decimals hidden)
   (let ((price (/ price (expt 10d0 decimals))))
     ;; bitfinex always wants volume in the primary currency units
     (when (string-equal type "buy") (setf volume (/ volume price)))
     ;; FIXME: these hardcoded numbers are btcusd-specific!
     (flet ((post (chunk)
-             (post-raw-limit gate type pair
+             (post-raw-limit gate type pair hidden
                              (format nil "~V$" 3 chunk)
                              (format nil "~V$" decimals price))))
       ;; minimal order is 0.001 btc
@@ -284,7 +285,7 @@
   (with-slots (market volume price) offer
     (flet ((post (type)
              (awhen (post-limit gate type (name market) (abs price) volume
-                                (slot-value market 'decimals))
+                                (slot-value market 'decimals) nil)
                (with-json-slots (order_id) it
                  (change-class offer 'placed :uid order_id)))))
       (post (if (< price 0) "buy" "sell")))))
@@ -303,3 +304,15 @@
   ;; (format t "~&cancel ~A~%" offer)
   (multiple-value-bind (ret err) (cancel-order gate (uid offer))
     (or ret (string= "Order could not be cancelled." (getjso "message" err)))))
+
+;;; to do this one properly, we should reuse post-[raw-]limit
+;; (defmethod replace-offer ((gate bitfinex-gate) old new)
+;;   "(and (cancel-offer gate old) (post-offer gate new))"
+;;   (gate-request gate "order/cancel/replace"
+;;                 `(("type" . "exchange limit")
+;;                   ("exchange" . "bitfinex") ; die hard
+;;                   ("side" . ,type)
+;;                   ("symbol" . ,pair)
+;;                   ("amount" . ,amount)
+;;                   ("price" . ,price)
+;;                   ("order_id" . ,(uid old)))))
