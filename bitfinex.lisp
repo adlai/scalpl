@@ -26,7 +26,10 @@
 (defun make-payload (data &optional path)
   (let ((payload (if (null path) (jso) (jso "request" path "nonce" (nonce)))))
     (dolist (pair data (string-to-base64-string (write-json-to-string payload)))
-      (destructuring-bind (key . val) pair (setf (getjso key payload) val)))))
+      (destructuring-bind (key . val) pair
+        (setf (getjso key payload)
+              (if (string/= key "is_hidden") val  ; bfx abstraction leaktardation
+                  (string-case (val) ("true" :true) ("false" :false))))))))
 
 (defgeneric make-signer (secret)
   (:method ((secret simple-array))
@@ -257,8 +260,7 @@
                       ("symbol" . ,pair)
                       ("amount" . ,amount)
                       ("price" . ,price)
-                      ("hidden" . ,hidden)
-                      ))
+                      ,@(when hidden `(("is_hidden" . "true")))))
     (if error (warn (getjso "message" error)) info)))
 
 (defun post-limit (gate type pair price volume decimals hidden)
