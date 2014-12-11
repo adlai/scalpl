@@ -614,3 +614,20 @@
   (make-instance 'kraken-gate
                  :pubkey #P "secrets/some.pubkey"
                  :secret #P "secrets/some.secret"))
+
+#+nil
+(with-slots (account-tracker trades-tracker market) *maker*
+  (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
+         (total-of (btc doge) (+ btc (/ doge (vwap trades-tracker :depth 50 :type :buy))))
+         (vwap (side) (vwap account-tracker :type side :net t :market market)))
+    (let* ((trades (slot-reduce (getf (slot-reduce account-tracker lictors) market)
+                                scalpl.exchange::trades))
+           (uptime (timestamp-difference (now) (timestamp (first (last trades)))))
+           (updays (/ uptime 60 60 24))
+           (volume (reduce #'+ (mapcar #'volume trades)))
+           (total-in-btc (with-slots (primary counter) market
+                           (total-of (symbol-funds primary) (symbol-funds counter)))))
+      (format t "~&Been up ~F days,~%traded ~F coins,~%portfolio flip per ~F days~%"
+              updays volume (/ (* total-in-btc updays 2) volume))
+      (/ (* volume (1- (profit-margin (vwap "buy") (vwap "sell"))))
+         (/ updays 30) total-in-btc))))
