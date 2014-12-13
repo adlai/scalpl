@@ -1,7 +1,7 @@
 ;;;; exchange.lisp
 
 (defpackage #:scalpl.exchange
-  (:use #:cl #:anaphora #:local-time #:scalpl.util)
+  (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util)
   (:export #:exchange #:name #:assets #:markets #:parse-timestamp
            #:asset #:find-asset
            #:market #:decimals #:primary #:counter #:find-market

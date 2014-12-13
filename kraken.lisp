@@ -1,5 +1,5 @@
 (defpackage #:scalpl.kraken (:nicknames #:kraken) (:export #:*kraken*)
-  (:use #:cl #:anaphora #:st-json #:local-time #:scalpl.util #:scalpl.exchange))
+  (:use #:cl #:chanl #:anaphora #:st-json #:local-time #:scalpl.util #:scalpl.exchange))
 
 (in-package #:scalpl.kraken)
 

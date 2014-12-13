@@ -1,5 +1,5 @@
 (defpackage #:scalpl.util
-  (:use #:c2cl #:st-json #:parse-float #:string-case #:chanl #:chanl.examples)
+  (:use #:c2cl #:st-json #:parse-float #:string-case)
   (:export #:once-only
            #:dbz-guard
            #:slot-reduce
@@ -15,11 +15,6 @@
            #:string-case
            #:mapjso*
            #:urlencode-params
-           ;; from chanl
-           #:kill #:pexec #:channel #:send #:recv #:select
-           #:pooled-tasks #:task-thread #:task-status
-           ;; most important of all
-           #:syncout
            ))
 
 (in-package #:scalpl.util)

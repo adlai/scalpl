@@ -1,7 +1,7 @@
 ;;;; actor.lisp
 
-(cl:defpackage #:scalpl.actor
-  (:use #:c2cl #:scalpl.util))
+(defpackage #:scalpl.actor
+  (:use #:c2cl #:scalpl.util #:chanl))
 
 (in-package #:scalpl.actor)
 
@@ -60,8 +60,8 @@
     (when (or (not (slot-boundp actor 'task))
               (eq :terminated (task-status (slot-value actor 'task))))
       (setf (slot-value actor 'task)
-            (chanl:pexec (:name (christen actor)
-                          :initial-bindings `((*read-default-float-format* double-float)))
+            (pexec (:name (christen actor)
+                    :initial-bindings `((*read-default-float-format* double-float)))
               (loop (perform actor)))))))
 
 (defgeneric halt (actor)
