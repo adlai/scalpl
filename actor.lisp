@@ -1,7 +1,7 @@
 ;;;; actor.lisp
 
-(defpackage #:scalpl.actor
-  (:use #:cl #:scalpl.util))
+(cl:defpackage #:scalpl.actor
+  (:use #:c2cl #:scalpl.util))
 
 (in-package #:scalpl.actor)
 
@@ -17,18 +17,25 @@
 ;;; implementation detail? "API methods" on the actor object serve as the
 ;;; client, and state machine on the channel side serves as the server
 
-(defclass actor ()
-  ((task :documentation "Task performing this actor's behavior")
-   (control :documentation "Channel for controlling this actor")
+(defclass acting-class (standard-class)
+  ((tasks :documentation "Tasks performing the actor's behavior")
    (children :allocation :class :initform nil
-             :documentation "Children of this actor")
+             :documentation "Child actors, for recursive operations")
    (channels :allocation :class :initform '(control)
-             :documentation "Channel slot names")))
+             :documentation "Channels for which this actor is responsible")))
+
+(with-compilation-unit (:override t)
+  (defmethod validate-superclass ((meta acting-class) (super standard-class)) t)
+  (defclass actor () () (:metaclass acting-class))
+  (remove-method #'validate-superclass
+                 (find-method #'validate-superclass nil
+                              (mapcar #'find-class
+                                      '(acting-class standard-class)))))
 
 (defgeneric channels (actor)
   (:method-combination append)
   (:method :around ((actor actor))
-    (remove-duplicates (call-next-method)))
+    (remove-duplicates (call-next-method))) ; copying CLOS maybe not best idea?
   (:method append ((actor actor))
     (slot-value actor 'channels)))
 
