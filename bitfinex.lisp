@@ -268,6 +268,7 @@
 (defun post-limit (gate type pair price volume decimals hidden)
   (let ((price (/ price (expt 10d0 decimals))))
     ;; bitfinex always wants volume in the primary currency units
+    ;; scalpl internally represents volume in the consumed currency units
     (when (string-equal type "buy") (setf volume (/ volume price)))
     ;; FIXME: these hardcoded numbers are btcusd-specific!
     (flet ((post (chunk)
@@ -296,6 +297,17 @@
                (with-json-slots (order_id) it
                  (change-class offer 'placed :uid order_id)))))
       (post (if (< price 0) "buy" "sell")))))
+
+(defmethod post-offer ((gate bitfinex-gate) (order market-order))
+  (with-slots (market volume price) order
+    (gate-request gate "order/new"
+                  `(("type" . "exchange market")
+                    ("exchange" . "bitfinex")
+                    ("side" . ,(if (plusp price) "sell" "buy"))
+                    ("symbol" . ,(name market))
+                    ;; here too, bitfinex interprets volume in primary
+                    ("amount" . ,(princ-to-string volume))
+                    ("price" . "1")))))
 
 ;;; the order object returned will (always?) indicate that the order hasn't yet
 ;;; been cancelled; however, in situations where bfx has failed to cancel the
