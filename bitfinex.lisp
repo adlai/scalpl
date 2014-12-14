@@ -31,7 +31,7 @@
     (dolist (pair data (string-to-base64-string (write-json-to-string payload)))
       (destructuring-bind (key . val) pair
         (setf (getjso key payload)
-              (if (string= val "true") :true val)))))) ; de horror! de horror!
+              (if (equal val "true") :true val)))))) ; de horror! de horror!
 
 (defgeneric make-signer (secret)
   (:method ((secret simple-array))
@@ -151,8 +151,8 @@
 
 (defmethod shared-initialize ((gate bitfinex-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
-                       (when pubkey (values :pubkey (make-key pubkey)))
-                       (when secret (values :secret (make-signer secret)))))
+                       (if pubkey (values :pubkey (make-key    pubkey)) (values))
+                       (if secret (values :secret (make-signer secret)) (values))))
 
 ;;;
 ;;; Public Data API
