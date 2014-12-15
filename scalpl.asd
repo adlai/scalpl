@@ -17,9 +17,7 @@
                #:ironclad
                #:local-time
                #:closer-mop
-               #:rucksack
-               #:chanl #:chanl.examples
-               #:external-program)
+               #:chanl #:chanl.examples)
   :serial t
   :components ((:file "util")
                (:file "exchange")
