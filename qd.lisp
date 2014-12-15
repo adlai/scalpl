@@ -423,10 +423,10 @@
     (dolist (market markets)
       (setf (getf lictors market)
             (make-instance 'execution-tracker :market market :gate gate)))
-    (unless (slot-boundp tracker 'ope)
-      (setf ope (make-instance 'ope :gate gate :balance-tracker tracker)))
     (if (slot-boundp tracker 'treasurer) (reinitialize-instance treasurer)
-        (setf treasurer (make-instance 'balance-tracker :gate gate)))))
+        (setf treasurer (make-instance 'balance-tracker :gate gate)))
+    (unless (slot-boundp tracker 'ope)
+      (setf ope (make-instance 'ope-scalper :gate gate :balance-tracker treasurer)))))
 
 (defun gapps-rate (from to)
   (getjso "rate" (read-json (drakma:http-request
