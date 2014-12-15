@@ -195,7 +195,7 @@
                        (when pubkey (values :pubkey (make-key pubkey)))
                        (when secret (values :secret (make-signer secret)))))
 
-(defmethod shared-initialize :after ((gate kraken-gate) names &key)
+(defmethod shared-initialize :after ((gate kraken-gate) (names t) &key)
   (with-slots (token-minter token-handler) gate
     (when (or (not (slot-boundp gate 'token-minter))
               (eq :terminated (task-status token-minter)))

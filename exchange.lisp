@@ -35,7 +35,7 @@
    ;; FIXME: broken af
    (market-timestamp-sensitivity :initarg :sensitivity)))
 
-(defmethod shared-initialize :after ((exchange exchange) names &key)
+(defmethod shared-initialize :after ((exchange exchange) (names t) &key)
   (with-slots (assets markets) exchange
     (dolist (asset assets) (setf (slot-value asset 'exchange) exchange))
     (dolist (market markets) (setf (slot-value market 'exchange) exchange))))
@@ -159,7 +159,7 @@
     (destructuring-bind (ret . request) (recv in)
       (send ret (gate-post gate pubkey secret request)))))
 
-(defmethod shared-initialize :after ((gate gate) names &key)
+(defmethod shared-initialize :after ((gate gate) (names t) &key)
   (with-slots (thread) gate
     (when (or (not (slot-boundp gate 'thread))
               (eq :terminated (task-status thread)))
@@ -207,7 +207,7 @@
    (trades  :initform nil)
    updater worker))
 
-(defgeneric vwap (tracker &key since type depth &allow-other-keys)
+(defgeneric vwap (tracker &key type depth &allow-other-keys)
   (:method ((tracker trades-tracker) &key since depth type)
     (let ((trades (slot-value tracker 'trades)))
       (when since (setf trades (remove since trades
@@ -232,7 +232,7 @@
 
 (defgeneric trades-mergeable? (trades-tracker prev next)
   (:method-combination and)
-  (:method and (tracker (prev null) next))
+  (:method and ((tracker t) (prev null) (next t)))
   (:method and ((tracker trades-tracker) (prev trade) (next trade))
     (with-slots (market-timestamp-sensitivity)
         (slot-reduce tracker market exchange) ; !
@@ -360,7 +360,7 @@
 (defgeneric account-balances (gate))
 
 (defgeneric market-fee (gate market)
-  (:method :around (gate market)
+  (:method :around ((gate gate) (market market))
     (actypecase (call-next-method)
       (number `(,it . ,it)) (cons it))))
 

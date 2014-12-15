@@ -70,7 +70,7 @@
                          (cancel (awhen1 (cancel-offer gate cdr)
                                    (setf placed (remove cdr placed))))))))))
 
-(defmethod shared-initialize :after ((supplicant ope-supplicant) slots &key)
+(defmethod shared-initialize :after ((supplicant ope-supplicant) (slots t) &key)
   (with-slots (thread) supplicant
     (when (or (not (slot-boundp supplicant 'thread))
               (eq :terminated (task-status thread)))
@@ -119,7 +119,7 @@
     (ignore-errors (select ((recv input new) (setf fee new))
                            ((send output fee)) (t (sleep 1/7))))))
 
-(defmethod shared-initialize :after ((tracker fee-tracker) names &key)
+(defmethod shared-initialize :after ((tracker fee-tracker) (names t) &key)
   (with-slots (updater server market) tracker
     (when (or (not (slot-boundp tracker 'updater))
               (eq :terminated (task-status updater)))
@@ -173,7 +173,7 @@
             ((send asks (cdr foreigners)))
             (t (sleep frequency)))))
 
-(defmethod shared-initialize :after ((ope ope-filter) slots &key gate market)
+(defmethod shared-initialize :after ((ope ope-filter) (slots t) &key gate market)
   (with-slots (book fee supplicant) ope
     (unless (slot-boundp ope 'book)
       (setf book
@@ -185,7 +185,7 @@
       (setf supplicant
             (make-instance 'ope-supplicant              :gate gate)))))
 
-(defmethod shared-initialize :around ((ope ope-filter) slots &key)
+(defmethod shared-initialize :around ((ope ope-filter) (slots t) &key)
   (call-next-method)                    ; this is an after-after method...
   (with-slots (fee thread) ope
     (when (or (not (slot-boundp ope 'thread))
@@ -327,7 +327,7 @@
             (recv prioritizer-response)))))
     (send output nil)))
 
-(defmethod shared-initialize :after ((prioritizer ope-prioritizer) slots &key)
+(defmethod shared-initialize :after ((prioritizer ope-prioritizer) (slots t) &key)
   (with-slots (thread) prioritizer
     (when (or (not (slot-boundp prioritizer 'thread))
               (eq :terminated (task-status thread)))
@@ -335,7 +335,7 @@
                      (loop (ope-prioritizer-loop prioritizer)))))))
 
 (defmethod shared-initialize :after
-    ((ope ope-scalper) slots &key gate market balance-tracker fee)
+    ((ope ope-scalper) (slots t) &key gate market balance-tracker fee)
   (with-slots (filter prioritizer supplicant) ope
     (unless (slot-boundp ope 'supplicant)
       (setf supplicant (multiple-value-call 'make-instance
@@ -350,7 +350,7 @@
         (setf filter (make-instance 'ope-filter :market market
                                     :gate gate :fee fee)))))
 
-(defmethod shared-initialize :around ((ope ope-scalper) slots &key)
+(defmethod shared-initialize :around ((ope ope-scalper) (slots t) &key)
   (call-next-method)                    ; another after-after method...
   (with-slots (scalper) ope
     (when (or (not (slot-boundp ope 'scalper))
@@ -402,7 +402,7 @@
 (defmethod vwap ((tracker account-tracker) &key type market depth net)
   (vwap (getf (slot-value tracker 'lictors) market) :type type :depth depth :net net))
 
-(defmethod shared-initialize :after ((tracker balance-tracker) names &key)
+(defmethod shared-initialize :after ((tracker balance-tracker) (names t) &key)
   (with-slots (updater worker) tracker
     (when (or (not (slot-boundp tracker 'updater))
               (eq :terminated (task-status updater)))
@@ -418,7 +418,7 @@
                      (loop (balance-worker-loop tracker)))))))
 
 (defmethod shared-initialize :after
-    ((tracker account-tracker) names &key markets)
+    ((tracker account-tracker) (names t) &key markets)
   (with-slots (lictors treasurer gate ope) tracker
     (dolist (market markets)
       (setf (getf lictors market)
