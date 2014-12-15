@@ -447,7 +447,7 @@
    thread))
 
 (defun makereport (maker total-fund doge/btc total-btc total-doge investment risked skew)
-  (with-slots (market account-tracker) maker
+  (with-slots (name market account-tracker) maker
     (flet ((asset-decimals (kind) (decimals (slot-value market kind)))
            (depth-profit (&optional depth)
              (flet ((vwap (side) (vwap account-tracker :type side :net t
@@ -456,10 +456,9 @@
                                                     (vwap "sell"))))))))
       ;; FIXME: modularize all this decimal point handling
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (format t "~&~6@A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$~%"
-              (format-timestring nil (now) :format '((:hour 2) #\:
-                                                     (:min  2) #\:
-                                                     (:sec  2)))
+      (format t "~&~5@A ~A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$~%"
+              name (format-timestring nil (now) :format
+                                      '((:hour 2) #\: (:min  2) #\: (:sec  2)))
               (asset-decimals 'primary)    total-fund
               (asset-decimals 'counter) (* total-fund doge/btc)
               (asset-decimals 'primary)    total-btc
