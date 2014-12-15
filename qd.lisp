@@ -555,6 +555,7 @@
 
 (defun pause-maker (maker) (send (slot-value maker 'control) '(pause)))
 
+#+ (or)
 (defun reset-the-net (maker &optional (revive t))
   (flet ((ensure-death (list)
            (let ((thread (reduce #'slot-value list :initial-value maker)))
