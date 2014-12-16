@@ -1,6 +1,7 @@
 (defpackage #:scalpl.util
-  (:use #:c2cl #:st-json #:parse-float #:string-case)
+  (:use #:c2cl #:anaphora #:st-json #:parse-float #:string-case)
   (:export #:once-only
+           #:shallow-copy
            #:dbz-guard
            #:slot-reduce
            #:with-json-slots
@@ -20,6 +21,16 @@
 (in-package #:scalpl.util)
 
 ;;; Actually useful
+
+(defun shallow-copy (object)
+  (multiple-value-bind (create init) (make-load-form-saving-slots object)
+    (aprog1 (eval create)
+      (labels ((walk (form) (cond ((eq form object) it)
+                                  ((atom form) form)
+                                  (t (cons (car form)
+                                           (mapcar #'walk (cdr form)))))))
+        (eval (walk init))))))
+
 (defmacro dbz-guard (form) `(handler-case ,form (division-by-zero () 0)))
 
 ;;; right now this is only for convenience at the REPL
