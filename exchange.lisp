@@ -12,6 +12,7 @@
            #:trade #:cost #:direction
            #:trades-tracker #:trades #:trades-since #:vwap
            #:book-tracker #:bids #:asks #:get-book
+           #:tracked-market
            #:placed-offers #:account-balances #:market-fee
            #:execution #:fee #:net-cost
            #:execution-tracker #:execution-since
@@ -351,6 +352,27 @@
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
               (loop (book-worker-loop tracker)))))))
+
+;;;
+;;; Putting things together
+;;;
+
+(defclass tracked-market (market)
+  ((%market :initarg :market :initform (error "must specify market"))
+   book-tracker trades-tracker))
+
+(defmethod update-instance-for-different-class :before
+    ((prev market) (new tracked-market) &key)
+  (setf (slot-value new '%market) (shallow-copy prev)))
+
+(defmethod shared-initialize :after ((market tracked-market) (names t) &key)
+  (with-slots (%market book-tracker trades-tracker book trades) market
+    (if (slot-boundp market 'book-tracker)
+        (reinitialize-instance book-tracker)
+        (setf book-tracker (make-instance 'book-tracker :market %market)))
+    (if (slot-boundp market 'trades-tracker)
+        (reinitialize-instance trades-tracker)
+        (setf trades-tracker (make-instance 'trades-tracker :market %market)))))
 
 ;;;
 ;;; Private Data API
