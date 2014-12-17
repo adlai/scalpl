@@ -15,6 +15,8 @@
    (book-channel :initarg :book-channel)
    (supplicant :initarg :supplicant)
    (filter :initarg :filter)
+   (epsilon :initform 0.001 :initarg :epsilon)
+   (count :initform 30 :initarg :offer-count)
    prioritizer scalper))
 
 (defclass ope-supplicant ()
@@ -300,10 +302,8 @@
       (push (incf share (* 4/3 (incf acc volume))) (first remaining-offers)))))
 
 (defun ope-scalper-loop (ope)
-  (with-slots (input output filter prioritizer) ope
-    (destructuring-bind (primary counter resilience &optional
-                                 ;; magic numbers, to be parametrized
-                                 (order-count 15) (epsilon 0.001))
+  (with-slots (input output filter prioritizer epsilon count) ope
+    (destructuring-bind (primary counter resilience)
         (recv input)
       ;; Now run that algorithm thingy
       (macrolet ((do-side ((amount side) &body body)
@@ -319,11 +319,11 @@
                   (dumbot-offers bids resilience counter
                                  (* epsilon (- (price (first bids)))
                                     (expt 10 (- (decimals (market (first bids))))))
-                                 order-count))
+                                 (/ count 2)))
             (recv prioritizer-response))
           (do-side (primary asks)
             (send next-asks (dumbot-offers asks resilience primary
-                                           epsilon order-count))
+                                           epsilon (/ count 2)))
             (recv prioritizer-response)))))
     (send output nil)))
 
