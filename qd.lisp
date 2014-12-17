@@ -610,10 +610,11 @@
                                 ,@keys)))
 
 #+nil
-(define-maker *maker* (find-market "market" *exchange*)
-  (make-instance 'kraken-gate
-                 :pubkey #P "secrets/some.pubkey"
-                 :secret #P "secrets/some.secret"))
+(define-maker *maker*
+    :market (find-market "XXBTZEUR" kraken:*kraken*)
+    :gate (make-instance 'kraken-gate
+                         :pubkey #P "secrets/some.pubkey"
+                         :secret #P "secrets/some.secret"))
 
 #+nil
 (with-slots (account-tracker trades-tracker market) *maker*
