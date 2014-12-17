@@ -612,7 +612,7 @@
 #+nil
 (define-maker *maker*
     :market (find-market "XXBTZEUR" kraken:*kraken*)
-    :gate (make-instance 'kraken-gate
+    :gate (make-instance 'kraken:kraken-gate
                          :pubkey #P "secrets/some.pubkey"
                          :secret #P "secrets/some.secret"))
 

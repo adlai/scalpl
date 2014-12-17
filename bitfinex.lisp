@@ -1,4 +1,6 @@
-(defpackage #:scalpl.bitfinex (:nicknames #:bitfinex) (:export #:*bitfinex*)
+(defpackage #:scalpl.bitfinex
+  (:nicknames #:bitfinex)
+  (:export #:*bitfinex* #:bitfinex-gate)
   (:use #:cl #:anaphora #:local-time #:st-json #:base64 #:scalpl.util #:scalpl.exchange))
 
 (in-package #:scalpl.bitfinex)

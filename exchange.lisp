@@ -25,6 +25,10 @@
 ;;; implement. Each exchange client should instantiate the exchange class and
 ;;; specialize methods on generic functions, which should be defined here.
 
+;;; TODO
+;;; Some method for implemented exchange APIs to "register" the exchange, so
+;;; we don't have to mess with a different package per exchange.
+
 ;;;
 ;;; Exchanges
 ;;;
