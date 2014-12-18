@@ -103,7 +103,7 @@
     ))
 
 (defun get-request (path &optional data)
-  (raw-request path :parameters data))
+  (raw-request (concatenate 'string path "/?" (urlencode-params data))))
 
 (defun post-request (method key signer &optional data)
   (let* ((path (concatenate 'string "/v1/" method))
@@ -164,7 +164,7 @@
   (let ((decimals (slot-value market 'decimals)))
     (with-json-slots (bids asks)
         (get-request (format nil "book/~A" pair)
-                     '(("limit_asks" . 100) ("limit_bids" . 100)))
+                     '(("limit_asks" . "100") ("limit_bids" . "100")))
       (flet ((parser (class)
                (lambda (raw-order)
                  (with-json-slots (price amount) raw-order
