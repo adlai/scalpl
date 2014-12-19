@@ -290,10 +290,11 @@
       (make-instance 'execution :fee fee :direction type :uid txid
                      :price (parse-float price) :cost cost
                      :volume (parse-float vol) :market (find-market pair *kraken*)
+                     :net-volume (parse-float vol)
                      :timestamp (parse-timestamp *kraken* time)
-                     :net (string-case (type)
-                            ("buy" (+ cost fee))
-                            ("sell" (- cost fee)))))))
+                     :net-cost (string-case (type)
+                                 ("buy" (+ cost fee))
+                                 ("sell" (- cost fee)))))))
 
 (defun raw-executions (gate &optional last)
   (gate-request gate "TradesHistory" (when last `(("start" . ,(uid last))))))

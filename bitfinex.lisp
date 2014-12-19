@@ -229,6 +229,7 @@
     (with-json-slots (price fee_amount amount timestamp type tid) json
       (let* ((volume (parse-float amount))
              (price (parse-float price))
+             (fee (parse-float fee_amount))
              (cost (* volume price)))
         (make-instance 'execution
                        :direction type
@@ -236,7 +237,13 @@
                        :uid tid
                        :price price
                        :volume volume
-                       :fee (parse-float fee_amount)
+                       :fee fee
+                       :net-cost (string-case (type)
+                                   ("Buy" cost)
+                                   ("Sell" (+ cost fee)))
+                       :net-volume (string-case (type)
+                                     ("Buy" (+ volume fee))
+                                     ("Sell" volume))
                        :market market
                        :timestamp (parse-timestamp *bitfinex* timestamp))))))
 

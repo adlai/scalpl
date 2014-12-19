@@ -397,7 +397,8 @@
 (defclass execution (trade)
   ((uid :initarg :uid :reader uid)
    (fee :initarg :fee :reader fee)
-   (net-cost :initarg :net :reader net-cost)))
+   (net-cost :initarg :net-cost :reader net-cost)
+   (net-volume :initarg :net-volume :reader net-volume)))
 
 (defclass execution-tracker ()
   ((gate :initarg :gate)
@@ -460,13 +461,13 @@
 
 (defmethod vwap ((tracker execution-tracker) &key type depth net)
   (let ((trades (remove type (slot-value tracker 'trades)
-                        :key #'direction :test #'string/=)))
+                        :key #'direction :test #'string-not-equal)))
     (when depth
       (setf trades (loop for trade in trades collect trade
                       sum (volume trade) into sum
                       until (>= sum depth))))
     (/ (reduce '+ (mapcar (if net #'net-cost #'cost) trades))
-       (reduce '+ (mapcar #'volume trades)))))
+       (reduce '+ (mapcar (if net #'net-volume #'volume) trades)))))
 
 ;;;
 ;;; Action API
