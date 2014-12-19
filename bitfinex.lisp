@@ -248,8 +248,9 @@
                          . ,(princ-to-string (timestamp-to-unix (timestamp last)))))))))
 
 (defmethod execution-since ((gate bitfinex-gate) (market bitfinex-market) since)
-  (mapcar (execution-parser market)
-          (raw-executions gate (name market) since)))
+  (sort (mapcar (execution-parser market)
+                (raw-executions gate (name market) since))
+        #'timestamp< :key #'timestamp))
 
 ;;;
 ;;; Action API
