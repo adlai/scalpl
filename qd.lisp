@@ -276,24 +276,26 @@
                                         max-orders processed-tally))
                (chosen-stair-set        ; the (shares . foreign-offer)s to fight
                 (cons (first foreign-offers)
-                      (subseq (sort (subseq foreign-offers 1 processed-tally)
-                                    #'> :key (lambda (x) (volume (cdr x))))
-                              0 (1- target-stair-count))))
+                      (unless (zerop target-stair-count)
+                        (subseq (sort (subseq foreign-offers 1 processed-tally)
+                                      #'> :key (lambda (x) (volume (cdr x))))
+                                0 (1- target-stair-count)))))
                (total-shares (reduce #'+ (mapcar #'car chosen-stair-set)))
                ;; we need the smallest order to be epsilon
                (e/f (/ epsilon funds))
                (bonus (/ (- (* e/f total-shares) (caar chosen-stair-set))
                          (- 1 (* e/f target-stair-count)))))
-          (mapcar (lambda (order)
-                    (with-slots (market price) (cdr order)
-                      (make-instance 'offer :market market :price (1- price)
-                                     :volume (* funds
-                                                (/ (+ bonus (car order))
-                                                   (+ total-shares
-                                                      (* bonus
-                                                         target-stair-count)))))))
-                  (sort chosen-stair-set #'<
-                        :key (lambda (x) (price (cdr x)))))))
+          (ignore-errors                ; dbz = no funds left, place no orders
+            (mapcar (lambda (order)
+                      (with-slots (market price) (cdr order)
+                        (make-instance 'offer :market market :price (1- price)
+                                       :volume (* funds
+                                                  (/ (+ bonus (car order))
+                                                     (+ total-shares
+                                                        (* bonus
+                                                           target-stair-count)))))))
+                    (sort chosen-stair-set #'<
+                          :key (lambda (x) (price (cdr x))))))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
     (with-slots (volume) (first remaining-offers)
