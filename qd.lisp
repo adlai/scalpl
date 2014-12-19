@@ -456,7 +456,7 @@
                                                     (vwap "sell"))))))))
       ;; FIXME: modularize all this decimal point handling
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (format t "~&~5@A ~A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$~%"
+      (format t "~&~A ~A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$~%"
               name (format-timestring nil (now) :format
                                       '((:hour 2) #\: (:min  2) #\: (:sec  2)))
               (asset-decimals 'primary)    total-fund
@@ -533,15 +533,15 @@
     ;; FIXME: wtf is this i don't even
     (unless (slot-boundp maker 'trades-tracker)
       (setf trades-tracker (make-instance 'trades-tracker :market market))
-      (sleep 12))
+      (sleep 7))
     (unless (slot-boundp maker 'book-tracker)
       (setf book-tracker (make-instance 'book-tracker :market market))
-      (sleep 12))
+      (sleep 7))
     (unless (slot-boundp maker 'account-tracker)
       (setf account-tracker
             (make-instance 'account-tracker :gate gate :markets `(,market)
                            :book book-tracker))
-      (sleep 12))
+      (sleep 7))
     (when (or (not (slot-boundp maker 'thread))
               (eq :terminated (task-status thread)))
       (setf thread
