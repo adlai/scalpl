@@ -12,7 +12,6 @@
 (defclass ope-scalper ()
   ((input :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
-   (book-channel :initarg :book-channel)
    (supplicant :initarg :supplicant)
    (filter :initarg :filter)
    (epsilon :initform 0.001 :initarg :epsilon)
@@ -146,10 +145,9 @@
   ((bids       :initarg :bids       :initform (make-instance 'channel))
    (asks       :initarg :asks       :initform (make-instance 'channel))
    (book       :initarg :book       :initform (error "must link book source"))
-   (fee        :initarg :fee        :initform (error "must link fee source"))
    (supplicant :initarg :supplicant :initform (error "must link supplicant"))
    (frequency  :initarg :frequency  :initform 1/7)
-   foreigners thread))
+   fee foreigners thread))
 
 (defun ope-filter-loop (ope)
   (with-slots (book bids asks foreigners frequency supplicant fee) ope
@@ -187,14 +185,14 @@
       (setf supplicant
             (make-instance 'ope-supplicant              :gate gate)))))
 
-(defmethod shared-initialize :around ((ope ope-filter) (slots t) &key)
+(defmethod shared-initialize :around ((ope ope-filter) (slots t) &key market)
   (call-next-method)                    ; this is an after-after method...
   (with-slots (fee thread) ope
     (when (or (not (slot-boundp ope 'thread))
               (eq :terminated (task-status thread)))
       (setf thread
             (pexec (:name (concatenate
-                           'string "qdm-preα ope filter for " (name (market fee))))
+                           'string "qdm-preα ope filter for " (name market)))
               (loop (ope-filter-loop ope)))))))
 
 (defmethod reinitialize-instance :after ((ope ope-filter) &key gate market)
@@ -335,7 +333,7 @@
                      (loop (ope-prioritizer-loop prioritizer)))))))
 
 (defmethod shared-initialize :after
-    ((ope ope-scalper) (slots t) &key gate market balance-tracker fee)
+    ((ope ope-scalper) (slots t) &key gate market balance-tracker book)
   (with-slots (filter prioritizer supplicant) ope
     (unless (slot-boundp ope 'supplicant)
       (setf supplicant (multiple-value-call 'make-instance
@@ -348,7 +346,8 @@
               (make-instance 'ope-prioritizer :supplicant supplicant)))
     (if (slot-boundp ope 'filter) (reinitialize-instance filter)
         (setf filter (make-instance 'ope-filter :market market
-                                    :gate gate :fee fee)))))
+                                    :gate gate :book book
+                                    :supplicant supplicant)))))
 
 (defmethod shared-initialize :around ((ope ope-scalper) (slots t) &key)
   (call-next-method)                    ; another after-after method...
@@ -418,7 +417,7 @@
                      (loop (balance-worker-loop tracker)))))))
 
 (defmethod shared-initialize :after
-    ((tracker account-tracker) (names t) &key markets)
+    ((tracker account-tracker) (names t) &key markets book)
   (with-slots (lictors treasurer gate ope) tracker
     (dolist (market markets)
       (setf (getf lictors market)
@@ -426,7 +425,8 @@
     (if (slot-boundp tracker 'treasurer) (reinitialize-instance treasurer)
         (setf treasurer (make-instance 'balance-tracker :gate gate)))
     (unless (slot-boundp tracker 'ope)
-      (setf ope (make-instance 'ope-scalper :gate gate :balance-tracker treasurer)))))
+      (setf ope (make-instance 'ope-scalper :gate gate :book book
+                               :balance-tracker treasurer :market (first markets))))))
 
 (defun gapps-rate (from to)
   (getjso "rate" (read-json (drakma:http-request
@@ -538,11 +538,10 @@
       (setf book-tracker (make-instance 'book-tracker :market market))
       (sleep 12))
     (unless (slot-boundp maker 'account-tracker)
-      (setf account-tracker (make-instance 'account-tracker :gate gate :markets `(,market)))
+      (setf account-tracker
+            (make-instance 'account-tracker :gate gate :markets `(,market)
+                           :book book-tracker))
       (sleep 12))
-    ;; stitchy!
-    (setf (slot-value (slot-value account-tracker 'ope) 'book-channel)
-          (slot-value book-tracker 'output))
     (when (or (not (slot-boundp maker 'thread))
               (eq :terminated (task-status thread)))
       (setf thread
