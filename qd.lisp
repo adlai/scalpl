@@ -446,10 +446,11 @@
    (book-tracker :initarg :book-tracker)
    (account-tracker :initarg :account-tracker)
    (name :initarg :name :accessor name)
+   (report-depths :initform '(nil 4 1 1/4) :initarg :report-depths)
    thread))
 
 (defun makereport (maker total-fund doge/btc total-btc total-doge investment risked skew)
-  (with-slots (name market account-tracker) maker
+  (with-slots (name market account-tracker report-depths) maker
     (flet ((asset-decimals (kind) (decimals (slot-value market kind)))
            (depth-profit (&optional depth)
              (flet ((vwap (side) (vwap account-tracker :type side :net t
@@ -458,7 +459,7 @@
                                                     (vwap "sell"))))))))
       ;; FIXME: modularize all this decimal point handling
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (format t "~&~A ~A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$ ~6@$ ~6@$ ~6@$ ~6@$~%"
+      (format t "~&~A ~A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$~{ ~6@$~}~%"
               name (format-timestring nil (now) :format
                                       '((:hour 2) #\: (:min  2) #\: (:sec  2)))
               (asset-decimals 'primary)    total-fund
@@ -466,10 +467,11 @@
               (asset-decimals 'primary)    total-btc
               (asset-decimals 'counter)    total-doge
               (* 100 investment) (* 100 risked) (* 100 skew)
-              (depth-profit)
-              (depth-profit    total-fund)
-              (depth-profit (/ total-fund  4))
-              (depth-profit (/ total-fund 16)))))
+              (maplist (lambda (depths)
+                         (apply #'depth-profit
+                                (sctypecase (first depths)
+                                  (null) (number `(,(* total-fund it))))))
+                       report-depths))))
   (force-output))
 
 (defun %round (maker)
