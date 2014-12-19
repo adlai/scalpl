@@ -244,13 +244,13 @@
   (gate-request gate "mytrades"
                 `(("symbol" . ,symbol)
                   ,@(when last
-                      `(("timestamp"
+                      `(("timestamp"    ; FIXME: raw-foo should get raw params
                          . ,(princ-to-string (timestamp-to-unix (timestamp last)))))))))
 
 (defmethod execution-since ((gate bitfinex-gate) (market bitfinex-market) since)
-  (sort (mapcar (execution-parser market)
-                (raw-executions gate (name market) since))
-        #'timestamp< :key #'timestamp))
+  ;; bitfinex always returns the `since' trade, so discard it here
+  (rest (nreverse (mapcar (execution-parser market)
+                          (raw-executions gate (name market) since)))))
 
 ;;;
 ;;; Action API

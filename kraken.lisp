@@ -243,7 +243,7 @@
                                  ;; FIXME - "cost" later gets treated as precise
                                  :volume volume :price price :cost (* volume price)
                                  :direction (concatenate 'string side kind data)))))
-            trades)))
+            (rest trades))))            ; same trick as in bitfinex execution-since
 
 ;;;
 ;;; Private Data API
