@@ -97,7 +97,7 @@
   (with-slots (control response) ope
     (send control (cons 'offer offer)) (recv response)))
 
-;;; response: {count: "1"} if successful, nil if not
+;;; response: trueish = offer no longer placed, nil = unknown badness
 (defun ope-cancel (ope offer)
   (with-slots (control response) (slot-value ope 'supplicant)
     (send control (cons 'cancel offer)) (recv response)))
@@ -146,7 +146,8 @@
    (asks       :initarg :asks       :initform (make-instance 'channel))
    (book       :initarg :book       :initform (error "must link book source"))
    (supplicant :initarg :supplicant :initform (error "must link supplicant"))
-   (frequency  :initarg :frequency  :initform 1/7)
+   (frequency  :initarg :frequency  :initform 1/7) ; TODO: push depth deltas
+   ;; TODO: hystersis rudder yield thingy tracker
    fee foreigners thread))
 
 (defun ope-filter-loop (ope)
