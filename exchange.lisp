@@ -220,7 +220,7 @@
       (when type
         (setf trades (remove (ccase type (:buy #\b) (:sell #\s)) trades
                              :key (lambda (trade) (char (direction trade) 0))
-                             :test-not #'char=)))
+                             :test-not #'char-equal)))
       (when depth
         (setf trades (loop for trade in trades collect trade
                            sum (volume trade) into sum
@@ -460,8 +460,10 @@
 ;;; that for profitability calculations, rather than fee at time of calculation.
 
 (defmethod vwap ((tracker execution-tracker) &key type depth net)
-  (let ((trades (remove type (slot-value tracker 'trades)
-                        :key #'direction :test #'string-not-equal)))
+  (let ((trades (slot-value tracker 'trades)))
+    (when type
+      (setf trades (remove type (slot-value tracker 'trades)
+                           :key #'direction :test #'string-not-equal)))
     (when depth
       (setf trades (loop for trade in trades collect trade
                       sum (volume trade) into sum

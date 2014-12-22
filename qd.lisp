@@ -462,7 +462,7 @@
                                                     (vwap "sell"))))))))
       ;; FIXME: modularize all this decimal point handling
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (format t "~&~A ~A ~V$ ~V$ ~V$ ~V$ ~$% ~$% ~@$~{ ~6@$~}~%"
+      (format t "~&~A ~A ~V$ ~V$ ~V$ ~V$ ~2,2$% ~2,2$% ~2,2@$~{ ~6@$~}~%"
               name (format-timestring nil (now) :format
                                       '((:hour 2) #\: (:min  2) #\: (:sec  2)))
               (asset-decimals 'primary)    total-fund
