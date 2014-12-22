@@ -31,7 +31,8 @@
   ((next-bids :initform (make-instance 'channel))
    (next-asks :initform (make-instance 'channel))
    (prioritizer-response :initform (make-instance 'channel))
-   (supplicant :initarg :supplicant) thread))
+   (supplicant :initarg :supplicant) thread
+   (frequency :initarg :frequency :initform 1/7)))
 
 (defun offers-spending (ope asset)
   (remove asset (slot-value ope 'placed)
@@ -210,7 +211,7 @@
 ;;; sends commands in the control channel through #'ope-place
 ;;; sends completion acknowledgement to prioritizer-response channel
 (defun ope-prioritizer-loop (ope)
-  (with-slots (next-bids next-asks prioritizer-response) ope
+  (with-slots (next-bids next-asks prioritizer-response frequency) ope
     (flet ((place (new) (ope-place ope new))
            (amount-change (old new &aux (old-vol (volume old)))
              (/ (abs (- (volume new) old-vol)) old-vol)))
@@ -234,7 +235,8 @@
         (multiple-value-bind (placed-bids placed-asks) (ope-placed ope)
           (select
             ((recv next-bids to-bid) (update to-bid placed-bids))
-            ((recv next-asks to-ask) (update to-ask placed-asks))))))))
+            ((recv next-asks to-ask) (update to-ask placed-asks))
+            (t (sleep frequency))))))))
 
 (defun profit-margin (bid ask &optional fee-tracker)
   (if (null fee-tracker) (/ ask bid)
