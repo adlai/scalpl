@@ -3,7 +3,7 @@
 The software consists of three services:
 ** Order Placement Engine
 *** performs
-offer placement in a market according to guidelines provided by an investor
+offer placement in a market according to provided guidelines
 *** receives guidelines as
 a set of numerical parameters representing
 **** risk tolerances,
@@ -16,7 +16,7 @@ a set of numerical parameters representing
 ** Market Observer
 tool for evaluating statistical queries on market events, past and present
 ** Network                                                             :WIP:
-membership in a profit-sharing arbitrage cooperative, operating as a decentralized neural network.
+decentralized multimodal swarm optimization of the above guidelines
 * TODO Book Filter
 ** Receives order book updates from a book-tracker
 Currently these are simply entire books, but depth updates would be best.
@@ -25,6 +25,7 @@ Offer placement and offer cancellation
 ** Multiple account filters!
 * TODO Actor Abstraction
 CSP×FSM
+** TODO define MVP
 ** macro prototype
 *** TODO sample
 **** input - port current gate, as-is, to imagipony defactor macro
@@ -73,7 +74,7 @@ we'll need a cross-actor debugger / condition handler, and repl-like functionali
 make the condition system and debugger function across threads, see cond.js
 **** reflection / inspection
 send a function to be applied to the actor (return handled by caller)
-* TODO Basis Tracking
+* TODO Basis Tracking - extension of balance tracking
 basis tracking ≡ keep track of the last buys and sells, make sure future trades
 are always profitable. perhaps have a configurable parameter that toggles
 whether you can "create new positions" rather than just "close old ones"?
@@ -81,10 +82,29 @@ whether you can "create new positions" rather than just "close old ones"?
 cost basis for an asset = price at which you purchased the asset, and
 optionally the cost basis which was traded away for acquiring the asset
 ** price should account for exchange fees
+(margins too narrow to help out future-you figure out wtf you meant?)
 * TODO Portfolio Handling Guidelines
 How the investor specifies guidelines to the automated market maker
+** "risk tolerances"
+how "deep" we ensure order flow profitability
+** "hedging requirements"
+how readily we lose balance and regain it
+** "profit targets"
+kinda maybe related to "risk tolerances"?
+** "market sentiment"
+this should perhaps be scrapped / merged into the swarm
 * Exchange modularity
-** Need to distinguish between tracking a market and participating in it
+** Need to distinguish between:
+*** knowing a market exists
+**** which assets are traded
+**** at what precision
+**** default fee structure
+**** functions for fetching specific market data
+*** tracking a market
+**** book tracker, current market depth
+**** trades tracker, past market movements
+*** participating in it
+**** market + gate = ope ?
 ** Participation should be mediated by rate gates
 * Account
 ** Contents:
