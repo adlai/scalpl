@@ -146,6 +146,7 @@
   ((bids       :initarg :bids       :initform (make-instance 'channel))
    (asks       :initarg :asks       :initform (make-instance 'channel))
    (book       :initarg :book       :initform (error "must link book source"))
+   (market     :initarg :market     :initform (error "must link market"))
    (supplicant :initarg :supplicant :initform (error "must link supplicant"))
    (frequency  :initarg :frequency  :initform 1/7) ; TODO: push depth deltas
    ;; TODO: hystersis rudder yield thingy tracker
@@ -187,9 +188,9 @@
       (setf supplicant
             (make-instance 'ope-supplicant              :gate gate)))))
 
-(defmethod shared-initialize :around ((ope ope-filter) (slots t) &key market)
+(defmethod shared-initialize :around ((ope ope-filter) (slots t) &key)
   (call-next-method)                    ; this is an after-after method...
-  (with-slots (fee thread) ope
+  (with-slots (fee thread market) ope
     (when (or (not (slot-boundp ope 'thread))
               (eq :terminated (task-status thread)))
       (setf thread

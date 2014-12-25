@@ -1,7 +1,7 @@
 ;;;; actor.lisp
 
 (defpackage #:scalpl.actor
-  (:use #:c2cl #:local-time #:scalpl.util #:chanl)
+  (:use #:cl #:local-time #:scalpl.util #:chanl)
   (:export #:actor #:perform #:halt #:name #:control))
 
 (in-package #:scalpl.actor)
