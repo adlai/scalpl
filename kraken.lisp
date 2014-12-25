@@ -231,23 +231,23 @@
                 (mapcar (parser 'bid) bids))))))
 
 (defmethod trades-since ((market kraken-market) &optional since)
-  (with-json-slots (last (trades (name market)))
-      (get-request "Trades"
-                   `(("pair" . ,(name market)) .
-                     ,(awhen (timestamp since)
-                        `(("since"
-                           . ,(format nil "~D~9,'0D"
-                                      (timestamp-to-unix it) (nsec-of it)))))))
-    (mapcar (lambda (trade)
-              (destructuring-bind (price volume time side kind data) trade
-                (let ((price  (read-from-string price))
-                      (volume (read-from-string volume)))
-                  (make-instance 'trade :market market
-                                 :timestamp (parse-timestamp *kraken* time)
-                                 ;; FIXME - "cost" later gets treated as precise
-                                 :volume volume :price price :cost (* volume price)
-                                 :direction (concatenate 'string side kind data)))))
-            (rest trades))))            ; same trick as in bitfinex execution-since
+  (awhen (get-request "Trades"
+                      `(("pair" . ,(name market)) .
+                        ,(awhen (timestamp since)
+                                `(("since"
+                                   . ,(format nil "~D~9,'0D"
+                                              (timestamp-to-unix it) (nsec-of it)))))))
+    (with-json-slots (last (trades (name market))) it
+      (mapcar (lambda (trade)
+                (destructuring-bind (price volume time side kind data) trade
+                  (let ((price  (read-from-string price))
+                        (volume (read-from-string volume)))
+                    (make-instance 'trade :market market
+                                   :timestamp (parse-timestamp *kraken* time)
+                                   ;; FIXME - "cost" later gets treated as precise
+                                   :volume volume :price price :cost (* volume price)
+                                   :direction (concatenate 'string side kind data)))))
+              (rest trades)))))      ; same trick as in bitfinex execution-since
 
 ;;;
 ;;; Private Data API
