@@ -25,7 +25,7 @@ Offer placement and offer cancellation
 ** Multiple account filters!
 * TODO Actor Abstraction
 CSP×FSM
-** TODO define MVP
+** DONE MVP
 ** macro prototype
 *** TODO sample
 **** input - port current gate, as-is, to imagipony defactor macro

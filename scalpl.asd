@@ -20,6 +20,7 @@
                #:chanl #:chanl.examples)
   :serial t
   :components ((:file "util")
+               (:file "actor")
                (:file "exchange")
                (:file "kraken")
                (:file "bitfinex")

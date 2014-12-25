@@ -1,7 +1,8 @@
 ;;;; actor.lisp
 
 (defpackage #:scalpl.actor
-  (:use #:c2cl #:scalpl.util #:chanl))
+  (:use #:c2cl #:local-time #:scalpl.util #:chanl)
+  (:export #:actor #:perform #:halt #:name #:control))
 
 (in-package #:scalpl.actor)
 
@@ -17,59 +18,40 @@
 ;;; implementation detail? "API methods" on the actor object serve as the
 ;;; client, and state machine on the channel side serves as the server
 
-(defclass acting-class (standard-class)
-  ((tasks :documentation "Tasks performing the actor's behavior")
-   (children :allocation :class :initform nil
-             :documentation "Child actors, for recursive operations")
-   (channels :allocation :class :initform '(control)
-             :documentation "Channels for which this actor is responsible")))
-
-(with-compilation-unit (:override t)
-  (defmethod validate-superclass ((meta acting-class) (super standard-class)) t)
-  (defclass actor () () (:metaclass acting-class))
-  (remove-method #'validate-superclass
-                 (find-method #'validate-superclass nil
-                              (mapcar #'find-class
-                                      '(acting-class standard-class)))))
-
-(defgeneric channels (actor)
-  (:method-combination append)
-  (:method :around ((actor actor))
-    (remove-duplicates (call-next-method))) ; copying CLOS maybe not best idea?
-  (:method append ((actor actor))
-    (slot-value actor 'channels)))
-
-(defmethod initialize-instance :before ((actor actor) &key)
-  (dolist (slot (channels actor))
-    (setf (slot-value actor slot) (make-instance 'channel))))
+(defclass actor ()
+  ((name :initform (gensym "") :initarg :name :accessor name
+         :documentation "Name for identifying this actor and its tasks")
+   (tasks :initform nil :documentation "Tasks performing this actor's behavior")
+   (control :initform (make-instance 'channel)
+            :documentation "Channel for controlling this actor")))
 
 (defgeneric execute (actor command)
-  (:method ((actor actor) (command function)) (funcall command actor)))
+  (:method ((actor actor) (command function)) (funcall command actor))
+  (:method ((actor actor) (command (eql :halt))) (throw :halt actor)))
+
+(defgeneric enqueue (actor)
+  (:method ((actor actor))
+    (pexec (:name (format nil "~A~S" (name actor) (now)))
+      (catch :halt (perform actor)))))
 
 (defgeneric perform (actor)
-  (:method ((actor actor)) (execute actor (recv (slot-value actor 'control)))))
-
-(defgeneric christen (actor)
-  ;; (:method-combination print-unreadable-object :type t :identity t)
+  (:documentation "Implement actor's behavior, executing commands by default")
   (:method ((actor actor))
-    (with-output-to-string (out)
-      (print-unreadable-object (actor out :type t :identity t)))))
+    (execute actor (recv (slot-value actor 'control))))
+  (:method :after ((actor actor))
+    (with-slots (name tasks) actor
+      (setf tasks (cons (enqueue actor)
+                        (remove :terminated tasks :key #'task-status))))))
 
 (defgeneric ensure-running (actor)
   (:method ((actor actor))
-    (when (or (not (slot-boundp actor 'task))
-              (eq :terminated (task-status (slot-value actor 'task))))
-      (setf (slot-value actor 'task)
-            (pexec (:name (christen actor)
-                    :initial-bindings `((*read-default-float-format* double-float)))
-              (loop (perform actor)))))))
+    (with-slots (name tasks) actor
+      (unless (find :alive tasks :key #'task-status)
+        (push (enqueue actor) tasks)))))
 
 (defgeneric halt (actor)
   (:documentation "Signals `actor' to terminate")
-  (:method ((actor actor)) (send (slot-value actor 'control) nil)))
-
-(defmethod reinitialize-instance :before ((actor actor) &key kill)
-  (when kill (kill-actor actor)))
+  (:method ((actor actor)) (send (slot-value actor 'control) :halt)))
 
 (defmethod shared-initialize :after ((actor actor) slot-names &key)
   (ensure-running actor))
