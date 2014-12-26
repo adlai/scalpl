@@ -314,7 +314,7 @@
 ;;;
 
 (defclass book-tracker ()
-  ((market :initarg :market)
+  ((market :initarg :market :reader market)
    (control :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
    (delay :initarg :delay :initform 8)
