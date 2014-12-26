@@ -155,10 +155,10 @@
 ;;; needs to do three different things
 ;;; 1) ignore-mine - already does (via filter-book)
 ;;; 2) profitable spread - already does (via ecase spaghetti)
-;;; 3) profit vs recent cost basis - FIXME
+;;; 3) profit vs recent cost basis - done, shittily - TODO parametrize depth
 
 (defun ope-filter-loop (ope)
-  (with-slots (book bids asks foreigners frequency supplicant fee) ope
+  (with-slots (book bids asks foreigners frequency supplicant fee lictor) ope
     (destructuring-bind (bids . asks) (recv (slot-value book 'output))
       (flet ((filter-book (side)
                (with-slots (control response) supplicant
@@ -177,6 +177,18 @@
                  (+1 (decf (volume (car other-bids)) (volume (pop other-asks))))
                  (0 (pop other-bids) (pop other-asks)))
              finally (setf foreigners (cons other-bids other-asks))))))
+    (let ((quotient (expt 10 (decimals (market fee)))))
+      ;; TODO macro/flet
+      (loop for best = (first (car foreigners))
+         for spread = (profit-margin (/ (abs (price best)) quotient)
+                                     (vwap lictor :type "sell")
+                                     fee)
+         until (> spread 1) do (pop (car foreigners)))
+      (loop for best = (first (cdr foreigners))
+         for spread = (profit-margin (vwap lictor :type "buy")
+                                     (/ (abs (price best)) quotient)
+                                     fee)
+         until (> spread 1) do (pop (cdr foreigners))))
     (select ((send bids (car foreigners)))
             ((send asks (cdr foreigners)))
             (t (sleep frequency)))))
