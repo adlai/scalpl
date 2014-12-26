@@ -428,7 +428,7 @@
            ;; get symbol value
            (get (send (third command) (symbol-value (second command))))))
         ((send buffer last))
-        ((recv buffer next) (push next trades))
+        ((recv buffer next) (pushnew next trades :key #'uid :test #'equal))
         (t (sleep 0.2))))))
 
 (defun execution-updater-loop (tracker)
