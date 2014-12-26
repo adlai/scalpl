@@ -149,7 +149,7 @@
    (market     :initarg :market     :initform (error "must link market"))
    (supplicant :initarg :supplicant :initform (error "must link supplicant"))
    (frequency  :initarg :frequency  :initform 1/7) ; TODO: push depth deltas
-   ;; TODO: hystersis rudder yield thingy tracker
+   (lictor     :initarg :lictor     :initform (error "must link lictor"))
    fee foreigners thread))
 
 (defun ope-filter-loop (ope)
@@ -339,7 +339,7 @@
                      (loop (ope-prioritizer-loop prioritizer)))))))
 
 (defmethod shared-initialize :after
-    ((ope ope-scalper) (slots t) &key gate market balance-tracker book)
+    ((ope ope-scalper) (slots t) &key gate market balance-tracker book lictor)
   (with-slots (filter prioritizer supplicant) ope
     (unless (slot-boundp ope 'supplicant)
       (setf supplicant (multiple-value-call 'make-instance
@@ -352,7 +352,7 @@
               (make-instance 'ope-prioritizer :supplicant supplicant)))
     (if (slot-boundp ope 'filter) (reinitialize-instance filter)
         (setf filter (make-instance 'ope-filter :market market
-                                    :gate gate :book book
+                                    :lictor lictor :gate gate :book book
                                     :supplicant supplicant)))))
 
 (defmethod shared-initialize :around ((ope ope-scalper) (slots t) &key)
@@ -423,16 +423,16 @@
                      (loop (balance-worker-loop tracker)))))))
 
 (defmethod shared-initialize :after
-    ((tracker account-tracker) (names t) &key markets book)
+    ((tracker account-tracker) (names t) &key market book)
   (with-slots (lictors treasurer gate ope) tracker
-    (dolist (market markets)
-      (setf (getf lictors market)
-            (make-instance 'execution-tracker :market market :gate gate)))
+    (setf (getf lictors market)
+          (make-instance 'execution-tracker :market market :gate gate))
     (if (slot-boundp tracker 'treasurer) (reinitialize-instance treasurer)
         (setf treasurer (make-instance 'balance-tracker :gate gate)))
     (unless (slot-boundp tracker 'ope)
-      (setf ope (make-instance 'ope-scalper :gate gate :book book
-                               :balance-tracker treasurer :market (first markets))))))
+      (setf ope (make-instance 'ope-scalper
+                               :lictor (second lictors) :gate gate :book book
+                               :balance-tracker treasurer :market market)))))
 
 (defun gapps-rate (from to)
   (getjso "rate" (read-json (drakma:http-request
@@ -547,7 +547,7 @@
       (sleep 7))
     (unless (slot-boundp maker 'account-tracker)
       (setf account-tracker
-            (make-instance 'account-tracker :gate gate :markets `(,market)
+            (make-instance 'account-tracker :gate gate :market market
                            :book book-tracker))
       (sleep 7))
     (when (or (not (slot-boundp maker 'thread))
