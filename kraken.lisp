@@ -216,10 +216,12 @@
 ;;; Public Data API
 ;;;
 
-(defmethod get-book ((market kraken-market) &aux (pair (name market)))
+(defmethod get-book ((market kraken-market) &key (count 200)
+                     &aux (pair (name market)))
   (let ((decimals (slot-value market 'decimals)))
     (with-json-slots (bids asks)
-        (getjso pair (get-request "Depth" `(("pair" . ,pair) ("count" . "200"))))
+        (getjso pair (get-request "Depth" `(("pair" . ,pair)
+                                            ("count" . ,(prin1-to-string count)))))
       (flet ((parser (class)
                (lambda (raw-order)
                  (destructuring-bind (price amount timestamp) raw-order

@@ -163,11 +163,13 @@
 ;;; Public Data API
 ;;;
 
-(defmethod get-book ((market bitfinex-market) &aux (pair (name market)))
+(defmethod get-book ((market bitfinex-market) &key (count 200)
+                     &aux (pair (name market)))
   (let ((decimals (slot-value market 'decimals)))
     (with-json-slots (bids asks)
         (get-request (format nil "book/~A" pair)
-                     '(("limit_asks" . "100") ("limit_bids" . "100")))
+                     (mapcar (lambda (str) (cons str (prin1-to-string count)))
+                             '("limit_asks" "limit_bids")))
       (flet ((parser (class)
                (lambda (raw-order)
                  (with-json-slots (price amount) raw-order

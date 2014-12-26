@@ -333,7 +333,7 @@
           (t (sleep 0.2)))
       (unbound-slot ()))))
 
-(defgeneric get-book (market))
+(defgeneric get-book (market &key))
 
 (defun book-updater-loop (tracker)
   (with-slots (bids asks delay market offers) tracker
