@@ -152,6 +152,11 @@
    (lictor     :initarg :lictor     :initform (error "must link lictor"))
    fee foreigners thread))
 
+;;; needs to do three different things
+;;; 1) ignore-mine - already does (via filter-book)
+;;; 2) profitable spread - already does (via ecase spaghetti)
+;;; 3) profit vs recent cost basis - FIXME
+
 (defun ope-filter-loop (ope)
   (with-slots (book bids asks foreigners frequency supplicant fee) ope
     (destructuring-bind (bids . asks) (recv (slot-value book 'output))
