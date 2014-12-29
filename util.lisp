@@ -11,6 +11,7 @@
            #:parse-float
            #:string-octets
            #:mapcar-jso
+           #:jso-keys
            #:rehome-symbol
            #:rehome-class
            #:string-case
@@ -109,6 +110,8 @@
             (push (funcall thunk key val) list))
           jso)
   list)
+
+(defun jso-keys (jso) (mapcar-jso (lambda (k v) (declare (ignore v)) k) jso))
 
 (defun mapjso* (thunk jso)
   (mapjso thunk jso)
