@@ -17,6 +17,20 @@ a set of numerical parameters representing
 tool for evaluating statistical queries on market events, past and present
 ** Network                                                             :WIP:
 decentralized multimodal swarm optimization of the above guidelines
+* TODO parametrize execution feedback depth for profitability checks
+** currently profitability is checked
+*** in ope-filter
+*** against the entire buy/sell history
+* TODO Precision
+** TODO Eradicate floats from all price calculations
+all price manipulation must be done on integer values! this should already be
+the case, but do a line-by-line audit just to be 100% certain
+** TODO Switch to CL-JSON
+for full control of float parsing, rather than ST-JSON's default to #'READ
+** TODO Replace scalars with amount×asset where appropriate
+a bit of an endeavor, but will be worthwhile. required for proper level2 depth!
+** TODO Eradicate floats from all calculations
+using floats for statistical calculations is tolerable, but we can do better
 * TODO Book Filter
 ** Receives order book updates from a book-tracker
 Currently these are simply entire books, but depth updates would be best.
@@ -173,3 +187,6 @@ not even distinct levels of funds, each bound at different resilience levels.
 *** Order book
 *** Resilience
 *** Funds
+* TODO de-brittlify nonces
+** btce's nonce code will crap out on 2015-02-18
+** bitfinex's is likely at some point to overflow and break hidden offers
