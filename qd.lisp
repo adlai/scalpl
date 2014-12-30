@@ -636,6 +636,8 @@
                          :pubkey #P "secrets/some.pubkey"
                          :secret #P "secrets/some.secret"))
 
+;;; TODO: turn these into functions
+
 #+nil
 (with-slots (account-tracker trades-tracker market) *maker*
   (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
@@ -651,3 +653,9 @@
               updays volume (/ (* total-in-btc updays 2) volume))
       (/ (* volume (1- (profit-margin (vwap "buy") (vwap "sell"))))
          (/ updays 30) total-in-btc))))
+
+#+nil
+(with-slots (resilience-factor trades-tracker) *maker*
+  (with-slots (control output) trades-tracker
+    (send control '(max))
+    (* resilience-factor (recv output))))
