@@ -24,5 +24,6 @@
                (:file "exchange")
                (:file "kraken")
                (:file "bitfinex")
+               (:file "btce")
                (:file "qd")
                ))
