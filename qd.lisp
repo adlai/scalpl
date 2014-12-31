@@ -661,3 +661,11 @@
   (with-slots (control output) trades-tracker
     (send control '(max))
     (* resilience-factor (recv output))))
+
+#+nil
+(multiple-value-bind (bids asks)
+    (ope-placed (slot-reduce *maker* account-tracker ope))
+  (let ((bids-width (reduce 'max (mapcar 'length (mapcar 'princ-to-string bids))))
+        (asks-width (reduce 'max (mapcar 'length (mapcar 'princ-to-string asks)))))
+    (dotimes (i (max (length bids) (length asks)))
+      (format t "~&~V@A || ~V@A~%" bids-width (nth i bids) asks-width (nth i asks)))))
