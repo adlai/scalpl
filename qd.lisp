@@ -579,7 +579,7 @@
 
 (defun pause-maker (maker) (send (slot-value maker 'control) '(pause)))
 
-(defun reset-the-net (maker &optional (revive t))
+(defun reset-the-net (maker &key (revive t) (delay 5))
   (mapc 'kill (mapcar 'task-thread (pooled-tasks)))
   #+ (or)
   (flet ((ensure-death (list)
@@ -607,14 +607,16 @@
             (book-tracker worker)
             (fee-tracker thread))))
   (when revive
-    (mapc 'reinitialize-instance
-          (list (slot-reduce maker book-tracker)
-                (slot-reduce maker trades-tracker)
-                (slot-reduce maker account-tracker gate)
-                (slot-reduce maker account-tracker treasurer)
-                (slot-reduce maker account-tracker ope filter lictor)
-                (slot-reduce maker account-tracker ope)
-                maker))))
+    (dolist (actor
+              (list (slot-reduce maker book-tracker)
+                    (slot-reduce maker trades-tracker)
+                    (slot-reduce maker account-tracker gate)
+                    (slot-reduce maker account-tracker treasurer)
+                    (slot-reduce maker account-tracker ope filter lictor)
+                    (slot-reduce maker account-tracker ope)
+                    maker))
+      (sleep delay)
+      (reinitialize-instance actor))))
 
 (defmacro define-maker (name &rest keys
                         &key market gate
