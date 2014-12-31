@@ -131,7 +131,7 @@
                          (append (subseq bids 0 (floor (length bids) 2))
                                  (subseq asks 0 (floor (length asks) 2)))))))
 
-(defclass bitfinex-market (market) ())
+(defclass bitfinex-market (market) ())  ; TODO is-a → has-a
 
 (defun get-markets (assets &aux markets)
   (dolist (name (get-request "symbols") markets)
