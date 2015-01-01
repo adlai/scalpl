@@ -49,8 +49,9 @@
   (print-unreadable-object (exchange stream :type nil :identity nil)
     (princ (name exchange) stream)))
 
+;;; FIXME these are de facto exchange dispatch hacked onto timestamp wtf
 (defgeneric parse-timestamp (exchange timestamp)
-  ;; most common is a unix timestamp
+  (:method ((exchange exchange) (sec integer)) (unix-to-timestamp sec))
   (:method ((exchange exchange) (timestamp real))
     (multiple-value-bind (sec nsec) (floor timestamp)
       (unix-to-timestamp sec :nsec (round (* (expt 10 9) nsec)))))
@@ -262,7 +263,7 @@
                      :volume volume :price price
                      :direction (direction prev)))))
 
-(defmethod timestamp ((object null)))
+(defmethod timestamp ((object null)))   ; such lazy
 
 (defun trades-worker-loop (tracker)
   (with-slots (control buffer output trades market) tracker
