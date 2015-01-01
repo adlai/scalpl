@@ -90,3 +90,35 @@
                  :additional-headers `(("Key"  . ,key)
                                        ("Sign" . ,(funcall signer data))))))
 
+(defclass btce-market (market)
+  ((hidden :initarg :hidden :reader hidden)
+   (epsilon :initarg :epsilon :reader epsilon)
+   (fee :initarg :fee :reader fee)
+   (minimum :initarg :minimum :reader minimum)
+   (maximum :initarg :maximum :reader maximum)))
+
+(defun get-info (&aux assets)
+  (awhen (get-request "info")
+    (flet ((ensure-asset (name)
+             (or (find name assets :key #'name :test #'string=)
+                 (aprog1 (make-instance 'asset :name name :decimals 8)
+                   (push it assets)))))
+      (values (mapcar-jso (lambda (pair data)
+                            (with-json-slots ((epsilon  "min_amount")
+                                              (maximum  "max_price")
+                                              (minimum  "min_price")
+                                              (decimals "decimal_places")
+                                              fee hidden)
+                                data
+                              (make-instance 'btce-market :name pair
+                                             :decimals decimals :fee fee
+                                             :minimum minimum :maximum maximum
+                                             :epsilon epsilon :hidden hidden
+                                             :primary (ensure-asset (subseq pair 0 3))
+                                             :counter (ensure-asset (subseq pair 4)))))
+                          (getjso "pairs" it))
+              assets))))
+
+(defvar *btce*
+  (multiple-value-bind (markets assets) (get-info)
+    (make-instance 'exchange :name "BTC-e" :assets assets :markets markets)))
