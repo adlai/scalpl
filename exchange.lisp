@@ -213,6 +213,9 @@
    updater worker))
 
 (defgeneric vwap (tracker &key type depth &allow-other-keys)
+  (:method :around (tracker &key)
+    (handler-case (call-next-method)
+      (division-by-zero () 0)))
   (:method ((tracker trades-tracker) &key since depth type)
     (let ((trades (slot-value tracker 'trades)))
       (when since (setf trades (remove since trades
