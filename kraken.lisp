@@ -262,7 +262,7 @@
                 (getjso "open" it))
        (jso)))
 
-(defmethod placed-offers (gate)
+(defmethod placed-offers ((gate kraken-gate))
   (mapcar-jso (lambda (id data)
                 (with-json-slots (descr vol oflags) data
                   (with-json-slots (pair type price order) descr
@@ -271,9 +271,12 @@
                            (price-int (parse-price price decimals))
                            (volume (read-from-string vol)))
                       (make-instance 'placed :uid id :market market
-                                     :price (if (string= type "buy") (- price-int) price-int)
-                                     :volume (if (not (search "viqc" oflags)) volume
-                                                 (/ volume price-int (expt 10 decimals))))))))
+                                     :price (if (string= type "buy")
+                                                (- price-int) price-int)
+                                     :volume (if (not (search "viqc" oflags))
+                                                 volume
+                                                 (/ volume price-int
+                                                    (expt 1/10 decimals))))))))
               (open-orders gate)))
 
 (defmethod account-balances ((gate kraken-gate))

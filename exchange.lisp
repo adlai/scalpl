@@ -105,6 +105,8 @@
 ;;; Offers
 ;;;
 
+;;; FIXME: slots 'give' and 'take' containing amount & asset, each
+
 (defclass offer ()
   ((market :initarg :market :reader market)
    (volume :initarg :volume :accessor volume)
