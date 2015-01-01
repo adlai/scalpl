@@ -135,3 +135,41 @@
     (awhen (post-request command key secret options)
       (with-json-slots (success return error) it
         (if (zerop success) (list nil error) (list return))))))
+
+;;;
+;;; Public Data API
+;;;
+
+(defmethod get-book ((market btce-market) &key (count 200)
+                     &aux (pair (name market)) (decimals (decimals market)))
+  (awhen (get-request (format nil "depth/~A" pair)
+                      `(("limit" . ,(princ-to-string count))))
+    (with-json-slots (bids asks) (getjso pair it)
+      (flet ((parser (class)
+               (lambda (raw-order)
+                 (destructuring-bind (price amount) raw-order
+                   (make-instance class :market market
+                                  :price (round (* price (expt 10 decimals)))
+                                  :volume amount)))))
+        (values (mapcar (parser 'ask) asks)
+                (mapcar (parser 'bid) bids))))))
+
+(defclass btce-trade (trade) ((uid :initarg :uid :reader uid)))
+
+;;; btce only lets us specify a number of trades to fetch, not a last seen trade
+;;; so we'll at least warn when we detect a gap
+(defmethod trades-since ((market btce-market) &optional since)
+  (mapcar (lambda (trade)
+            (with-json-slots (price amount timestamp type tid) trade
+              (make-instance 'btce-trade :market market :direction type :uid tid
+                             :timestamp (parse-timestamp *btce* timestamp)
+                             ;; FIXME - "cost" later gets treated as precise
+                             :volume amount :price price :cost (* amount price))))
+          (awhen (get-request (format nil "trades/~A" (name market)))
+            ;; TODO estimate count based on time delta
+            (let ((trades (getjso (name market) it)))
+              (or (and since
+                       (aif (member (uid since) (reverse trades)
+                                    :key (lambda (x) (getjso "tid" x)))
+                            (reverse (rest it)) (warn "missing trades")))
+                  trades)))))
