@@ -122,3 +122,16 @@
 (defvar *btce*
   (multiple-value-bind (markets assets) (get-info)
     (make-instance 'exchange :name "BTC-e" :assets assets :markets markets)))
+
+(defclass btce-gate (gate) ())
+
+(defmethod shared-initialize ((gate btce-gate) names &key pubkey secret)
+  (multiple-value-call #'call-next-method gate names
+                       (when pubkey (values :pubkey (make-key pubkey)))
+                       (when secret (values :secret (make-signer secret)))))
+
+(defmethod gate-post ((gate btce-gate) key secret request)
+  (destructuring-bind (command . options) request
+    (awhen (post-request command key secret options)
+      (with-json-slots (success return error) it
+        (if (zerop success) (list nil error) (list return))))))
