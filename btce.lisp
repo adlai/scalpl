@@ -190,3 +190,25 @@
                                      :price (if (string= type "buy")
                                                 (- price-int) price-int)))))
                 it)))
+
+(defun extract-funds (funds)
+  (mapcar-jso (lambda (name amount)
+                (cons (find-asset name *btce*) amount))
+              (getjso "funds" funds)))
+
+(defmethod account-balances ((gate btce-gate))
+  (awhen (gate-request gate "getInfo")  ; ASSUMES that these two API calls have
+    (let ((placed (placed-offers gate)) ; nothing happen in between them!!!!!!!
+          (funds (make-hash-table :size (length (assets *btce*)))))
+      (flet ((incf-fund (asset amount) (incf (gethash asset funds 0) amount)))
+        (dolist (offer placed)
+          (if (eq (consumed-asset offer) (primary (market offer)))
+              (incf-fund (consumed-asset offer) (volume offer))
+              (incf-fund (counter (market offer))
+                         (* (volume offer) (- (price offer))
+                            (expt 1/10 (decimals (market offer))))))))
+      (mapcar (lambda (pair)
+                (aif (gethash (car pair) funds)
+                     (cons (car pair) (+ (cdr pair) it))
+                     pair))
+              (extract-funds it)))))

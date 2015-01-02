@@ -17,6 +17,9 @@ a set of numerical parameters representing
 tool for evaluating statistical queries on market events, past and present
 ** Network                                                             :WIP:
 decentralized multimodal swarm optimization of the above guidelines
+* TODO refactor offer representation:
+bitfinex and btce give volume in primary, always; kraken can do either
+** pay,get × amount,asset
 * TODO parametrize execution feedback depth for profitability checks
 ** currently profitability is checked
 *** in ope-filter
