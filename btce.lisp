@@ -173,3 +173,20 @@
                                     :key (lambda (x) (getjso "tid" x)))
                             (reverse (rest it)) (warn "missing trades")))
                   trades)))))
+
+;;;
+;;; Private Data API
+;;;
+
+(defmethod placed-offers ((gate btce-gate))
+  (awhen (gate-request gate "ActiveOrders")
+    (mapcar-jso (lambda (id data)
+                  (with-json-slots (pair type amount rate timestamp_created) data
+                    (let* ((market (find-market pair *btce*))
+                           (decimals (slot-value market 'decimals))
+                           (price-int (round (* rate (expt 10 decimals)))))
+                      (make-instance 'placed :uid id
+                                     :market market :volume amount
+                                     :price (if (string= type "buy")
+                                                (- price-int) price-int)))))
+                it)))
