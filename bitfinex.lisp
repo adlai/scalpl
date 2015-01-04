@@ -206,7 +206,7 @@
                      (decimals (slot-value market 'decimals))
                      (price-int (parse-price price decimals))
                      (volume (read-from-string remaining_amount)))
-                (make-instance 'placed :uid id :market market :volume volume
+                (make-instance 'placed :oid id :market market :volume volume
                                :price (if (string= side "buy") (- price-int) price-int)))))
           (open-orders gate)))
 
@@ -231,7 +231,7 @@
 
 (defun execution-parser (market)
   (lambda (json)
-    (with-json-slots (price fee_amount amount timestamp type tid) json
+    (with-json-slots (price fee_amount amount timestamp type tid order_id) json
       (let* ((volume (parse-float amount))
              (price (parse-float price))
              (fee (parse-float fee_amount))
@@ -239,7 +239,7 @@
         (make-instance 'execution
                        :direction type
                        :cost cost
-                       :uid tid
+                       :txid tid :oid order_id
                        :price price
                        :volume volume
                        :fee fee
@@ -310,7 +310,7 @@
                                 (slot-value market 'decimals)
                                 (typep offer 'hidden-offer))
                (with-json-slots (order_id) it
-                 (change-class offer 'placed :uid order_id)))))
+                 (change-class offer 'placed :oid order_id)))))
       (post (if (< price 0) "buy" "sell")))))
 
 (defmethod post-offer ((gate bitfinex-gate) (order market-order))
@@ -336,7 +336,7 @@
 
 (defmethod cancel-offer ((gate bitfinex-gate) offer)
   ;; (format t "~&cancel ~A~%" offer)
-  (multiple-value-bind (ret err) (cancel-order gate (uid offer))
+  (multiple-value-bind (ret err) (cancel-order gate (oid offer))
     (or ret (string= "Order could not be cancelled." (getjso "message" err)))))
 
 ;;; to do this one properly, we should reuse post-[raw-]limit
@@ -349,4 +349,4 @@
 ;;                   ("symbol" . ,pair)
 ;;                   ("amount" . ,amount)
 ;;                   ("price" . ,price)
-;;                   ("order_id" . ,(uid old)))))
+;;                   ("order_id" . ,(oid old)))))

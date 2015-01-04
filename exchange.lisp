@@ -6,10 +6,10 @@
            #:asset #:find-asset
            #:market #:decimals #:primary #:counter #:find-market
            #:offer #:bid #:ask #:placed #:market-order
-           #:volume #:price #:placed #:uid #:consumed-asset
+           #:volume #:price #:placed #:oid #:consumed-asset
            #:gate #:gate-post #:gate-request
            #:thread #:control #:updater #:worker #:output ; coming soon: actors!
-           #:trade #:cost #:direction
+           #:trade #:cost #:direction #:txid
            #:trades-tracker #:trades #:trades-since #:vwap
            #:book-tracker #:bids #:asks #:get-book
            #:tracked-market
@@ -113,7 +113,7 @@
    (price  :initarg :price  :reader price)))
 
 (defclass placed (offer)
-  ((uid    :initarg :uid    :reader uid)))
+  ((oid    :initarg :oid    :reader oid)))
 
 (defclass bid (offer) ())
 (defclass ask (offer) ())
@@ -194,6 +194,7 @@
    (volume    :initarg :volume    :reader volume)
    (price     :initarg :price     :reader price)
    (cost      :initarg :cost      :reader cost)
+   (txid      :initarg :txid      :reader txid)
    (timestamp :initarg :timestamp :reader timestamp)
    (direction :initarg :direction :reader direction)))
 
@@ -401,7 +402,7 @@
 ;;;
 
 (defclass execution (trade)
-  ((uid :initarg :uid :reader uid)
+  ((oid :initarg :oid :reader oid)
    (fee :initarg :fee :reader fee)
    (net-cost :initarg :net-cost :reader net-cost)
    (net-volume :initarg :net-volume :reader net-volume)))
@@ -434,7 +435,7 @@
            ;; get symbol value
            (get (send (third command) (symbol-value (second command))))))
         ((send buffer last))
-        ((recv buffer next) (pushnew next trades :key #'uid :test #'equal))
+        ((recv buffer next) (pushnew next trades :key #'txid :test #'equal))
         (t (sleep 0.2))))))
 
 (defun execution-updater-loop (tracker)

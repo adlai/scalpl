@@ -154,14 +154,12 @@
         (values (mapcar (parser 'ask) asks)
                 (mapcar (parser 'bid) bids))))))
 
-(defclass btce-trade (trade) ((uid :initarg :uid :reader uid)))
-
 ;;; btce only lets us specify a number of trades to fetch, not a last seen trade
 ;;; so we'll at least warn when we detect a gap
 (defmethod trades-since ((market btce-market) &optional since)
   (mapcar (lambda (trade)
             (with-json-slots (price amount timestamp type tid) trade
-              (make-instance 'btce-trade :market market :direction type :uid tid
+              (make-instance 'trade :market market :direction type :txid tid
                              :timestamp (parse-timestamp *btce* timestamp)
                              ;; FIXME - "cost" later gets treated as precise
                              :volume amount :price price :cost (* amount price))))
@@ -169,7 +167,7 @@
             ;; TODO estimate count based on time delta
             (let ((trades (getjso (name market) it)))
               (or (and since
-                       (aif (member (uid since) (reverse trades)
+                       (aif (member (txid since) (reverse trades)
                                     :key (lambda (x) (getjso "tid" x)))
                             (reverse (rest it)) (warn "missing trades")))
                   trades)))))
@@ -185,7 +183,7 @@
                     (let* ((market (find-market pair *btce*))
                            (decimals (slot-value market 'decimals))
                            (price-int (round (* rate (expt 10 decimals)))))
-                      (make-instance 'placed :uid id
+                      (make-instance 'placed :oid id
                                      :market market :volume amount
                                      :price (if (string= type "buy")
                                                 (- price-int) price-int)))))

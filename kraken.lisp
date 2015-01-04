@@ -270,7 +270,7 @@
                            (decimals (slot-value market 'decimals))
                            (price-int (parse-price price decimals))
                            (volume (read-from-string vol)))
-                      (make-instance 'placed :uid id :market market
+                      (make-instance 'placed :oid id :market market
                                      :price (if (string= type "buy")
                                                 (- price-int) price-int)
                                      :volume (if (not (search "viqc" oflags))
@@ -293,10 +293,11 @@
     (read-from-string (getjso "fee" (getjso pair (getjso "fees" it))))))
 
 (defun parse-execution (txid json)
-  (with-json-slots (price pair fee cost vol time type) json
+  (with-json-slots (price pair fee cost vol time type ordertxid) json
     (let ((fee (parse-float fee))
           (cost (parse-float cost)))
-      (make-instance 'execution :fee fee :direction type :uid txid
+      (make-instance 'execution :fee fee :direction type
+                     :txid txid :oid ordertxid
                      :price (parse-float price) :cost cost
                      :volume (parse-float vol) :market (find-market pair *kraken*)
                      :net-volume (parse-float vol)
@@ -306,7 +307,7 @@
                                  ("sell" (- cost fee)))))))
 
 (defun raw-executions (gate &optional last)
-  (gate-request gate "TradesHistory" (when last `(("start" . ,(uid last))))))
+  (gate-request gate "TradesHistory" (when last `(("start" . ,(txid last))))))
 
 (defmethod execution-since ((gate kraken-gate) (market kraken-market) since)
   (awhen (raw-executions gate since)
@@ -379,7 +380,7 @@
              (awhen (post-limit gate type market (abs price) volume
                                 (slot-value market 'decimals))
                (with-json-slots (id order) it
-                 (change-class offer 'placed :uid id)))))
+                 (change-class offer 'placed :oid id)))))
       (if (< price 0) (post "buy") (post "sell")))))
 
 (defun cancel-order (gate oid)
@@ -387,5 +388,5 @@
 
 (defmethod cancel-offer ((gate kraken-gate) offer)
   ;; (format t "~&cancel ~A~%" offer)
-  (multiple-value-bind (ret err) (cancel-order gate (uid offer))
+  (multiple-value-bind (ret err) (cancel-order gate (oid offer))
     (or ret (search "Unknown order" (car err)))))
