@@ -194,6 +194,10 @@
                 (cons (find-asset name *btce*) amount))
               (getjso "funds" funds)))
 
+(defun available-balance (gate)
+  (awhen (gate-request gate "getInfo")
+    (extract-funds it)))
+
 (defmethod account-balances ((gate btce-gate))
   (awhen (gate-request gate "getInfo")  ; ASSUMES that these two API calls have
     (let ((placed (placed-offers gate)) ; nothing happen in between them!!!!!!!
