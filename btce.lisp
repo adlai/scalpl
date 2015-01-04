@@ -214,3 +214,26 @@
                      (cons (car pair) (+ (cdr pair) it))
                      pair))
               (extract-funds it)))))
+
+;;; they haven't heard of volume discounts yet...
+;;; actually, they have! https://btc-e.com/news/216
+(defmethod market-fee (gate (market btce-market)) (fee market))
+
+(defun parse-execution (txid json)
+  (with-json-slots ((oid "order_id") (wtfp "is_your_order")
+                    timestamp rate amount type pair) json
+    (let* ((market (find-market pair *btce*))
+           ;; btce deducts fees from the earned asset
+           (after-fee (- 1 (/ (market-fee nil market) 100)))
+           (cost (* rate amount)))
+      (make-instance 'execution :direction type
+                     :oid oid :txid (parse-integer txid)
+                     :price rate :cost cost
+                     :volume amount :market market
+                     :net-volume (string-case (type)
+                                   ("buy" (* amount after-fee))
+                                   ("sell" amount))
+                     :timestamp (parse-timestamp *btce* timestamp)
+                     :net-cost (string-case (type)
+                                 ("buy" cost)
+                                 ("sell" (* cost after-fee)))))))
