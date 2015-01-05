@@ -247,3 +247,38 @@
       ;; btce's from_id is inclusive, although just using #'rest will bug out
       ;; in the case where from_id was in a different market. thus, #'remove
       (remove txid (mapcar-jso #'parse-execution it) :key #'txid))))
+
+(defun post-raw-limit (gate type market price volume)
+  (gate-request gate "Trade"
+                `(("pair"   . ,market)
+                  ("type"   . ,type)
+                  ("rate"   . ,price)
+                  ("amount" . ,volume))))
+
+(defmethod post-offer ((gate btce-gate) offer)
+  ;; (format t "~&place  ~A~%" offer)
+  (with-slots (market volume price) offer
+    (flet ((post (type primary-volume)
+             (awhen (post-raw-limit gate type (name market)
+                                    (multiple-value-bind (int dec)
+                                        (floor (abs price)
+                                               (expt 10 (decimals market)))
+                                      (format nil "~D.~V,'0D"
+                                              int (decimals market) dec))
+                                    (format nil "~8$" primary-volume))
+               (with-json-slots (order_id #|received remains funds|#) it
+                 ;; TODO: use all of these, for better metadata snr
+                 (unless (zerop order_id) ; already executed
+                   (change-class offer 'placed :oid order_id))))))
+      (if (plusp price)
+          (post "sell" volume)
+          (post "buy" (/ volume (/ (abs price) (expt 10 (decimals market)))))))))
+
+(defun cancel-raw-order (gate oid)
+  (gate-request gate "CancelOrder" `(("order_id" . ,oid))))
+
+(defmethod cancel-offer ((gate btce-gate) offer)
+  ;; (format t "~&cancel ~A~%" offer)
+  (multiple-value-bind (ret err)
+      (cancel-raw-order gate (princ-to-string (oid offer)))
+    (or ret (string= err "bad status"))))
