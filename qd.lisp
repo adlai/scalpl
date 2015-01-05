@@ -307,8 +307,9 @@
                (total-shares (reduce #'+ (mapcar #'car chosen-stair-set)))
                ;; we need the smallest order to be epsilon
                (e/f (/ epsilon funds))
-               (bonus (/ (- (* e/f total-shares) (caar chosen-stair-set))
-                         (- 1 (* e/f target-stair-count)))))
+               (bonus (if (= 1 target-stair-count) 0
+                          (/ (- (* e/f total-shares) (caar chosen-stair-set))
+                             (- 1 (* e/f target-stair-count))))))
           (ignore-errors                ; dbz = no funds left, place no orders
             (mapcar (lambda (order)
                       (with-slots (market price) (cdr order)
