@@ -183,16 +183,14 @@
                     (let* ((market (find-market pair *btce*))
                            (decimals (slot-value market 'decimals))
                            (price-int (round (* rate (expt 10 decimals)))))
-                      (make-instance 'placed :oid id
+                      (make-instance 'placed :oid (parse-integer id)
                                      :market market :volume amount
                                      :price (if (string= type "buy")
                                                 (- price-int) price-int)))))
                 it)))
 
 (defun extract-funds (funds)
-  (mapcar-jso (lambda (name amount)
-                (cons (find-asset name *btce*) amount))
-              (getjso "funds" funds)))
+  (mapcar-jso #'cons (getjso "funds" funds)))
 
 (defun available-balance (gate)
   (awhen (gate-request gate "getInfo")
@@ -210,7 +208,7 @@
                          (* (volume offer) (- (price offer))
                             (expt 1/10 (decimals (market offer))))))))
       (mapcar (lambda (pair)
-                (aif (gethash (car pair) funds)
+                (aif (gethash (find-asset (car pair) *btce*) funds)
                      (cons (car pair) (+ (cdr pair) it))
                      pair))
               (extract-funds it)))))
