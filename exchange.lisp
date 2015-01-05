@@ -200,10 +200,10 @@
 
 (defmethod print-object ((trade trade) stream)
   (print-unreadable-object (trade stream :identity nil)
-    (with-slots (market volume price timestamp direction txid) trade
+    (with-slots (market volume price timestamp direction) trade
       (with-slots (primary decimals) market
-        (format stream "~A ~A at ~V$: ~V$ (~A)" timestamp
-                direction decimals price (decimals primary) volume txid)))))
+        (format stream "~A ~A at ~V$: ~V$" timestamp
+                direction decimals price (decimals primary) volume)))))
 
 (defgeneric trades-since (market &optional since))
 
@@ -261,7 +261,8 @@
     (let* ((volume (+ (volume prev) (volume next)))
            (cost   (+ (cost   prev) (cost   next)))
            (price (/ cost volume)))
-      (make-instance 'trade :market (market prev) :txid (txid next)  ;hack
+      (make-instance 'trade :market (market prev)
+                     :txid (ignore-errors (txid next)) ;hack
                      :timestamp (timestamp next) :cost cost
                      :volume volume :price price
                      :direction (direction prev)))))
