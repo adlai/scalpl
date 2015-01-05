@@ -134,7 +134,7 @@
   (destructuring-bind (command . options) request
     (awhen (post-request command key secret options)
       (with-json-slots (success return error) it
-        (if (zerop success) (list nil error) (list return))))))
+        (if (zerop success) (list (warn error) error) (list return))))))
 
 ;;;
 ;;; Public Data API
