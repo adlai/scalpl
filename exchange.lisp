@@ -412,7 +412,7 @@
    ;; TODO: is this the right model for a general execution tracking API?
    ;; bitfinex requires tracking distinct markets, kraken doesn't
    ;; keep your eyes open, for now we'll specify a single market per tracker
-   (market :initarg :market)
+   (market :initarg :market :reader market)
    (delay :initform 30 :initarg :delay)
    (trades :initform nil)
    (control :initform (make-instance 'channel))
