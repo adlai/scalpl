@@ -166,11 +166,11 @@
           (awhen (get-request (format nil "trades/~A" (name market)))
             ;; TODO estimate count based on time delta
             (let ((trades (getjso (name market) it)))
-              (or (and since
-                       (aif (member (txid since) (reverse trades)
-                                    :key (lambda (x) (getjso "tid" x)))
-                            (reverse (rest it)) (warn "missing trades")))
-                  trades)))))
+              (if since
+                  (aif (member (txid since) (reverse trades)
+                               :key (lambda (x) (getjso "tid" x)))
+                       (rest it) (warn "missing trades"))
+                  (reverse trades))))))
 
 ;;;
 ;;; Private Data API
