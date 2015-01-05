@@ -398,8 +398,8 @@
   ((balances :initarg :balances :initform nil)
    (input :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
+   (control :initform (make-instance 'channel))
    (gate :initarg :gate)
-   (delay :initform 15)
    updater worker))
 
 (defun balance-worker-loop (tracker)
@@ -421,9 +421,10 @@
       (recv output))))
 
 (defun balance-updater-loop (tracker)
-  (with-slots (gate input delay) tracker
-    (ignore-errors (send input `(balances . ,(account-balances gate))))
-    (sleep delay)))
+  (with-slots (gate control input) tracker
+    (recv control)
+    (send control (ignore-errors (aprog1 (account-balances gate)
+                                   (send input `(balances . ,it)))))))
 
 (defmethod vwap ((tracker account-tracker) &key type market depth net)
   (vwap (getf (slot-value tracker 'lictors) market) :type type :depth depth :net net))
@@ -511,6 +512,8 @@
                          (recv (slot-value trades-tracker 'output))))
           ;; TODO: doge is cute but let's move on
           (doge/btc (vwap trades-tracker :depth 50 :type :buy)))
+      (with-slots (control) (slot-value account-tracker 'treasurer)
+        (recv (send control nil)))      ; beautiful!
       (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
              (total-of (btc doge) (+ btc (/ doge doge/btc)))
              (factor-fund (fund factor) (* fund fund-factor factor)))
