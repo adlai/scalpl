@@ -19,7 +19,13 @@ This software is provided devoid of warranty and license; "do what thou wilt".
 
 ScalpL *will be* an engine for expressing arbitrarily intricate policies for
 placement and removal of offers in asset exchanges; currently, it is hardcoded
-as a market maker for the [Kraken](https://www.kraken.com), a Bitcoin exchange.
+as a market maker.
+
+# Exchanges
+
+Three Bitcoin exchanges are supported: [Bitfinex](https://www.bitfinex.com),
+[BTC-e](https://www.btc-e.com), and [Kraken](https://www.kraken.com). More are
+in the works.
 
 # Documentation
 
