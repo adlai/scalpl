@@ -261,7 +261,7 @@
     (let* ((volume (+ (volume prev) (volume next)))
            (cost   (+ (cost   prev) (cost   next)))
            (price (/ cost volume)))
-      (make-instance 'trade :market (market prev)
+      (make-instance 'trade :market (market prev) :txid (txid next)  ;hack
                      :timestamp (timestamp next) :cost cost
                      :volume volume :price price
                      :direction (direction prev)))))
