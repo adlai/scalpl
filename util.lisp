@@ -17,11 +17,15 @@
            #:string-case
            #:mapjso*
            #:urlencode-params
+           #:break-errors
            ))
 
 (in-package #:scalpl.util)
 
 ;;; Actually useful
+
+(defmacro break-errors (typespec &body forms)
+  `(ignore-errors (let ((*break-on-signals* ',typespec)) ,@forms)))
 
 (defun shallow-copy (object)
   (multiple-value-bind (create init) (make-load-form-saving-slots object)

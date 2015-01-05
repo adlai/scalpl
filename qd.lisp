@@ -310,7 +310,7 @@
                (bonus (if (= 1 target-stair-count) 0
                           (/ (- (* e/f total-shares) (caar chosen-stair-set))
                              (- 1 (* e/f target-stair-count))))))
-          (ignore-errors                ; dbz = no funds left, place no orders
+          (break-errors (not division-by-zero) ; dbz = no funds left, no biggie
             (mapcar (lambda (order)
                       (with-slots (market price) (cdr order)
                         (make-instance 'offer :market market :price (1- price)
