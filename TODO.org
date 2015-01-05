@@ -24,6 +24,14 @@ bitfinex and btce give volume in primary, always; kraken can do either
 ** currently profitability is checked
 *** in ope-filter
 *** against the entire buy/sell history
+* TODO normalize rawness convention
+** current status
+*** some methods take string arguments
+*** some take values and adapt them - fix these!
+** desired behavior
+any method with "raw" in its name, such as post-raw-limit:
+*** receives literal parameters, get inserted as-is to API requests
+*** returns json object of exchange's response
 * TODO Precision
 ** TODO Eradicate floats from all price calculations
 all price manipulation must be done on integer values! this should already be
