@@ -237,3 +237,15 @@
                      :net-cost (string-case (type)
                                  ("buy" cost)
                                  ("sell" (* cost after-fee)))))))
+
+(defun raw-executions (gate &optional symbol last)
+  (gate-request gate "TradeHistory"
+                `(,@(when symbol `(("pair"    . ,symbol)))
+                  ,@(when last   `(("from_id" . ,(princ-to-string last)))))))
+
+(defmethod execution-since ((gate btce-gate) (market btce-market) since)
+  (let ((txid (when since (txid since))))
+    (awhen (raw-executions gate (name market) txid)
+      ;; btce's from_id is inclusive, although just using #'rest will bug out
+      ;; in the case where from_id was in a different market. thus, #'remove
+      (remove txid (mapcar-jso #'parse-execution it) :key #'txid))))
