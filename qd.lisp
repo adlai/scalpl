@@ -645,34 +645,39 @@
                          :pubkey #P "secrets/some.pubkey"
                          :secret #P "secrets/some.secret"))
 
-;;; TODO: turn these into functions
+(defun current-depth (maker)
+  (with-slots (resilience-factor trades-tracker) maker
+    (with-slots (control output) trades-tracker
+      (send control '(max))
+      (* resilience-factor (recv output)))))
 
-#+nil
-(with-slots (account-tracker trades-tracker market) *maker*
-  (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
-         (total-of (btc doge) (+ btc (/ doge (vwap trades-tracker :depth 50 :type :buy))))
-         (vwap (side) (vwap account-tracker :type side :net t :market market)))
-    (let* ((trades (slot-reduce (second (slot-reduce account-tracker lictors)) trades))
-           (uptime (timestamp-difference (now) (timestamp (first (last trades)))))
-           (updays (/ uptime 60 60 24))
-           (volume (reduce #'+ (mapcar #'volume trades)))
-           (total-in-btc (with-slots (primary counter) market
-                           (total-of (symbol-funds primary) (symbol-funds counter)))))
-      (format t "~&Been up ~F days,~%traded ~F coins,~%portfolio flip per ~F days~%"
-              updays volume (/ (* total-in-btc updays 2) volume))
-      (/ (* volume (1- (profit-margin (vwap "buy") (vwap "sell"))))
-         (/ updays 30) total-in-btc))))
+(defun performance-overview (maker)
+  (with-slots (account-tracker trades-tracker market) maker
+    (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
+           (total-of (btc doge) (+ btc (/ doge (vwap trades-tracker :depth 50 :type :buy))))
+           (vwap (side) (vwap account-tracker :type side :net t :market market)))
+      (let* ((trades (slot-reduce (second (slot-reduce account-tracker lictors)) trades))
+             (uptime (timestamp-difference (now) (timestamp (first (last trades)))))
+             (updays (/ uptime 60 60 24))
+             (volume (reduce #'+ (mapcar #'volume trades)))
+             (total-in-btc (with-slots (primary counter) market
+                             (total-of (symbol-funds primary) (symbol-funds counter)))))
+        (format t "~&Been up              ~7@F days,~
+                   ~%traded               ~7@F coins,~
+                   ~%portfolio flip per   ~7@F days,~
+                   ~%estd monthly profit: ~5@$ percent~%"
+                updays volume (/ (* total-in-btc updays 2) volume)
+                (/ (* 100 volume (1- (profit-margin (vwap "buy") (vwap "sell"))))
+                   (/ updays 30) total-in-btc))))))
 
-#+nil
-(with-slots (resilience-factor trades-tracker) *maker*
-  (with-slots (control output) trades-tracker
-    (send control '(max))
-    (* resilience-factor (recv output))))
-
-#+nil
-(multiple-value-bind (bids asks)
-    (ope-placed (slot-reduce *maker* account-tracker ope))
-  (let ((bids-width (reduce 'max (mapcar 'length (mapcar 'princ-to-string bids))))
-        (asks-width (reduce 'max (mapcar 'length (mapcar 'princ-to-string asks)))))
-    (dotimes (i (max (length bids) (length asks)))
-      (format t "~&~V@A || ~V@A~%" bids-width (nth i bids) asks-width (nth i asks)))))
+(defgeneric print-book (book)
+  (:method ((maker maker)) (print-book (slot-reduce maker account-tracker ope)))
+  (:method ((ope ope-scalper))
+    (multiple-value-bind (bids asks) (ope-placed ope)
+      (flet ((width (side)
+               (reduce 'max (mapcar 'length (mapcar 'princ-to-string side))
+                       :initial-value 0)))
+        (dotimes (i (max (length bids) (length asks)))
+          (format t "~&~V@A || ~V@A~%"
+                  (width bids) (nth i bids)
+                  (width asks) (nth i asks)))))))
