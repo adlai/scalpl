@@ -159,6 +159,7 @@
    (secret :initarg :secret :initform (error "gate requires API secret"))
    (input  :initarg :input  :initform (make-instance 'channel))
    (output :initarg :output :initform (make-instance 'channel))
+   (cache  :initform nil)
    (thread :initarg :thread)))
 
 (defgeneric gate-post (gate pubkey secret request)
@@ -168,17 +169,24 @@
     (multiple-value-list (call-next-method))))
 
 (defun gate-loop (gate)
-  (with-slots (pubkey secret input output) gate
-    (send output (gate-post gate pubkey secret (recv input)))))
+  (with-slots (pubkey secret input output cache) gate
+    (setf cache (recv input))
+    (send output (gate-post gate pubkey secret cache))))
 
 (defmethod shared-initialize :after ((gate gate) (names t) &key)
-  (with-slots (output thread) gate
+  (with-slots (thread) gate
     (when (or (not (slot-boundp gate 'thread))
               (eq :terminated (task-status thread)))
       (setf thread (pexec (:name "qdm-preα gate" :initial-bindings
                                  '((*read-default-float-format* double-float)))
-                     (loop (if (not (send-blocks-p output)) (return)
-                               (send output '(nil "previous gate died"))))
+                     (with-slots (pubkey secret output cache) gate
+                       (unless (send-blocks-p output)
+                         (send output
+                               (if (null cache) '(nil "previous gate died")
+                                   (progn (cerror "Retry last/cached request"
+                                                  "Gate ~A detected unclean restart"
+                                                  gate)
+                                          (gate-post gate pubkey secret cache))))))
                      (loop (gate-loop gate)))))))
 
 (defun gate-request (gate path &optional options)
