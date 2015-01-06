@@ -157,28 +157,34 @@
 (defclass gate ()
   ((pubkey :initarg :pubkey :initform (error "gate requires API pubkey"))
    (secret :initarg :secret :initform (error "gate requires API secret"))
-   (in     :initarg :in     :initform (make-instance 'channel))
+   (input  :initarg :input  :initform (make-instance 'channel))
+   (output :initarg :output :initform (make-instance 'channel))
    (thread :initarg :thread)))
 
-(defgeneric gate-post (gate pubkey secret request))
+(defgeneric gate-post (gate pubkey secret request)
+  (:documentation "Attempts to perform `request' with the provided credentials.")
+  #+nil                                 ; for automatic multiple value wrapping
+  (:method :around (gate pubkey secret request)
+    (multiple-value-list (call-next-method))))
 
 (defun gate-loop (gate)
-  (with-slots (pubkey secret in) gate
-    (destructuring-bind (ret . request) (recv in)
-      (send ret (gate-post gate pubkey secret request)))))
+  (with-slots (pubkey secret input output) gate
+    (send output (gate-post gate pubkey secret (recv input)))))
 
 (defmethod shared-initialize :after ((gate gate) (names t) &key)
-  (with-slots (thread) gate
+  (with-slots (output thread) gate
     (when (or (not (slot-boundp gate 'thread))
               (eq :terminated (task-status thread)))
       (setf thread (pexec (:name "qdm-preα gate" :initial-bindings
                                  '((*read-default-float-format* double-float)))
+                     (loop (if (not (send-blocks-p output)) (return)
+                               (send output '(nil "previous gate died"))))
                      (loop (gate-loop gate)))))))
 
 (defun gate-request (gate path &optional options)
-  (let ((out (make-instance 'channel)))
-    (send (slot-value gate 'in) (list* out path options))
-    (values-list (recv out))))
+  (with-slots (input output) gate
+    (send input (cons path options))
+    (values-list (recv output))))
 
 ;;;
 ;;; Public Data API
