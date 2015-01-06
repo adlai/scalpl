@@ -32,6 +32,8 @@ bitfinex and btce give volume in primary, always; kraken can do either
 any method with "raw" in its name, such as post-raw-limit:
 *** receives literal parameters, get inserted as-is to API requests
 *** returns json object of exchange's response
+* TODO Cleanup TODO.org
+because no circle is complete without its meta
 * TODO Precision
 ** TODO Eradicate floats from all price calculations
 all price manipulation must be done on integer values! this should already be
@@ -51,6 +53,24 @@ Offer placement and offer cancellation
 * TODO Actor Abstraction
 CSP×FSM
 ** DONE MVP
+** TODO port existing code to use MVP
+*** TODO gate
+**** TODO kraken
+**** TODO bitfinex
+**** TODO btce
+*** TODO trades-tracker
+*** TODO book-tracker
+*** TODO tracked-market
+*** TODO execution-tracker
+*** TODO fee-tracker
+*** TODO balance-tracker
+*** TODO account-tracker
+*** TODO ope
+**** TODO scalper
+**** TODO supplicant
+**** TODO filter
+**** TODO prioritizer
+*** TODO maker
 ** macro prototype
 *** TODO sample
 **** input - port current gate, as-is, to imagipony defactor macro
@@ -99,7 +119,7 @@ we'll need a cross-actor debugger / condition handler, and repl-like functionali
 make the condition system and debugger function across threads, see cond.js
 **** reflection / inspection
 send a function to be applied to the actor (return handled by caller)
-* TODO Basis Tracking - extension of balance tracking
+* TODO Basis Tracking
 basis tracking ≡ keep track of the last buys and sells, make sure future trades
 are always profitable. perhaps have a configurable parameter that toggles
 whether you can "create new positions" rather than just "close old ones"?
@@ -108,6 +128,7 @@ cost basis for an asset = price at which you purchased the asset, and
 optionally the cost basis which was traded away for acquiring the asset
 ** price should account for exchange fees
 (margins too narrow to help out future-you figure out wtf you meant?)
+** bastard child from the unholy marriage of balance and execution tracking
 * TODO Portfolio Handling Guidelines
 How the investor specifies guidelines to the automated market maker
 ** "risk tolerances"
@@ -198,6 +219,16 @@ not even distinct levels of funds, each bound at different resilience levels.
 *** Order book
 *** Resilience
 *** Funds
+** TODO Pruning
+because the best names are both stolen and inappropriate
+*** receives target offers of unknown profitability
+*** checks each offer against executions from the other side
+*** unprofitable offers get modified to restore profitability
+possible methods:
+**** reduce offer size, in favor of subsequent one(s)
+simpler, doesn't require inflection points
+**** adjust offer price, and that of subsequent ones
+best performed in relation to order book inflection points
 * TODO de-brittlify nonces
 ** btce's nonce code will crap out on 2015-02-18
 ** bitfinex's is likely at some point to overflow and break hidden offers
