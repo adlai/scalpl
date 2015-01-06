@@ -141,8 +141,8 @@
         (format stream "~V$ ~A" decimals volume name)))))
 
 (defgeneric consumed-asset (offer)
-  (:method ((bid bid)) (slot-value (slot-value bid 'market) 'counter))
-  (:method ((ask ask)) (slot-value (slot-value ask 'market) 'primary))
+  (:method ((bid bid)) (counter (market bid)))
+  (:method ((ask ask)) (primary (market ask)))
   (:method ((offer offer))
     (with-slots (market price) offer
       (slot-value market (if (> price 0) 'primary 'counter)))))
