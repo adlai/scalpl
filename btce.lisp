@@ -65,7 +65,7 @@
           ;;      (sleep 2)
           ;;      (apply #'raw-request path keys))
           (t (error "HTTP Error ~D~%~A" status body))))
-    (nil (e)
+    ((or usocket:timeout-error) (e)
       (describe e)
       (sleep 2)
       (apply #'raw-request path keys))))
