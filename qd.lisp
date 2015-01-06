@@ -30,7 +30,7 @@
 (defclass ope-prioritizer ()
   ((next-bids :initform (make-instance 'channel))
    (next-asks :initform (make-instance 'channel))
-   (prioritizer-response :initform (make-instance 'channel))
+   (response :initform (make-instance 'channel))
    (supplicant :initarg :supplicant) thread
    (frequency :initarg :frequency :initform 1/7)))
 
@@ -230,9 +230,9 @@
 
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
-;;; sends completion acknowledgement to prioritizer-response channel
+;;; sends completion acknowledgement to response channel
 (defun ope-prioritizer-loop (ope)
-  (with-slots (next-bids next-asks prioritizer-response frequency) ope
+  (with-slots (next-bids next-asks response frequency) ope
     (flet ((place (new) (ope-place ope new))
            (amount-change (old new &aux (old-vol (volume old)))
              (/ (abs (- (volume new) old-vol)) old-vol)))
@@ -252,7 +252,7 @@
                                (ope-cancel ope old))
                         (if (place new) (setf target (remove new target))
                             (return (ope-cancel ope old))))))
-               (send prioritizer-response t)))
+               (send response t)))
         (multiple-value-bind (placed-bids placed-asks) (ope-placed ope)
           (select
             ((recv next-bids to-bid) (update to-bid placed-bids))
@@ -338,18 +338,18 @@
         ;; TODO: Rework flow so both sides are updated on each book query...
         ;; TODO: using two prioritizers (bid / ask), and an alternator?
         ;; TODO: properly deal with partial and completed orders
-        (with-slots (next-bids next-asks prioritizer-response) prioritizer
+        (with-slots (next-bids next-asks response) prioritizer
           (do-side (counter bids)
             (send next-bids
                   (dumbot-offers bids resilience counter
                                  (* epsilon (- (price (first bids)))
                                     (expt 10 (- (decimals (market (first bids))))))
                                  (/ count 2)))
-            (recv prioritizer-response))
+            (recv response))
           (do-side (primary asks)
             (send next-asks (dumbot-offers asks resilience primary
                                            epsilon (/ count 2)))
-            (recv prioritizer-response)))))
+            (recv response)))))
     (send output nil)))
 
 (defmethod shared-initialize :after ((prioritizer ope-prioritizer) (slots t) &key)
