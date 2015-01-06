@@ -150,6 +150,7 @@
    (supplicant :initarg :supplicant :initform (error "must link supplicant"))
    (frequency  :initarg :frequency  :initform 1/7) ; TODO: push depth deltas
    (lictor     :initarg :lictor     :initform (error "must link lictor"))
+   (rudder     :initarg :rudder     :initform '(() . ()))
    fee foreigners thread))
 
 ;;; needs to do three different things
@@ -158,7 +159,7 @@
 ;;; 3) profit vs recent cost basis - done, shittily - TODO parametrize depth
 
 (defun ope-filter-loop (ope)
-  (with-slots (book bids asks foreigners frequency supplicant fee lictor) ope
+  (with-slots (book bids asks foreigners frequency supplicant fee lictor rudder) ope
     (destructuring-bind (bids . asks) (recv (slot-value book 'output))
       (flet ((filter-book (side)
                (with-slots (control response) supplicant
@@ -179,8 +180,8 @@
                  (0 (pop other-bids) (pop other-asks)))
              finally (setf foreigners (cons other-bids other-asks))))))
     (let ((quotient (expt 10 (decimals (market fee))))
-          (svwap (vwap lictor :type "sell"))
-          (bvwap (vwap lictor :type "buy")))
+          (svwap (vwap lictor :type "sell" :depth (car rudder)))
+          (bvwap (vwap lictor :type "buy"  :depth (cdr rudder))))
       ;; TODO macro/flet
       (unless (zerop svwap)
         (swhen (car foreigners)
