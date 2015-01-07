@@ -3,6 +3,7 @@
 (defpackage #:scalpl.exchange
   (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util)
   (:export #:exchange #:name #:assets #:markets #:parse-timestamp
+           #:*exchanges* #:find-exchange
            #:asset #:find-asset
            #:market #:decimals #:primary #:counter #:find-market
            #:offer #:bid #:ask #:placed #:market-order
@@ -33,6 +34,10 @@
 ;;; Exchanges
 ;;;
 
+(defvar *exchanges* (make-hash-table))
+
+(defun find-exchange (name) (gethash name *exchanges*))
+
 (defclass exchange ()
   ((name    :initarg :name    :reader name)
    (assets  :initarg :assets  :reader assets)
@@ -40,8 +45,9 @@
    ;; FIXME: broken af
    (market-timestamp-sensitivity :initarg :sensitivity)))
 
-(defmethod shared-initialize :after ((exchange exchange) (names t) &key)
-  (with-slots (assets markets) exchange
+(defmethod initialize-instance :after ((exchange exchange) &key)
+  (with-slots (name assets markets) exchange
+    (setf (gethash (setf name (intern name :keyword)) *exchanges*) exchange)
     (dolist (asset assets) (setf (slot-value asset 'exchange) exchange))
     (dolist (market markets) (setf (slot-value market 'exchange) exchange))))
 
