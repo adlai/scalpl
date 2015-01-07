@@ -161,7 +161,7 @@
         (find designator markets :key 'altname :test 'string-equal))))
 
 (defclass kraken-gate (gate)
-  ((count :initform 0) (delay :initform 19/3)  ; why not delay=5 ?
+  ((count :initform 0) (delay :initform 7)  ; why not delay=5 ?
    (mint :initform (make-instance 'channel))
    (tokens :initform (make-instance 'channel))
    token-minter token-handler))

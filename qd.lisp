@@ -167,9 +167,9 @@
         (let ((other-bids (filter-book bids))
               (other-asks (filter-book asks)))
           (loop
-             for best-bid = (1+ (- (price (car other-bids))))
-             for best-ask = (1-    (price (car other-asks)))
-             for spread = (profit-margin best-bid best-ask fee)
+             for best-bid = (1- (price (car other-bids)))
+             for best-ask = (1- (price (car other-asks)))
+             for spread = (profit-margin (abs best-bid) best-ask fee)
              ;; do (format t "~&~8,'0D ~8,'0D ~5F~%" best-bid best-ask spread)
              until (> spread 1) do
                (ecase (round (signum (* (max 0 (- best-ask best-bid 10))
@@ -343,7 +343,7 @@
           (do-side (counter bids)
             (send next-bids
                   (dumbot-offers bids resilience counter
-                                 (* epsilon (- (price (first bids)))
+                                 (* epsilon (abs (price (first bids)))
                                     (expt 10 (- (decimals (market (first bids))))))
                                  (/ count 2)))
             (recv response))
