@@ -69,10 +69,14 @@
 ;;; Assets
 ;;;
 
+(defvar *asset-id-counter* 0)
+(defvar *asset-registry* (make-hash-table))
+
 (defclass asset ()
   ((name     :initarg :name     :reader name)
    (decimals :initarg :decimals :reader decimals)
-   (exchange :initarg :exchange :reader exchange)))
+   (exchange :initarg :exchange :reader exchange)
+   (index    :initform (incf *asset-id-counter*))))
 
 (defmethod print-object ((asset asset) stream)
   (print-unreadable-object (asset stream :type nil :identity nil)
@@ -82,8 +86,13 @@
   (:method (designator (assets list))
     (find designator assets :key 'name :test 'string-equal))
   (:method (designator (exchange exchange))
-    (with-slots (assets) exchange
-      (find-market designator assets))))
+    (find-market designator (assets exchange)))
+  (:method (designator (registry hash-table))
+    (gethash designator registry)))
+
+(defmethod initialize-instance :after ((asset asset) &key)
+  (setf (gethash (slot-value asset 'index) *asset-registry*) asset))
+
 
 ;;;
 ;;; Markets
