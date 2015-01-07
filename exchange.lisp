@@ -163,18 +163,19 @@
 
 (defclass bid (offer) ()) (defclass ask (offer) ())
 
-(defmethod initialize-instance :after ((bid bid) &key)
-  (with-slots (market taken given volume price) bid
-    (setf taken (cons-aq* (primary market) volume)
-          given (with-slots (counter decimals) market
-                  (cons-aq* counter (* volume (/ price (expt 10 decimals))))))
-    (setf price (- price))))
+(defmethod initialize-instance ((bid bid) &rest keys &key price)
+  (apply #'call-next-method bid :price (- price) keys))
 
-(defmethod initialize-instance :after ((ask ask) &key)
-  (with-slots (market taken given volume price) ask
-    (setf given (cons-aq* (primary market) volume)
-          taken (with-slots (counter decimals) market
-                  (cons-aq* counter (* volume (/ price (expt 10 decimals))))))))
+(defmethod initialize-instance :after ((offer offer) &key)
+  (with-slots (market taken given volume price) offer
+    ((lambda (primary counter)
+       (setf (values        given   taken)
+             (ecase (signum price)
+               (+1 (values primary counter))
+               (-1 (values counter primary)))))
+     (cons-aq* (primary market) volume)
+     (with-slots (counter decimals) market
+       (cons-aq* counter (* volume (/ (abs price) (expt 10 decimals))))))))
 
 (defmethod print-object ((offer offer) stream)
   (print-unreadable-object (offer stream :type t)
