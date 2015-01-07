@@ -65,7 +65,7 @@
           ;;      (sleep 2)
           ;;      (apply #'raw-request path keys))
           (t (error "HTTP Error ~D~%~A" status body))))
-    ((or usocket:timeout-error simple-error) (e)
+    ((or usocket:timeout-error simple-error cl+ssl::ssl-error-syscall) (e)
       (describe e)
       (sleep 2)
       (apply #'raw-request path keys))))
