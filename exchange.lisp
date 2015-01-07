@@ -4,9 +4,11 @@
   (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util)
   (:export #:exchange #:name #:assets #:markets #:parse-timestamp
            #:*exchanges* #:find-exchange
-           #:asset #:find-asset
+           #:asset #:find-asset #:asset-quantity
+           #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
            #:market #:decimals #:primary #:counter #:find-market
            #:offer #:bid #:ask #:placed #:market-order
+           #:taken #:given
            #:volume #:price #:placed #:oid #:consumed-asset
            #:gate #:gate-post #:gate-request
            #:thread #:control #:updater #:worker #:output ; coming soon: actors!
@@ -151,16 +153,28 @@
 
 (defclass offer ()
   ((market :initarg :market :reader market)
+   (taken  :initarg :taken  :reader taken)
+   (given  :initarg :given  :reader given)
    (volume :initarg :volume :accessor volume)
    (price  :initarg :price  :reader price)))
 
 (defclass placed (offer)
   ((oid    :initarg :oid    :reader oid)))
 
-(defclass bid (offer) ())
-(defclass ask (offer) ())
+(defclass bid (offer) ()) (defclass ask (offer) ())
+
 (defmethod initialize-instance :after ((bid bid) &key)
-  (with-slots (price) bid (setf price (- price))))
+  (with-slots (market taken given volume price) bid
+    (setf taken (cons-aq* (primary market) volume)
+          given (with-slots (counter decimals) market
+                  (cons-aq* counter (* volume (/ price (expt 10 decimals))))))
+    (setf price (- price))))
+
+(defmethod initialize-instance :after ((ask ask) &key)
+  (with-slots (market taken given volume price) ask
+    (setf given (cons-aq* (primary market) volume)
+          taken (with-slots (counter decimals) market
+                  (cons-aq* counter (* volume (/ price (expt 10 decimals))))))))
 
 (defmethod print-object ((offer offer) stream)
   (print-unreadable-object (offer stream :type t)

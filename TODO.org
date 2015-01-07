@@ -40,7 +40,7 @@ all price manipulation must be done on integer values! this should already be
 the case, but do a line-by-line audit just to be 100% certain
 ** TODO Switch to CL-JSON
 for full control of float parsing, rather than ST-JSON's default to #'READ
-** TODO Replace scalars with amount×asset where appropriate
+** TODO Replace scalars with asset-quantity where appropriate
 a bit of an endeavor, but will be worthwhile. required for proper level2 depth!
 ** TODO Eradicate floats from all calculations
 using floats for statistical calculations is tolerable, but we can do better
