@@ -106,9 +106,10 @@
 (defun asset (aq) (find-asset (imagpart aq) *asset-registry*))
 (defun quantity (aq) (realpart aq))
 (defun scaled-quantity (aq) (/ (realpart aq) (expt 10 (decimals (asset aq)))))
-(defun cons-aq (asset quantity) (complex quantity (slot-value asset 'index)))
+(defun cons-aq (asset quantity)
+  (complex (round quantity) (slot-value asset 'index)))
 (defun cons-aq* (asset quantity)
-  (cons-aq asset (round (* quantity (expt 10 (decimals asset))))))
+  (cons-aq asset (* quantity (expt 10 (decimals asset)))))
 
 ;;; might not be useful, but let's have it around
 (defun aq+ (aq1 aq2 &rest aqs)
@@ -166,13 +167,13 @@
 (defmethod initialize-instance ((bid bid) &rest keys &key price)
   (apply #'call-next-method bid :price (- price) keys))
 
-(defmethod initialize-instance :after ((offer offer) &key)
+(defmethod shared-initialize :after ((offer offer) names &key)
   (with-slots (market taken given volume price) offer
     ((lambda (primary counter)
-       (setf (values        given   taken)
-             (ecase (signum price)
-               (+1 (values primary counter))
-               (-1 (values counter primary)))))
+       (when (or (eq names t) (find 'given names))
+         (setf given (ecase (signum price) (+1 primary) (-1 counter))))
+       (when (or (eq names t) (find 'taken names))
+         (setf taken (ecase (signum price) (+1 counter) (-1 primary)))))
      (cons-aq* (primary market) volume)
      (with-slots (counter decimals) market
        (cons-aq* counter (* volume (/ (abs price) (expt 10 decimals))))))))
