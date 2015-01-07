@@ -151,7 +151,7 @@
 
 (defvar *kraken*
   (let ((assets (get-assets)))
-    (make-instance 'exchange :name "Kraken"
+    (make-instance 'exchange :name :kraken
                    :sensitivity 0.3
                    :assets assets :markets (get-markets assets))))
 
