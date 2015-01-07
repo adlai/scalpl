@@ -466,7 +466,7 @@
 (defgeneric market-fee (gate market)
   (:method :around ((gate gate) (market market))
     (actypecase (call-next-method)
-      (number `(,it . ,it)) (cons it))))
+      (number `(,it . ,it)) (cons it) (null))))
 
 ;;;
 ;;; EXECUTION TRACKING
