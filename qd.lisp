@@ -543,10 +543,9 @@
                     (sleep 2)
                     ;; theoretically, this could exceed available volume, but
                     ;; that's highly unlikely with a fund-factor below ~3/2
-                    (awhen (ope-place ope (if (> investment 1/2) ; magic?
-                                              (urgent 'ask 'asks total-btc)
-                                              (urgent 'bid 'bids total-doge)))
-                      (format t " ~A" it) (force-output))))))
+                    (ope-place ope (if (> investment 1/2) ; magic?
+                                       (urgent 'ask 'asks total-btc)
+                                       (urgent 'bid 'bids total-doge)))))))
             (recv (slot-value ope 'output))))))))
 
 (defun dumbot-loop (maker)
