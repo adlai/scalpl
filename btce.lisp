@@ -154,23 +154,24 @@
         (values (mapcar (parser 'ask) asks)
                 (mapcar (parser 'bid) bids))))))
 
+(defun trade-parser (market)
+  (lambda (trade)
+    (with-json-slots (price amount timestamp type tid) trade
+      (make-instance 'trade :market market :direction type :txid tid
+                     :timestamp (parse-timestamp *btce* timestamp)
+                     ;; FIXME - "cost" later gets treated as precise
+                     :volume amount :price price :cost (* amount price)))))
+
 ;;; btce only lets us specify a number of trades to fetch, not a last seen trade
 ;;; so we'll at least warn when we detect a gap
 (defmethod trades-since ((market btce-market) &optional since)
-  (mapcar (lambda (trade)
-            (with-json-slots (price amount timestamp type tid) trade
-              (make-instance 'trade :market market :direction type :txid tid
-                             :timestamp (parse-timestamp *btce* timestamp)
-                             ;; FIXME - "cost" later gets treated as precise
-                             :volume amount :price price :cost (* amount price))))
-          (awhen (get-request (format nil "trades/~A" (name market)))
-            ;; TODO estimate count based on time delta
-            (let ((trades (getjso (name market) it)))
-              (if since
-                  (aif (member (txid since) (reverse trades)
-                               :key (lambda (x) (getjso "tid" x)))
-                       (rest it) (warn "missing trades"))
-                  (reverse trades))))))
+  ;; TODO estimate count based on time delta
+  (awhen (get-request (format nil "trades/~A" (name market)))
+    (let ((trades (mapcar (trade-parser market)
+                          (getjso (name market) it))))
+      (if since (aif (member (txid since) (reverse trades) :key #'txid)
+                     (rest it) (warn "missing trades"))
+          (reverse trades)))))
 
 ;;;
 ;;; Private Data API
