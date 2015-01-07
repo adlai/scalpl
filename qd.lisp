@@ -613,6 +613,7 @@
             (book-tracker updater)
             (book-tracker worker)
             (fee-tracker thread))))
+  #+sbcl (sb-ext:gc :full t)
   (when revive
     (dolist (actor
               (list (slot-reduce maker book-tracker)
