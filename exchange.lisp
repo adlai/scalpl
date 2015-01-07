@@ -93,6 +93,33 @@
 (defmethod initialize-instance :after ((asset asset) &key)
   (setf (gethash (slot-value asset 'index) *asset-registry*) asset))
 
+;;;
+;;; Asset Quantities
+;;;
+
+(deftype asset-quantity ()
+  "A precise quantity of a given asset"
+  '(complex unsigned-byte))
+
+(defun asset (aq) (find-asset (imagpart aq) *asset-registry*))
+(defun quantity (aq) (realpart aq))
+(defun scaled-quantity (aq) (/ (realpart aq) (expt 10 (decimals (asset aq)))))
+(defun cons-aq (asset quantity) (complex quantity (slot-value asset 'index)))
+(defun cons-aq* (asset quantity)
+  (cons-aq asset (round (* quantity (expt 10 (decimals asset))))))
+
+;;; might not be useful, but let's have it around
+(defun aq+ (aq1 aq2 &rest aqs)
+  (assert (eq (asset aq1) (asset aq2)))
+  (if aqs (reduce #'aq+ aqs :initial-value (aq+ aq1 aq2))
+      (cons-aq (asset aq1) (+ (quantity aq1) (quantity aq2)))))
+
+;;; ditto... but let's not go any further, yet
+(defun aq- (aq1 &optional aq2 &rest aqs)
+  (cond (aqs (aq- aq1 (reduce #'aq+ aqs :initial-value aq2)))
+        (aq2 (assert (eq (asset aq1) (asset aq2)))
+             (cons-aq (asset aq1) (- (quantity aq1) (quantity aq2))))
+        (t   (cons-aq (asset aq1) (- (quantity aq1))))))
 
 ;;;
 ;;; Markets
