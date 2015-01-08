@@ -486,6 +486,7 @@
                (dbz-guard (* 100 (1- (profit-margin (vwap "buy")
                                                     (vwap "sell"))))))))
       ;; FIXME: modularize all this decimal point handling
+      ;; we need a pprint-style ~/aq/ function, and pass it aq objects!
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
       (format t "~&~A ~A ~V$ ~V$ ~V$ ~V$ ~2,2$% ~2,2$% ~2,2@$~{ ~6@$~}~%"
               name (format-timestring nil (now) :format
