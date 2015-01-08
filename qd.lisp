@@ -297,20 +297,24 @@
        ((or (null remaining-offers)  ; EITHER: processed entire order book
             (and (> acc resilience)  ;     OR: (   BOTH: processed past resilience
                  (> processed-tally max-orders))) ; AND: processed enough orders )
-        (let* ((target-stair-count (min (floor (/ funds epsilon 4/3))  ; ygni!
-                                        max-orders processed-tally))
-               (chosen-stair-set        ; the (shares . foreign-offer)s to fight
-                (cons (first foreign-offers)
-                      (unless (zerop target-stair-count)
-                        (subseq (sort (subseq foreign-offers 1 processed-tally)
-                                      #'> :key (lambda (x) (volume (cdr x))))
-                                0 (1- target-stair-count)))))
-               (total-shares (reduce #'+ (mapcar #'car chosen-stair-set)))
+        (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni!
+                                  max-orders processed-tally))
+               (chosen-stairs           ; the (shares . foreign-offer)s to fight
+                (flet ((pick (count offers)
+                         (subseq (sort (subseq offers 0 (1- processed-tally))
+                                       #'> :key (lambda (x) (volume (cdr x))))
+                                 0 count)))
+                  (case target-count (0 nil)
+                        ((1 2) (pick target-count foreign-offers))
+                        (t (cons (first foreign-offers)
+                                 (pick (1- target-count)
+                                       (rest foreign-offers)))))))
+               (total-shares (reduce #'+ (mapcar #'car chosen-stairs)))
                ;; we need the smallest order to be epsilon
                (e/f (/ epsilon funds))
-               (bonus (if (= 1 target-stair-count) 0
-                          (/ (- (* e/f total-shares) (caar chosen-stair-set))
-                             (- 1 (* e/f target-stair-count))))))
+               (bonus (if (>= 1 target-count) 0
+                          (/ (- (* e/f total-shares) (caar chosen-stairs))
+                             (- 1 (* e/f target-count))))))
           (break-errors (not division-by-zero) ; dbz = no funds left, no biggie
             (mapcar (lambda (order)
                       (with-slots (market price) (cdr order)
@@ -319,8 +323,8 @@
                                                   (/ (+ bonus (car order))
                                                      (+ total-shares
                                                         (* bonus
-                                                           target-stair-count)))))))
-                    (sort chosen-stair-set #'<
+                                                           target-count)))))))
+                    (sort chosen-stairs #'<
                           :key (lambda (x) (price (cdr x))))))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
