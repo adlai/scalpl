@@ -477,7 +477,7 @@
    (lops :initform '(1/2 1/4 1/7))
    thread))
 
-(defun makereport (maker total-fund doge/btc total-btc total-doge investment risked skew)
+(defun makereport (maker fund doge/btc btc doge investment risked skew)
   (with-slots (name market account-tracker report-depths) maker
     (flet ((asset-decimals (kind) (decimals (slot-value market kind)))
            (depth-profit (&optional depth)
@@ -490,15 +490,15 @@
       (format t "~&~A ~A ~V$ ~V$ ~V$ ~V$ ~2,2$% ~2,2$% ~2,2@$~{ ~6@$~}~%"
               name (format-timestring nil (now) :format
                                       '((:hour 2) #\: (:min  2) #\: (:sec  2)))
-              (asset-decimals 'primary)    total-fund
-              (asset-decimals 'counter) (* total-fund doge/btc)
-              (asset-decimals 'primary)    total-btc
-              (asset-decimals 'counter)    total-doge
+              (asset-decimals 'primary)    fund
+              (asset-decimals 'counter) (* fund doge/btc)
+              (asset-decimals 'primary)    btc
+              (asset-decimals 'counter)    doge
               (* 100 investment) (* 100 risked) (* 100 skew)
               (maplist (lambda (depths)
                          (apply #'depth-profit
                                 (sctypecase (first depths)
-                                  (null) (number `(,(* total-fund it))))))
+                                  (null) (number `(,(* fund it))))))
                        report-depths))))
   (force-output))
 
