@@ -165,13 +165,14 @@
 ;;; btce only lets us specify a number of trades to fetch, not a last seen trade
 ;;; so we'll at least warn when we detect a gap
 (defmethod trades-since ((market btce-market) &optional since)
+  (when since (assert (eq market (market since))))
   ;; TODO estimate count based on time delta
   (awhen (get-request (format nil "trades/~A" (name market)))
-    (let ((trades (mapcar (trade-parser market)
-                          (getjso (name market) it))))
-      (if since (aif (member (txid since) (reverse trades) :key #'txid)
-                     (rest it) (warn "missing trades"))
-          (reverse trades)))))
+    (aprog1 (reverse (mapcar (trade-parser market) (getjso (name market) it)))
+      (when since
+        (awhen (member (txid since) it :key #'txid)
+          (return-from trades-since (rest it)))
+        (warn "missing trades since ~A" since)))))
 
 ;;;
 ;;; Private Data API
