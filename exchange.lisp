@@ -49,7 +49,7 @@
 
 (defmethod initialize-instance :after ((exchange exchange) &key)
   (with-slots (name assets markets) exchange
-    (setf (gethash (setf name (intern name :keyword)) *exchanges*) exchange)
+    (setf (gethash name *exchanges*) exchange)
     (dolist (asset assets) (setf (slot-value asset 'exchange) exchange))
     (dolist (market markets) (setf (slot-value market 'exchange) exchange))))
 
