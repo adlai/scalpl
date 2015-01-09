@@ -285,35 +285,34 @@
        ((or (null remaining-offers)  ; EITHER: processed entire order book
             (and (> acc resilience)  ;     OR: (   BOTH: processed past resilience
                  (> processed-tally max-orders))) ; AND: processed enough orders )
-        (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni!
-                                  max-orders processed-tally))
-               (chosen-stairs           ; the (shares . foreign-offer)s to fight
-                (flet ((pick (count offers)
-                         (subseq (sort (subseq offers 0 (1- processed-tally))
-                                       #'> :key (lambda (x) (volume (cdr x))))
-                                 0 count)))
+        (flet ((pick (count offers)
+                 (sort (subseq (sort (subseq offers 0 (1- processed-tally))
+                                     #'> :key (lambda (x) (volume (cdr x))))
+                               0 count) #'< :key (lambda (x) (price (cdr x))))))
+          (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni!
+                                    max-orders processed-tally))
+                 (chosen-stairs         ; the (shares . foreign-offer)s to fight
                   (case target-count (0 nil)
                         ((1 2) (pick target-count foreign-offers))
                         (t (cons (first foreign-offers)
                                  (pick (1- target-count)
-                                       (rest foreign-offers)))))))
-               (total-shares (reduce #'+ (mapcar #'car chosen-stairs)))
-               ;; we need the smallest order to be epsilon
-               (e/f (/ epsilon funds))
-               (bonus (if (>= 1 target-count) 0
-                          (/ (- (* e/f total-shares) (caar chosen-stairs))
-                             (- 1 (* e/f target-count))))))
-          (break-errors (not division-by-zero) ; dbz = no funds left, no biggie
-            (mapcar (lambda (order)
-                      (with-slots (market price) (cdr order)
-                        (make-instance 'offer :market market :price (1- price)
-                                       :volume (* funds
-                                                  (/ (+ bonus (car order))
-                                                     (+ total-shares
-                                                        (* bonus
-                                                           target-count)))))))
-                    (sort chosen-stairs #'<
-                          :key (lambda (x) (price (cdr x))))))))
+                                       (rest foreign-offers))))))
+                 (total-shares (reduce #'+ (mapcar #'car chosen-stairs)))
+                 ;; we need the smallest order to be epsilon
+                 (e/f (/ epsilon funds))
+                 (bonus (if (>= 1 target-count) 0
+                            (/ (- (* e/f total-shares) (caar chosen-stairs))
+                               (- 1 (* e/f target-count))))))
+            (break-errors (not division-by-zero) ; dbz = no funds left, no biggie
+              (mapcar (lambda (order)
+                        (with-slots (market price) (cdr order)
+                          (make-instance 'offer :market market :price (1- price)
+                                         :volume (* funds
+                                                    (/ (+ bonus (car order))
+                                                       (+ total-shares
+                                                          (* bonus
+                                                             target-count)))))))
+                      chosen-stairs)))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
     (with-slots (volume) (first remaining-offers)
