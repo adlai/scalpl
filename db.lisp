@@ -38,3 +38,19 @@
     ("price"        "numeric not null")
     ("net_cost"     "numeric not null")
     ("net_volume"   "numeric not null")))
+
+(defun sqlize-execution (execution)
+  (with-slots (timestamp market txid oid direction
+               volume price cost net-cost net-volume) execution
+    (with-slots (name exchange primary counter decimals) market
+      (mapcar (lambda (literal) (format nil "'~A'" literal))
+              (list timestamp (name exchange) name txid oid direction
+                    (format nil "~V$" (decimals primary) volume)
+                    (format nil "~V$" (decimals counter) cost)
+                    (format nil "~V$" decimals price)
+                    (format nil "~V$" (decimals counter) net-volume)
+                    (format nil "~V$" (decimals primary) net-cost))))))
+
+(defun insert-executions (db executions)
+  (sql db "INSERT INTO executions VALUES ~{(~{~A~#[~:;, ~]~})~#[~:;, ~]~};"
+       (mapcar #'sqlize-execution executions)))
