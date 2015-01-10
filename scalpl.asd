@@ -16,4 +16,4 @@
                (:file "bitfinex" :depends-on ("exchange"))
                (:file "btce"     :depends-on ("exchange"))
                (:file "qd"       :depends-on ("exchange"))
-               ))
+               (:file "db"       :depends-on ("exchange"))))
