@@ -7,7 +7,7 @@
 
 (defun sql (db sql &rest args &aux rows)
   (let ((query (apply #'format nil sql args)))
-    (format t "~&~A" query)
+    ;; (format t "~&~A" query)
     (let ((ret (dbi:execute (dbi:prepare db query))))
       (loop (aif (dbi:fetch ret) (push it rows)
                  (return (reverse rows)))))))

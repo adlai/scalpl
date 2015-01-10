@@ -17,7 +17,7 @@
            #:book-tracker #:bids #:asks #:get-book
            #:tracked-market
            #:placed-offers #:account-balances #:market-fee
-           #:execution #:fee #:net-cost
+           #:execution #:fee #:net-cost #:net-volume
            #:execution-tracker #:execution-since
            #:post-offer #:cancel-offer))
 
