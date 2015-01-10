@@ -169,8 +169,9 @@
     (let ((quotient (expt 10 (decimals (market fee))))
           (svwap (vwap lictor :type "sell" :depth (car rudder)))
           (bvwap (vwap lictor :type "buy"  :depth (cdr rudder))))
-      (let ((spread (profit-margin bvwap svwap)))
-        (when (> 1 spread) (warn "~8,'0D ~8,'0D ~5F" bvwap svwap spread)))
+      (unless (or (zerop svwap) (zerop bvwap))
+        (let ((spread (profit-margin bvwap svwap)))
+          (when (> 1 spread) (warn "~8,'0D ~8,'0D ~5F" bvwap svwap spread))))
       ;; TODO macro/flet
       (unless (zerop svwap)
         (swhen (car foreigners)
