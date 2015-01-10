@@ -165,7 +165,21 @@
       (flet ((filter-book (side)
                (with-slots (control response) supplicant
                  (send control `(filter . ,side)) (recv response))))
-        (setf foreigners (cons (filter-book bids) (filter-book asks)))))
+        (let ((other-bids (filter-book bids))
+              (other-asks (filter-book asks)))
+          (loop
+             for best-bid = (1- (price (car other-bids)))
+             for best-ask = (1- (price (car other-asks)))
+             for spread = (profit-margin (abs best-bid) best-ask fee)
+             ;; do (format t "~&~8,'0D ~8,'0D ~5F~%" best-bid best-ask spread)
+             until (> spread 1) do
+               (ecase (round (signum (* (max 0 (- best-ask best-bid 5))
+                                        (- (volume (car other-bids))
+                                           (volume (car other-asks))))))
+                 (-1 (decf (volume (car other-asks)) (volume (pop other-bids))))
+                 (+1 (decf (volume (car other-bids)) (volume (pop other-asks))))
+                 (0 (pop other-bids) (pop other-asks)))
+             finally (setf foreigners (cons other-bids other-asks))))))
     (let ((quotient (expt 10 (decimals (market fee))))
           (svwap (vwap lictor :type "sell" :depth (car rudder)))
           (bvwap (vwap lictor :type "buy"  :depth (cdr rudder))))
