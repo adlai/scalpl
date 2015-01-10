@@ -123,7 +123,8 @@
 
 (defvar *btce*
   (multiple-value-bind (markets assets) (get-info)
-    (make-instance 'exchange :name :btc-e :assets assets :markets markets)))
+    (make-instance 'exchange :name :btc-e :assets assets :markets markets
+                   :sensitivity 1)))
 
 (defclass btce-gate (gate) ())
 
