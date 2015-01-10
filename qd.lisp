@@ -323,25 +323,22 @@
     (destructuring-bind (primary counter resilience)
         (recv input)
       ;; Now run that algorithm thingy
-      (macrolet ((do-side ((amount side) &body body)
-                   `(let ((,side (recv (slot-value filter ',side))))
-                      (unless (zerop ,amount) ,@body))))
+      (with-slots (next-bids next-asks response) prioritizer
         ;; TODO: Refactor prioritizer API into send-side and recv-side
         ;; TODO: Rework flow so both sides are updated on each book query...
         ;; TODO: using two prioritizers (bid / ask), and an alternator?
         ;; TODO: properly deal with partial and completed orders
-        (with-slots (next-bids next-asks response) prioritizer
-          (do-side (counter bids)
-            (send next-bids
-                  (dumbot-offers bids resilience counter
-                                 (* epsilon (abs (price (first bids)))
-                                    (expt 10 (- (decimals (market (first bids))))))
-                                 (/ count 2)))
-            (recv response))
-          (do-side (primary asks)
-            (send next-asks (dumbot-offers asks resilience primary
-                                           epsilon (/ count 2)))
-            (recv response)))))
+        (macrolet ((do-side (amount side chan epsilon)
+                     `(let ((,side (recv (slot-value filter ',side))))
+                        (unless (zerop ,amount)
+                          (send ,chan
+                                (dumbot-offers ,side resilience ,amount
+                                               ,epsilon (/ count 2)))
+                          (recv response)))))
+          (do-side counter bids next-bids
+                   (* epsilon (abs (price (first bids)))
+                      (expt 10 (- (decimals (market (first bids)))))))
+          (do-side primary asks next-asks epsilon))))
     (send output nil)))
 
 (defmethod shared-initialize :after ((prioritizer ope-prioritizer) (slots t) &key)
