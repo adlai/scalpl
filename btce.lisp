@@ -172,7 +172,8 @@
       (when since
         (awhen (member (txid since) it :key #'txid)
           (return-from trades-since (rest it)))
-        (warn "missing trades since ~A" since)))))
+        (warn "missing trades: ~A - ~A"
+              (timestamp since) (timestamp (first it)))))))
 
 ;;;
 ;;; Private Data API
