@@ -16,6 +16,7 @@
    (filter :initarg :filter)
    (epsilon :initform 0.001 :initarg :epsilon)
    (count :initform 30 :initarg :offer-count)
+   (magic :initform 3 :initarg :magic-count)
    prioritizer scalper))
 
 (defclass ope-supplicant ()
@@ -279,6 +280,7 @@
                       funds            ; scalar•asset target total offer volume
                       epsilon          ; scalar•asset size of smallest order
                       max-orders       ; target amount of offers
+                      magic            ; if you have to ask, you'll never know
                       &aux (acc 0) (share 0))
   (do* ((remaining-offers foreign-offers (rest remaining-offers))
         (processed-tally         0       (1+   processed-tally)))
@@ -289,14 +291,12 @@
                  (sort (subseq (sort (subseq offers 0 (1- processed-tally))
                                      #'> :key (lambda (x) (volume (cdr x))))
                                0 count) #'< :key (lambda (x) (price (cdr x))))))
-          (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni!
+          (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni! wut?
                                     max-orders processed-tally))
                  (chosen-stairs         ; the (shares . foreign-offer)s to fight
-                  (case target-count (0 nil)
-                        ((1 2) (pick target-count foreign-offers))
-                        (t (cons (first foreign-offers)
-                                 (pick (1- target-count)
-                                       (rest foreign-offers))))))
+                  (if (>= magic target-count) (pick target-count foreign-offers)
+                      (cons (first foreign-offers)
+                            (pick (1- target-count) (rest foreign-offers)))))
                  (total-shares (reduce #'+ (mapcar #'car chosen-stairs)))
                  ;; we need the smallest order to be epsilon
                  (e/f (/ epsilon funds))
@@ -319,7 +319,7 @@
       (push (incf share (* 4/3 (incf acc volume))) (first remaining-offers)))))
 
 (defun ope-scalper-loop (ope)
-  (with-slots (input output filter prioritizer epsilon count) ope
+  (with-slots (input output filter prioritizer epsilon count magic) ope
     (destructuring-bind (primary counter resilience)
         (recv input)
       ;; Now run that algorithm thingy
@@ -333,7 +333,7 @@
                         (unless (zerop ,amount)
                           (send ,chan
                                 (dumbot-offers ,side resilience ,amount
-                                               ,epsilon (/ count 2)))
+                                               ,epsilon (/ count 2) magic))
                           (recv response)))))
           (do-side counter bids next-bids
                    (* epsilon (abs (price (first bids)))
