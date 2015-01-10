@@ -465,24 +465,23 @@
    (lops :initform '(1/2 1/4 1/7))
    thread))
 
-(defun makereport (maker fund doge/btc btc doge investment risked skew)
+(defun makereport (maker fund rate btc doge investment risked skew)
   (with-slots (name market account-tracker report-depths) maker
-    (flet ((asset-decimals (kind) (decimals (slot-value market kind)))
-           (depth-profit (&optional depth)
-             (flet ((vwap (side) (vwap account-tracker :type side :net t
-                                       :market market :depth depth)))
-               (dbz-guard (* 100 (1- (profit-margin (vwap "buy")
-                                                    (vwap "sell"))))))))
+    (labels ((sastr (side amount &optional model) ; TODO factor out aqstr
+               (format nil "~V,,V$" (decimals (slot-value market side))
+                       (if model (length (sastr side model)) 0) amount))
+             (depth-profit (&optional depth)
+               (flet ((vwap (side) (vwap account-tracker :type side :net t
+                                         :market market :depth depth)))
+                 (dbz-guard (* 100 (1- (profit-margin (vwap "buy")
+                                                      (vwap "sell"))))))))
       ;; FIXME: modularize all this decimal point handling
       ;; we need a pprint-style ~/aq/ function, and pass it aq objects!
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (format t "~&~A ~A ~V$ ~V$ ~V$ ~V$ ~2,2$% ~2,2$% ~2,2@$~{ ~6@$~}~%"
-              name (format-timestring nil (now) :format
-                                      '((:hour 2) #\: (:min  2) #\: (:sec  2)))
-              (asset-decimals 'primary)    fund
-              (asset-decimals 'counter) (* fund doge/btc)
-              (asset-decimals 'primary)    btc
-              (asset-decimals 'counter)    doge
+      (format t "~&~A ~A~{ ~A~} ~2,2$% ~2,2$% ~2,2@$~{ ~6@$~}~%"
+              name (subseq (princ-to-string (now)) 11 19)
+              (mapcar #'sastr '(primary counter primary counter)
+                      `(,@#1=`(,fund ,(* fund rate)) ,btc ,doge) `(() () ,@#1#))
               (* 100 investment) (* 100 risked) (* 100 skew)
               (maplist (lambda (depths)
                          (apply #'depth-profit
