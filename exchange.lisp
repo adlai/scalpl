@@ -212,13 +212,13 @@
 ;;; Rate Gate
 ;;;
 
-(defclass gate ()
+(defclass gate (actor)
   ((pubkey :initarg :pubkey :initform (error "gate requires API pubkey"))
    (secret :initarg :secret :initform (error "gate requires API secret"))
    (input  :initarg :input  :initform (make-instance 'channel))
    (output :initarg :output :initform (make-instance 'channel))
-   (cache  :initform nil)
-   (thread :initarg :thread)))
+   (cache  :initform nil))
+  (:default-initargs :name "gate"))
 
 (defgeneric gate-post (gate pubkey secret request)
   (:documentation "Attempts to perform `request' with the provided credentials.")
@@ -226,26 +226,10 @@
   (:method :around (gate pubkey secret request)
     (multiple-value-list (call-next-method))))
 
-(defun gate-loop (gate)
-  (with-slots (pubkey secret input output cache) gate
-    (setf cache (recv input))
-    (send output (gate-post gate pubkey secret cache))))
-
-(defmethod shared-initialize :after ((gate gate) (names t) &key)
-  (with-slots (thread) gate
-    (when (or (not (slot-boundp gate 'thread))
-              (eq :terminated (task-status thread)))
-      (setf thread (pexec (:name "qdm-preα gate" :initial-bindings
-                                 '((*read-default-float-format* double-float)))
-                     (with-slots (pubkey secret output cache) gate
-                       (unless (send-blocks-p output)
-                         (send output
-                               (if (null cache) '(nil "previous gate died")
-                                   (progn (cerror "Retry last/cached request"
-                                                  "Gate ~A detected unclean restart"
-                                                  gate)
-                                          (gate-post gate pubkey secret cache))))))
-                     (loop (gate-loop gate)))))))
+(defmethod perform ((gate gate))
+  (with-slots (input output . #1=(pubkey secret cache)) gate
+    (when (send-blocks-p output) (setf cache (recv input)))
+    (send (slot-value gate 'output) (gate-post gate . #1#))))
 
 (defun gate-request (gate path &optional options)
   (with-slots (input output) gate
