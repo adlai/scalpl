@@ -1,7 +1,7 @@
 (defpackage #:scalpl.kraken
   (:nicknames #:kraken)
   (:export #:*kraken* #:kraken-gate)
-  (:use #:cl #:chanl #:anaphora #:st-json #:local-time #:scalpl.util #:scalpl.exchange))
+  (:use #:cl #:chanl #:anaphora #:st-json #:local-time #:scalpl.util #:scalpl.actor #:scalpl.exchange))
 
 (in-package #:scalpl.kraken)
 
@@ -160,39 +160,42 @@
       (with-slots (markets) *kraken*
         (find designator markets :key 'altname :test 'string-equal))))
 
-(defclass kraken-gate (gate)
-  ((count :initform 0) (delay :initform 7)  ; why not delay=5 ?
-   (mint :initform (make-instance 'channel))
-   (tokens :initform (make-instance 'channel))
-   token-minter token-handler))
-
 (defun request-cost (request)
   (string-case (request :default 1)
     ("AddOrder" 0) ("CancelOrder" 0)
     ("Ledgers" 2) ("QueryLedgers" 2)
     ("TradesHistory" 2) ("QueryTrades" 2)))
 
-(defun token-minter-loop (gate)
-  (with-slots (mint delay) gate
-    (send mint 1)
-    (sleep delay)))
+(defclass token-minter (actor)
+  ((delay :initform 7) (mint :initform (make-instance 'channel))))
 
-(defun token-handler-loop (gate)
-  (with-slots (mint count tokens) gate
-    (case count
-      (5 (recv mint) (decf count))
-      (0 (send tokens t) (incf count))
-      (t (select
-           ((recv mint delta) (decf count delta))
-           ((send tokens t) (incf count))
-           (t (sleep 0.2)))))))
+(defmethod perform ((minter token-minter))
+  (with-slots (mint delay) minter (send mint 1) (sleep delay)))
+
+(defclass token-handler (actor)
+  ((count :initform 0) (tokens :initform (make-instance 'channel))
+   (minter :initform (make-instance 'token-minter))))
+
+(defmethod perform ((handler token-handler))
+  (with-slots (minter count tokens) handler
+    (with-slots (mint) minter
+      (case count
+        (5 (recv mint) (decf count))
+        (0 (send tokens t) (incf count))
+        (t (select ((recv mint delta) (decf count delta))
+                   ((send tokens t) (incf count))
+                   (t (sleep 0.2))))))))
+
+(defclass kraken-gate (gate)
+  ((token-handler :initform (make-instance 'token-handler))))
 
 (defmethod gate-post ((gate kraken-gate) key secret request)
   (destructuring-bind (command . options) request
     ;; FIXME: this prevents add/cancel requests from going through while
     ;; other requests wait for tokens. possible solution - queue closures
     ;; with their associated cost, execute most expensive affordable request
-    (dotimes (i (request-cost command)) (recv (slot-value gate 'tokens)))
+    (dotimes (i (request-cost command))
+      (recv (slot-reduce gate token-handler tokens)))
     ;; (format t "~&~A ~A~&" (now) command)
     (multiple-value-list (post-request command key secret options))))
 
@@ -200,17 +203,6 @@
   (multiple-value-call #'call-next-method gate names
                        (when pubkey (values :pubkey (make-key pubkey)))
                        (when secret (values :secret (make-signer secret)))))
-
-(defmethod shared-initialize :after ((gate kraken-gate) (names t) &key)
-  (with-slots (token-minter token-handler) gate
-    (when (or (not (slot-boundp gate 'token-minter))
-              (eq :terminated (task-status token-minter)))
-      (setf token-minter (pexec (:name "kraken token minter")
-                           (loop (token-minter-loop gate)))))
-    (when (or (not (slot-boundp gate 'token-handler))
-              (eq :terminated (task-status token-handler)))
-      (setf token-handler (pexec (:name "kraken token handler")
-                           (loop (token-handler-loop gate)))))))
 
 ;;;
 ;;; Public Data API
