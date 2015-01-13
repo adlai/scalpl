@@ -66,7 +66,14 @@
           ;;      (apply #'raw-request path keys))
           (t (error "HTTP Error ~D~%~A" status body))))
     ((or usocket:timeout-error simple-error
-      cl+ssl::ssl-error-syscall
+      ;; > A failure in the SSL library occurred on handle
+      ;; > #.(SB-SYS:INT-SAP #XB6030438) (return code: 1). SSL error queue:
+      ;; > error:140943FC:SSL routines:SSL3_READ_BYTES:sslv3 alert bad record mac
+      ;; cf http://marc.info/?l=openssl-dev&m=108444932120941
+      ;; cf http://log.bitcoin-assets.com/?date=13-01-2015#975797 excerpt:
+      ;; > "btc-e has SSLv3 disabled... you're either being MITM'd and the
+      ;; > trapper device is failing mac'ing messages, or who knows what. you
+      ;; > shouldn't be receiving that error" - Naphex
       usocket:ns-host-not-found-error) (e)
       (describe e)
       (sleep 2)
