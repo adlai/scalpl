@@ -250,9 +250,23 @@
    (volume    :initarg :volume    :reader volume)
    (price     :initarg :price     :reader price)
    (cost      :initarg :cost      :reader cost)
+   (taken     :initarg :taken     :reader taken)
+   (given     :initarg :given     :reader given)
    (txid      :initarg :txid      :reader txid)
    (timestamp :initarg :timestamp :reader timestamp)
    (direction :initarg :direction :reader direction)))
+
+(defmethod shared-initialize :after ((trade trade) names &key)
+  (with-slots (market taken given volume price direction) trade
+    ((lambda (primary counter)
+       (let ((butterfingerp (char-equal (char direction 0) #\s)))
+         (when (or (eq names t) (find 'given names))
+           (setf given (if butterfingerp primary counter)))
+         (when (or (eq names t) (find 'taken names))
+           (setf taken (if butterfingerp counter primary)))))
+     (cons-aq* (primary market) volume)
+     (with-slots (counter decimals) market
+       (cons-aq* counter (* volume (/ (abs price) (expt 10 decimals))))))))
 
 (defmethod print-object ((trade trade) stream)
   (print-unreadable-object (trade stream :identity nil)
@@ -463,6 +477,17 @@
    (fee :initarg :fee :reader fee)
    (net-cost :initarg :net-cost :reader net-cost)
    (net-volume :initarg :net-volume :reader net-volume)))
+
+(defmethod shared-initialize :after ((execution execution) names &key)
+  (with-slots (market taken given net-volume net-cost direction) execution
+    ((lambda (primary counter)
+       (let ((butterfingerp (char-equal (char direction 0) #\s)))
+         (when (or (eq names t) (find 'given names))
+           (setf given (if butterfingerp primary counter)))
+         (when (or (eq names t) (find 'taken names))
+           (setf taken (if butterfingerp counter primary)))))
+     (cons-aq* (primary market) net-volume)
+     (cons-aq* (counter market) net-cost))))
 
 (defclass execution-tracker ()
   ((gate :initarg :gate)
