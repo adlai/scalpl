@@ -23,16 +23,16 @@
            (error error))))))
 
 (defparameter *executions-columns*
-  `(("time"     "timestamptz not null")
+  `(("time"     "timestamp with time zone not null")
     ("exchange"        "text not null")
     ("market"          "text not null")
     ("trade_id"        "text not null")
     ("order_id"        "text not null")
     ("direction"       "text not null")
-    ;; ("given_asset"     "text not null")
-    ;; ("taken_asset"     "text not null")
-    ;; ("given_amount" "numeric not null")
-    ;; ("taken_amount" "numeric not null")
+    ("given_asset"     "text not null")
+    ("taken_asset"     "text not null")
+    ("given_amount" "numeric not null")
+    ("taken_amount" "numeric not null")
     ("volume"       "numeric not null")
     ("cost"         "numeric not null")
     ("price"        "numeric not null")
@@ -44,13 +44,21 @@
                volume price cost net-cost net-volume) execution
     (with-slots (name exchange primary counter decimals) market
       (mapcar (lambda (literal) (format nil "'~A'" literal))
-              (list timestamp (name exchange) name txid oid direction
-                    (format nil "~V$" (decimals primary) volume)
-                    (format nil "~V$" (decimals counter) cost)
-                    (format nil "~V$" decimals price)
-                    (format nil "~V$" (decimals counter) net-volume)
-                    (format nil "~V$" (decimals primary) net-cost))))))
+              (multiple-value-call #'list
+                timestamp (name exchange) name txid oid direction
+                (if (char-equal (char direction 0) #\b)
+                    (values (name counter) (name primary)
+                            (format nil "~V$" (decimals primary) net-cost)
+                            (format nil "~V$" (decimals counter) net-volume))
+                    (values (name primary) (name counter)
+                            (format nil "~V$" (decimals counter) net-volume)
+                            (format nil "~V$" (decimals primary) net-cost)))
+                (format nil "~V$" (decimals primary) volume)
+                (format nil "~V$" (decimals counter) cost)
+                (format nil "~V$" decimals price)
+                (format nil "~V$" (decimals counter) net-volume)
+                (format nil "~V$" (decimals primary) net-cost))))))
 
-(defun insert-executions (db executions)
-  (sql db "INSERT INTO executions VALUES ~{(~{~A~#[~:;, ~]~})~#[~:;, ~]~};"
+(defun insert-executions (db table executions)
+  (sql db "INSERT INTO ~A VALUES ~{(~{~A~#[~:;, ~]~})~#[~:;, ~]~};" table
        (mapcar #'sqlize-execution executions)))
