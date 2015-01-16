@@ -157,6 +157,9 @@
                    ((send tokens t) (incf count))
                    (t (sleep 0.2))))))))
 
+(defmethod reinitialize-instance :before ((gate token-handler) &key)
+  (reinitialize-instance (slot-value gate 'minter)))
+
 (defclass kraken-gate (gate)
   ((token-handler :initform (make-instance 'token-handler))))
 
@@ -169,6 +172,9 @@
       (recv (slot-reduce gate token-handler tokens)))
     ;; (format t "~&~A ~A~&" (now) command)
     (multiple-value-list (post-request command key secret options))))
+
+(defmethod reinitialize-instance :before ((gate kraken-gate) &key)
+  (reinitialize-instance (slot-value gate 'token-handler)))
 
 (defmethod shared-initialize ((gate kraken-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
