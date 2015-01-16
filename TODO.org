@@ -53,11 +53,15 @@ Offer placement and offer cancellation
 * TODO Actor Abstraction
 CSP×FSM
 ** DONE MVP
-** TODO port existing code to use MVP
-*** TODO gate
-**** TODO kraken
-**** TODO bitfinex
-**** TODO btce
+** TODO factor out parent pattern
+*** initialize based on appropriate parent initargs
+*** supervise during parent operation
+*** reinitialize
+* TODO port existing code to use MVP
+*** DONE gate
+**** DONE kraken
+**** DONE bitfinex
+**** DONE btce
 *** TODO trades-tracker
 *** TODO book-tracker
 *** TODO tracked-market
@@ -127,7 +131,7 @@ whether you can "create new positions" rather than just "close old ones"?
 cost basis for an asset = price at which you purchased the asset, and
 optionally the cost basis which was traded away for acquiring the asset
 ** price should account for exchange fees
-(margins too narrow to help out future-you figure out wtf you meant?)
+use net-cost/volume / given/taken-asset/amount
 ** bastard child from the unholy marriage of balance and execution tracking
 * TODO Portfolio Handling Guidelines
 How the investor specifies guidelines to the automated market maker
