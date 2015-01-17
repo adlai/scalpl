@@ -228,6 +228,8 @@ increase its liquidity.
 *** Resilience is now more complex
 We should at least have separate resilience for each side of the order book, if
 not even distinct levels of funds, each bound at different resilience levels.
+*** TODO Resilience is not just depth
+we should also have resilience based on percentage moves
 ** Inputs:
 (for just one side of the algorithm)
 *** Order book
