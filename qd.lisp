@@ -305,7 +305,13 @@
         (flet ((pick (count offers)
                  (sort (subseq (sort (subseq offers 0 (1- processed-tally))
                                      #'> :key (lambda (x) (volume (cdr x))))
-                               0 count) #'< :key (lambda (x) (price (cdr x))))))
+                               0 count) #'< :key (lambda (x) (price (cdr x)))))
+               (offer-scaler (total bonus count)
+                 (lambda (order)
+                   (with-slots (market price) (cdr order)
+                     (make-instance 'offer :market market :price (1- price)
+                                    :volume (* funds (/ (+ bonus (car order))
+                                                        (+ total (* bonus count)))))))))
           (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni! wut?
                                     max-orders processed-tally))
                  (chosen-stairs         ; the (shares . foreign-offer)s to fight
@@ -319,14 +325,7 @@
                             (/ (- (* e/f total-shares) (caar chosen-stairs))
                                (- 1 (* e/f target-count))))))
             (break-errors (not division-by-zero) ; dbz = no funds left, no biggie
-              (mapcar (lambda (order)
-                        (with-slots (market price) (cdr order)
-                          (make-instance 'offer :market market :price (1- price)
-                                         :volume (* funds
-                                                    (/ (+ bonus (car order))
-                                                       (+ total-shares
-                                                          (* bonus
-                                                             target-count)))))))
+              (mapcar (offer-scaler total-shares bonus target-count)
                       chosen-stairs)))))
     ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
