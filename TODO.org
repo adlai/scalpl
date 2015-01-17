@@ -20,10 +20,30 @@ decentralized multimodal swarm optimization of the above guidelines
 * TODO refactor offer representation:
 bitfinex and btce give volume in primary, always; kraken can do either
 ** pay,get × amount,asset
-* TODO parametrize execution feedback depth for profitability checks
-** currently profitability is checked
+* TODO Basis Tracking
+bastard child from the unholy marriage of balance and execution tracking
+** track cost basis for all "virtual outputs" in an account
+*** "virtual output" is an asset×quantity earned from a trade
+*** funds that haven't yet been traded - don't have a cost basis
+*** there are never more cost bases then funds in an account
+** recursive cost basis:
+cost basis for an asset = price at which you purchased the asset, and
+optionally the cost basis which was traded away for acquiring the asset
+** account for exchange fees
+use net-cost/volume / given/taken-asset/amount rather than the raw
+exchange-reported cost/volume/price
+** updating bases sets upon execution
+*** remove old cost basis from given asset×quantity
+*** add new cost basis from taken-asset×quantity and old cost basis
+*** TODO FIFO/LIFO - what are the considerations?
+* TODO spread candidate target offers by profit from bases
+** currently, profitability is checked/attempted:
 *** in ope-filter
 *** against the entire buy/sell history
+** requires basis tracking for the Right Thing™
+** cumulative comparison of
+- candidate targets and
+- executed bases
 * TODO normalize rawness convention
 ** current status
 *** some methods take string arguments
@@ -123,16 +143,6 @@ we'll need a cross-actor debugger / condition handler, and repl-like functionali
 make the condition system and debugger function across threads, see cond.js
 **** reflection / inspection
 send a function to be applied to the actor (return handled by caller)
-* TODO Basis Tracking
-basis tracking ≡ keep track of the last buys and sells, make sure future trades
-are always profitable. perhaps have a configurable parameter that toggles
-whether you can "create new positions" rather than just "close old ones"?
-** recursive cost basis:
-cost basis for an asset = price at which you purchased the asset, and
-optionally the cost basis which was traded away for acquiring the asset
-** price should account for exchange fees
-use net-cost/volume / given/taken-asset/amount
-** bastard child from the unholy marriage of balance and execution tracking
 * TODO Portfolio Handling Guidelines
 How the investor specifies guidelines to the automated market maker
 ** "risk tolerances"
