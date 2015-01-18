@@ -18,7 +18,7 @@
            #:tracked-market
            #:placed-offers #:account-balances #:market-fee
            #:execution #:fee #:net-cost #:net-volume
-           #:execution-tracker #:execution-since
+           #:execution-tracker #:execution-since #:bases
            #:post-offer #:cancel-offer))
 
 (in-package #:scalpl.exchange)
@@ -496,10 +496,9 @@
    ;; keep your eyes open, for now we'll specify a single market per tracker
    (market :initarg :market :reader market)
    (delay :initform 30 :initarg :delay)
-   (trades :initform nil)
+   (trades :initform nil) (bases :initform nil)
    (control :initform (make-instance 'channel))
    (buffer :initform (make-instance 'channel))
-   (bases :initform (make-hash-table))
    worker updater))
 
 (defgeneric execution-since (gate market since))
@@ -519,13 +518,14 @@
            (get (send (third command) (symbol-value (second command))))))
         ((send buffer last))
         ((recv buffer next)
-         (with-slots (taken given price) next
-           (swhen (gethash (asset given) bases)
+         (with-slots (taken given price market) next
+           (swhen (getf bases (asset given))
              (loop for basis = (pop it) while basis
                 for acc = (cdr basis) then (aq+ acc (cdr basis))
                 until (> (quantity acc) (quantity given))
                 finally (when basis (push (cons (car basis) (aq- acc given)) it))))
-           (push (cons price taken) (gethash (asset taken) bases)))
+           (push (cons (round (* price (expt 10 (decimals market)))) taken)
+                 (getf bases (asset taken))))
          (pushnew next trades :key #'txid :test #'equal))
         (t (sleep 0.2))))))
 
