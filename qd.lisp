@@ -180,6 +180,7 @@
                  (+1 (decf (volume (car other-bids)) (volume (pop other-asks))))
                  (0 (pop other-bids) (pop other-asks)))
              finally (setf foreigners (cons other-bids other-asks))))))
+    #-nil                               ; this must go!
     (let ((quotient (expt 10 (decimals (market fee))))
           (svwap (vwap lictor :type "sell" :depth (car rudder)))
           (bvwap (vwap lictor :type "buy"  :depth (cdr rudder))))

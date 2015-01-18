@@ -17,25 +17,32 @@ a set of numerical parameters representing
 tool for evaluating statistical queries on market events, past and present
 ** Network                                                             :WIP:
 decentralized multimodal swarm optimization of the above guidelines
-* TODO refactor offer representation:
+* TODO refactor scalar value representations, to include units
 bitfinex and btce give volume in primary, always; kraken can do either
-** pay,get × amount,asset
+** DONE taken,given - asset×quantity
+** TODO create give/take directly in each exchange API
+** TODO add markets to asset registry, so we can represent prices?
+*** need to differentiate buy vs sell - sign bit?
+*** no need for a separate registry if assets prime and markets rational
 * TODO Basis Tracking
 bastard child from the unholy marriage of balance and execution tracking
+** DONE account for exchange fees
+use net-cost/volume / given/taken-asset/amount rather than the raw
+exchange-reported cost/volume/price
 ** track cost basis for all "virtual outputs" in an account
 *** "virtual output" is an asset×quantity earned from a trade
 *** funds that haven't yet been traded - don't have a cost basis
-*** there are never more cost bases then funds in an account
-** recursive cost basis:
-cost basis for an asset = price at which you purchased the asset, and
-optionally the cost basis which was traded away for acquiring the asset
-** account for exchange fees
-use net-cost/volume / given/taken-asset/amount rather than the raw
-exchange-reported cost/volume/price
+*** there are never more cost bases than funds in an account
+*** shallow cost basis = ( price . asset×quantity )
+** TODO recursive cost basis:
+link the cost basis which was traded away for acquiring the asset
 ** updating bases sets upon execution
 *** remove old cost basis from given asset×quantity
 *** add new cost basis from taken-asset×quantity and old cost basis
-*** TODO FIFO/LIFO - what are the considerations?
+*** FIFO/LIFO - what are the considerations?
+**** currently, we use LIFO: most recent cost basis gets consumed
+**** CIFO - cheapest-in first-out: consume the least profitable
+so we have more flexibility against future swings
 * TODO spread candidate target offers by profit from bases
 ** currently, profitability is checked/attempted:
 *** in ope-filter
@@ -56,8 +63,8 @@ any method with "raw" in its name, such as post-raw-limit:
 because no circle is complete without its meta
 * TODO Precision
 ** TODO Eradicate floats from all price calculations
-all price manipulation must be done on integer values! this should already be
-the case, but do a line-by-line audit just to be 100% certain
+all price manipulation must be done on integer values! this should already
+be the case, but do a line-by-line audit just to be 100% certain
 ** TODO Switch to CL-JSON
 for full control of float parsing, rather than ST-JSON's default to #'READ
 ** TODO Replace scalars with asset-quantity where appropriate
