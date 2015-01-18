@@ -171,7 +171,10 @@
     (dotimes (i (request-cost command))
       (recv (slot-reduce gate token-handler tokens)))
     ;; (format t "~&~A ~A~&" (now) command)
-    (multiple-value-list (post-request command key secret options))))
+    (multiple-value-bind (ret err) (post-request command key secret options)
+      (when (and err (string= "EAPI:Rate limit exceeded" (first err)))
+        (format t "~&API limit hit, cooling off...~%") (sleep 30))
+      (list ret err))))
 
 (defmethod reinitialize-instance :before ((gate kraken-gate) &key)
   (reinitialize-instance (slot-value gate 'token-handler)))
