@@ -499,12 +499,13 @@
    (trades :initform nil)
    (control :initform (make-instance 'channel))
    (buffer :initform (make-instance 'channel))
+   (bases :initform (make-hash-table))
    worker updater))
 
 (defgeneric execution-since (gate market since))
 
 (defun execution-worker-loop (tracker)
-  (with-slots (control buffer trades) tracker
+  (with-slots (control buffer trades bases) tracker
     (let ((last (car trades)))
       (select
         ((recv control command)
@@ -517,7 +518,15 @@
            ;; get symbol value
            (get (send (third command) (symbol-value (second command))))))
         ((send buffer last))
-        ((recv buffer next) (pushnew next trades :key #'txid :test #'equal))
+        ((recv buffer next)
+         (with-slots (taken given price) next
+           (swhen (gethash (asset given) bases)
+             (loop for basis = (pop it) while basis
+                for acc = (cdr basis) then (aq+ acc (cdr basis))
+                until (> (quantity acc) (quantity given))
+                finally (when basis (push (cons (car basis) (aq- acc given)) it))))
+           (push (cons price taken) (gethash (asset taken) bases)))
+         (pushnew next trades :key #'txid :test #'equal))
         (t (sleep 0.2))))))
 
 (defun execution-updater-loop (tracker)
@@ -566,14 +575,3 @@
 
 (defgeneric post-offer (gate offer))
 (defgeneric cancel-offer (gate offer))
-
-;; (loop
-;;    for trade in (slot-reduce *kraken* account-tracker ope filter lictor trades)
-;; with bases = (make-hash-table) do
-;; (with-slots (taken given price) trade
-;;   (push (cons price
-;;               (aif (gethash (asset given) bases)
-;;                    (loop for basis = (pop it) sum (quantity (cdr basis)) into total
-;;                       until (> total (quantity given)) finally )
-;;                    taken))
-;;         (gethash (asset taken) bases))))
