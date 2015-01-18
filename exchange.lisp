@@ -248,7 +248,7 @@
 (defclass trade ()
   ((market    :initarg :market    :reader market)
    (volume    :initarg :volume    :reader volume)
-   (price     :initarg :price     :reader price)
+   (price     :initarg :price     :reader price) ; aq?
    (cost      :initarg :cost      :reader cost)
    (taken     :initarg :taken     :reader taken)
    (given     :initarg :given     :reader given)
@@ -566,3 +566,14 @@
 
 (defgeneric post-offer (gate offer))
 (defgeneric cancel-offer (gate offer))
+
+;; (loop
+;;    for trade in (slot-reduce *kraken* account-tracker ope filter lictor trades)
+;; with bases = (make-hash-table) do
+;; (with-slots (taken given price) trade
+;;   (push (cons price
+;;               (aif (gethash (asset given) bases)
+;;                    (loop for basis = (pop it) sum (quantity (cdr basis)) into total
+;;                       until (> total (quantity given)) finally )
+;;                    taken))
+;;         (gethash (asset taken) bases))))
