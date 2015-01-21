@@ -53,5 +53,5 @@
   (:documentation "Signals `actor' to terminate")
   (:method ((actor actor)) (send (slot-value actor 'control) :halt)))
 
-(defmethod shared-initialize :after ((actor actor) slot-names &key)
+(defmethod shared-initialize :after ((actor actor) (slot-names t) &key)
   (ensure-running actor))

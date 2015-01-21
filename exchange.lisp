@@ -287,7 +287,7 @@
    updater worker))
 
 (defgeneric vwap (tracker &key type depth &allow-other-keys)
-  (:method :around (tracker &key)
+  (:method :around ((tracker t) &key)
     (handler-case (call-next-method)
       (division-by-zero () 0)))
   (:method ((tracker trades-tracker) &key since depth type)
