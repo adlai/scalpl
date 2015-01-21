@@ -529,6 +529,10 @@
          (pushnew next trades :key #'txid :test #'equal))
         (t (sleep 0.2))))))
 
+(defun vwab (lictor asset depth)
+  (loop for basis in (getf (slot-value lictor 'bases) asset)
+     sum (quantity (cdr basis)) into acc until (> acc depth)))
+
 (defun execution-updater-loop (tracker)
   (with-slots (gate market buffer delay) tracker
     (dolist (trade (execution-since gate market (recv buffer)))
