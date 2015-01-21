@@ -12,8 +12,10 @@
   :components ((:file "util")
                (:file "actor"    :depends-on ("util"))
                (:file "exchange" :depends-on ("actor"))
-               (:file "kraken"   :depends-on ("exchange"))
-               (:file "bitfinex" :depends-on ("exchange"))
-               (:file "btce"     :depends-on ("exchange"))
+               ;; FIXME: setup assets/markets on a need-to-use basis
+               ;; until then, exchanges are disabled by default
+               ;; (:file "kraken"   :depends-on ("exchange"))
+               ;; (:file "bitfinex" :depends-on ("exchange"))
+               ;; (:file "btce"     :depends-on ("exchange"))
                (:file "qd"       :depends-on ("exchange"))
                (:file "db"       :depends-on ("exchange"))))
