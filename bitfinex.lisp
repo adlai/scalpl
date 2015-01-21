@@ -134,11 +134,11 @@
            :decimals (detect-market-precision name))
           markets)))
 
-(defvar *bitfinex*
-  (let ((assets (get-assets)))
-    (make-instance 'exchange :name :bitfinex
-                   :sensitivity 1
-                   :assets assets :markets (get-markets assets))))
+(defvar *bitfinex* (make-instance 'exchange :name :bitfinex :sensitivity 1))
+
+(defmethod fetch-exchange-data ((exchange (eql *bitfinex*)))
+  (with-slots (markets assets) exchange
+    (setf assets (get-assets) markets (get-markets assets))))
 
 (defclass bitfinex-gate (gate) ())
 

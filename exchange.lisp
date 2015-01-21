@@ -3,7 +3,7 @@
 (defpackage #:scalpl.exchange
   (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util #:scalpl.actor)
   (:export #:exchange #:name #:assets #:markets #:parse-timestamp
-           #:*exchanges* #:find-exchange
+           #:*exchanges* #:find-exchange #:fetch-exchange-data
            #:asset #:find-asset #:asset-quantity
            #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
            #:market #:decimals #:primary #:counter #:find-market
@@ -48,10 +48,23 @@
    (market-timestamp-sensitivity :initarg :sensitivity)))
 
 (defmethod initialize-instance :after ((exchange exchange) &key)
-  (with-slots (name assets markets) exchange
-    (setf (gethash name *exchanges*) exchange)
-    (dolist (asset assets) (setf (slot-value asset 'exchange) exchange))
-    (dolist (market markets) (setf (slot-value market 'exchange) exchange))))
+  (with-slots (name) exchange
+    (setf (gethash name *exchanges*) exchange)))
+
+(defgeneric fetch-exchange-data (exchange)
+  (:documentation "Fetch metadata about assets and markets on this exchange.
+Since fetching this information requires network access, it's performed on a
+need-to-use basis, rather than upon initial loading of the exchange API.")
+  (:method :after (exchange)
+    (with-slots (assets markets) exchange
+      (dolist (thing (append assets markets))
+        (setf (slot-value thing 'exchange) exchange)))))
+
+(defmethod slot-unbound ((class t) (exchange exchange) slot)
+  (if (member slot '(assets markets))
+      (progn (fetch-exchange-data exchange)
+             (slot-value exchange slot))
+      (call-next-method)))
 
 (defmethod print-object ((exchange exchange) stream)
   (print-unreadable-object (exchange stream :type nil :identity nil)

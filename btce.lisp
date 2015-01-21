@@ -128,10 +128,11 @@
                           (getjso "pairs" it))
               assets))))
 
-(defvar *btce*
-  (multiple-value-bind (markets assets) (get-info)
-    (make-instance 'exchange :name :btc-e :assets assets :markets markets
-                   :sensitivity 1)))
+(defvar *btce* (make-instance 'exchange :name :btc-e :sensitivity 1))
+
+(defmethod fetch-exchange-data ((exchange (eql *btce*)))
+  (with-slots (markets assets) exchange
+    (setf (values markets assets) (get-info))))
 
 (defclass btce-gate (gate) ())
 

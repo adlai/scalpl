@@ -120,11 +120,11 @@
                                  :decimals pair_decimals)))
               (get-request "AssetPairs")))
 
-(defvar *kraken*
-  (let ((assets (get-assets)))
-    (make-instance 'exchange :name :kraken
-                   :sensitivity 0.3
-                   :assets assets :markets (get-markets assets))))
+(defvar *kraken* (make-instance 'exchange :name :kraken :sensitivity 0.3))
+
+(defmethod fetch-exchange-data ((exchange (eql *kraken*)))
+  (with-slots (markets assets) exchange
+    (setf assets (get-assets) markets (get-markets assets))))
 
 (defmethod find-market (designator (exchange (eql *kraken*)))
   (or (call-next-method)
