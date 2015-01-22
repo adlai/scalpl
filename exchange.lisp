@@ -81,17 +81,25 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (parse-timestamp exchange (parse-float timestamp :type 'double-float))))
 
 ;;;
+;;; Unit Registry
+;;;
+
+(defvar *unit-registry* nil)
+
+(defclass registered-unit ()
+  ((index :initform (length *unit-registry*) :reader index)))
+
+(defmethod initialize-instance :after ((unit registered-unit) &key)
+  (push (cons (index unit) unit) *unit-registry*))
+
+;;;
 ;;; Assets
 ;;;
 
-(defvar *asset-id-counter* 0)
-(defvar *asset-registry* (make-hash-table))
-
-(defclass asset ()
+(defclass asset (registered-unit)
   ((name     :initarg :name     :reader name)
    (decimals :initarg :decimals :reader decimals)
-   (exchange :initarg :exchange :reader exchange)
-   (index    :initform (incf *asset-id-counter*))))
+   (exchange :initarg :exchange :reader exchange)))
 
 (defmethod print-object ((asset asset) stream)
   (print-unreadable-object (asset stream :type nil :identity nil)
@@ -101,12 +109,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (:method (designator (assets list))
     (find designator assets :key 'name :test 'string-equal))
   (:method (designator (exchange exchange))
-    (find-market designator (assets exchange)))
-  (:method (designator (registry hash-table))
-    (gethash designator registry)))
-
-(defmethod initialize-instance :after ((asset asset) &key)
-  (setf (gethash (slot-value asset 'index) *asset-registry*) asset))
+    (find-market designator (assets exchange))))
 
 ;;;
 ;;; Asset Quantities
@@ -116,11 +119,10 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   "A precise quantity of a given asset"
   '(complex unsigned-byte))
 
-(defun asset (aq) (find-asset (imagpart aq) *asset-registry*))
+(defun asset (aq) (cdr (assoc (imagpart aq) *unit-registry*)))
 (defun quantity (aq) (realpart aq))
 (defun scaled-quantity (aq) (/ (realpart aq) (expt 10 (decimals (asset aq)))))
-(defun cons-aq (asset quantity)
-  (complex (round quantity) (slot-value asset 'index)))
+(defun cons-aq (asset quantity) (complex (round quantity) (index asset)))
 (defun cons-aq* (asset quantity)
   (cons-aq asset (* quantity (expt 10 (decimals asset)))))
 
