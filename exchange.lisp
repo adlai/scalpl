@@ -542,6 +542,22 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
          (pushnew next trades :key #'txid :test #'equal))
         (t (sleep 0.2))))))
 
+;;; this function should return two values:
+;;; first and foremost - the vwab price
+;;; it can get consed & pushed onto the basis list outside, by the worker
+;;; second - the remaining basis for the consumed asset
+;;; which also gets inserted into the bases set by the worker
+;;; when there's no basis to be consumed, or insufficient, 2nd value nil
+;;; does EXACTLY what we need!
+
+;;; who calls this function?
+;;; execution-worker, to compute the remaining basis for the given asset
+;;; ope-spreader (TODO), to check whether a certain offer is profitable
+
+;;; what should it be fed?
+;;; bases - does it need both given and taken, or just given?
+;;; p×aq - this looks suspiciously familiar...............
+
 (defun vwab (lictor asset depth)
   (loop for basis in (getf (slot-value lictor 'bases) asset)
      sum (quantity (cdr basis)) into acc until (> acc depth)))
