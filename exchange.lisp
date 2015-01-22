@@ -143,7 +143,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 ;;; Markets
 ;;;
 
-(defclass market ()
+(defclass market (registered-unit)
   ((name     :initarg :name     :reader name)
    (decimals :initarg :decimals :reader decimals)
    (exchange :initarg :exchange :reader exchange)
@@ -160,6 +160,23 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (:method (designator (exchange exchange))
     (with-slots (markets) exchange
       (find-market designator markets))))
+
+;;;
+;;; Market Prices
+;;;
+
+(deftype market-price ()
+  "A precise price in a given market"
+  '(complex unsigned-byte))
+
+(defmethod market (mp) (cdr (assoc (imagpart mp) *unit-registry*)))
+(defmethod price (mp) (abs (realpart mp)))
+(defun scaled-price (mp) (/ (price mp) (expt 10 (decimals (market mp)))))
+(defun cons-mp (market price) (complex (round price) (index market)))
+(defun cons-mp* (market price)
+  (cons-mp market (* price (expt 10 (decimals market)))))
+(defmethod direction ((mp complex)) (if (plusp (realpart mp)) 'ask 'bid))
+(defun scalp (mp) (1- mp))              ; this is actually good news!
 
 ;;;
 ;;; Offers
