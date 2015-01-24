@@ -14,7 +14,7 @@
            #:thread #:control #:updater #:worker #:output ; coming soon: actors!
            #:trade #:cost #:direction #:txid
            #:trades-tracker #:trades #:trades-since #:vwap
-           #:book-tracker #:bids #:asks #:get-book
+           #:book-tracker #:bids #:asks #:get-book #:get-book-keys
            #:tracked-market
            #:placed-offers #:account-balances #:market-fee
            #:execution #:fee #:net-cost #:net-volume
@@ -428,6 +428,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
    (control :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
    (delay :initarg :delay :initform 8)
+   (get-book-keys :initform nil :initarg :get-book-keys)
    bids asks updater worker))
 
 (defun book-worker-loop (tracker)
@@ -446,8 +447,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defgeneric get-book (market &key))
 
 (defun book-updater-loop (tracker)
-  (with-slots (bids asks delay market offers) tracker
-    (setf (values asks bids) (get-book market))
+  (with-slots (bids asks delay market offers get-book-keys) tracker
+    (setf (values asks bids) (apply #'get-book market get-book-keys))
     (sleep delay)))
 
 (defmethod shared-initialize :after ((tracker book-tracker) (names t) &key)
