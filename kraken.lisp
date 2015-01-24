@@ -146,8 +146,8 @@
 
 (defclass token-handler (parent)
   ((count :initform 0) (name :initform (gensym "kraken api pacer"))
-   (tokens :initform (make-instance 'channel)) minter)
-  (:default-initargs :child-slot 'minter :child-class 'token-minter))
+   (tokens :initform (make-instance 'channel)) minter
+   (child-classes :initform '(minter token-minter))))
 
 (defmethod perform ((handler token-handler))
   (with-slots (minter count tokens) handler
@@ -162,9 +162,7 @@
         (unbound-slot () (sleep 2))))))
 
 (defclass kraken-gate (gate parent)
-  (token-handler
-   (child-slot :initform 'token-handler)
-   (child-class :initform 'token-handler)))
+  (token-handler (child-classes :initform '(#1=token-handler #1#))))
 
 (defmethod gate-post ((gate kraken-gate) key secret request)
   (destructuring-bind (command . options) request

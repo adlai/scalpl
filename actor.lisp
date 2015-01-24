@@ -2,8 +2,7 @@
 
 (defpackage #:scalpl.actor
   (:use #:cl #:local-time #:scalpl.util #:chanl)
-  (:export #:actor #:perform #:halt #:name #:control
-           #:parent #:child-class #:child-slot))
+  (:export #:actor #:perform #:halt #:name #:control #:parent #:child-classes))
 
 (in-package #:scalpl.actor)
 
@@ -63,20 +62,16 @@
 
 ;;; An actor with a single child - simple enough to do with mopless ansi clos
 
-(defclass parent (actor)
-  ((child-slot  :initarg :child-slot)
-   (child-class :initarg :child-class)))
+(defclass parent (actor) ((child-classes :allocation :class)))
 
-(defgeneric child-initargs (parent initargs)
-  (:method-combination append) (:method append ((parent parent) (initargs t))))
+(defgeneric child-initargs (parent child initargs)
+  (:method-combination append)
+  (:method append ((parent parent) (child t) (initargs t))))
 
-(defmethod initialize-instance :after ((parent parent) &rest initargs)
-  (with-slots (child-class child-slot) parent
-    (setf (slot-value parent child-slot)
-          (apply #'make-instance child-class
-                 (child-initargs parent initargs)))))
-
-(defmethod reinitialize-instance :after ((parent parent) &rest initargs)
-  (apply #'reinitialize-instance
-         (slot-value parent (slot-value parent 'child-slot))
-         (child-initargs parent initargs)))
+(defmethod shared-initialize :after ((parent parent) (names t) &rest initargs)
+  (loop for (child class) on (slot-value parent 'child-classes) by #'cddr
+     do (let ((initargs (child-initargs parent child initargs)))
+          (if (slot-boundp parent child)
+              (apply #'reinitialize-instance (slot-value parent child) initargs)
+              (setf (slot-value parent child)
+                    (apply #'make-instance class initargs))))))
