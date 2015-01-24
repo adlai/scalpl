@@ -1,7 +1,7 @@
 ;;;; actor.lisp
 
 (defpackage #:scalpl.actor
-  (:use #:cl #:local-time #:scalpl.util #:chanl)
+  (:use #:cl #:anaphora #:local-time #:scalpl.util #:chanl)
   (:export #:actor #:perform #:halt #:name #:control #:parent #:child-classes))
 
 (in-package #:scalpl.actor)
@@ -36,8 +36,8 @@
 
 (defgeneric perform (actor)
   (:documentation "Implement actor's behavior, executing commands by default")
-  (:method ((actor actor))
-    (execute actor (recv (slot-value actor 'control))))
+  (:method :before ((actor actor))
+    (awhen (recv (slot-value actor 'control) :blockp nil) (execute actor it)))
   (:method :after ((actor actor))
     (with-slots (name tasks) actor
       (setf tasks (cons (enqueue actor)
