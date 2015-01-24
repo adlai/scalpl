@@ -2,7 +2,8 @@
 
 (defpackage #:scalpl.actor
   (:use #:cl #:local-time #:scalpl.util #:chanl)
-  (:export #:actor #:perform #:halt #:name #:control))
+  (:export #:actor #:perform #:halt #:name #:control
+           #:parent #:child-class #:child-slot))
 
 (in-package #:scalpl.actor)
 
@@ -55,3 +56,27 @@
 
 (defmethod shared-initialize :after ((actor actor) (slot-names t) &key)
   (ensure-running actor))
+
+;;;
+;;; Parent
+;;;
+
+;;; An actor with a single child - simple enough to do with mopless ansi clos
+
+(defclass parent (actor)
+  ((child-slot  :initarg :child-slot)
+   (child-class :initarg :child-class)))
+
+(defgeneric child-initargs (parent initargs)
+  (:method-combination append) (:method append ((parent parent) (initargs t))))
+
+(defmethod initialize-instance :after ((parent parent) &rest initargs)
+  (with-slots (child-class child-slot) parent
+    (setf (slot-value parent child-slot)
+          (apply #'make-instance child-class
+                 (child-initargs parent initargs)))))
+
+(defmethod reinitialize-instance :after ((parent parent) &rest initargs)
+  (apply #'reinitialize-instance
+         (slot-value parent (slot-value parent 'child-slot))
+         (child-initargs parent initargs)))

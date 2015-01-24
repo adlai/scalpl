@@ -144,26 +144,27 @@
 (defmethod perform ((minter token-minter))
   (with-slots (mint delay) minter (send mint 1) (sleep delay)))
 
-(defclass token-handler (actor)
+(defclass token-handler (parent)
   ((count :initform 0) (name :initform (gensym "kraken api pacer"))
-   (tokens :initform (make-instance 'channel))
-   (minter :initform (make-instance 'token-minter))))
+   (tokens :initform (make-instance 'channel)) minter)
+  (:default-initargs :child-slot 'minter :child-class 'token-minter))
 
 (defmethod perform ((handler token-handler))
   (with-slots (minter count tokens) handler
     (with-slots (mint) minter
-      (case count
-        (5 (recv mint) (decf count))
-        (0 (send tokens t) (incf count))
-        (t (select ((recv mint delta) (decf count delta))
-                   ((send tokens t) (incf count))
-                   (t (sleep 0.2))))))))
+      (handler-case
+          (case count
+            (5 (recv mint) (decf count))
+            (0 (send tokens t) (incf count))
+            (t (select ((recv mint delta) (decf count delta))
+                       ((send tokens t) (incf count))
+                       (t (sleep 0.2)))))
+        (unbound-slot () (sleep 2))))))
 
-(defmethod reinitialize-instance :before ((gate token-handler) &key)
-  (reinitialize-instance (slot-value gate 'minter)))
-
-(defclass kraken-gate (gate)
-  ((token-handler :initform (make-instance 'token-handler))))
+(defclass kraken-gate (gate parent)
+  (token-handler
+   (child-slot :initform 'token-handler)
+   (child-class :initform 'token-handler)))
 
 (defmethod gate-post ((gate kraken-gate) key secret request)
   (destructuring-bind (command . options) request
@@ -177,9 +178,6 @@
       (when (and err (string= "EAPI:Rate limit exceeded" (first err)))
         (format t "~&API limit hit, cooling off...~%") (sleep 30))
       (list ret err))))
-
-(defmethod reinitialize-instance :before ((gate kraken-gate) &key)
-  (reinitialize-instance (slot-value gate 'token-handler)))
 
 (defmethod shared-initialize ((gate kraken-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
