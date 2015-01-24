@@ -138,13 +138,15 @@
     ("TradesHistory" 2) ("QueryTrades" 2)))
 
 (defclass token-minter (actor)
-  ((delay :initform 7) (mint :initform (make-instance 'channel))))
+  ((delay :initform 7) (name :initform (gensym "kraken api minter"))
+   (mint :initform (make-instance 'channel))))
 
 (defmethod perform ((minter token-minter))
   (with-slots (mint delay) minter (send mint 1) (sleep delay)))
 
 (defclass token-handler (actor)
-  ((count :initform 0) (tokens :initform (make-instance 'channel))
+  ((count :initform 0) (name :initform (gensym "kraken api pacer"))
+   (tokens :initform (make-instance 'channel))
    (minter :initform (make-instance 'token-minter))))
 
 (defmethod perform ((handler token-handler))
