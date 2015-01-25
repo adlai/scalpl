@@ -305,17 +305,6 @@
                  (change-class offer 'placed :oid order_id)))))
       (post (if (< price 0) "buy" "sell")))))
 
-(defmethod post-offer ((gate bitfinex-gate) (order market-order))
-  (with-slots (market volume price) order
-    (gate-request gate "order/new"
-                  `(("type" . "exchange market")
-                    ("exchange" . "bitfinex")
-                    ("side" . ,(if (plusp price) "sell" "buy"))
-                    ("symbol" . ,(name market))
-                    ;; here too, bitfinex interprets volume in primary
-                    ("amount" . ,(princ-to-string volume))
-                    ("price" . "1")))))
-
 ;;; the order object returned will (always?) indicate that the order hasn't yet
 ;;; been cancelled; however, in situations where bfx has failed to cancel the
 ;;; order, we get 400 Bad Request + error message; so if we have any primary

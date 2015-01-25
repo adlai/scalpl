@@ -7,8 +7,7 @@
            #:asset #:find-asset #:asset-quantity
            #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
            #:market #:decimals #:primary #:counter #:find-market
-           #:offer #:bid #:ask #:placed #:market-order
-           #:taken #:given
+           #:offer #:bid #:ask #:placed #:taken #:given
            #:volume #:price #:placed #:oid #:consumed-asset
            #:gate #:gate-post #:gate-request
            #:thread #:control #:updater #:worker #:output ; coming soon: actors!
@@ -217,18 +216,6 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
         (let ((market-decimals (slot-value market 'decimals)))
           (format stream "~V$ ~A @ ~V$" decimals volume name market-decimals
                   (/ (abs price) (expt 10 market-decimals))))))))
-
-(defclass market-order (offer) ())
-(defmethod initialize-instance ((order market-order) &rest keys &key consume)
-  (apply #'call-next-method order
-         :price (ecase consume (primary 1) (counter -1))
-         keys))
-
-(defmethod print-object ((order market-order) stream)
-  (print-unreadable-object (order stream :type t)
-    (with-slots (volume market) order
-      (with-slots (name decimals) (consumed-asset order)
-        (format stream "~V$ ~A" decimals volume name)))))
 
 (defgeneric consumed-asset (offer)
   (:method ((bid bid)) (counter (market bid)))
