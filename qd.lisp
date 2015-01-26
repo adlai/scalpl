@@ -71,7 +71,9 @@
                          (filter (ignore-offers cdr placed))
                          (offer (balance-guarded-place ope cdr))
                          (cancel (awhen1 (cancel-offer gate cdr)
-                                   (setf placed (remove cdr placed))))))))))
+                                   (setf placed (remove cdr placed))))))
+        (write-char (case car (offer #\o) (cancel #\c) (t #\Space)))
+        (force-output)))))
 
 (defmethod shared-initialize :after ((supplicant ope-supplicant) (slots t) &key)
   (with-slots (thread) supplicant
@@ -241,9 +243,10 @@
     (flet ((place (new) (ope-place ope new))
            (amount-change (old new &aux (old-vol (volume old)))
              (/ (abs (- (volume new) old-vol)) old-vol)))
-      (flet ((update (target placed &aux percents cutoff)
+      (flet ((update (char target placed &aux percents cutoff)
                ;; (dolist (o target (force-output))
                ;;   (format t "~&~5@$ @ ~D" (volume o) (price o)))
+               (write-char char)
                (dolist (old placed (setf cutoff (third (sort percents #'>))))
                  (awhen (find (price old) target :key #'price :test #'=)
                    (push (amount-change old it) percents)))
@@ -260,8 +263,8 @@
                (send response t)))
         (multiple-value-bind (placed-bids placed-asks) (ope-placed ope)
           (select
-            ((recv next-bids to-bid) (update to-bid placed-bids))
-            ((recv next-asks to-ask) (update to-ask placed-asks))
+            ((recv next-bids to-bid) (update #\b to-bid placed-bids))
+            ((recv next-asks to-ask) (update #\a to-ask placed-asks))
             (t (sleep frequency))))))))
 
 (defun profit-margin (bid ask &optional fee-tracker)
