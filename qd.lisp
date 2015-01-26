@@ -335,8 +335,7 @@
 
 (defun ope-scalper-loop (ope)
   (with-slots (input output filter prioritizer epsilon count magic) ope
-    (destructuring-bind (primary counter resilience)
-        (recv input)
+    (destructuring-bind (primary counter resilience ratio) (recv input)
       ;; Now run that algorithm thingy
       (with-slots (next-bids next-asks response) prioritizer
         ;; TODO: Refactor prioritizer API into send-side and recv-side
@@ -351,9 +350,9 @@
                                                ,epsilon (/ count 2) magic))
                           (recv response)))))
           (do-side counter bids next-bids
-                   (* epsilon (abs (price (first bids)))
+                   (* epsilon (abs (price (first bids))) (max ratio 1)
                       (expt 10 (- (decimals (market (first bids)))))))
-          (do-side primary asks next-asks epsilon))))
+          (do-side primary asks next-asks (* epsilon (max (/ ratio) 1))))))
     (send output nil)))
 
 (defmethod shared-initialize :after ((prioritizer ope-prioritizer) (slots t) &key)
@@ -477,7 +476,6 @@
    (account-tracker :initarg :account-tracker)
    (name :initarg :name :accessor name)
    (report-depths :initform '(nil 4 1 1/4) :initarg :report-depths)
-   (lops :initform '(1/2 1/4 1/7))
    thread))
 
 (defun makereport (maker fund rate btc doge investment risked skew)
@@ -507,7 +505,7 @@
   (force-output))
 
 (defun %round (maker)
-  (with-slots (fund-factor resilience-factor targeting-factor lops
+  (with-slots (fund-factor resilience-factor targeting-factor
                market name trades-tracker book-tracker account-tracker)
       maker
     ;; whoo!
@@ -533,24 +531,9 @@
           (makereport maker total-fund doge/btc total-btc total-doge investment
                       (dbz-guard (/ (total-of    btc  doge) total-fund))
                       (dbz-guard (/ (total-of (- btc) doge) total-fund)))
-          (with-slots (ope) account-tracker
-            (send (slot-value ope 'input) (list btc doge resilience))
-            (destructuring-bind (target tolerance elasticity) lops
-              (let ((lopsidedness (abs (- target investment))))
-                (when (> lopsidedness tolerance)
-                  (flet ((urgent (class side fund)
-                           (let ((price (1- (price (fourth (slot-value book-tracker side))))))
-                             (make-instance class :market market
-                                            :volume (* fund lopsidedness elasticity)
-                                            :price (abs price)))))
-                    ;; ugh
-                    (sleep 2)
-                    ;; theoretically, this could exceed available volume, but
-                    ;; that's highly unlikely with a fund-factor below ~3/2
-                    (ope-place ope (if (> investment 1/2) ; magic?
-                                       (urgent 'ask 'asks total-btc)
-                                       (urgent 'bid 'bids total-doge)))))))
-            (recv (slot-value ope 'output))))))))
+          (with-slots (input output) (slot-value account-tracker 'ope)
+            (send input (list btc doge resilience (/ 1/2 investment))) ; MAGIC
+            (recv output)))))))
 
 (defun dumbot-loop (maker)
   (with-slots (control) maker
