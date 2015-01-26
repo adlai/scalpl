@@ -81,9 +81,8 @@
                      (loop (ope-supplicant-loop supplicant)))))))
 
 (defun ope-placed (ope)
-  (with-slots (control response) (slot-value ope 'supplicant)
-    (send control '(placed))
-    (let ((all (sort (copy-list (recv response)) #'< :key #'price)))
+  (with-slots (placed) (slot-value ope 'supplicant)
+    (let ((all (sort (copy-list placed) #'< :key #'price)))
       (flet ((split (sign)
                (remove sign all :key (lambda (x) (signum (price x))))))
         ;;       bids       asks
