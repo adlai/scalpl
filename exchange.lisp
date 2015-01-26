@@ -569,9 +569,18 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 ;;; bases - does it need both given and taken, or just given?
 ;;; p×aq - this looks suspiciously familiar...............
 
-(defun vwab (lictor asset depth)
-  (loop for basis in (getf (slot-value lictor 'bases) asset)
-     sum (quantity (cdr basis)) into acc until (> acc depth)))
+(defun bases-without (bases given)
+  (loop for basis = (pop bases) while bases
+     for (bp baq other) = basis for acc = baq then (aq+ acc baq)
+     for vwab-sum = other then (aq+ vwab-sum other)
+     when (> (quantity acc) (quantity given)) return
+       (values (cons (list bp (aq- acc given)
+                           (cons-aq (asset other)
+                                    (* (quantity other)
+                                       (/ (quantity (aq- acc given))
+                                          (quantity baq)))))
+                     bases)
+               vwab-sum)))
 
 (defun execution-updater-loop (tracker)
   (with-slots (gate market buffer delay) tracker
