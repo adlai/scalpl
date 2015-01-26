@@ -647,15 +647,16 @@
              (uptime (timestamp-difference (now) (timestamp (first (last trades)))))
              (updays (/ uptime 60 60 24))
              (volume (reduce #'+ (mapcar #'volume trades)))
+             (profit (* volume (1- (profit-margin (vwap "buy") (vwap "sell")))))
              (total-in-btc (with-slots (primary counter) market
                              (total-of (symbol-funds primary) (symbol-funds counter)))))
         (format t "~&Been up              ~7@F days,~
                    ~%traded               ~7@F coins,~
+                   ~%profit               ~7@F coins,~
                    ~%portfolio flip per   ~7@F days,~
                    ~%estd monthly profit: ~5@$ percent~%"
-                updays volume (/ (* total-in-btc updays 2) volume)
-                (/ (* 100 volume (1- (profit-margin (vwap "buy") (vwap "sell"))))
-                   (/ updays 30) total-in-btc))))))
+                updays volume profit (/ (* total-in-btc updays 2) volume)
+                (/ (* 100 profit) (/ updays 30) total-in-btc))))))
 
 (defgeneric print-book (book)
   (:method ((maker maker)) (print-book (slot-reduce maker account-tracker ope)))
