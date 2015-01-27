@@ -464,13 +464,13 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (setf (slot-value new '%market) (shallow-copy prev)))
 
 (defmethod shared-initialize :after ((market tracked-market) (names t) &key)
-  (with-slots (%market book-tracker trades-tracker book trades) market
-    (if (slot-boundp market 'book-tracker)
-        (reinitialize-instance book-tracker)
-        (setf book-tracker (make-instance 'book-tracker :market %market)))
-    (if (slot-boundp market 'trades-tracker)
-        (reinitialize-instance trades-tracker)
-        (setf trades-tracker (make-instance 'trades-tracker :market %market)))))
+  (macrolet ((init-tracker (tracker channel)
+               `(with-slots (%market ,tracker ,channel) market
+                  (if (slot-boundp market ',tracker)
+                      (reinitialize-instance ,tracker)
+                      (setf ,tracker (make-instance ',tracker :market %market))))))
+    (init-tracker book-tracker book)
+    (init-tracker trades-tracker trades)))
 
 ;;;
 ;;; Private Data API
