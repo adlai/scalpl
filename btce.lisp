@@ -74,6 +74,7 @@
       ;; > "btc-e has SSLv3 disabled... you're either being MITM'd and the
       ;; > trapper device is failing mac'ing messages, or who knows what. you
       ;; > shouldn't be receiving that error" - Naphex
+      drakma::drakma-simple-error
       usocket:ns-host-not-found-error) (e)
       (describe e)
       (sleep 2)
