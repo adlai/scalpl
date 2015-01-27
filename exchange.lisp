@@ -457,8 +457,10 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defclass tracked-market (market)
   ((%market :initarg :market :initform (error "must specify market"))
+   ;; (book :reader book) (trades :reader trades)
    book-tracker trades-tracker))
 
+;;; this shameful disgusting hack preserves method dispatch on market subclasses
 (defmethod update-instance-for-different-class :before
     ((prev market) (new tracked-market) &key)
   (setf (slot-value new '%market) (shallow-copy prev)))
@@ -468,7 +470,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                `(with-slots (%market ,tracker ,channel) market
                   (if (slot-boundp market ',tracker)
                       (reinitialize-instance ,tracker)
+                      ;; shameful? ☑ disgusting? ☑ preserves dispatch? ☑
                       (setf ,tracker (make-instance ',tracker :market %market))))))
+                         ;; ,channel (slot-value ,tracker 'output)
     (init-tracker book-tracker book)
     (init-tracker trades-tracker trades)))
 
