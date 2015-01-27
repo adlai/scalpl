@@ -108,7 +108,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (:method (designator (assets list))
     (find designator assets :key 'name :test 'string-equal))
   (:method (designator (exchange exchange))
-    (find-market designator (assets exchange))))
+    (find-market designator (assets exchange)))
+  (:method (designator (name symbol))
+    (find-asset designator (find-exchange name))))
 
 ;;;
 ;;; Asset Quantities
@@ -158,7 +160,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (find designator markets :key 'name :test 'string-equal))
   (:method (designator (exchange exchange))
     (with-slots (markets) exchange
-      (find-market designator markets))))
+      (find-market designator markets)))
+  (:method (designator (name symbol))
+    (find-market designator (find-exchange name))))
 
 ;;;
 ;;; Market Prices
