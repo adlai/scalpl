@@ -662,21 +662,23 @@
                 updays volume profit (/ (* total updays 2) volume)
                 (/ (* 100 profit) (/ updays 30) total))))))
 
-(defgeneric print-book (book)
-  (:method ((maker maker))
-    (macrolet ((path (&rest path) `(print-book (slot-reduce maker ,@path))))
+(defgeneric print-book (book &key count)
+  (:method ((maker maker) &rest keys)
+    (macrolet ((path (&rest path)
+                 `(apply #'print-book (slot-reduce maker ,@path) keys)))
       (path account-tracker ope) (path book-tracker))) ; TODO: interleaving
 
-  (:method ((ope ope-scalper))
-    (print-book (multiple-value-call 'cons (ope-placed ope))))
-  (:method ((tracker book-tracker))
-    (print-book (recv (slot-value tracker 'output))))
-  (:method ((book cons))
+  (:method ((ope ope-scalper) &rest keys)
+    (apply #'print-book (multiple-value-call 'cons (ope-placed ope)) keys))
+  (:method ((tracker book-tracker) &rest keys)
+    (apply #'print-book     (recv   (slot-value tracker 'output))    keys))
+  (:method ((book cons) &key count)
     (destructuring-bind (bids . asks) book
       (flet ((width (side)
                (reduce 'max (mapcar 'length (mapcar 'princ-to-string side))
                        :initial-value 0)))
-        (dotimes (i (max (length bids) (length asks)))
+        (dotimes (i (let ((max (max (length bids) (length asks))))
+                      (if count (min count max) max)))
           (format t "~&~V@A || ~V@A~%"
                   (width bids) (nth i bids)
                   (width asks) (nth i asks)))))))
