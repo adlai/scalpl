@@ -369,12 +369,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
            ;; max - find max seen trade size
            (max (send output (reduce #'max (mapcar #'volume trades)
                                      :initial-value 0)))
-           ;; set symbol value
-           (set (setf (symbol-value (second command)) (third command)))
-           ;; get symbol value
-           (get (send (third command) (symbol-value (second command))))
            ;; pause - wait for any other command to restart
            (pause (recv control))))
+        ((send output trades))
         ((send buffer last))
         ((recv buffer next)
          (if (trades-mergeable? tracker last next)
