@@ -481,7 +481,8 @@
    thread))
 
 (defun makereport (maker fund rate btc doge investment risked skew)
-  (when (zerop (mod (sec-of (now)) 3)) (print-book maker))
+  (when (zerop (mod (sec-of (now)) 3))
+    (print-book (slot-reduce maker account-tracker ope)))
   (with-slots (name market account-tracker report-depths) maker
     (labels ((sastr (side amount &optional model) ; TODO factor out aqstr
                (format nil "~V,,V$" (decimals (slot-value market side))
@@ -662,9 +663,16 @@
                 (/ (* 100 profit) (/ updays 30) total))))))
 
 (defgeneric print-book (book)
-  (:method ((maker maker)) (print-book (slot-reduce maker account-tracker ope)))
+  (:method ((maker maker))
+    (macrolet ((path (&rest path) `(print-book (slot-reduce maker ,@path))))
+      (path account-tracker ope) (path book-tracker))) ; TODO: interleaving
+
   (:method ((ope ope-scalper))
-    (multiple-value-bind (bids asks) (ope-placed ope)
+    (print-book (multiple-value-call 'cons (ope-placed ope))))
+  (:method ((tracker book-tracker))
+    (print-book (recv (slot-value tracker 'output))))
+  (:method ((book cons))
+    (destructuring-bind (bids . asks) book
       (flet ((width (side)
                (reduce 'max (mapcar 'length (mapcar 'princ-to-string side))
                        :initial-value 0)))
