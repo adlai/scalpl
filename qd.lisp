@@ -677,8 +677,8 @@
       (flet ((width (side)
                (reduce 'max (mapcar 'length (mapcar 'princ-to-string side))
                        :initial-value 0)))
-        (dotimes (i (let ((max (max (length bids) (length asks))))
-                      (if count (min count max) max)))
-          (format t "~&~V@A || ~V@A~%"
-                  (width bids) (nth i bids)
-                  (width asks) (nth i asks)))))))
+        (do ((bids bids (rest bids)) (bw (width bids))
+             (asks asks (rest asks)) (aw (width asks)))
+            ((or (and (null bids) (null asks))
+                 (and (numberp count) (= -1 (decf count)))))
+          (format t "~&~V@A || ~V@A~%" bw (first bids) aw (first asks)))))))
