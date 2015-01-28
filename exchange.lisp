@@ -310,8 +310,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defgeneric vwap (tracker &key type depth &allow-other-keys)
   (:method :around ((tracker t) &key)
-    (handler-case (call-next-method)
-      (division-by-zero () 0)))
+    (handler-case (call-next-method) (division-by-zero () 0)))
   (:method ((tracker trades-tracker) &key since depth type)
     (let ((trades (slot-value tracker 'trades)))
       (when since (setf trades (remove since trades
@@ -324,10 +323,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
         (setf trades (loop for trade in trades collect trade
                            sum (volume trade) into sum
                            until (>= sum depth))))
-      (handler-case
-          (/ (reduce #'+ (mapcar #'cost trades))
-             (reduce #'+ (mapcar #'volume trades)))
-        (division-by-zero () 0)))))
+      (/ (reduce #'+ (mapcar #'cost trades))
+         (reduce #'+ (mapcar #'volume trades))))))
 
 ;;; look at us, thinking of the future already
 ;;; we also dispatch on trades-tracker so that exchange-specific methods can
@@ -480,7 +477,11 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (init-tracker book-tracker book)
     (init-tracker trades-tracker trades)))
 
+(defmethod vwap ((market tracked-market) &rest keys)
+  (apply #'vwap (slot-value market 'trades-tracker) keys))
+
 (defgeneric ensure-tracking (market)
+  (:method :around (market) (call-next-method) market)
   (:method ((market market)) (change-class market 'tracked-market))
   (:method ((market tracked-market))
     (with-slots (trades-tracker book-tracker) market
