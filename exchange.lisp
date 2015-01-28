@@ -14,7 +14,7 @@
            #:trade #:cost #:direction #:txid
            #:trades-tracker #:trades #:trades-since #:vwap
            #:book-tracker #:bids #:asks #:get-book #:get-book-keys
-           #:tracked-market
+           #:ensure-tracking
            #:placed-offers #:account-balances #:market-fee
            #:execution #:fee #:net-cost #:net-volume
            #:execution-tracker #:execution-since #:bases
@@ -479,6 +479,13 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                          ;; ,channel (slot-value ,tracker 'output)
     (init-tracker book-tracker book)
     (init-tracker trades-tracker trades)))
+
+(defgeneric ensure-tracking (market)
+  (:method ((market market)) (change-class market 'tracked-market))
+  (:method ((market tracked-market))
+    (with-slots (trades-tracker book-tracker) market
+      (reinitialize-instance trades-tracker)
+      (reinitialize-instance  book-tracker))))
 
 ;;;
 ;;; Private Data API

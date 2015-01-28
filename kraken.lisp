@@ -111,6 +111,9 @@
 
 (defclass kraken-market (market) ((altname :initarg :altname :reader altname)))
 
+(defmethod altname ((market scalpl.exchange::tracked-market))
+  (altname (slot-value market 'scalpl.exchange::%market))) ; anger leads to hate
+
 (defun get-markets (assets)
   (mapcar-jso (lambda (name data)
                 (with-json-slots (pair_decimals quote base altname) data
@@ -279,7 +282,7 @@
 (defun raw-executions (gate &optional last)
   (gate-request gate "TradesHistory" (when last `(("start" . ,(txid last))))))
 
-(defmethod execution-since ((gate kraken-gate) (market kraken-market) since)
+(defmethod execution-since ((gate kraken-gate) (market market) since)
   (awhen (raw-executions gate since)
     (with-json-slots (trades) it
         (remove market (mapcar-jso #'parse-execution trades)
