@@ -151,15 +151,15 @@
 
 (defmethod perform ((handler token-handler))
   (with-slots (minter count tokens) handler
-    (with-slots (mint) minter
-      (handler-case
+    (handler-case
+        (with-slots (mint) minter
           (case count
             (5 (recv mint) (decf count))
             (0 (send tokens t) (incf count))
             (t (select ((recv mint delta) (decf count delta))
                        ((send tokens t) (incf count))
-                       (t (sleep 0.2)))))
-        (unbound-slot () (sleep 2))))))
+                       (t (sleep 0.2))))))
+      (unbound-slot () (sleep 2)))))
 
 (defclass kraken-gate (gate parent)
   (token-handler (child-classes :initform '(#1=token-handler #1#))))
