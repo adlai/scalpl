@@ -147,7 +147,6 @@
 (defclass ope-filter ()
   ((bids       :initarg :bids       :initform (make-instance 'channel))
    (asks       :initarg :asks       :initform (make-instance 'channel))
-   (book       :initarg :book       :initform (error "must link book source"))
    (market     :initarg :market     :initform (error "must link market"))
    (supplicant :initarg :supplicant :initform (error "must link supplicant"))
    (frequency  :initarg :frequency  :initform 1/7) ; TODO: push depth deltas
@@ -161,8 +160,9 @@
 ;;; 3) profit vs recent cost basis - done, shittily - TODO parametrize depth
 
 (defun ope-filter-loop (ope)
-  (with-slots (book bids asks foreigners frequency supplicant fee lictor rudder) ope
-    (destructuring-bind (bids . asks) (recv (slot-value book 'output))
+  (with-slots (market foreigners supplicant fee lictor rudder) ope
+    (destructuring-bind (bids . asks)
+        (recv (slot-reduce market book-tracker output))
       (flet ((filter-book (side)
                (with-slots (control response) supplicant
                  (send control `(filter . ,side)) (recv response))))
@@ -199,21 +199,17 @@
           (loop for best = (first it)
              for spread = (profit-margin bvwap (/ (abs (price best)) quotient) fee)
              until (> spread 1) do (pop it)))))
-    (select ((send bids (car foreigners)))
-            ((send asks (cdr foreigners)))
-            (t (sleep frequency)))))
+    (with-slots (bids asks frequency) ope
+      (select ((send bids (car foreigners)))
+              ((send asks (cdr foreigners)))
+              (t (sleep frequency))))))
 
-(defmethod shared-initialize :after ((ope ope-filter) (slots t) &key gate market)
-  (with-slots (book fee supplicant) ope
-    (unless (slot-boundp ope 'book)
-      (setf book
-            (make-instance 'book-tracker :market market)))
-    (unless (slot-boundp ope 'fee)
-      (setf fee
-            (make-instance 'fee-tracker  :market market :gate gate)))
-    (unless (slot-boundp ope 'supplicant)
-      (setf supplicant
-            (make-instance 'ope-supplicant              :gate gate)))))
+(defmethod shared-initialize :after ((ope ope-filter) (slots t) &key gate)
+  (with-slots (market fee supplicant) ope
+    (if (slot-boundp ope 'fee) (reinitialize-instance fee)
+        (setf fee (make-instance 'fee-tracker :market market :gate gate)))
+    (if (slot-boundp ope 'supplicant) (reinitialize-instance supplicant)
+        (setf supplicant (make-instance 'ope-supplicant :gate gate)))))
 
 (defmethod shared-initialize :around ((ope ope-filter) (slots t) &key)
   (call-next-method)                    ; this is an after-after method...
@@ -225,10 +221,9 @@
                            'string "qdm-preα ope filter for " (name market)))
               (loop (ope-filter-loop ope)))))))
 
-(defmethod reinitialize-instance :after ((ope ope-filter) &key gate market)
-  (with-slots (book fee supplicant) ope
-    (multiple-value-call 'reinitialize-instance book
-                         (if (null market) (values) (values :market market)))
+(defmethod reinitialize-instance :after ((ope ope-filter) &key gate)
+  (with-slots (fee market supplicant) ope
+    (ensure-tracking market)
     (multiple-value-call 'reinitialize-instance fee
                          (if (null market) (values) (values :market market))
                          (if (null gate) (values) (values :gate gate)))
@@ -365,7 +360,7 @@
                      (loop (ope-prioritizer-loop prioritizer)))))))
 
 (defmethod shared-initialize :after
-    ((ope ope-scalper) (slots t) &key gate market balance-tracker book lictor)
+    ((ope ope-scalper) (slots t) &key gate market balance-tracker lictor)
   (with-slots (filter prioritizer supplicant) ope
     (unless (slot-boundp ope 'supplicant)
       (setf supplicant (multiple-value-call 'make-instance
@@ -378,7 +373,7 @@
               (make-instance 'ope-prioritizer :supplicant supplicant)))
     (if (slot-boundp ope 'filter) (reinitialize-instance filter)
         (setf filter (make-instance 'ope-filter :market market
-                                    :lictor lictor :gate gate :book book
+                                    :lictor lictor :gate gate
                                     :supplicant supplicant)))))
 
 (defmethod shared-initialize :around ((ope ope-scalper) (slots t) &key)
@@ -473,8 +468,6 @@
    (resilience-factor :initarg :resilience :initform 1)
    (targeting-factor :initarg :targeting :initform 3/5)
    (control :initform (make-instance 'channel))
-   (trades-tracker :initarg :trades-tracker)
-   (book-tracker :initarg :book-tracker)
    (account-tracker :initarg :account-tracker)
    (name :initarg :name :accessor name)
    (report-depths :initform '(nil 4 1 1/4) :initarg :report-depths)
@@ -509,16 +502,13 @@
 
 (defun %round (maker)
   (with-slots (fund-factor resilience-factor targeting-factor
-               market name trades-tracker book-tracker account-tracker)
-      maker
-    ;; whoo!
-    (send (slot-value trades-tracker 'control) '(max))
+               market name account-tracker) maker
     ;; Get our balances
-    (let (;; TODO: split into primary resilience and counter resilience
-          (resilience (* resilience-factor
-                         (recv (slot-value trades-tracker 'output))))
-          ;; TODO: doge is cute but let's move on
-          (doge/btc (vwap trades-tracker :depth 50 :type :buy)))
+    (let* ((trades (recv (slot-reduce market trades-tracker output)))
+           ;; TODO: split into primary resilience and counter resilience
+           (resilience (* resilience-factor (reduce #'max (mapcar #'volume trades))))
+           ;; TODO: doge is cute but let's move on
+           (doge/btc (vwap (slot-reduce market trades-tracker) :depth 50 :type :buy)))
       (with-slots (control) (slot-value account-tracker 'treasurer)
         (recv (send control nil)))      ; beautiful!
       (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
@@ -550,19 +540,12 @@
       (t (%round maker)))))
 
 (defmethod shared-initialize :after ((maker maker) (names t) &key gate)
-  (with-slots (market trades-tracker book-tracker account-tracker thread) maker
-    ;; FIXME: wtf is this i don't even
-    (unless (slot-boundp maker 'trades-tracker)
-      (setf trades-tracker (make-instance 'trades-tracker :market market))
-      (sleep 7))
-    (unless (slot-boundp maker 'book-tracker)
-      (setf book-tracker (make-instance 'book-tracker :market market))
-      (sleep 7))
-    (unless (slot-boundp maker 'account-tracker)
-      (setf account-tracker
-            (make-instance 'account-tracker :gate gate :market market
-                           :book book-tracker))
-      (sleep 7))
+  (with-slots (market account-tracker thread) maker
+    (ensure-tracking market)
+    (if (slot-boundp maker 'account-tracker)
+        (reinitialize-instance account-tracker :gate gate :market market)
+        (setf account-tracker
+              (make-instance  'account-tracker :gate gate :market market)))
     (when (or (not (slot-boundp maker 'thread))
               (eq :terminated (task-status thread)))
       (setf thread
@@ -597,16 +580,11 @@
             (account-tracker updater)
             (account-tracker lictor worker)
             (account-tracker lictor updater)
-            (trades-tracker updater)
-            (trades-tracker worker)
-            (book-tracker updater)
-            (book-tracker worker)
             (fee-tracker thread))))
   #+sbcl (sb-ext:gc :full t)
   (when revive
     (dolist (actor
-              (list (slot-reduce maker book-tracker)
-                    (slot-reduce maker trades-tracker)
+              (list (slot-reduce maker market)
                     (slot-reduce maker account-tracker gate)
                     (slot-reduce maker account-tracker treasurer)
                     (slot-reduce maker account-tracker ope filter lictor)
@@ -618,11 +596,8 @@
 (defmacro define-maker (name &rest keys
                         &key market gate
                           ;; just for interactive convenience
-                          fund-factor targeting resilience
-                          fee-tracker trades-tracker
-                          book-tracker account-tracker)
-  (declare (ignore fund-factor targeting resilience fee-tracker
-                   trades-tracker book-tracker account-tracker))
+                          fund-factor targeting resilience account-tracker)
+  (declare (ignore fund-factor targeting resilience account-tracker))
   (dolist (key '(:market :gate)) (remf keys key))
   `(defvar ,name (make-instance 'maker :market ,market :gate ,gate
                                 :name ,(string-trim "*+<>" name)
@@ -636,16 +611,16 @@
                          :secret #P "secrets/some.secret"))
 
 (defun current-depth (maker)
-  (with-slots (resilience-factor trades-tracker) maker
-    (with-slots (control output) trades-tracker
+  (with-slots (resilience-factor market) maker
+    (with-slots (control output) (slot-value market 'trades-tracker)
       (send control '(max))
       (* resilience-factor (recv output)))))
 
 (defun performance-overview (maker)
-  (with-slots (account-tracker trades-tracker market) maker
+  (with-slots (account-tracker market) maker
     (flet ((funds (symbol) (asset-balance account-tracker symbol))
            (total (btc doge)
-             (+ btc (/ doge (vwap trades-tracker :depth 50 :type :buy))))
+             (+ btc (/ doge (vwap market :depth 50 :type :buy))))
            (vwap (side &optional d)
              (vwap account-tracker :type side :net t :market market :depth d)))
       (let* ((trades (slot-reduce account-tracker ope filter lictor trades))
@@ -666,8 +641,9 @@
   (:method ((maker maker) &rest keys)
     (macrolet ((path (&rest path)
                  `(apply #'print-book (slot-reduce maker ,@path) keys)))
-      (path account-tracker ope) (path book-tracker))) ; TODO: interleaving
-
+      ;; TODO: interleaving
+      (path account-tracker ope)
+      (path market book-tracker)))
   (:method ((ope ope-scalper) &rest keys)
     (apply #'print-book (multiple-value-call 'cons (ope-placed ope)) keys))
   (:method ((tracker book-tracker) &rest keys)
