@@ -541,65 +541,52 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defgeneric execution-since (gate market since))
 
-(defun execution-worker-loop (tracker)
-  (with-slots (control buffer trades bases) tracker
-    (let ((last (car trades)))
-      (select
-        ((recv control command)
-         ;; commands are (cons command args)
-         (case (car command)
-           ;; pause - wait for any other command to restart
-           (pause (recv control))
-           ;; set symbol value
-           (set (setf (symbol-value (second command)) (third command)))
-           ;; get symbol value
-           (get (send (third command) (symbol-value (second command))))))
-        ((send buffer last))
-        ((recv buffer next)
-         (with-slots (taken given price market) next
-           (swhen (getf bases (asset given))
-             (loop for basis = (pop it) while basis
-                for (bp baq other) = basis for acc = baq then (aq+ acc baq)
-                when (> (quantity acc) (quantity given)) return
-                  (push (list bp (aq- acc given)
-                              (cons-aq (asset other)
-                                       (* (quantity other)
-                                          (/ (quantity (aq- acc given))
-                                             (quantity baq)))))
-                        it)))
-           (push `(,(round (* price (expt 10 (decimals market)))) ,taken ,given)
-                 (getf bases (asset taken))))
-         (pushnew next trades :key #'txid :test #'equal))
-        (t (sleep 0.2))))))
-
-;;; this function should return two values:
-;;; first and foremost - the vwab price
-;;; it can get consed & pushed onto the basis list outside, by the worker
-;;; second - the remaining basis for the consumed asset
-;;; which also gets inserted into the bases set by the worker
-;;; when there's no basis to be consumed, or insufficient, 2nd value nil
-;;; does EXACTLY what we need!
-
-;;; who calls this function?
-;;; execution-worker, to compute the remaining basis for the given asset
-;;; ope-spreader (TODO), to check whether a certain offer is profitable
-
-;;; what should it be fed?
-;;; bases - does it need both given and taken, or just given?
-;;; p×aq - this looks suspiciously familiar...............
+;;; This function returns three values:
+;;;   1) remaining bases, after deducting the given aq (can be nil)
+;;;   2) the vwab price of the given bases
+;;;   3) the actual cost of the given bases
+;;; What is it fed?
+;;;   bases - just the ones for the asset-to-give, from the relevant market
+;;;   aq - that you wish to give
+;;; Who calls it?
+;;;   update-bases, to compute the remaining basis for a given asset
+;;;   ope-spreader (TODO), to check whether a certain offer is profitable
 
 (defun bases-without (bases given)
-  (loop for basis = (pop bases) while bases
+  (loop for basis = (pop bases)
      for (bp baq other) = basis for acc = baq then (aq+ acc baq)
      for vwab-sum = other then (aq+ vwab-sum other)
      when (> (quantity acc) (quantity given)) return
-       (values (cons (list bp (aq- acc given)
-                           (cons-aq (asset other)
-                                    (* (quantity other)
-                                       (/ (quantity (aq- acc given))
-                                          (quantity baq)))))
-                     bases)
-               vwab-sum)))
+       (let* ((excess (aq- acc given))
+              (other (cons-aq (asset other)
+                              (* (quantity other)
+                                 (/ (quantity excess) (quantity baq)))))
+              (recur (aq- vwab-sum other)))
+         (values (cons (list bp excess other) bases) (aq/ recur given) recur))
+     when (null bases) return
+       (ignore-errors (values nil (aq/ vwab-sum acc) vwab-sum))))
+
+(defun update-bases (tracker trade)
+  (with-slots (bases) tracker
+    (with-slots (taken given price market) trade
+      (swhen (getf bases (asset given)) (setf it (bases-without it given)))
+      (push (list (aq/ given taken) taken given) (getf bases (asset taken))))))
+
+(defun execution-worker-loop (tracker)
+  (with-slots (control buffer trades bases) tracker
+    (select
+      ((recv control command)
+       ;; commands are (cons command args)
+       (case (car command)
+         ;; pause - wait for any other command to restart
+         (pause (recv control))
+         ;; rebase - rebuild bases from trades
+         (rebase (setf bases nil)
+                 (dolist (next (reverse trades)) (update-bases tracker next)))))
+      ((recv buffer next)                        (update-bases tracker next)
+       (pushnew next trades :key #'txid :test #'equal))
+      ((send buffer (first trades)))
+      (t (sleep 0.2)))))
 
 (defun execution-updater-loop (tracker)
   (with-slots (gate market buffer delay) tracker
