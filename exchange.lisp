@@ -7,7 +7,7 @@
            #:asset #:find-asset #:asset-quantity
            #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
            #:market #:decimals #:primary #:counter #:find-market
-           #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/
+           #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/ #:aq*
            #:offer #:bid #:ask #:placed #:taken #:given
            #:volume #:price #:placed #:oid #:consumed-asset
            #:gate #:gate-post #:gate-request
@@ -128,13 +128,11 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defun cons-aq* (asset quantity)
   (cons-aq asset (* quantity (expt 10 (decimals asset)))))
 
-;;; might not be useful, but let's have it around
 (defun aq+ (aq1 aq2 &rest aqs)
   (assert (eq (asset aq1) (asset aq2)))
   (if aqs (reduce #'aq+ aqs :initial-value (aq+ aq1 aq2))
       (cons-aq (asset aq1) (+ (quantity aq1) (quantity aq2)))))
 
-;;; ditto... but let's not go any further, yet
 (defun aq- (aq1 &optional aq2 &rest aqs)
   (cond (aqs (aq- aq1 (reduce #'aq+ aqs :initial-value aq2)))
         (aq2 (assert (eq (asset aq1) (asset aq2)))
@@ -182,25 +180,26 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defmethod direction ((mp complex)) (if (plusp (realpart mp)) 'ask 'bid))
 (defun scalp (mp) (1- mp))              ; this is actually good news!
 
-(defun aq/ (given taken)
-  (assert (eq (exchange (asset given)) (exchange (asset taken))))
-  (dolist (market (markets (exchange (asset given))))
+(defun aq/ (given taken &aux (ag (asset given)) (at (asset taken)))
+  (assert (eq (exchange ag) (exchange at)) nil "assets from two exchanges")
+  (dolist (market (markets (exchange ag))
+           (error "no market between ~A and ~A" (name ag) (name at)))
     (flet ((build (sign numerator denominator)
              (return (cons-mp* market (/ (scaled-quantity numerator) sign
                                          (scaled-quantity denominator))))))
       (with-slots (primary counter) market
-        (when (and (eq (asset given) primary)
-                   (eq (asset taken) counter))
-          (build +1 taken given))
-        (when (and (eq (asset given) counter)
-                   (eq (asset taken) primary))
-          (build -1 given taken))))))
+        (when (and (eq ag primary) (eq at counter)) (build +1 taken given))
+        (when (and (eq ag counter) (eq at primary)) (build -1 given taken))))))
+
+(defun aq* (mp aq &aux (q (scaled-quantity aq)) (p (scaled-price mp)))
+  (with-slots (primary counter) (market mp)
+    (cond ((eq (asset aq) primary) (cons-aq* counter (* q p)))
+          ((eq (asset aq) counter) (cons-aq* primary (/ q p)))
+          (t (error "~A not traded in ~A" (asset aq) (market mp))))))
 
 ;;;
 ;;; Offers
 ;;;
-
-;;; FIXME: slots 'give' and 'take' containing amount & asset, each
 
 (defclass offer ()
   ((market :initarg :market :reader market)
@@ -242,9 +241,6 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (:method ((offer offer))
     (with-slots (market price) offer
       (slot-value market (if (> price 0) 'primary 'counter)))))
-
-;; (defmethod update-instance-for-different-class :after ((offer offer) (placed placed) &key)
-;;   (format t "~&@~A ~A" (format-timestring nil (now) :format '((:sec 2))) placed))
 
 ;;;
 ;;; Rate Gate
