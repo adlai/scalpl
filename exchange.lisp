@@ -7,6 +7,7 @@
            #:asset #:find-asset #:asset-quantity
            #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
            #:market #:decimals #:primary #:counter #:find-market
+           #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/
            #:offer #:bid #:ask #:placed #:taken #:given
            #:volume #:price #:placed #:oid #:consumed-asset
            #:gate #:gate-post #:gate-request
@@ -180,6 +181,20 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (cons-mp market (* price (expt 10 (decimals market)))))
 (defmethod direction ((mp complex)) (if (plusp (realpart mp)) 'ask 'bid))
 (defun scalp (mp) (1- mp))              ; this is actually good news!
+
+(defun aq/ (given taken)
+  (assert (eq (exchange (asset given)) (exchange (asset taken))))
+  (dolist (market (markets (exchange (asset given))))
+    (flet ((build (sign numerator denominator)
+             (return (cons-mp* market (/ (scaled-quantity numerator) sign
+                                         (scaled-quantity denominator))))))
+      (with-slots (primary counter) market
+        (when (and (eq (asset given) primary)
+                   (eq (asset taken) counter))
+          (build +1 taken given))
+        (when (and (eq (asset given) counter)
+                   (eq (asset taken) primary))
+          (build -1 given taken))))))
 
 ;;;
 ;;; Offers
