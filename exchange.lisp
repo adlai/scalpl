@@ -380,11 +380,6 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
         ((recv control command)
          ;; commands are (cons command args)
          (case (car command)
-           ;; should this really be a 'command' and not just an operation
-           ;; calculated by another actor on (slot-value tracker 'trades)?
-           ;; max - find max seen trade size
-           (max (send output (reduce #'max (mapcar #'volume trades)
-                                     :initial-value 0)))
            ;; pause - wait for any other command to restart
            (pause (recv control))))
         ((send output trades))

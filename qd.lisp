@@ -612,9 +612,8 @@
 
 (defun current-depth (maker)
   (with-slots (resilience-factor market) maker
-    (with-slots (control output) (slot-value market 'trades-tracker)
-      (send control '(max))
-      (* resilience-factor (recv output)))))
+    (with-slots (trades) (slot-value market 'trades-tracker)
+      (* resilience-factor (reduce #'max (mapcar #'volume trades))))))
 
 (defun performance-overview (maker)
   (with-slots (account-tracker market) maker
