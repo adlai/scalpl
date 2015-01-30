@@ -251,7 +251,7 @@
                       `(("timestamp"    ; FIXME: raw-foo should get raw params
                          . ,(princ-to-string (timestamp-to-unix (timestamp last)))))))))
 
-(defmethod execution-since ((gate bitfinex-gate) (market bitfinex-market) since)
+(defmethod execution-since ((gate bitfinex-gate) (market market) since)
   ;; bitfinex always returns the `since' trade, so discard it here
   (rest (nreverse (mapcar (execution-parser market)
                           (raw-executions gate (name market) since)))))

@@ -107,6 +107,9 @@
    (minimum :initarg :minimum :reader minimum)
    (maximum :initarg :maximum :reader maximum)))
 
+(defmethod fee ((market scalpl.exchange::tracked-market))
+  (fee (slot-value market 'scalpl.exchange::%market)))  ; hate leads to suffering
+
 (defun get-info (&aux assets)
   (awhen (get-request "info")
     (flet ((ensure-asset (name)
@@ -230,7 +233,7 @@
 
 ;;; they haven't heard of volume discounts yet...
 ;;; actually, they have! https://btc-e.com/news/216
-(defmethod market-fee ((gate t) (market btce-market)) (fee market))
+(defmethod market-fee ((btce-gate t) market) (fee market))
 
 (defun parse-execution (txid json)
   (with-json-slots ((oid "order_id") (wtfp "is_your_order")
@@ -256,7 +259,7 @@
                 `(,@(when symbol `(("pair"    . ,symbol)))
                   ,@(when last   `(("from_id" . ,(princ-to-string last)))))))
 
-(defmethod execution-since ((gate btce-gate) (market btce-market) since)
+(defmethod execution-since ((gate btce-gate) market since)
   (let ((txid (when since (txid since))))
     (awhen (raw-executions gate (name market) txid)
       ;; btce's from_id is inclusive, although just using #'rest will bug out
