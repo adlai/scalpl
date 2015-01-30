@@ -142,8 +142,7 @@
 
 (defmethod shared-initialize ((gate btce-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
-                       (when pubkey (values :pubkey (make-key pubkey)))
-                       (when secret (values :secret (make-signer secret)))))
+                       (mvwrap pubkey make-key) (mvwrap secret make-signer)))
 
 (defmethod gate-post ((gate btce-gate) key secret request)
   (destructuring-bind (command . options) request

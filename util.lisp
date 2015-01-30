@@ -18,11 +18,17 @@
            #:mapjso*
            #:urlencode-params
            #:break-errors
+           #:kw #:mvwrap
            ))
 
 (in-package #:scalpl.util)
 
 ;;; Actually useful
+
+(defun kw (thing) (intern (string-upcase (string thing)) :keyword))
+
+(defmacro mvwrap (slot function)
+  `(apply 'values (and ,slot `(,,(kw slot) ,(,function ,slot)))))
 
 (defmacro break-errors (typespec &body forms)
   `(ignore-errors (let ((*break-on-signals* ',typespec)) ,@forms)))

@@ -148,8 +148,7 @@
 
 (defmethod shared-initialize ((gate bitfinex-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
-                       (if pubkey (values :pubkey (make-key    pubkey)) (values))
-                       (if secret (values :secret (make-signer secret)) (values))))
+                       (mvwrap pubkey make-key) (mvwrap secret make-signer)))
 
 ;;;
 ;;; Public Data API
