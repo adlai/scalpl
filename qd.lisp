@@ -392,7 +392,7 @@
   ((gate :initarg :gate)
    (treasurer :initarg :treasurer)
    (ope :initarg :ope)
-   (lictors :initform nil)))
+   (lictor :initform nil)))
 
 (defclass balance-tracker ()
   ((balances :initarg :balances :initform nil)
@@ -426,8 +426,8 @@
     (send control (ignore-errors (aprog1 (account-balances gate)
                                    (send input `(balances . ,it)))))))
 
-(defmethod vwap ((tracker account-tracker) &key type market depth net)
-  (vwap (getf (slot-value tracker 'lictors) market) :type type :depth depth :net net))
+(defmethod vwap ((tracker account-tracker) &key type depth net)
+  (vwap (slot-value tracker 'lictor) :type type :depth depth :net net))
 
 (defmethod shared-initialize :after ((tracker balance-tracker) (names t) &key)
   (with-slots (updater worker) tracker
@@ -445,15 +445,15 @@
                      (loop (balance-worker-loop tracker)))))))
 
 (defmethod shared-initialize :after
-    ((tracker account-tracker) (names t) &key market book)
-  (with-slots (lictors treasurer gate ope) tracker
-    (setf (getf lictors market)
-          (make-instance 'execution-tracker :market market :gate gate))
+    ((tracker account-tracker) (names t) &key market)
+  (with-slots (lictor treasurer gate ope) tracker
+    (if (slot-boundp tracker 'lictor)
+        (reinitialize-instance lictor :market market)
+        (setf lictor (make-instance 'execution-tracker :market market :gate gate)))
     (if (slot-boundp tracker 'treasurer) (reinitialize-instance treasurer)
         (setf treasurer (make-instance 'balance-tracker :gate gate)))
     (unless (slot-boundp tracker 'ope)
-      (setf ope (make-instance 'ope-scalper
-                               :lictor (second lictors) :gate gate :book book
+      (setf ope (make-instance 'ope-scalper :lictor lictor :gate gate
                                :balance-tracker treasurer :market market)))))
 
 (defun gapps-rate (from to)
