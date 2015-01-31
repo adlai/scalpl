@@ -38,47 +38,11 @@
     (with-open-file (stream path)
       (make-key stream))))
 
-;;; FIXME: URGENT NEED OF CLEANUP
-;;; all this needs to be reflected in the exchange objects
-;;;    to reduce code duplication. time for scalpl.net?
-
 (defun raw-request (path &rest keys)
-  (handler-case
-      (multiple-value-bind (body status)
-          (apply #'drakma:http-request
-                 (concatenate 'string +base-path+ path)
-                 ;; Mystery crash on the morning of 2014-06-04
-                 ;; entered an infinite loop of usocket:timeout-error
-                 ;; lasted for hours, continued upon restart
-                 ;; other programs on the same computer not affected - just sbcl
-                 :connection-timeout 60
-                 keys)
-        (case status
-          (200 (read-json body))
-          ;; (404 (with-json-slots (result error)
-          ;;          (read-json (map 'string 'code-char body))
-          ;;        (format t "~&Aborting after 404...~%")
-          ;;        (describe error)
-          ;;        (values result error))
-          ;;      (values nil t))
-          ;; (502 (format t "~&Retrying after 502...~%")
-          ;;      (sleep 2)
-          ;;      (apply #'raw-request path keys))
-          (t (error "HTTP Error ~D~%~A" status body))))
-    ((or usocket:timeout-error simple-error
-      ;; > A failure in the SSL library occurred on handle
-      ;; > #.(SB-SYS:INT-SAP #XB6030438) (return code: 1). SSL error queue:
-      ;; > error:140943FC:SSL routines:SSL3_READ_BYTES:sslv3 alert bad record mac
-      ;; cf http://marc.info/?l=openssl-dev&m=108444932120941
-      ;; cf http://log.bitcoin-assets.com/?date=13-01-2015#975797 excerpt:
-      ;; > "btc-e has SSLv3 disabled... you're either being MITM'd and the
-      ;; > trapper device is failing mac'ing messages, or who knows what. you
-      ;; > shouldn't be receiving that error" - Naphex
-      drakma::drakma-simple-error
-      usocket:ns-host-not-found-error) (e)
-      (describe e)
-      (sleep 2)
-      (apply #'raw-request path keys))))
+  (multiple-value-bind (body status)
+      (apply #'http-request (concatenate 'string +base-path+ path) keys)
+    (if (= status 200) (read-json body)
+        (values nil (format nil "HTTP Error ~D~%~A" status body)))))
 
 (defun get-request (path &optional data)
   (raw-request (concatenate 'string +public-stub+ path "?"

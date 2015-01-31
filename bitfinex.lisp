@@ -53,49 +53,13 @@
   (st-json:read-json (map 'string 'code-char arg)))
 
 (defun raw-request (path &rest keys)
-  (handler-case
-      (multiple-value-bind (body status)
-          (apply #'drakma:http-request
-                 (concatenate 'string +base-path+ path)
-                 ;; Mystery crash on the morning of 2014-06-04
-                 ;; entered an infinite loop of usocket:timeout-error
-                 ;; lasted for hours, continued upon restart
-                 ;; other programs on the same computer not affected - just sbcl
-                 :connection-timeout 60
-                 keys)
-        (case status
-          (200 (decode-json body))
-          ((400 404) (values nil (decode-json body)))
-          (t (cerror "Retry request" "HTTP Error ~D" status)
-             (apply #'raw-request path keys))))
-    (end-of-file ()
-      (format t "~&Retrying after unexpected EOF...~%")
-      (sleep 1)
-      (apply #'raw-request path keys))
-    (chunga::input-chunking-unexpected-end-of-file ()
-      (format t "~&Retrying after chunga EOF~%")
-      (sleep 1)
-      (apply #'raw-request path keys))
-    (drakma::drakma-simple-error ()
-      (format t "~&Retrying after drakma SIMPLE crap...~%")
-      (sleep 1)
-      (apply #'raw-request path keys))
-    (drakma::simple-error ()
-      (format t "~&Retrying after drakma crap...~%")
-      (sleep 1)
-      (apply #'raw-request path keys))
-    (usocket:ns-host-not-found-error ()
-      (format t "~&Retrying after nameserver crappage...~%")
-      (sleep 1)
-      (apply #'raw-request path keys))
-    (usocket:deadline-timeout-error ()
-      (format t "~&Retrying after deadline timeout...~%")
-      (sleep 1)
-      (apply #'raw-request path keys))
-    (usocket:timeout-error ()
-      (format t "~&Retrying after regular timeout...~%")
-      (sleep 1)
-      (apply #'raw-request path keys))))
+  (multiple-value-bind (body status)
+      (apply #'http-request (concatenate 'string +base-path+ path) keys)
+    (case status
+      (200 (decode-json body))
+      ((400 404) (values nil (decode-json body)))
+      (t (cerror "Retry request" "HTTP Error ~D" status)
+         (apply #'raw-request path keys)))))
 
 (defun get-request (path &optional data)
   (raw-request (concatenate 'string path "/?" (urlencode-params data))))

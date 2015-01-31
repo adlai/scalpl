@@ -39,23 +39,9 @@
     (with-open-file (stream path)
       (make-key stream))))
 
-;;; FIXME: URGENT NEED OF CLEANUP
-;;; all this needs to be reflected in the exchange objects
-;;;    to reduce code duplication. time for scalpl.net?
-
 (defun raw-request (path &rest keys)
-  (handler-case
-      (handler-bind ((drakma::simple-error #'describe))
-        ;; (setf *break-on-signals* 'drakma::simple-error)
-        (multiple-value-bind (body status)
-            (apply #'drakma:http-request
-                   (concatenate 'string +base-path+ path)
-                   ;; Mystery crash on the morning of 2014-06-04
-                   ;; entered an infinite loop of usocket:timeout-error
-                   ;; lasted for hours, continued upon restart
-                   ;; other programs on the same computer not affected - just sbcl
-                   :connection-timeout 60
-                   keys)
+  (multiple-value-bind (body status)
+      (apply #'http-request (concatenate 'string +base-path+ path) keys)
           (case status
             (200 (with-json-slots (result error)
                      (read-json (map 'string 'code-char body))
@@ -67,22 +53,11 @@
                    (describe error)
                    (values result error))
                  (values nil t))
-            (502 (format t "~&Retrying after 502...~%")
-                 (sleep 2)
-                 (apply #'raw-request path keys))
+            ((400 502)
+             (format t "~&Retrying after ~D...~%" status)
+             (sleep 2) (apply #'raw-request path keys))
             (t (cerror "Retry request" "HTTP Error ~D" status)
                (apply #'raw-request path keys)))))
-    ((or drakma::drakma-simple-error
-         usocket:timeout-error
-         usocket:deadline-timeout-error
-         usocket:ns-host-not-found-error
-         CHUNGA:INPUT-CHUNKING-UNEXPECTED-END-OF-FILE
-         END-OF-FILE
-         drakma::simple-error
-         cl+ssl::ssl-error-zero-return) (e)
-      (describe e)
-      (sleep 2)
-      (apply #'raw-request path keys))))
 
 (defun get-request (path &optional data)
   (raw-request (concatenate 'string "public/" path "?"

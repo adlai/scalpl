@@ -2,7 +2,8 @@
 
 (defpackage #:scalpl.exchange
   (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util #:scalpl.actor)
-  (:export #:exchange #:name #:assets #:markets #:parse-timestamp
+  (:export #:http-request
+           #:exchange #:name #:assets #:markets #:parse-timestamp
            #:*exchanges* #:find-exchange #:fetch-exchange-data
            #:asset #:find-asset #:asset-quantity
            #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
@@ -22,6 +23,18 @@
            #:post-offer #:cancel-offer))
 
 (in-package #:scalpl.exchange)
+
+;;; Networking... dump it here, later should probably split into net.lisp
+
+(defun http-request (path &rest keys &aux (backoff 0))
+  (loop (handler-case (return (apply #'drakma:http-request path
+                                     :connection-timeout 30 keys))
+       ((or simple-error drakma::drakma-simple-error
+         usocket:deadline-timeout-error usocket:timeout-error
+         usocket:timeout-error usocket:ns-host-not-found-error
+         end-of-file chunga::input-chunking-unexpected-end-of-file
+         cl+ssl::ssl-error)
+           (error) (describe error) (sleep (incf backoff))))))
 
 ;;; TODO
 ;;; This file should lay out the interface that each exchange client needs to
