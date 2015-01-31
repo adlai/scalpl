@@ -92,8 +92,6 @@
 
 ;;; response: placed offer if successful, nil if not
 (defgeneric ope-place (ope offer))
-(defmethod ope-place ((ope ope-scalper) offer)
-  (ope-place (slot-value ope 'supplicant) offer))
 (defmethod ope-place ((ope ope-prioritizer) offer)
   (ope-place (slot-value ope 'supplicant) offer))
 (defmethod ope-place ((ope ope-supplicant) offer)
@@ -161,44 +159,42 @@
 
 (defun ope-filter-loop (ope)
   (with-slots (market foreigners supplicant fee lictor rudder) ope
-    (destructuring-bind (bids . asks)
-        (recv (slot-reduce market book-tracker output))
-      (flet ((filter-book (side)
-               (with-slots (control response) supplicant
-                 (send control `(filter . ,side)) (recv response))))
-        (let ((other-bids (filter-book bids))
-              (other-asks (filter-book asks)))
-          (loop
-             for best-bid = (1- (price (car other-bids)))
-             for best-ask = (1- (price (car other-asks)))
-             for spread = (profit-margin (abs best-bid) best-ask fee)
-             ;; do (format t "~&~8,'0D ~8,'0D ~5F~%" best-bid best-ask spread)
-             until (> spread 1) do
-               (ecase (round (signum (* (max 0 (- best-ask best-bid 5))
-                                        (- (volume (car other-bids))
-                                           (volume (car other-asks))))))
-                 (-1 (decf (volume (car other-asks)) (volume (pop other-bids))))
-                 (+1 (decf (volume (car other-bids)) (volume (pop other-asks))))
-                 (0 (pop other-bids) (pop other-asks)))
-             finally (setf foreigners (cons other-bids other-asks))))))
-    #-nil                               ; this must go!
-    (let ((quotient (expt 10 (decimals (market fee))))
-          (svwap (vwap lictor :type "sell" :depth (car rudder)))
-          (bvwap (vwap lictor :type "buy"  :depth (cdr rudder))))
-      (unless (or (zerop svwap) (zerop bvwap))
-        (let ((spread (profit-margin bvwap svwap)))
-          (when (> 1 spread) (warn "~8,'0D ~8,'0D ~5F" bvwap svwap spread))))
-      ;; TODO macro/flet
-      (unless (zerop svwap)
-        (swhen (car foreigners)
-          (loop for best = (first it)
-             for spread = (profit-margin (/ (abs (price best)) quotient) svwap fee)
-             until (> spread 1) do (pop it))))
-      (unless (zerop bvwap)
-        (swhen (cdr foreigners)
-          (loop for best = (first it)
-             for spread = (profit-margin bvwap (/ (abs (price best)) quotient) fee)
-             until (> spread 1) do (pop it)))))
+    (flet ((filter-book (side)
+             (with-slots (control response) supplicant
+               (send control `(filter . ,side)) (recv response)))
+           (xyz (asset rudder type)
+             (aif (getf (slot-reduce lictor bases) asset)
+                  (scaled-price (nth-value 1 (bases-without
+                                              it (cons-aq* asset rudder))))
+                  (vwap lictor :type type :depth rudder :net t))))
+      (destructuring-bind (bfee . afee) (recv (slot-value fee 'output))
+        (destructuring-bind (bids . asks)
+            (recv (slot-reduce market book-tracker output))
+          (let ((other-bids (filter-book bids))
+                (other-asks (filter-book asks)))
+            (loop
+               for best-bid = (1- (price (car other-bids)))
+               for best-ask = (1- (price (car other-asks)))
+               for spread = (profit-margin (abs best-bid) best-ask bfee afee)
+               until (> spread 1) do
+                 (ecase (round (signum (* (max 0 (- best-ask best-bid 5))
+                                          (- (volume (car other-bids))
+                                             (volume (car other-asks))))))
+                   (-1 (decf (volume (car other-asks)) (volume (pop other-bids))))
+                   (+1 (decf (volume (car other-bids)) (volume (pop other-asks))))
+                   (0 (pop other-bids) (pop other-asks)))
+               finally (setf foreigners (cons other-bids other-asks)))))
+        (let ((quotient (expt 10 (decimals market)))
+              (svwap (xyz (counter market) (car rudder) "sell"))
+              (bvwap (xyz (primary market) (cdr rudder) "buy")))
+          (macrolet ((do-side (vwap side &body args)
+                       `(unless (zerop ,vwap)
+                          (swhen (,side foreigners)
+                            (loop for best = (first it)
+                               for spread = (profit-margin ,@args)
+                               until (> spread 1) do (pop it))))))
+            (do-side svwap car (/ (abs (price best)) quotient) svwap bfee)
+            (do-side bvwap cdr bvwap (/ (abs (price best)) quotient) 0 afee)))))
     (with-slots (bids asks frequency) ope
       (select ((send bids (car foreigners)))
               ((send asks (cdr foreigners)))
@@ -262,12 +258,10 @@
             ((recv next-asks to-ask) (update #\a to-ask placed-asks))
             (t (sleep frequency))))))))
 
-(defun profit-margin (bid ask &optional fee-tracker)
-  (if (null fee-tracker) (/ ask bid)
-      (destructuring-bind (bid-fee . ask-fee)
-          (recv (slot-value fee-tracker 'output))
-        (/ (* ask (- 1 (/ ask-fee 100)))
-           (* bid (+ 1 (/ bid-fee 100)))))))
+(defun profit-margin (bid ask &optional (bid-fee 0) (ask-fee 0))
+  (if (= bid-fee ask-fee 0) (/ ask bid)
+      (/ (* ask (- 1 (/ ask-fee 100)))
+         (* bid (+ 1 (/ bid-fee 100))))))
 
 ;;; Lossy trades
 
@@ -392,7 +386,7 @@
   ((gate :initarg :gate)
    (treasurer :initarg :treasurer)
    (ope :initarg :ope)
-   (lictor :initform nil)))
+   (lictor :initarg :lictor)))
 
 (defclass balance-tracker ()
   ((balances :initarg :balances :initform nil)

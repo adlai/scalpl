@@ -18,7 +18,7 @@
            #:ensure-tracking
            #:placed-offers #:account-balances #:market-fee
            #:execution #:fee #:net-cost #:net-volume
-           #:execution-tracker #:execution-since #:bases
+           #:execution-tracker #:execution-since #:bases #:bases-without
            #:post-offer #:cancel-offer))
 
 (in-package #:scalpl.exchange)
