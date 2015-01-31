@@ -17,7 +17,7 @@
    (epsilon :initform 0.001 :initarg :epsilon)
    (count :initform 30 :initarg :offer-count)
    (magic :initform 3 :initarg :magic-count)
-   prioritizer scalper))
+   prioritizer thread))
 
 (defclass ope-supplicant ()
   ((gate :initarg :gate)
@@ -372,11 +372,11 @@
 
 (defmethod shared-initialize :around ((ope ope-scalper) (slots t) &key)
   (call-next-method)                    ; another after-after method...
-  (with-slots (scalper) ope
-    (when (or (not (slot-boundp ope 'scalper))
-              (eq :terminated (task-status scalper)))
-      (setf scalper (pexec (:name "qdm-preα ope scalper")
-                      (loop (ope-scalper-loop ope)))))))
+  (with-slots (thread) ope
+    (when (or (not (slot-boundp ope 'thread))
+              (eq :terminated (task-status thread)))
+      (setf thread (pexec (:name "qdm-preα ope scalper")
+                     (loop (ope-scalper-loop ope)))))))
 
 ;;;
 ;;; ACCOUNT TRACKING
