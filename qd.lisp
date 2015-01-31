@@ -72,7 +72,6 @@
                          (offer (balance-guarded-place ope cdr))
                          (cancel (awhen1 (cancel-offer gate cdr)
                                    (setf placed (remove cdr placed))))))
-        (write-char (case car (offer #\o) (cancel #\c) (t #\Space)))
         (force-output)))))
 
 (defmethod shared-initialize :after ((supplicant ope-supplicant) (slots t) &key)
@@ -91,10 +90,7 @@
         (values (split 1) (split -1))))))
 
 ;;; response: placed offer if successful, nil if not
-(defgeneric ope-place (ope offer))
-(defmethod ope-place ((ope ope-prioritizer) offer)
-  (ope-place (slot-value ope 'supplicant) offer))
-(defmethod ope-place ((ope ope-supplicant) offer)
+(defun ope-place (ope offer)
   (with-slots (control response) ope
     (send control (cons 'offer offer)) (recv response)))
 
@@ -226,40 +222,28 @@
     (multiple-value-call 'reinitialize-instance supplicant
                          (if (null gate) (values) (values :gate gate)))))
 
+(defun prioriteaze (ope target placed &aux to-add (excess placed))
+  (flet ((place (new) (ope-place (slot-value ope 'supplicant) new)))
+    (macrolet ((frob (add pop)
+                 `(let* ((n (max (length ,add) (length ,pop)))
+                         (m (- n (ceiling (log (1+ (random (1- (exp n)))))))))
+                    (macrolet ((wrap (a . b) `(awhen (nth m ,a) (,@b it))))
+                      (wrap ,add place) (wrap ,pop ope-cancel ope)))))
+      (aif (dolist (new target (sort to-add #'< :key #'price))
+             (aif (find (price new) excess :key #'price :test #'=)
+                  (setf excess (remove it excess)) (push new to-add)))
+           (frob it excess) (frob target placed)))))
+
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
 ;;; sends completion acknowledgement to response channel
 (defun ope-prioritizer-loop (ope)
   (with-slots (next-bids next-asks response frequency) ope
-    (flet ((place (new) (ope-place ope new))
-           (amount-change (old new &aux (old-vol (volume old)))
-             (/ (abs (- (volume new) old-vol)) old-vol)))
-      (flet ((update (char target placed &aux percents to-add (excess placed))
-               (aif (dolist (new target (sort to-add #'< :key #'price))
-                      (aif (find (price new) excess :key #'price :test #'=)
-                           (setf excess (remove it excess)) (push new to-add)))
-                    (let* ((n (max (length it) (length excess)))
-                           (m (- n (ceiling (log (1+ (random (1- (exp n)))))))))
-                      (macrolet ((wrap (a . b) `(awhen (nth m ,a) (,@b it))))
-                        (wrap it place) (wrap excess ope-cancel ope)))
-                    (let ((cutoff
-                           (dolist (old placed (third (sort percents #'<)))
-                             (awhen (find (price old) target :key #'price)
-                               (push (amount-change old it) percents)))))
-                      (dolist (old placed (mapcar #'place target))
-                        (aif (aand1 (find (price old) target :key #'price)
-                                    (< (amount-change old it) (or cutoff 0)))
-                             (setf target (remove it target))
-                             (dolist (new (remove (price old) target
-                                                  :key #'price :test #'<)
-                                      (ope-cancel ope old))
-                               (if (place new) (setf target (remove new target))
-                                   (return (ope-cancel ope old))))))))
-               (send response (write-char char))))
-        (multiple-value-bind (placed-bids placed-asks) (ope-placed ope)
-          (select ((recv next-bids to-bid) (update #\b to-bid placed-bids))
-                  ((recv next-asks to-ask) (update #\a to-ask placed-asks))
-                  (t (sleep frequency))))))))
+    (multiple-value-bind (next source) (recv (list next-bids next-asks))
+      (multiple-value-bind (placed-bids placed-asks) (ope-placed ope)
+        (if (null next) (sleep frequency)
+            ((lambda (side) (send response (prioriteaze ope next side)))
+             (if (eq source next-bids) placed-bids placed-asks)))))))
 
 (defun profit-margin (bid ask &optional (bid-fee 0) (ask-fee 0))
   (if (= bid-fee ask-fee 0) (/ ask bid)
