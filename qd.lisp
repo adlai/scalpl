@@ -186,7 +186,7 @@
           (macrolet ((do-side (vwap side &body args)
                        `(unless (zerop ,vwap)
                           (swhen (,side foreigners)
-                            (loop for best = (first it)
+                            (loop for best = (first it) while best
                                for spread = (profit-margin ,@args)
                                until (> spread 1) do (pop it))))))
             (do-side svwap car (/ (abs (price best)) quotient) svwap bfee)
@@ -239,7 +239,8 @@
 ;;; sends completion acknowledgement to response channel
 (defun ope-prioritizer-loop (ope)
   (with-slots (next-bids next-asks response frequency) ope
-    (multiple-value-bind (next source) (recv (list next-bids next-asks))
+    (multiple-value-bind (next source)
+        (recv (list next-bids next-asks) :blockp nil)
       (multiple-value-bind (placed-bids placed-asks) (ope-placed ope)
         (if (null next) (sleep frequency)
             ((lambda (side) (send response (prioriteaze ope next side)))
@@ -282,7 +283,8 @@
             (and (> acc resilience)  ;     OR: (   BOTH: processed past resilience
                  (> processed-tally max-orders))) ; AND: processed enough orders )
         (flet ((pick (count offers)
-                 (sort (subseq (sort (subseq offers 0 (1- processed-tally))
+                 (sort (subseq (sort (or (subseq offers 0 (1- processed-tally))
+                                         (warn "~&FIXME: GO DEEPER!~%") offers)
                                      #'> :key (lambda (x) (volume (cdr x))))
                                0 count) #'< :key (lambda (x) (price (cdr x)))))
                (offer-scaler (total bonus count)
@@ -322,7 +324,7 @@
         ;; TODO: properly deal with partial and completed orders
         (macrolet ((do-side (amount side chan epsilon)
                      `(let ((,side (recv (slot-value filter ',side))))
-                        (unless (zerop ,amount)
+                        (unless (or (zerop ,amount) (null ,side))
                           (send ,chan
                                 (dumbot-offers ,side resilience ,amount
                                                ,epsilon (/ count 2) magic))
@@ -524,7 +526,7 @@
   (with-slots (market account-tracker thread) maker
     (ensure-tracking market)
     (if (slot-boundp maker 'account-tracker)
-        (reinitialize-instance account-tracker :gate gate :market market)
+        (reinitialize-instance account-tracker :market market)
         (setf account-tracker
               (make-instance  'account-tracker :gate gate :market market)))
     (when (or (not (slot-boundp maker 'thread))
