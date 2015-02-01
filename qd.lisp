@@ -146,6 +146,7 @@
    (frequency  :initarg :frequency  :initform 1/7) ; TODO: push depth deltas
    (lictor     :initarg :lictor     :initform (error "must link lictor"))
    (rudder     :initarg :rudder     :initform '(() . ()))
+   (book-cache :initform nil)
    fee foreigners thread))
 
 ;;; needs to do three different things
@@ -154,21 +155,21 @@
 ;;; 3) profit vs recent cost basis - done, shittily - TODO parametrize depth
 
 (defun ope-filter-loop (ope)
-  (with-slots (market foreigners supplicant fee lictor rudder) ope
+  (with-slots (market foreigners book-cache bids asks rudder frequency) ope
     (flet ((filter-book (side)
-             (with-slots (control response) supplicant
+             (with-slots (control response) (slot-value ope 'supplicant)
                (send control `(filter . ,side)) (recv response)))
-           (xyz (asset rudder type)
+           (xyz (asset rudder type &aux (lictor (slot-value ope 'lictor)))
              (aif (getf (slot-reduce lictor bases) asset)
-                  (scaled-price (nth-value 1 (bases-without
-                                              it (cons-aq* asset rudder))))
+                  (scaled-price
+                   (nth-value 1 (bases-without it (cons-aq* asset rudder))))
                   (vwap lictor :type type :depth rudder :net t))))
-      (destructuring-bind (bfee . afee) (recv (slot-value fee 'output))
-        (destructuring-bind (bids . asks)
-            (recv (slot-reduce market book-tracker output))
-          (let ((other-bids (filter-book bids))
-                (other-asks (filter-book asks)))
-            (loop
+      (destructuring-bind (bfee . afee) (recv (slot-reduce ope fee output))
+        (let ((book (recv (slot-reduce market book-tracker output))))
+          (unless (equal book book-cache)
+            (loop initially (setf book-cache book)
+               with other-bids = (filter-book (car book))
+               with other-asks = (filter-book (cdr book))
                for best-bid = (1- (price (car other-bids)))
                for best-ask = (1- (price (car other-asks)))
                for spread = (profit-margin (abs best-bid) best-ask bfee afee)
@@ -179,22 +180,20 @@
                    (-1 (decf (volume (car other-asks)) (volume (pop other-bids))))
                    (+1 (decf (volume (car other-bids)) (volume (pop other-asks))))
                    (0 (pop other-bids) (pop other-asks)))
-               finally (setf foreigners (cons other-bids other-asks)))))
-        (let ((quotient (expt 10 (decimals market)))
-              (svwap (xyz (counter market) (car rudder) "sell"))
-              (bvwap (xyz (primary market) (cdr rudder) "buy")))
-          (macrolet ((do-side (vwap side &body args)
-                       `(unless (zerop ,vwap)
-                          (swhen (,side foreigners)
-                            (loop for best = (first it) while best
-                               for spread = (profit-margin ,@args)
-                               until (> spread 1) do (pop it))))))
-            (do-side svwap car (/ (abs (price best)) quotient) svwap bfee)
-            (do-side bvwap cdr bvwap (/ (abs (price best)) quotient) 0 afee)))))
-    (with-slots (bids asks frequency) ope
-      (select ((send bids (car foreigners)))
-              ((send asks (cdr foreigners)))
-              (t (sleep frequency))))))
+               finally (setf foreigners (cons other-bids other-asks)))
+            (let ((quotient (expt 10 (decimals market)))
+                  (svwap (xyz (counter market) (car rudder) "sell"))
+                  (bvwap (xyz (primary market) (cdr rudder) "buy")))
+              (macrolet ((do-side (vwap side &body args)
+                           `(unless (zerop ,vwap)
+                              (swhen (,side foreigners)
+                                (loop for best = (first it) while best
+                                   for spread = (profit-margin ,@args)
+                                   until (> spread 1) do (pop it))))))
+                (do-side svwap car (/ (abs (price best)) quotient) svwap bfee)
+                (do-side bvwap cdr bvwap (/ (abs (price best)) quotient) 0 afee)))
+            (setf bids (car foreigners) asks (cdr foreigners))))
+        (sleep frequency)))))
 
 (defmethod shared-initialize :after ((ope ope-filter) (slots t) &key gate)
   (with-slots (market fee supplicant) ope
@@ -323,7 +322,7 @@
         ;; TODO: using two prioritizers (bid / ask), and an alternator?
         ;; TODO: properly deal with partial and completed orders
         (macrolet ((do-side (amount side chan epsilon)
-                     `(let ((,side (recv (slot-value filter ',side))))
+                     `(let ((,side (copy-list (slot-value filter ',side))))
                         (unless (or (zerop ,amount) (null ,side))
                           (send ,chan
                                 (dumbot-offers ,side resilience ,amount
