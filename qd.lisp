@@ -308,6 +308,23 @@
    (magic :initform 3 :initarg :magic-count)
    prioritizer thread))
 
+(defun ope-sprinner (offers bases profit-thunk &aux (offer (first offers)))
+  (multiple-value-bind (bases vwab cost) (bases-without bases (given offer))
+    (format t "~&~A ~D ~:[~:; ~V$ ~V$ ~6$~]~%" offer (length bases) vwab
+            (and vwab (decimals (market vwab))) (and vwab (scaled-price vwab))
+            (and cost (decimals (asset cost))) (and cost (scaled-quantity cost))
+            (and vwab cost (funcall profit-thunk (price offer) (price vwab))))
+    (and bases (rest offers) (ope-sprinner (rest offers) bases profit-thunk))))
+
+(defun ope-spreader (dumbots filter side)
+  (destructuring-bind (bid-fee . ask-fee) (recv (slot-reduce filter fee output))
+    (ope-sprinner
+     dumbots (getf (slot-reduce filter lictor bases)
+                   (asset (given (first dumbots))))
+     (case side
+       (:bids (lambda (price vwab) (profit-margin (abs price) vwab bid-fee)))
+       (:asks (lambda (price vwab) (profit-margin vwab price 0 ask-fee)))))))
+
 (defun ope-scalper-loop (ope)
   (with-slots (input output filter prioritizer epsilon count magic) ope
     (destructuring-bind (primary counter resilience ratio) (recv input)
@@ -320,9 +337,12 @@
         (macrolet ((do-side (amount side chan epsilon)
                      `(let ((,side (copy-list (slot-value filter ',side))))
                         (unless (or (zerop ,amount) (null ,side))
-                          (send ,chan
-                                (dumbot-offers ,side resilience ,amount
-                                               ,epsilon (/ count 2) magic))
+                          (send ,chan (aprog1
+                                          (dumbot-offers
+                                           ,side resilience ,amount
+                                           ,epsilon (/ count 2) magic)
+                                        ;; (ope-spreader it filter ,(kw side))
+                                        ))
                           (recv response)))))
           (do-side counter bids next-bids
                    (* epsilon (abs (price (first bids))) (max ratio 1)
