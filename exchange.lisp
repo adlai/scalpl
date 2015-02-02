@@ -624,17 +624,15 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 ;;; so we should be able to calculate the _net_ price for each trade, and use
 ;;; that for profitability calculations, rather than fee at time of calculation.
 
-(defmethod vwap ((tracker execution-tracker) &key type depth net)
+(defmethod vwap ((tracker execution-tracker) &key type depth)
   (let ((trades (slot-value tracker 'trades)))
     (when type
-      (setf trades (remove type (slot-value tracker 'trades)
-                           :key #'direction :test #'string-not-equal)))
-    (when depth
-      (setf trades (loop for trade in trades collect trade
-                      sum (volume trade) into sum
-                      until (>= sum depth))))
-    (/ (reduce '+ (mapcar (if net #'net-cost #'cost) trades))
-       (reduce '+ (mapcar (if net #'net-volume #'volume) trades)))))
+      (setf trades (remove type trades :key #'direction :test #'string-not-equal)))
+    (when depth (setf trades
+                      (loop for trade in trades collect trade
+                         sum (volume trade) into sum until (>= sum depth))))
+    (/ (reduce '+ (mapcar #'net-cost trades))
+       (reduce '+ (mapcar #'net-volume trades)))))
 
 ;;;
 ;;; Action API

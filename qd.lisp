@@ -141,7 +141,7 @@
              (aif (getf (slot-reduce lictor bases) asset)
                   (scaled-price
                    (nth-value 1 (bases-without it (cons-aq* asset rudder))))
-                  (vwap lictor :type type :depth rudder :net t))))
+                  (vwap lictor :type type :depth rudder))))
       (destructuring-bind (bfee . afee) (recv (slot-reduce ope fee output))
         (let ((book (recv (slot-reduce market book-tracker output))))
           (unless (equal book book-cache)
@@ -404,8 +404,8 @@
     (send control (ignore-errors (aprog1 (account-balances gate)
                                    (send input `(balances . ,it)))))))
 
-(defmethod vwap ((tracker account-tracker) &key type depth net)
-  (vwap (slot-value tracker 'lictor) :type type :depth depth :net net))
+(defmethod vwap ((tracker account-tracker) &rest keys)
+  (apply #'vwap (slot-value tracker 'lictor) keys))
 
 (defmethod shared-initialize :after ((tracker balance-tracker) (names t) &key)
   (with-slots (updater worker) tracker
@@ -459,7 +459,7 @@
                (format nil "~V,,V$" (decimals (slot-value market side))
                        (if model (length (sastr side model)) 0) amount))
              (depth-profit (&optional depth)
-               (flet ((vwap (side) (vwap account-tracker :type side :net t
+               (flet ((vwap (side) (vwap account-tracker :type side
                                          :market market :depth depth)))
                  (dbz-guard (* 100 (1- (profit-margin (vwap "buy")
                                                       (vwap "sell"))))))))
@@ -593,17 +593,17 @@
     (with-slots (trades) (slot-value market 'trades-tracker)
       (* resilience-factor (reduce #'max (mapcar #'volume trades))))))
 
-(defun performance-overview (maker)
+(defun performance-overview (maker &optional depth)
   (with-slots (account-tracker market) maker
     (flet ((funds (symbol) (asset-balance account-tracker symbol))
            (total (btc doge)
              (+ btc (/ doge (vwap market :depth 50 :type :buy))))
-           (vwap (side &optional d)
-             (vwap account-tracker :type side :net t :market market :depth d)))
+           (vwap (side)
+             (vwap account-tracker :type side :market market :depth depth)))
       (let* ((trades (slot-reduce account-tracker ope filter lictor trades))
              (uptime (timestamp-difference (now) (timestamp (first (last trades)))))
              (updays (/ uptime 60 60 24))
-             (volume (reduce #'+ (mapcar #'volume trades)))
+             (volume (or depth (reduce #'+ (mapcar #'volume trades))))
              (profit (* volume (1- (profit-margin (vwap "buy") (vwap "sell")))))
              (total (total (funds (primary market)) (funds (counter market)))))
         (format t "~&Been up              ~7@F days,~
