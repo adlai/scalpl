@@ -226,6 +226,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defclass bid (offer) ()) (defclass ask (offer) ())
 
+(defun consumed-asset (offer) (asset (given offer)))
+
 (defmethod initialize-instance ((bid bid) &rest keys &key price)
   (apply #'call-next-method bid :price (- price) keys))
 
@@ -247,13 +249,6 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
         (let ((market-decimals (slot-value market 'decimals)))
           (format stream "~V$ ~A @ ~V$" decimals volume name market-decimals
                   (/ (abs price) (expt 10 market-decimals))))))))
-
-(defgeneric consumed-asset (offer)
-  (:method ((bid bid)) (counter (market bid)))
-  (:method ((ask ask)) (primary (market ask)))
-  (:method ((offer offer))
-    (with-slots (market price) offer
-      (slot-value market (if (> price 0) 'primary 'counter)))))
 
 ;;;
 ;;; Rate Gate

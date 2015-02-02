@@ -9,16 +9,6 @@
 ;;;  ENGINE
 ;;;
 
-(defclass ope-scalper ()
-  ((input :initform (make-instance 'channel))
-   (output :initform (make-instance 'channel))
-   (supplicant :initarg :supplicant)
-   (filter :initarg :filter)
-   (epsilon :initform 0.001 :initarg :epsilon)
-   (count :initform 30 :initarg :offer-count)
-   (magic :initform 3 :initarg :magic-count)
-   prioritizer thread))
-
 (defclass ope-supplicant ()
   ((gate :initarg :gate)
    (placed :initform nil :initarg :placed)
@@ -27,13 +17,6 @@
    (balance-tracker :initarg :balance-tracker)
    (order-slots :initform 40 :initarg :order-slots)
    thread))
-
-(defclass ope-prioritizer ()
-  ((next-bids :initform (make-instance 'channel))
-   (next-asks :initform (make-instance 'channel))
-   (response :initform (make-instance 'channel))
-   (supplicant :initarg :supplicant) thread
-   (frequency :initarg :frequency :initform 1/7)))
 
 (defun offers-spending (ope asset)
   (remove asset (slot-value ope 'placed)
@@ -48,27 +31,12 @@
                  (> order-slots (length placed)))
         (awhen1 (post-offer gate offer) (push it placed))))))
 
-;;; TODO: deal with partially completed orders
-(defun ignore-offers (open mine &aux them)
-  (dolist (offer open (nreverse them))
-    (aif (find (price offer) mine :test #'= :key #'price)
-         (let ((without-me (- (volume offer) (volume it))))
-           (setf mine (remove it mine))
-           (unless (< without-me 0.001)
-             (push (make-instance 'offer :market (slot-value offer 'market)
-                                  :price (price offer)
-                                  :volume without-me)
-                   them)))
-         (push offer them))))
-
 ;;; receives messages in the control channel, outputs from the gate
 (defun ope-supplicant-loop (ope)
   (with-slots (gate control response placed) ope
     (let ((command (recv control)))
       (destructuring-bind (car . cdr) command
         (send response (case car
-                         (placed placed)
-                         (filter (ignore-offers cdr placed))
                          (offer (balance-guarded-place ope cdr))
                          (cancel (awhen1 (cancel-offer gate cdr)
                                    (setf placed (remove cdr placed))))))
@@ -149,17 +117,27 @@
    (book-cache :initform nil)
    fee foreigners thread))
 
+;;; TODO: deal with partially completed orders
+(defun ignore-offers (open mine &aux them)
+  (dolist (offer open (nreverse them))
+    (aif (find (price offer) mine :test #'= :key #'price)
+         (let ((without-me (- (volume offer) (volume it))))
+           (setf mine (remove it mine))
+           (unless (< without-me 0.001)
+             (push (make-instance 'offer :market (slot-value offer 'market)
+                                  :price (price offer)
+                                  :volume without-me)
+                   them)))
+         (push offer them))))
+
 ;;; needs to do three different things
-;;; 1) ignore-mine - already does (via filter-book)
+;;; 1) ignore-offers - fishes offers from linked supplicant
 ;;; 2) profitable spread - already does (via ecase spaghetti)
 ;;; 3) profit vs recent cost basis - done, shittily - TODO parametrize depth
 
 (defun ope-filter-loop (ope)
   (with-slots (market foreigners book-cache bids asks rudder frequency) ope
-    (flet ((filter-book (side)
-             (with-slots (control response) (slot-value ope 'supplicant)
-               (send control `(filter . ,side)) (recv response)))
-           (xyz (asset rudder type &aux (lictor (slot-value ope 'lictor)))
+    (flet ((xyz (asset rudder type &aux (lictor (slot-value ope 'lictor)))
              (aif (getf (slot-reduce lictor bases) asset)
                   (scaled-price
                    (nth-value 1 (bases-without it (cons-aq* asset rudder))))
@@ -168,8 +146,9 @@
         (let ((book (recv (slot-reduce market book-tracker output))))
           (unless (equal book book-cache)
             (loop initially (setf book-cache book)
-               with other-bids = (filter-book (car book))
-               with other-asks = (filter-book (cdr book))
+               with placed = (slot-reduce ope supplicant placed)
+               with other-bids = (ignore-offers (car book) placed)
+               with other-asks = (ignore-offers (cdr book) placed)
                for best-bid = (1- (price (car other-bids)))
                for best-ask = (1- (price (car other-asks)))
                for spread = (profit-margin (abs best-bid) best-ask bfee afee)
@@ -220,6 +199,13 @@
                          (if (null gate) (values) (values :gate gate)))
     (multiple-value-call 'reinitialize-instance supplicant
                          (if (null gate) (values) (values :gate gate)))))
+
+(defclass ope-prioritizer ()
+  ((next-bids :initform (make-instance 'channel))
+   (next-asks :initform (make-instance 'channel))
+   (response :initform (make-instance 'channel))
+   (supplicant :initarg :supplicant) thread
+   (frequency :initarg :frequency :initform 1/7)))
 
 (defun prioriteaze (ope target placed &aux to-add (excess placed))
   (flet ((place (new) (ope-place (slot-value ope 'supplicant) new)))
@@ -311,6 +297,16 @@
     ;; TODO - use a callback for liquidity distribution control
     (with-slots (volume) (first remaining-offers)
       (push (incf share (* 4/3 (incf acc volume))) (first remaining-offers)))))
+
+(defclass ope-scalper ()
+  ((input :initform (make-instance 'channel))
+   (output :initform (make-instance 'channel))
+   (supplicant :initarg :supplicant)
+   (filter :initarg :filter)
+   (epsilon :initform 0.001 :initarg :epsilon)
+   (count :initform 30 :initarg :offer-count)
+   (magic :initform 3 :initarg :magic-count)
+   prioritizer thread))
 
 (defun ope-scalper-loop (ope)
   (with-slots (input output filter prioritizer epsilon count magic) ope
