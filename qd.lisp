@@ -149,6 +149,7 @@
                with placed = (slot-reduce ope supplicant placed)
                with other-bids = (ignore-offers (car book) placed)
                with other-asks = (ignore-offers (cdr book) placed)
+               while other-bids while other-asks
                for best-bid = (1- (price (car other-bids)))
                for best-ask = (1- (price (car other-asks)))
                for spread = (profit-margin (abs best-bid) best-ask bfee afee)
@@ -514,17 +515,18 @@
              (factor-fund (fund factor) (* fund fund-factor factor)))
         (let* ((total-btc (symbol-funds (slot-value market 'primary)))
                (total-doge (symbol-funds (slot-value market 'counter)))
-               (total-fund (total-of total-btc total-doge))
-               (investment (dbz-guard (/ total-btc total-fund)))
-               (btc (factor-fund total-btc (* investment targeting-factor)))
-               (doge (factor-fund total-doge (- 1 (* investment targeting-factor)))))
-          ;; report funding
-          (makereport maker total-fund doge/btc total-btc total-doge investment
-                      (dbz-guard (/ (total-of    btc  doge) total-fund))
-                      (dbz-guard (/ (total-of (- btc) doge) total-fund)))
-          (with-slots (input output) (slot-value account-tracker 'ope)
-            (send input (list btc doge resilience (/ 1/2 investment))) ; MAGIC
-            (recv output)))))))
+               (total-fund (total-of total-btc total-doge)))
+          (unless (zerop total-fund)
+            (let* ((investment (dbz-guard (/ total-btc total-fund)))
+                   (btc (factor-fund total-btc (* investment targeting-factor)))
+                   (doge (factor-fund total-doge (- 1 (* investment targeting-factor)))))
+              ;; report funding
+              (makereport maker total-fund doge/btc total-btc total-doge investment
+                          (dbz-guard (/ (total-of    btc  doge) total-fund))
+                          (dbz-guard (/ (total-of (- btc) doge) total-fund)))
+              (with-slots (input output) (slot-value account-tracker 'ope)
+                (send input (list btc doge resilience (/ 1/2 investment)))
+                (recv output)))))))))
 
 (defun dumbot-loop (maker)
   (with-slots (control) maker

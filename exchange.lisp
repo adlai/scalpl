@@ -561,18 +561,19 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 ;;;   ope-spreader (TODO), to check whether a certain offer is profitable
 
 (defun bases-without (bases given)
-  (loop for basis = (pop bases)
-     for (bp baq other) = basis for acc = baq then (aq+ acc baq)
-     for vwab-sum = other then (aq+ vwab-sum other)
-     when (> (quantity acc) (quantity given)) return
-       (let* ((excess (aq- acc given))
-              (other (cons-aq (asset other)
-                              (* (quantity other)
-                                 (/ (quantity excess) (quantity baq)))))
-              (recur (aq- vwab-sum other)))
-         (values (cons (list bp excess other) bases) (aq/ recur given) recur))
-     when (null bases) return
-       (ignore-errors (values nil (aq/ vwab-sum acc) vwab-sum))))
+  (ignore-errors
+    (loop for basis = (pop bases)
+       for (bp baq other) = basis for acc = baq then (aq+ acc baq)
+       for vwab-sum = other then (aq+ vwab-sum other)
+       when (> (quantity acc) (quantity given)) return
+         (let* ((excess (aq- acc given))
+                (other (cons-aq (asset other)
+                                (* (quantity other)
+                                   (/ (quantity excess) (quantity baq)))))
+                (recur (aq- vwab-sum other)))
+           (values (cons (list bp excess other) bases) (aq/ recur given) recur))
+       when (null bases) return
+         (values nil (aq/ vwab-sum acc) vwab-sum))))
 
 (defun update-bases (tracker trade)
   (with-slots (bases) tracker
