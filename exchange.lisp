@@ -233,14 +233,14 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defmethod shared-initialize :after ((offer offer) names &key)
   (with-slots (market taken given volume price) offer
-    ((lambda (primary counter)
-       (when (or (eq names t) (find 'given names))
-         (setf given (ecase (signum price) (+1 primary) (-1 counter))))
-       (when (or (eq names t) (find 'taken names))
-         (setf taken (ecase (signum price) (+1 counter) (-1 primary)))))
-     (cons-aq* (primary market) volume)
-     (with-slots (counter decimals) market
-       (cons-aq* counter (* volume (/ (abs price) (expt 10 decimals))))))))
+    (macrolet ((do-slot (slot primary counter)
+                 `(when (or (eq names t) (find ',slot names))
+                    (setf ,slot (if (plusp price)
+                                    (cons-aq* (primary market) ,primary)
+                                    (cons-aq* (counter market) ,counter))))))
+      (do-slot given volume volume)
+      (let ((factor (/ (abs price) (expt 10 (decimals market)))))
+        (do-slot taken (* volume factor) (/ volume factor))))))
 
 (defmethod print-object ((offer offer) stream)
   (print-unreadable-object (offer stream :type t)

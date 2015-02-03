@@ -311,7 +311,7 @@
 
 (defun ope-sprinner (offers bases profit-thunk &aux (offer (first offers)))
   (multiple-value-bind (bases vwab cost) (bases-without bases (given offer))
-    (format t "~&~A ~D ~:[~:; ~V$ ~V$ ~6$~]~%" offer (length bases) vwab
+    (format t "~&~A ~D ~:[~; ~V$ ~V$ ~6$~]~%" offer (length bases) vwab
             (and vwab (decimals (market vwab))) (and vwab (scaled-price vwab))
             (and cost (decimals (asset cost))) (and cost (scaled-quantity cost))
             (and vwab cost (funcall profit-thunk (price offer) (price vwab))))
