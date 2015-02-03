@@ -317,33 +317,26 @@
             (and vwab cost (funcall profit-thunk (price offer) (price vwab))))
     (and bases (rest offers) (ope-sprinner (rest offers) bases profit-thunk))))
 
-(defun ope-spreader (dumbots filter side)
-  (destructuring-bind (bid-fee . ask-fee) (recv (slot-reduce filter fee output))
-    (ope-sprinner
-     dumbots (getf (slot-reduce filter lictor bases)
-                   (asset (given (first dumbots))))
-     (case side
-       (:bids (lambda (price vwab) (profit-margin (abs price) vwab bid-fee)))
-       (:asks (lambda (price vwab) (profit-margin vwab price 0 ask-fee)))))))
+(defun ope-spreader (book resilience funds epsilon side ope)
+  (with-slots (filter count magic) ope
+    (aprog1 (dumbot-offers book resilience funds epsilon (/ count 2) magic)
+      (destructuring-bind (bid-fee . ask-fee)
+          (recv (slot-reduce filter fee output))
+        (ope-sprinner it (getf (slot-reduce filter lictor bases)
+                               (asset (given (first it))))
+         (case (kw side)
+           (:bids (lambda (price vwab) (profit-margin (abs price) vwab bid-fee)))
+           (:asks (lambda (price vwab) (profit-margin vwab price 0 ask-fee)))))))))
 
 (defun ope-scalper-loop (ope)
-  (with-slots (input output filter prioritizer epsilon count magic) ope
+  (with-slots (input output filter prioritizer epsilon) ope
     (destructuring-bind (primary counter resilience ratio) (recv input)
-      ;; Now run that algorithm thingy
       (with-slots (next-bids next-asks response) prioritizer
-        ;; TODO: Refactor prioritizer API into send-side and recv-side
-        ;; TODO: Rework flow so both sides are updated on each book query...
-        ;; TODO: using two prioritizers (bid / ask), and an alternator?
-        ;; TODO: properly deal with partial and completed orders
         (macrolet ((do-side (amount side chan epsilon)
                      `(let ((,side (copy-list (slot-value filter ',side))))
                         (unless (or (zerop ,amount) (null ,side))
-                          (send ,chan (aprog1
-                                          (dumbot-offers
-                                           ,side resilience ,amount
-                                           ,epsilon (/ count 2) magic)
-                                        ;; (ope-spreader it filter ,(kw side))
-                                        ))
+                          (send ,chan (ope-spreader ,side resilience ,amount
+                                                    ,epsilon ',side ope))
                           (recv response)))))
           (do-side counter bids next-bids
                    (* epsilon (abs (price (first bids))) (max ratio 1)
