@@ -276,7 +276,6 @@
    (epsilon :initform 0.001 :initarg :epsilon)
    (count :initform 30 :initarg :offer-count)
    (magic :initform 3 :initarg :magic-count)
-   (cut :initform 0 :initarg :cut)
    (spam :initform nil :initarg :spam)
    prioritizer thread))
 
@@ -287,13 +286,15 @@
             ;; what appears to be the officer, problem?
             ;; (bases-without bases (given top)) fails, because bids are `viqc'
             (bases-without bases (cons-aq* (consumed-asset top) (volume top)))
-          (flet ((profit (o) (funcall punk (1- (price o)) (price vwab))))
+          (flet ((profit (o)
+                   (funcall punk (1- (price o)) (price vwab) (cdar funds))))
             (signal "~4,2@$ ~A ~D ~V$ ~V$" (profit top) top (length bases)
                     (decimals (market vwab)) (scaled-price vwab)
                     (decimals (asset cost)) (scaled-quantity cost))
             (let ((book (rest (member 0 book :test #'< :key #'profit))))
               (if (plusp (profit top))
-                  `(,top ,@(ope-sprinner offers (- funds (volume top))
+                  `(,top ,@(ope-sprinner offers `((,(- (caar funds) (volume top))
+                                                    . ,(cdar funds)))
                                          (1- count) magic bases punk dunk book))
                   (ope-sprinner (funcall dunk book funds count magic) funds
                                 count magic `((,vwab ,(aq* vwab cost) ,cost)
@@ -304,19 +305,20 @@
 
 (defun ope-spreader (book resilience funds epsilon side ope)
   (flet ((dunk (book funds count magic)
-           (and book (dumbot-offers book resilience funds epsilon count magic)))
-         (punk (side cut fees)
-           (macrolet ((punk (&rest args)
-                        `(lambda (price vwab)
-                           (- (* 100 (1- (profit-margin ,@args))) cut))))
-             (if (eq side 'bids) (punk price vwab (car fees))
-                 (punk vwab price 0 (cdr fees))))))
+           (and book (dumbot-offers book resilience (caar funds)
+                                    epsilon count magic))))
     (with-slots (count magic cut) ope
       (awhen (dunk book funds (/ count 2) magic)
         (ope-sprinner it funds (/ count 2) magic
                       (getf (slot-reduce ope filter lictor bases)
                             (asset (given (first it))))
-                      (punk side cut (recv (slot-reduce ope filter fee output)))
+                      (macrolet ((punk (&rest args)
+                                   `(lambda (price vwab inner-cut)
+                                      (- (* 100 (1- (profit-margin ,@args)))
+                                         inner-cut))))
+                        (let ((fees (recv (slot-reduce ope filter fee output))))
+                          (if (eq side 'bids) (punk price vwab (car fees))
+                              (punk vwab price 0 (cdr fees)))))
                       #'dunk book)))))
 
 (defun ope-scalper-loop (ope)
@@ -325,7 +327,9 @@
       (with-slots (next-bids next-asks response) prioritizer
         (macrolet ((do-side (amount side chan epsilon)
                      `(let ((,side (copy-list (slot-value filter ',side))))
-                        (unless (or (zerop ,amount) (null ,side))
+                        (unless (or (actypecase ,amount (number (zerop it))
+                                               (cons (zerop (caar it))))
+                                    (null ,side))
                           (send ,chan (handler-bind
                                           ((simple-condition (ope-logger ope)))
                                         (ope-spreader ,side resilience ,amount
@@ -447,6 +451,7 @@
    (resilience-factor :initarg :resilience :initform 1)
    (targeting-factor :initarg :targeting :initform (random 1.0))
    (skew-factor :initarg :skew-factor :initform 1)
+   (cut :initform 0)
    (control :initform (make-instance 'channel))
    (account-tracker :initarg :account-tracker)
    (name :initarg :name :accessor name)
@@ -488,7 +493,7 @@
 
 (defun %round (maker)
   (with-slots (fund-factor resilience-factor targeting-factor skew-factor
-               market name account-tracker) maker
+               market name account-tracker cut) maker
     ;; Get our balances
     (let* ((trades (recv (slot-reduce market trades-tracker output)))
            ;; TODO: split into primary resilience and counter resilience
@@ -519,7 +524,7 @@
                           (dbz-guard (/ (total-of    btc  doge) total-fund))
                           (dbz-guard (/ (total-of (- btc) doge) total-fund)))
               (send (slot-reduce account-tracker ope input)
-                    (list btc doge resilience
+                    (list `((,btc . ,cut)) `((,doge . ,cut)) resilience
                           (expt (/ doge btc doge/btc) skew-factor)))
               (recv (slot-reduce account-tracker ope output)))))))))
 
