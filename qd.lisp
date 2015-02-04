@@ -458,7 +458,8 @@
   ((market :initarg :market :reader market)
    (fund-factor :initarg :fund-factor :initform 1)
    (resilience-factor :initarg :resilience :initform 1)
-   (targeting-factor :initarg :targeting :initform 3/5)
+   (targeting-factor :initarg :targeting :initform (random 1.0))
+   (skew-factor :initarg :skew-factor :initform 1)
    (control :initform (make-instance 'channel))
    (account-tracker :initarg :account-tracker)
    (name :initarg :name :accessor name)
@@ -493,7 +494,7 @@
   (force-output))
 
 (defun %round (maker)
-  (with-slots (fund-factor resilience-factor targeting-factor
+  (with-slots (fund-factor resilience-factor targeting-factor skew-factor
                market name account-tracker) maker
     ;; Get our balances
     (let* ((trades (recv (slot-reduce market trades-tracker output)))
@@ -504,22 +505,23 @@
       (with-slots (control) (slot-value account-tracker 'treasurer)
         (recv (send control nil)))      ; beautiful!
       (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
-             (total-of (btc doge) (+ btc (/ doge doge/btc)))
-             (factor-fund (fund factor) (* fund fund-factor factor)))
+             (total-of (btc doge) (+ btc (/ doge doge/btc))))
         (let* ((total-btc (symbol-funds (slot-value market 'primary)))
                (total-doge (symbol-funds (slot-value market 'counter)))
                (total-fund (total-of total-btc total-doge)))
           (unless (zerop total-fund)
             (let* ((investment (dbz-guard (/ total-btc total-fund)))
-                   (btc (factor-fund total-btc (* investment targeting-factor)))
-                   (doge (factor-fund total-doge (- 1 (* investment targeting-factor)))))
+                   (btc  (* fund-factor total-btc investment targeting-factor))
+                   (doge (* fund-factor total-doge
+                            (- 1 (* investment targeting-factor)))))
               ;; report funding
               (makereport maker total-fund doge/btc total-btc total-doge investment
                           (dbz-guard (/ (total-of    btc  doge) total-fund))
                           (dbz-guard (/ (total-of (- btc) doge) total-fund)))
-              (with-slots (input output) (slot-value account-tracker 'ope)
-                (send input (list btc doge resilience (/ 1/2 investment)))
-                (recv output)))))))))
+              (send (slot-reduce account-tracker ope input)
+                    (list btc doge resilience
+                          (expt (/ targeting-factor investment) skew-factor)))
+              (recv (slot-reduce account-tracker ope output)))))))))
 
 (defun dumbot-loop (maker)
   (with-slots (control) maker
