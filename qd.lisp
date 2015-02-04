@@ -218,7 +218,7 @@
       (aif (dolist (new target (sort to-add #'< :key #'price))
              (aif (find (price new) excess :key #'price :test #'=)
                   (setf excess (remove it excess)) (push new to-add)))
-           (frob it excess) (frob target placed)))))
+           (frob it excess) (and target placed (frob target placed))))))
 
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
@@ -228,7 +228,7 @@
     (multiple-value-bind (next source)
         (recv (list next-bids next-asks) :blockp nil)
       (multiple-value-bind (placed-bids placed-asks) (ope-placed ope)
-        (if (null next) (sleep frequency)
+        (if (null source) (sleep frequency)
             ((lambda (side) (send response (prioriteaze ope next side)))
              (if (eq source next-bids) placed-bids placed-asks)))))))
 
@@ -319,14 +319,14 @@
 
 (defun ope-spreader (book resilience funds epsilon side ope)
   (with-slots (filter count magic) ope
-    (aprog1 (dumbot-offers book resilience funds epsilon (/ count 2) magic)
+    (awhen1 (dumbot-offers book resilience funds epsilon (/ count 2) magic)
       (destructuring-bind (bid-fee . ask-fee)
           (recv (slot-reduce filter fee output))
         (ope-sprinner it (getf (slot-reduce filter lictor bases)
                                (asset (given (first it))))
-         (case (kw side)
-           (:bids (lambda (price vwab) (profit-margin (abs price) vwab bid-fee)))
-           (:asks (lambda (price vwab) (profit-margin vwab price 0 ask-fee)))))))))
+         (case (kw side)                ; FIXME: price`v
+           (:bids (lambda (bid vwab) (profit-margin (abs bid) vwab bid-fee)))
+           (:asks (lambda (ask vwab) (profit-margin vwab ask 0 ask-fee)))))))))
 
 (defun ope-scalper-loop (ope)
   (with-slots (input output filter prioritizer epsilon) ope
@@ -414,9 +414,9 @@
 
 (defun balance-updater-loop (tracker)
   (with-slots (gate control input) tracker
-    (recv control)
-    (send control (ignore-errors (aprog1 (account-balances gate)
-                                   (send input `(balances . ,it)))))))
+    (send (nth-value 1 (recv control))
+          (ignore-errors (awhen1 (account-balances gate)
+                           (send input `(balances . ,it)))))))
 
 (defmethod vwap ((tracker account-tracker) &rest keys)
   (apply #'vwap (slot-value tracker 'lictor) keys))
@@ -509,6 +509,13 @@
         (let* ((total-btc (symbol-funds (slot-value market 'primary)))
                (total-doge (symbol-funds (slot-value market 'counter)))
                (total-fund (total-of total-btc total-doge)))
+          ;; history, yo!
+          ;; this test originated in a harried attempt at bugfixing an instance
+          ;; of Maybe, where the treasurer reports zero balances when the http
+          ;; request (checking for balance changes) fails; due to use of aprog1
+          ;; when the Right Thing™ is awhen1. now that the bug's killed better,
+          ;; Maybe thru recognition, the test remains; for when you lose the bug
+          ;; don't lose the lesson, nor the joke.
           (unless (zerop total-fund)
             (let* ((investment (dbz-guard (/ total-btc total-fund)))
                    (btc  (* fund-factor total-btc investment targeting-factor))
