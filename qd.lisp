@@ -39,8 +39,7 @@
         (send response (case car
                          (offer (balance-guarded-place ope cdr))
                          (cancel (awhen1 (cancel-offer gate cdr)
-                                   (setf placed (remove cdr placed))))))
-        (force-output)))))
+                                   (setf placed (remove cdr placed))))))))))
 
 (defmethod shared-initialize :after ((supplicant ope-supplicant) (slots t) &key)
   (with-slots (thread) supplicant
