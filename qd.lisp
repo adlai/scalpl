@@ -236,34 +236,15 @@
       (/ (* ask (- 1 (/ ask-fee 100)))
          (* bid (+ 1 (/ bid-fee 100))))))
 
-;;; Lossy trades
-
-;;; The most common lossy trade execution happens when a limit order rolls
-;;; through one or more offers but isn't filled, and thus remains on the
-;;; books. If this order is large enough, it'll get outbid by the next round of
-;;; the offer placement algorithm, and the outbidding offer will be lossy
-;;; relative to the trades previously executed.
-
-;;; How bad is this?
-
-;;; In some situations, the remaining limit order gets traded back rapidly:
-;; TUFCXE 12:26:33 buy  €473.22001 0.00020828 €0.09856
-;; TJVT4U 12:26:33 buy  €473.22002 0.00004196 €0.01986
-;; TRU2YT 12:24:05 buy  €474.04001 0.00108394 €0.51383
-;; TOFJR2 12:23:52 sell €474.04000 0.00002623 €0.01243
-;; TYWDQU 12:23:51 sell €473.98799 0.00074902 €0.35503
-;; TINWGD 12:23:51 sell €473.95313 0.00028740 €0.13621
-;; TPY7P4 12:23:51 sell €473.92213 0.00003772 €0.01788
-
-(defun dumbot-offers (foreign-offers   ; w/ope-filter to avoid feedback
+(defun dumbot-offers (foreigners       ; w/ope-filter to avoid feedback
                       resilience       ; scalar•asset target offer depth to fill
                       funds            ; scalar•asset target total offer volume
                       epsilon          ; scalar•asset size of smallest order
                       max-orders       ; target amount of offers
                       magic            ; if you have to ask, you'll never know
-                      &aux (acc 0) (share 0))
-  (do* ((remaining-offers foreign-offers (rest remaining-offers))
-        (processed-tally         0       (1+   processed-tally)))
+                      &aux (acc 0) (share 0) (others (copy-list foreigners)))
+  (do* ((remaining-offers others (rest remaining-offers))
+        (processed-tally    0    (1+   processed-tally)))
        ((or (null remaining-offers)  ; EITHER: processed entire order book
             (and (> acc resilience)  ;     OR: (   BOTH: processed past resilience
                  (> processed-tally max-orders))) ; AND: processed enough orders )
@@ -281,9 +262,8 @@
           (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni! wut?
                                     max-orders processed-tally))
                  (chosen-stairs         ; the (shares . foreign-offer)s to fight
-                  (if (>= magic target-count) (pick target-count foreign-offers)
-                      (cons (first foreign-offers)
-                            (pick (1- target-count) (rest foreign-offers)))))
+                  (if (>= magic target-count) (pick target-count others)
+                      (cons (first others) (pick (1- target-count) (rest others)))))
                  (total-shares (reduce #'+ (mapcar #'car chosen-stairs)))
                  ;; we need the smallest order to be epsilon
                  (e/f (/ epsilon funds))
@@ -293,7 +273,6 @@
             (break-errors (not division-by-zero) ; dbz = no funds left, no biggie
               (mapcar (offer-scaler total-shares bonus target-count)
                       chosen-stairs)))))
-    ;; TODO - no side effects
     ;; TODO - use a callback for liquidity distribution control
     (with-slots (volume) (first remaining-offers)
       (push (incf share (* 4/3 (incf acc volume))) (first remaining-offers)))))
@@ -306,26 +285,42 @@
    (epsilon :initform 0.001 :initarg :epsilon)
    (count :initform 30 :initarg :offer-count)
    (magic :initform 3 :initarg :magic-count)
+   (cut :initform 0 :initarg :cut)
    prioritizer thread))
 
-(defun ope-sprinner (offers bases profit-thunk &aux (offer (first offers)))
-  (multiple-value-bind (bases vwab cost) (bases-without bases (given offer))
-    (format t "~&~A ~D ~:[~; ~V$ ~V$ ~6$~]~%" offer (length bases) vwab
-            (and vwab (decimals (market vwab))) (and vwab (scaled-price vwab))
-            (and cost (decimals (asset cost))) (and cost (scaled-quantity cost))
-            (and vwab cost (funcall profit-thunk (price offer) (price vwab))))
-    (and bases (rest offers) (ope-sprinner (rest offers) bases profit-thunk))))
+(defun ope-sprinner (offers funds count magic bases punk dunk book)
+  (if (or (null bases) (zerop count) (null offers)) offers
+      (destructuring-bind (top . offers) offers
+        (multiple-value-bind (bases vwab cost) (bases-without bases (given top))
+          (flet ((profit (o) (funcall punk (1- (price o)) (price vwab))))
+            (format t "~&~4,2@$ ~A ~D ~V$ ~V$~%" (profit top) top (length bases)
+                    (decimals (market vwab)) (scaled-price vwab)
+                    (decimals (asset cost)) (scaled-quantity cost))
+            (let ((book (rest (member 0 book :test #'< :key #'profit))))
+              (if (plusp (profit top))
+                  `(,top ,@(ope-sprinner offers
+                                         (- funds (scaled-quantity (given top)))
+                                         (1- count) magic bases punk dunk book))
+                  (ope-sprinner (funcall dunk book funds count magic) funds
+                                count magic `((,vwab ,(aq* vwab cost) ,cost)
+                                              ,@bases) punk dunk book))))))))
 
 (defun ope-spreader (book resilience funds epsilon side ope)
-  (with-slots (filter count magic) ope
-    (awhen1 (dumbot-offers book resilience funds epsilon (/ count 2) magic)
-      (destructuring-bind (bid-fee . ask-fee)
-          (recv (slot-reduce filter fee output))
-        (ope-sprinner it (getf (slot-reduce filter lictor bases)
-                               (asset (given (first it))))
-         (case (kw side)                ; FIXME: price`v
-           (:bids (lambda (bid vwab) (profit-margin (abs bid) vwab bid-fee)))
-           (:asks (lambda (ask vwab) (profit-margin vwab ask 0 ask-fee)))))))))
+  (flet ((dunk (book funds count magic)
+           (and book (dumbot-offers book resilience funds epsilon count magic)))
+         (punk (side cut fees)
+           (macrolet ((punk (&rest args)
+                        `(lambda (price vwab)
+                           (- (* 100 (1- (profit-margin ,@args))) cut))))
+             (if (eq side 'bids) (punk (abs price) vwab (car fees))
+                 (punk vwab price 0 (cdr fees))))))
+    (with-slots (count magic cut) ope
+      (awhen (dunk book funds (/ count 2) magic)
+        (ope-sprinner it funds (/ count 2) magic
+                      (getf (slot-reduce ope filter lictor bases)
+                            (asset (given (first it))))
+                      (punk side cut (recv (slot-reduce ope filter fee output)))
+                      #'dunk book)))))
 
 (defun ope-scalper-loop (ope)
   (with-slots (input output filter prioritizer epsilon) ope
