@@ -611,6 +611,17 @@
     (with-slots (trades) (slot-value market 'trades-tracker)
       (* resilience-factor (reduce #'max (mapcar #'volume trades))))))
 
+(defun trades-profits (trades)
+  (flet ((side-sum (side asset)
+           (reduce #'aq+ (mapcar asset (remove side trades :key #'direction
+                                               :test-not #'string-equal)))))
+    (let ((aq1 (aq- (side-sum "buy"  #'taken) (side-sum "sell" #'given)))
+          (aq2 (aq- (side-sum "sell" #'taken) (side-sum "buy"  #'given))))
+      (ecase (- (signum (quantity aq1)) (signum (quantity aq2)))
+        ;; the margins of this comment are insufficient to explain the lack of 0
+        (-2 (values (aq/ (- (conjugate aq1)) aq2) aq2 aq1))
+        (+2 (values (aq/ aq1 (- (conjugate aq2))) aq1 aq2))))))
+
 (defun performance-overview (maker &optional depth)
   (with-slots (account-tracker market) maker
     (flet ((funds (symbol) (asset-balance account-tracker symbol))
