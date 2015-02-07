@@ -628,8 +628,10 @@
                    ~%traded               ~7@F coins,~
                    ~%profit               ~7@F coins,~
                    ~%portfolio flip per   ~7@F days,~
-                   ~%estd monthly profit: ~5@$ percent~%"
+                   ~%avg daily profit:    ~4@$%~
+                   ~%estd monthly profit: ~4@$%~%"
                 updays volume profit (/ (* total updays 2) volume)
+                (/ (* 100 profit) updays total) ; ignores compounding, too high!
                 (/ (* 100 profit) (/ updays 30) total))))))
 
 (defgeneric print-book (book &key count)

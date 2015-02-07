@@ -75,3 +75,7 @@
               (apply #'reinitialize-instance (slot-value parent child) initargs)
               (setf (slot-value parent child)
                     (apply #'make-instance class initargs))))))
+
+(defun map-children (parent function)
+  (loop for (slot class) on (slot-value parent 'child-classes)
+     collect (funcall function (slot-value parent slot))))
