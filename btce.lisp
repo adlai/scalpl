@@ -128,7 +128,7 @@
                  (destructuring-bind (price amount) raw-order
                    (make-instance class :market market
                                   :price (round (* price (expt 10 decimals)))
-                                  :volume amount)))))
+                                  :volume (rationalize amount))))))
         (values (mapcar (parser 'ask) asks)
                 (mapcar (parser 'bid) bids))))))
 

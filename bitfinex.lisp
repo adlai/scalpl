@@ -131,7 +131,7 @@
                  (with-json-slots (price amount) raw-order
                    (make-instance class :market market
                                   :price (parse-price price decimals)
-                                  :volume (read-from-string amount))))))
+                                  :volume (parse-float amount :type 'rational))))))
         (values (mapcar (parser 'ask) asks)
                 (mapcar (parser 'bid) bids))))))
 

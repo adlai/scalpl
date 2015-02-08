@@ -175,7 +175,7 @@
                    (declare (ignore timestamp))
                    (make-instance class :market market
                                   :price (parse-price price decimals)
-                                  :volume (parse-float amount))))))
+                                  :volume (parse-float amount :type 'rational))))))
         (values (mapcar (parser 'ask) asks)
                 (mapcar (parser 'bid) bids))))))
 
