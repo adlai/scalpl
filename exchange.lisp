@@ -97,13 +97,31 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 ;;; Unit Registry
 ;;;
 
-(defvar *unit-registry* nil)
+;;; https://en.wikipedia.org/wiki/Scalar_(physics)#Physical_quantity
+
+(defvar *unit-registry* '(()))
 
 (defclass registered-unit ()
   ((index :initform (length *unit-registry*) :reader index)))
 
 (defmethod initialize-instance :after ((unit registered-unit) &key)
   (push (cons (index unit) unit) *unit-registry*))
+
+(defun find-unit (index) (cdr (assoc index *unit-registry*)))
+
+(defun physical-quantity-p (thing)
+  (and (complexp thing) (find-unit (imagpart thing))))
+
+(deftype physical-quantity () '(satisfies physical-quantity-p))
+
+(defvar *pqprint-dispatch* (copy-pprint-dispatch))
+
+(defun pprint-pq (stream pq)
+  (with-slots (decimals name) (find-unit (imagpart pq))
+    (format stream "~V$ ~A" decimals
+            (/ (realpart pq) (expt 10 decimals)) name)))
+
+(set-pprint-dispatch 'physical-quantity #'pprint-pq 1 *pqprint-dispatch*)
 
 ;;;
 ;;; Assets
@@ -229,12 +247,13 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defun consumed-asset (offer) (asset (given offer)))
 
 (defmethod initialize-instance ((bid bid) &rest keys &key price)
-  (apply #'call-next-method bid :price (- price) keys))
+  (apply #'call-next-method bid :price (- (abs price)) keys))
 
 (defmethod shared-initialize :after ((offer offer) names &key)
   (with-slots (market taken given volume price) offer
     (macrolet ((do-slot (slot primary counter)
-                 `(when (or (eq names t) (find ',slot names))
+                 `(when (and (or (eq names t) (find ',slot names))
+                             (not (slot-boundp offer ',slot)))
                     (setf ,slot (if (plusp price)
                                     (cons-aq* (primary market) ,primary)
                                     (cons-aq* (counter market) ,counter))))))

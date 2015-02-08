@@ -618,9 +618,9 @@
     (let ((aq1 (aq- (side-sum "buy"  #'taken) (side-sum "sell" #'given)))
           (aq2 (aq- (side-sum "sell" #'taken) (side-sum "buy"  #'given))))
       (ecase (- (signum (quantity aq1)) (signum (quantity aq2)))
-        ;; the margins of this comment are insufficient to explain the lack of 0
+        (0 (values nil aq1 aq2))
         (-2 (values (aq/ (- (conjugate aq1)) aq2) aq2 aq1))
-        (+2 (values (aq/ aq1 (- (conjugate aq2))) aq1 aq2))))))
+        (+2 (values (aq/ (- (conjugate aq2)) aq1) aq1 aq2))))))
 
 (defun performance-overview (maker &optional depth)
   (with-slots (account-tracker market) maker
@@ -633,7 +633,7 @@
              (uptime (timestamp-difference (now) (timestamp (first (last trades)))))
              (updays (/ uptime 60 60 24))
              (volume (or depth (reduce #'+ (mapcar #'volume trades))))
-             (profit (* volume (1- (profit-margin (vwap "buy") (vwap "sell")))))
+             (profit (* volume (1- (profit-margin (vwap "buy") (vwap "sell"))) 1/2))
              (total (total (funds (primary market)) (funds (counter market)))))
         (format t "~&Been up              ~7@F days,~
                    ~%traded               ~7@F coins,~
