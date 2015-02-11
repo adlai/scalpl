@@ -29,21 +29,22 @@ bastard child from the unholy marriage of balance and execution tracking
 ** DONE account for exchange fees
 use net-cost/volume / given/taken-asset/amount rather than the raw
 exchange-reported cost/volume/price
-** track cost basis for all "virtual outputs" in an account
+** DONE track cost basis for all "virtual outputs" in an account
 *** "virtual output" is an asset×quantity earned from a trade
 *** funds that haven't yet been traded - don't have a cost basis
 *** there are never more cost bases than funds in an account
-*** shallow cost basis = ( price . asset×quantity )
-** TODO recursive cost basis:
-link the cost basis which was traded away for acquiring the asset
-** updating bases sets upon execution
+*** shallow cost basis = ( market×price asset×quantity asset×quantity )
+aq2 is just (aq* mp aq1)
+** DONE updating bases sets upon execution
 *** remove old cost basis from given asset×quantity
 *** add new cost basis from taken-asset×quantity and old cost basis
 *** FIFO/LIFO - what are the considerations?
 **** currently, we use LIFO: most recent cost basis gets consumed
 **** CIFO - cheapest-in first-out: consume the least profitable
 so we have more flexibility against future swings
-* TODO spread candidate target offers by profit from bases
+** TODO recursive cost basis:
+link the cost basis which was traded away for acquiring the asset
+* DONE spread candidate target offers by profit from bases
 ** currently, profitability is checked/attempted:
 *** in ope-filter
 *** against the entire buy/sell history

@@ -279,15 +279,17 @@
 (defun ope-sprinner (offers funds count magic bases punk dunk book)
   (if (or (null bases) (zerop count) (null offers)) offers
       (destructuring-bind (top . offers) offers
-        (multiple-value-bind (bases vwab cost) (bases-without bases (given top))
+        (multiple-value-bind (bases vwab cost)
+            ;; what appears to be the officer, problem?
+            ;; (bases-without bases (given top)) fails, because bids are `viqc'
+            (bases-without bases (cons-aq* (consumed-asset top) (volume top)))
           (flet ((profit (o) (funcall punk (1- (price o)) (price vwab))))
             (format t "~&~4,2@$ ~A ~D ~V$ ~V$~%" (profit top) top (length bases)
                     (decimals (market vwab)) (scaled-price vwab)
                     (decimals (asset cost)) (scaled-quantity cost))
             (let ((book (rest (member 0 book :test #'< :key #'profit))))
               (if (plusp (profit top))
-                  `(,top ,@(ope-sprinner offers
-                                         (- funds (scaled-quantity (given top)))
+                  `(,top ,@(ope-sprinner offers (- funds (volume top))
                                          (1- count) magic bases punk dunk book))
                   (ope-sprinner (funcall dunk book funds count magic) funds
                                 count magic `((,vwab ,(aq* vwab cost) ,cost)
