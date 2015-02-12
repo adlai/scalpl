@@ -451,8 +451,7 @@
    thread))
 
 (defun makereport (maker fund rate btc doge investment risked skew)
-  (when (zerop (mod (sec-of (now)) 3))
-    (print-book (slot-reduce maker account-tracker ope)))
+  (print-book (slot-reduce maker account-tracker ope))
   (with-slots (name market account-tracker report-depths) maker
     (labels ((sastr (side amount &optional model) ; TODO factor out aqstr
                (format nil "~V,,V$" (decimals (slot-value market side))
