@@ -597,7 +597,10 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (with-slots (bases) tracker
     (with-slots (taken given price market) trade
       (swhen (getf bases (asset given)) (setf it (bases-without it given)))
-      (push (list (aq/ given taken) taken given) (getf bases (asset taken))))))
+      (setf (getf bases (asset taken))
+            (merge 'list (copy-list (getf bases (asset taken)))
+                   (list (list (aq/ given taken) taken given))
+                   #'> :key (lambda (row) (realpart (first row))))))))
 
 (defun execution-worker-loop (tracker)
   (with-slots (control buffer trades bases) tracker
