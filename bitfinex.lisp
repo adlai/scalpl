@@ -138,8 +138,8 @@
 (defmethod trades-since ((market bitfinex-market) &optional since)
   (mapcar (lambda (trade)
             (with-json-slots (price amount timestamp type) trade
-              (let ((price  (read-from-string price))
-                    (volume (read-from-string amount)))
+              (let ((price  (parse-float price))
+                    (volume (parse-float amount :type 'rational)))
                 (make-instance 'trade :market market :direction type
                                :timestamp (parse-timestamp *bitfinex* timestamp)
                                ;; FIXME - "cost" later gets treated as precise

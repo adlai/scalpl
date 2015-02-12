@@ -189,8 +189,8 @@
     (with-json-slots (last (trades (name market))) it
       (mapcar (lambda (trade)
                 (destructuring-bind (price volume time side kind data) trade
-                  (let ((price  (read-from-string price))
-                        (volume (read-from-string volume)))
+                  (let ((price  (parse-float price))
+                        (volume (parse-float volume :type 'rational)))
                     (make-instance 'trade :market market
                                    :timestamp (parse-timestamp *kraken* time)
                                    ;; FIXME - "cost" later gets treated as precise
