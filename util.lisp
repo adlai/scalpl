@@ -19,11 +19,16 @@
            #:urlencode-params
            #:break-errors
            #:kw #:mvwrap
+           #:subseq*
            ))
 
 (in-package #:scalpl.util)
 
 ;;; Actually useful
+
+(defun subseq* (sequence start &optional end)
+  (handler-case (subseq sequence start end)
+    (error () (subseq sequence start))))
 
 (defun kw (thing) (intern (string-upcase (string thing)) :keyword))
 
