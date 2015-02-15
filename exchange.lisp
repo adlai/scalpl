@@ -249,7 +249,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defmethod initialize-instance ((bid bid) &rest keys &key price)
   (apply #'call-next-method bid :price (- (abs price)) keys))
 
-(defmethod shared-initialize :after ((offer offer) names &key)
+(defmethod shared-initialize :after ((offer offer) (names t) &key)
   (with-slots (market taken given volume price) offer
     (macrolet ((do-slot (slot aside primary bside counter)
                  `(unless (slot-boundp offer ',slot)
