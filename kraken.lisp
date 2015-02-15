@@ -122,25 +122,33 @@
 (defmethod perform ((minter token-minter))
   (with-slots (mint delay) minter (send mint 1) (sleep delay)))
 
+#+()    ;P       ... whyever wouldst thou settle for tongues of inferior syntax?
+
+(macrolet ((wrap-slot-renaming (class old new)
+             `(defmethod update-instance-for-redefined-class
+                  ((,class ,class) added removed values &key)
+                (assert (equal added '(,new))) (assert (equal removed '(,old)))
+                (macrolet ((new (place) `(slot-value ,place ',',new)))
+                  (setf (new gate) (new (getf values ',old)))))))
+  (wrap-slot-renaming token-handler   minter      mint)
+  (wrap-slot-renaming  kraken-gate token-handler tokens))
+
 (defclass token-handler (parent)
   ((count :initform 0) (name :initform (gensym "kraken api pacer"))
-   (tokens :initform (make-instance 'channel)) minter
-   (child-classes :initform '(minter token-minter))))
+   (tokens :initform (make-instance 'channel)) (mint :initarg :mint)))
 
 (defmethod perform ((handler token-handler))
-  (with-slots (minter count tokens) handler
+  (with-slots (mint count tokens) handler
     (handler-case
-        (with-slots (mint) minter
           (case count
             (5 (recv mint) (decf count))
             (0 (send tokens t) (incf count))
             (t (select ((recv mint delta) (decf count delta))
                        ((send tokens t) (incf count))
-                       (t (sleep 0.2))))))
+                       (t (sleep 0.2)))))
       (unbound-slot () (sleep 2)))))
 
-(defclass kraken-gate (gate parent)
-  (token-handler (child-classes :initform '(#1=token-handler #1#))))
+(defclass kraken-gate (gate parent) (tokens))          ; the handler is internal
 
 (defmethod gate-post ((gate kraken-gate) key secret request)
   (destructuring-bind (command . options) request
@@ -148,7 +156,7 @@
     ;; other requests wait for tokens. possible solution - queue closures
     ;; with their associated cost, execute most expensive affordable request
     (dotimes (i (request-cost command))
-      (recv (slot-reduce gate token-handler tokens)))
+      (recv (slot-reduce gate tokens)))
     ;; (format t "~&~A ~A~&" (now) command)
     (multiple-value-bind (ret err) (post-request command key secret options)
       (when (and err (string= "EAPI:Rate limit exceeded" (first err)))
