@@ -2,7 +2,8 @@
 
 (defpackage #:scalpl.actor
   (:use #:cl #:anaphora #:local-time #:scalpl.util #:chanl)
-  (:export #:actor #:perform #:halt #:name #:control #:parent #:child-classes))
+  (:export #:actor #:perform #:halt #:name #:control
+           #:parent #:children #:adopt #:disown))
 
 (in-package #:scalpl.actor)
 
@@ -62,20 +63,18 @@
 
 ;;; An actor with a single child - simple enough to do with mopless ansi clos
 
-(defclass parent (actor) ((child-classes :allocation :class)))
+(defclass parent (actor) ((children :initform nil :initarg :children)))
 
-(defgeneric child-initargs (parent child initargs)
-  (:method-combination append)
-  (:method append ((parent parent) (child t) (initargs t))))
+(defun map-children (parent function)   ; ... i'm not sure what i expected
+  (mapcar function (slot-value parent 'children)))
 
-(defmethod shared-initialize :after ((parent parent) (names t) &rest initargs)
-  (loop for (child class) on (slot-value parent 'child-classes) by #'cddr
-     do (let ((initargs (child-initargs parent child initargs)))
-          (if (slot-boundp parent child)
-              (apply #'reinitialize-instance (slot-value parent child) initargs)
-              (setf (slot-value parent child)
-                    (apply #'make-instance class initargs))))))
+(defmethod ensure-running :after ((parent parent))
+  (map-children parent #'ensure-running))
 
-(defun map-children (parent function)
-  (loop for (slot class) on (slot-value parent 'child-classes)
-     collect (funcall function (slot-value parent slot))))
+(defgeneric adopt (parent child)
+  (:method ((parent parent) (child actor))
+    (pushnew child (slot-value parent 'children))))
+
+(defgeneric disown (parent child)
+  (:method ((parent parent) (child actor))
+    (with-slots (children) parent (setf children (remove child children)))))
