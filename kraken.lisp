@@ -139,6 +139,13 @@
 
 (defclass kraken-gate (gate parent) (tokens))          ; the handler is internal
 
+(defmethod initialize-instance :after ((gate kraken-gate) &key)
+  (with-aslots (mint) (make-instance 'token-minter)
+    (adopt gate it)
+    (with-aslots (tokens) (make-instance 'token-handler :mint mint)
+      (adopt gate it)
+      (setf (slot-value gate 'tokens) tokens))))
+
 (defmethod gate-post ((gate kraken-gate) key secret request)
   (destructuring-bind (command . options) request
     ;; FIXME: this prevents add/cancel requests from going through while

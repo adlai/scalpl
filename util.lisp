@@ -20,6 +20,7 @@
            #:break-errors
            #:kw #:mvwrap
            #:subseq*
+           #:with-aslots
            ))
 
 (in-package #:scalpl.util)
@@ -156,3 +157,6 @@
 
 (defmacro aand1 (test &rest rest)
   `(anaphora::anaphoric and1 ,test ,@rest))
+
+(defmacro with-aslots (slots form &body body)
+  `(let ((it ,form)) (with-slots ,slots it ,@body)))
