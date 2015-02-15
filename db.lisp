@@ -23,7 +23,7 @@
            (error error))))))
 
 (defparameter *executions-columns*
-  `(("time"     "timestamp with time zone not null")
+  `(("time"       "timestamp not null")
     ("exchange"        "text not null")
     ("market"          "text not null")
     ("trade_id"        "text not null")
