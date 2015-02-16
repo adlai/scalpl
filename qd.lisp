@@ -274,6 +274,7 @@
    (count :initform 30 :initarg :offer-count)
    (magic :initform 3 :initarg :magic-count)
    (cut :initform 0 :initarg :cut)
+   (spam :initform nil :initarg :spam)
    prioritizer thread))
 
 (defun ope-sprinner (offers funds count magic bases punk dunk book)
@@ -284,7 +285,7 @@
             ;; (bases-without bases (given top)) fails, because bids are `viqc'
             (bases-without bases (cons-aq* (consumed-asset top) (volume top)))
           (flet ((profit (o) (funcall punk (1- (price o)) (price vwab))))
-            (format t "~&~4,2@$ ~A ~D ~V$ ~V$~%" (profit top) top (length bases)
+            (signal "~4,2@$ ~A ~D ~V$ ~V$" (profit top) top (length bases)
                     (decimals (market vwab)) (scaled-price vwab)
                     (decimals (asset cost)) (scaled-quantity cost))
             (let ((book (rest (member 0 book :test #'< :key #'profit))))
@@ -294,6 +295,9 @@
                   (ope-sprinner (funcall dunk book funds count magic) funds
                                 count magic `((,vwab ,(aq* vwab cost) ,cost)
                                               ,@bases) punk dunk book))))))))
+
+(defun ope-logger (ope)
+  (lambda (log) (awhen (slot-value ope 'spam) (format t "~&~A ~A~%" it log))))
 
 (defun ope-spreader (book resilience funds epsilon side ope)
   (flet ((dunk (book funds count magic)
@@ -319,8 +323,10 @@
         (macrolet ((do-side (amount side chan epsilon)
                      `(let ((,side (copy-list (slot-value filter ',side))))
                         (unless (or (zerop ,amount) (null ,side))
-                          (send ,chan (ope-spreader ,side resilience ,amount
-                                                    ,epsilon ',side ope))
+                          (send ,chan (handler-bind
+                                          ((simple-condition (ope-logger ope)))
+                                        (ope-spreader ,side resilience ,amount
+                                                      ,epsilon ',side ope)))
                           (recv response)))))
           (do-side counter bids next-bids
                    (* epsilon (abs (price (first bids))) (max ratio 1)
@@ -451,7 +457,7 @@
    thread))
 
 (defun makereport (maker fund rate btc doge investment risked skew)
-  (print-book (slot-reduce maker account-tracker ope))
+  (print-book (slot-reduce maker account-tracker ope) :prefix (name maker))
   (with-slots (name market account-tracker report-depths) maker
     (labels ((sastr (side amount &optional model) ; TODO factor out aqstr
                (format nil "~V,,V$" (decimals (slot-value market side))
@@ -634,7 +640,7 @@
                 (/ (* 100 profit) updays total) ; ignores compounding, too high!
                 (/ (* 100 profit) (/ updays 30) total))))))
 
-(defgeneric print-book (book &key count)
+(defgeneric print-book (book &key count prefix)
   (:method ((maker maker) &rest keys)
     (macrolet ((path (&rest path)
                  `(apply #'print-book (slot-reduce maker ,@path) keys)))
@@ -645,7 +651,7 @@
     (apply #'print-book (multiple-value-call 'cons (ope-placed ope)) keys))
   (:method ((tracker book-tracker) &rest keys)
     (apply #'print-book     (recv   (slot-value tracker 'output))    keys))
-  (:method ((book cons) &key count)
+  (:method ((book cons) &key count prefix)
     (destructuring-bind (bids . asks) book
       (flet ((width (side)
                (reduce 'max (mapcar 'length (mapcar 'princ-to-string side))
@@ -654,4 +660,5 @@
              (asks asks (rest asks)) (aw (width asks)))
             ((or (and (null bids) (null asks))
                  (and (numberp count) (= -1 (decf count)))))
-          (format t "~&~V@A || ~V@A~%" bw (first bids) aw (first asks)))))))
+          (format t "~&~@[~A ~]~V@A || ~V@A~%"
+                  prefix bw (first bids) aw (first asks)))))))
