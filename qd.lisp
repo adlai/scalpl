@@ -516,7 +516,7 @@
                           (dbz-guard (/ (total-of (- btc) doge) total-fund)))
               (send (slot-reduce account-tracker ope input)
                     (list btc doge resilience
-                          (expt (/ targeting-factor investment) skew-factor)))
+                          (expt (/ doge btc doge/btc) skew-factor)))
               (recv (slot-reduce account-tracker ope output)))))))))
 
 (defun dumbot-loop (maker)
