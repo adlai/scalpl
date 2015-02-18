@@ -206,29 +206,23 @@
 ;;; Private Data API
 ;;;
 
-(defun open-orders (gate)
-  (aif (gate-request gate "OpenOrders")
-       (mapjso* (lambda (id order)
-                  (setf (getjso "id" order) id))
-                (getjso "open" it))
-       (jso)))
-
 (defmethod placed-offers ((gate kraken-gate))
-  (mapcar-jso (lambda (id data)
-                (with-json-slots (descr vol oflags) data
-                  (with-json-slots (pair type price order) descr
-                    (let* ((market (find-market pair *kraken*))
-                           (decimals (slot-value market 'decimals))
-                           (price-int (parse-price price decimals))
-                           (volume (read-from-string vol)))
-                      (make-instance 'placed :oid id :market market
-                                     :price (if (string= type "buy")
-                                                (- price-int) price-int)
-                                     :volume (if (not (search "viqc" oflags))
-                                                 volume
-                                                 (/ volume price-int
-                                                    (expt 1/10 decimals))))))))
-              (open-orders gate)))
+  (awhen (gate-request gate "OpenOrders")
+    (mapcar-jso (lambda (id data)
+                  (with-json-slots (descr vol oflags) data
+                    (with-json-slots (pair type price order) descr
+                      (let* ((market (find-market pair *kraken*))
+                             (decimals (slot-value market 'decimals))
+                             (price-int (parse-price price decimals))
+                             (volume (read-from-string vol)))
+                        (make-instance 'placed :oid id :market market
+                                       :price (if (string= type "buy")
+                                                  (- price-int) price-int)
+                                       :volume (if (not (search "viqc" oflags))
+                                                   volume
+                                                   (/ volume price-int
+                                                      (expt 1/10 decimals))))))))
+                (getjso "open" it))))
 
 (defmethod account-balances ((gate kraken-gate))
   (remove-if #'zerop
@@ -310,7 +304,7 @@
 (defun post-limit (gate type market price volume decimals)
   (with-slots ((pair name) (vol-decimals decimals)) market
     (let ((price (/ price (expt 10d0 decimals))))
-      (when (string= type "sell") (setf volume (* volume price)))
+      (when (string= type "sell") (setf volume (* volume price))) ; always viqc
       (multiple-value-bind (info errors)
           (gate-request gate "AddOrder"
                         `(("ordertype" . "limit") ("oflags" . "viqc")
@@ -318,11 +312,9 @@
                           ("volume" . ,(format nil "~V$" vol-decimals volume))
                           ("price" . ,(format nil "~V$" decimals price))))
         (if errors (dolist (message errors) (warn "~&~A~%" message))
-            (progn
-              ;; theoretically, we could get several order IDs here,
-              ;; but we're not using any of kraken's fancy forex nonsense
-              (setf (getjso* "descr.id" info) (car (getjso* "txid" info)))
-              (getjso "descr" info)))))))
+            ;; theoretically, we could get multiple oids here, (why "txid"!?)
+            ;; but kraken's margin casino isn't open for visitors yet
+            (car (getjso "txid" info)))))))
 
 (defmethod post-offer ((gate kraken-gate) offer)
   ;; (format t "~&place  ~A~%" offer)
@@ -330,8 +322,7 @@
     (flet ((post (type)
              (awhen (post-limit gate type market (abs price) volume
                                 (slot-value market 'decimals))
-               (with-json-slots (id order) it
-                 (change-class offer 'placed :oid id)))))
+               (change-class offer 'placed :oid it))))
       (if (< price 0) (post "buy") (post "sell")))))
 
 (defun cancel-order (gate oid)

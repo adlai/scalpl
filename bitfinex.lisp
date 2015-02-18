@@ -29,11 +29,11 @@
                       +kludge+)))
 
 (defun make-payload (data &optional path)
-  (let ((payload (if (null path) (jso) (jso "request" path "nonce" (nonce)))))
-    (dolist (pair data (string-to-base64-string (write-json-to-string payload)))
+  (let ((payload (and path `("request" ,path "nonce" ,(nonce)))))
+    (dolist (pair data (string-to-base64-string
+                        (cl-json:encode-json-plist-to-string payload)))
       (destructuring-bind (key . val) pair
-        (setf (getjso key payload)
-              (if (equal val "true") :true val)))))) ; de horror! de horror!
+        (push (if (equal val "true") :true val) payload) (push key payload)))))
 
 (defgeneric make-signer (secret)
   (:method ((secret simple-array))
@@ -49,8 +49,7 @@
     (with-open-file (stream path)
       (make-key stream))))
 
-(defun decode-json (arg)
-  (st-json:read-json (map 'string 'code-char arg)))
+(defun decode-json (arg) (read-json (map 'string 'code-char arg)))
 
 (defun raw-request (path &rest keys)
   (multiple-value-bind (body status)
@@ -246,16 +245,10 @@
              (post-raw-limit gate type pair hidden
                              (format nil "~V$" 3 chunk)
                              (format nil "~V$" decimals price))))
-      ;; minimal order is 0.001 btc
-      (when (>= volume 0.001)
+      ;; minimal order is 0.01 btc
+      (when (>= volume 0.01)
         ;; maximal order is 2000 btc
-        (if (< volume 2000) (post volume)
-            ;; if the order doesn't fit, we break it apart into chunks
-            (let* ((num-chunks (1+ (floor volume 2000)))
-                   (chunk-vol (/ volume num-chunks))
-                   offers)
-              (dotimes (blub num-chunks (jso "order_id" offers))
-                (awhen (post chunk-vol) (push (getjso "order_id" it) offers)))))))))
+        (if (< volume 2000) (post volume) (error "FIXME: order too large"))))))
 
 (defclass hidden-offer (offer) ())
 
