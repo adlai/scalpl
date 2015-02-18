@@ -48,7 +48,7 @@
   (raw-request (concatenate 'string +public-stub+ path "?"
                             (urlencode-params data))))
 
-(defconstant +kludge+ -1419931763719)   ; sometimes one can!
+(defconstant +kludge+ -1424254890000)   ; sometimes one can!
 
 (defun nonce (&aux (now (now)))
   (princ-to-string (+ (floor (nsec-of now) 1000000)

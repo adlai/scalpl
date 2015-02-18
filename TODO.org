@@ -254,5 +254,7 @@ simpler, doesn't require inflection points
 **** adjust offer price, and that of subsequent ones
 best performed in relation to order book inflection points
 * TODO de-brittlify nonces
-** btce's nonce code will crap out on 2015-02-18
+** btce's nonce code will crap out on 2015-04-09
+well, at least your date calculation was correct!
+the better approach here would be tracking nonces per-key in gates, and incfing.
 ** bitfinex's is likely at some point to overflow and break hidden offers
