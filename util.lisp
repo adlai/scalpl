@@ -4,23 +4,24 @@
            #:shallow-copy
            #:dbz-guard
            #:slot-reduce
-           #:with-json-slots
            #:aand1
            #:awhen1
            #:parse-price
            #:parse-float
            #:string-octets
-           #:mapcar-jso
-           #:jso-keys
            #:rehome-symbol
            #:rehome-class
            #:string-case
-           #:mapjso*
            #:urlencode-params
            #:break-errors
            #:kw #:mvwrap
            #:subseq*
            #:with-aslots
+           ;; json
+           #:mapcar-jso
+           #:jso-keys
+           #:with-json-slots
+           #:mapjso*
            ))
 
 (in-package #:scalpl.util)
@@ -109,30 +110,6 @@
         ,(let (,@(loop for n in names for g in gensyms collect `(,n ,g)))
            ,@body)))))
 
-(defmacro with-json-slots ((&rest slot-bindings) object &body body)
-  (once-only (object)
-    `(symbol-macrolet
-         ,(mapcar (lambda (binding)
-                    (if (consp binding)
-                        (destructuring-bind (var slot) binding
-                          `(,var (getjso ,slot ,object)))
-                        `(,binding (getjso ,(string-downcase (string binding))
-                                           ,object))))
-                  slot-bindings)
-       ,@body)))
-
-(defun mapcar-jso (thunk jso &aux list)
-  (mapjso (lambda (key val)
-            (push (funcall thunk key val) list))
-          jso)
-  list)
-
-(defun jso-keys (jso) (mapcar-jso (lambda (k v) (declare (ignore v)) k) jso))
-
-(defun mapjso* (thunk jso)
-  (mapjso thunk jso)
-  jso)
-
 ;;; Bastardized shamelessly from #'drakma::alist-to-url-encoded-string
 (defun urlencode-params (params)
   (with-output-to-string (out)
@@ -160,3 +137,29 @@
 
 (defmacro with-aslots (slots form &body body)
   `(let ((it ,form)) (with-slots ,slots it ,@body)))
+
+;;; json
+
+(defmacro with-json-slots ((&rest slot-bindings) object &body body)
+  (once-only (object)
+    `(symbol-macrolet
+         ,(mapcar (lambda (binding)
+                    (if (consp binding)
+                        (destructuring-bind (var slot) binding
+                          `(,var (getjso ,slot ,object)))
+                        `(,binding (getjso ,(string-downcase (string binding))
+                                           ,object))))
+                  slot-bindings)
+       ,@body)))
+
+(defun mapcar-jso (thunk jso &aux list)
+  (mapjso (lambda (key val)
+            (push (funcall thunk key val) list))
+          jso)
+  list)
+
+(defun jso-keys (jso) (mapcar-jso (lambda (k v) (declare (ignore v)) k) jso))
+
+(defun mapjso* (thunk jso)
+  (mapjso thunk jso)
+  jso)
