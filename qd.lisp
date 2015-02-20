@@ -136,11 +136,12 @@
 
 (defun ope-filter-loop (ope)
   (with-slots (market foreigners book-cache bids asks rudder frequency) ope
-    (flet ((xyz (asset rudder type &aux (lictor (slot-value ope 'lictor)))
+    (flet ((xyz (asset rside type &aux (lictor (slot-value ope 'lictor))
+                       (rval (if (consp rudder) (funcall rside rudder) rudder)))
              (aif (getf (slot-reduce lictor bases) asset)
                   (scaled-price
-                   (nth-value 1 (bases-without it (cons-aq* asset rudder))))
-                  (vwap lictor :type type :depth rudder))))
+                   (nth-value 1 (bases-without it (cons-aq* asset rval))))
+                  (vwap lictor :type type :depth rval))))
       (destructuring-bind (bfee . afee) (recv (slot-reduce ope fee output))
         (let ((book (recv (slot-reduce market book-tracker output))))
           (unless (equal book book-cache)
@@ -149,16 +150,16 @@
                                      (ignore-offers (cdr book) placed))
                     book-cache book))
             (let ((quotient (expt 10 (decimals market)))
-                  (svwap (xyz (counter market) (car rudder) "sell"))
-                  (bvwap (xyz (primary market) (cdr rudder) "buy")))
+                  (svwap (xyz (counter market) #'car "sell"))
+                  (bvwap (xyz (primary market) #'cdr "buy")))
               (macrolet ((do-side (vwap side &body args)
                            `(unless (zerop ,vwap)
                               (swhen (,side foreigners)
                                 (loop for best = (first it) while best
                                    for spread = (profit-margin ,@args)
                                    until (> spread 1) do (pop it))))))
-                (do-side svwap car (/ (abs (price best)) quotient) svwap bfee)
-                (do-side bvwap cdr bvwap (/ (abs (price best)) quotient) 0 afee)))
+                (do-side svwap car (/ (price best) quotient) svwap bfee)
+                (do-side bvwap cdr bvwap (/ (price best) quotient) 0 afee)))
             (setf bids (car foreigners) asks (cdr foreigners))))
         (sleep frequency)))))
 
@@ -220,9 +221,9 @@
              (if (eq source next-bids) placed-bids placed-asks)))))))
 
 (defun profit-margin (bid ask &optional (bid-fee 0) (ask-fee 0))
-  (if (= bid-fee ask-fee 0) (/ ask bid)
-      (/ (* ask (- 1 (/ ask-fee 100)))
-         (* bid (+ 1 (/ bid-fee 100))))))
+  (abs (if (= bid-fee ask-fee 0) (/ ask bid)
+           (/ (* ask (- 1 (/ ask-fee 100)))
+              (* bid (+ 1 (/ bid-fee 100)))))))
 
 (defun dumbot-offers (foreigners       ; w/ope-filter to avoid feedback
                       resilience       ; scalar•asset target offer depth to fill
@@ -306,7 +307,7 @@
            (macrolet ((punk (&rest args)
                         `(lambda (price vwab)
                            (- (* 100 (1- (profit-margin ,@args))) cut))))
-             (if (eq side 'bids) (punk (abs price) vwab (car fees))
+             (if (eq side 'bids) (punk price vwab (car fees))
                  (punk vwab price 0 (cdr fees))))))
     (with-slots (count magic cut) ope
       (awhen (dunk book funds (/ count 2) magic)
