@@ -339,7 +339,6 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defclass trades-tracker ()
   ((market  :initarg :market :reader market)
    (delay   :initarg :delay :initform 27)
-   (control :initform (make-instance 'channel))
    (buffer  :initform (make-instance 'channel))
    (output  :initform (make-instance 'channel))
    (trades  :initform nil)
@@ -396,14 +395,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defmethod timestamp ((object null)))   ; such lazy
 
 (defun trades-worker-loop (tracker)
-  (with-slots (control buffer output trades market) tracker
+  (with-slots (buffer output trades market) tracker
     (let ((last (car trades)))
       (select
-        ((recv control command)
-         ;; commands are (cons command args)
-         (case (car command)
-           ;; pause - wait for any other command to restart
-           (pause (recv control))))
         ((send output trades))
         ((send buffer last))
         ((recv buffer next)
