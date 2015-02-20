@@ -28,12 +28,15 @@
                       (* 1000 (timestamp-to-unix now))
                       +kludge+)))
 
+;;; some methods accept timestamps as just an int, but for some bizarre reason,
+;;; "history" shits on anything other than this syntax. frankley, i can't even.
+(defun flotsam (timestamp)
+  (format nil "~A.0" (timestamp-to-unix timestamp)))
+
 (defun make-payload (data &optional path)
-  (let ((payload (and path `("request" ,path "nonce" ,(nonce)))))
-    (dolist (pair data (string-to-base64-string
-                        (cl-json:encode-json-plist-to-string payload)))
-      (destructuring-bind (key . val) pair
-        (push (if (equal val "true") :true val) payload) (push key payload)))))
+  (string-to-base64-string
+   (cl-json:encode-json-alist-to-string
+    `(("request" . ,path) ("nonce" . ,(nonce)) ,@data))))
 
 (defgeneric make-signer (secret)
   (:method ((secret simple-array))
@@ -67,10 +70,10 @@
 (defun post-request (method key signer &optional data)
   (let* ((path (concatenate 'string "/v1/" method))
          (payload (make-payload data path)))
-    (raw-request method :method :post
-                 :additional-headers `(("X-BFX-APIKEY"  . ,key)
-                                       ("X-BFX-PAYLOAD" . ,payload)
-                                       ("X-BFX-SIGNATURE" . ,(funcall signer payload))))))
+    (raw-request method :method :post :additional-headers
+                 `(("X-BFX-APIKEY"  . ,key)
+                   ("X-BFX-PAYLOAD" . ,payload)
+                   ("X-BFX-SIGNATURE" . ,(funcall signer payload))))))
 
 (defun get-assets ()
   (mapcar (lambda (name) (make-instance 'asset :name name :decimals 8))

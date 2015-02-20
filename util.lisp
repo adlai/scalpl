@@ -113,16 +113,16 @@
         ,(let (,@(loop for n in names for g in gensyms collect `(,n ,g)))
            ,@body)))))
 
-;;; Bastardized shamelessly from #'drakma::alist-to-url-encoded-string
 (defun urlencode-params (params)
   (with-output-to-string (out)
-    (loop for first = t then nil
-       for (name . value) in params
-       unless first do (write-char #\& out)
-       do (format out "~A~:[~;=~A~]"
-                  (drakma:url-encode name drakma::*drakma-default-external-format*)
-                  value
-                  (drakma:url-encode value drakma::*drakma-default-external-format*)))))
+    (labels ((urlencode (thing)
+               (drakma:url-encode (princ-to-string thing)
+                                  drakma::*drakma-default-external-format*))
+             (write-param (param)
+               (destructuring-bind (name . value) param
+                 (format out "~A=~A" (urlencode name) (urlencode value)))))
+      (awhen (first params) (write-param it))
+      (dolist (param (rest params)) (write-char #\& out) (write-param param)))))
 
 ;;; anaphora!
 

@@ -242,7 +242,7 @@
     (let ((fee (parse-float fee))
           (cost (parse-float cost)))
       (make-instance 'execution :fee fee :direction type
-                     :txid txid :oid ordertxid
+                     :txid (string txid) :oid ordertxid
                      :price (parse-float price) :cost cost
                      :volume (parse-float vol) :market (find-market pair *kraken*)
                      :net-volume (parse-float vol)
