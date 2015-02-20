@@ -336,13 +336,40 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defgeneric trades-since (market &optional since))
 
-(defclass trades-tracker ()
+(defclass trades-fetcher (actor)
+  ((market :initarg :market :reader market)
+   (delay  :initarg :delay  :initform 27)
+   (buffer :initarg :buffer)))
+
+(defmethod perform ((fetcher trades-fetcher))
+  (with-slots (market buffer delay) fetcher
+    (dolist (trade (trades-since market (recv buffer))) (send buffer trade))
+    (sleep delay)))
+
+(defclass trades-tracker (parent)
   ((market  :initarg :market :reader market)
-   (delay   :initarg :delay :initform 27)
    (buffer  :initform (make-instance 'channel))
    (output  :initform (make-instance 'channel))
-   (trades  :initform nil)
-   updater worker))
+   (trades  :initform nil)))
+
+(defmethod perform ((tracker trades-tracker))
+  (with-slots (buffer output trades market) tracker
+    (let ((last (car trades)))
+      (select
+        ((send output trades))
+        ((send buffer last))
+        ((recv buffer next)
+         (if (trades-mergeable? tracker last next)
+             (setf (car trades) (merge-trades tracker last next))
+             (push next trades)))
+        (t (sleep 0.2))))))
+
+(defmethod initialize-instance :after ((tracker trades-tracker) &key)
+  (with-slots (name market buffer) tracker
+    (flet ((name (role) (format nil "~A trades ~A" market role)))
+      (setf name (name "tracker"))
+      (adopt tracker (make-instance 'trades-fetcher :market market
+                                    :buffer buffer :name (name "fetcher"))))))
 
 (defgeneric vwap (tracker &key type depth &allow-other-keys)
   (:method :around ((tracker t) &key)
@@ -394,89 +421,42 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defmethod timestamp ((object null)))   ; such lazy
 
-(defun trades-worker-loop (tracker)
-  (with-slots (buffer output trades market) tracker
-    (let ((last (car trades)))
-      (select
-        ((send output trades))
-        ((send buffer last))
-        ((recv buffer next)
-         (if (trades-mergeable? tracker last next)
-             (setf (car trades) (merge-trades tracker last next))
-             (push next trades)))
-        (t (sleep 0.2))))))
-
-(defun trades-updater-loop (tracker)
-  (with-slots (market buffer delay) tracker
-    (dolist (trade (trades-since market (recv buffer))) (send buffer trade))
-    (sleep delay)))
-
-(defmethod shared-initialize :after ((tracker trades-tracker) (slots t) &key)
-  (with-slots (updater worker market) tracker
-    (when (or (not (slot-boundp tracker 'updater))
-              (eq :terminated (task-status updater)))
-      (setf updater
-            (pexec
-                (:name (concatenate 'string "qdm-preα trades updater for " (name market))
-                 :initial-bindings `((*read-default-float-format* double-float)))
-              (loop (trades-updater-loop tracker)))))
-    (when (or (not (slot-boundp tracker 'worker))
-              (eq :terminated (task-status worker)))
-      (setf worker
-            (pexec (:name (concatenate 'string "qdm-preα trades worker for " (name market))
-                          :initial-bindings `((*read-default-float-format* double-float)))
-              ;; TODO: just pexec anew each time...
-              ;; you'll understand what you meant someday, right?
-              (loop (trades-worker-loop tracker)))))))
-
 ;;;
 ;;; ORDER BOOK
 ;;;
 
-(defclass book-tracker ()
+(defclass book-fetcher (actor)
   ((market :initarg :market :reader market)
-   (control :initform (make-instance 'channel))
-   (output :initform (make-instance 'channel))
-   (delay :initarg :delay :initform 8)
+   (buffer :initarg :buffer)
    (get-book-keys :initform nil :initarg :get-book-keys)
-   bids asks updater worker))
+   (delay :initarg :delay :initform 4)))
 
-(defun book-worker-loop (tracker)
-  (with-slots (control bids asks output) tracker
-    (handler-case
-        (select
-          ((recv control command)
-           ;; commands are (cons command args)
-           (case (car command)
-             ;; pause - wait for any other command to restart
-             (pause (recv control))))
-          ((send output (cons bids asks)))
-          (t (sleep 0.2)))
-      (unbound-slot ()))))
-
-(defgeneric get-book (market &key))
-
-(defun book-updater-loop (tracker)
-  (with-slots (bids asks delay market offers get-book-keys) tracker
-    (setf (values asks bids) (apply #'get-book market get-book-keys))
+(defmethod perform ((fetcher book-fetcher))
+  (with-slots (buffer delay market get-book-keys) fetcher
+    (send buffer (multiple-value-call 'cons
+                   (apply #'get-book market get-book-keys)))
     (sleep delay)))
 
-(defmethod shared-initialize :after ((tracker book-tracker) (names t) &key)
-  (with-slots (updater worker market) tracker
-    (when (or (not (slot-boundp tracker 'updater))
-              (eq :terminated (task-status updater)))
-      (setf updater
-            (pexec
-                (:name (concatenate 'string "qdm-preα book updater for " (name market))
-                       :initial-bindings `((*read-default-float-format* double-float)))
-              (loop (book-updater-loop tracker)))))
-    (when (or (not (slot-boundp tracker 'worker))
-              (eq :terminated (task-status worker)))
-      (setf worker
-            (pexec (:name (concatenate 'string "qdm-preα book worker for " (name market)))
-              ;; TODO: just pexec anew each time...
-              ;; you'll understand what you meant someday, right?
-              (loop (book-worker-loop tracker)))))))
+(defclass book-tracker (parent)
+  ((market :initarg :market :reader market)
+   (buffer :initform (make-instance 'channel)) book
+   (output :initform (make-instance 'channel))))
+
+(defmethod perform ((tracker book-tracker))
+  (with-slots (control buffer book output) tracker
+    (select ((recv buffer next) (setf book (cons (cdr next) (car next))))
+            ((send output book)) (t (sleep 0.2)))))
+
+(defmethod initialize-instance :after
+    ((tracker book-tracker) &key get-book-keys)
+  (with-slots (name market buffer) tracker
+    (flet ((name (role) (format nil "~A book ~A" market role)))
+      (setf name (name "tracker"))
+      (adopt tracker (make-instance 'book-fetcher :market market
+                                    :buffer buffer :name (name "fetcher")
+                                    :get-book-keys get-book-keys)))))
+
+(defgeneric get-book (market &key))
 
 ;;;
 ;;; Putting things together
