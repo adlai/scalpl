@@ -1,7 +1,7 @@
 (defpackage #:scalpl.btce
   (:nicknames #:btce)
   (:export #:*btce* #:btce-gate)
-  (:use #:cl #:chanl #:anaphora #:st-json #:local-time #:scalpl.util #:scalpl.exchange))
+  (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util #:scalpl.exchange))
 
 (in-package #:scalpl.btce)
 
@@ -206,7 +206,7 @@
            (after-fee (- 1 (/ (market-fee nil market) 100)))
            (cost (* rate amount)))
       (make-instance 'execution :direction type
-                     :oid oid :txid (parse-integer txid)
+                     :oid oid :txid (parse-integer (string txid))
                      :price rate :cost cost
                      :volume amount :market market
                      :net-volume (string-case (type)

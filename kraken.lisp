@@ -1,7 +1,7 @@
 (defpackage #:scalpl.kraken
   (:nicknames #:kraken)
   (:export #:*kraken* #:kraken-gate)
-  (:use #:cl #:chanl #:anaphora #:st-json #:local-time #:scalpl.util #:scalpl.actor #:scalpl.exchange))
+  (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util #:scalpl.actor #:scalpl.exchange))
 
 (in-package #:scalpl.kraken)
 

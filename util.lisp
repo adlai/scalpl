@@ -1,5 +1,5 @@
 (defpackage #:scalpl.util
-  (:use #:c2cl #:anaphora #:st-json #:parse-float #:string-case)
+  (:use #:c2cl #:anaphora #:parse-float #:string-case)
   (:export #:once-only
            #:shallow-copy
            #:dbz-guard
@@ -18,6 +18,9 @@
            #:subseq*
            #:with-aslots
            ;; json
+           #:read-json
+           #:getjso
+           #:mapjso
            #:mapcar-jso
            #:jso-keys
            #:with-json-slots
@@ -139,6 +142,14 @@
   `(let ((it ,form)) (with-slots ,slots it ,@body)))
 
 ;;; json
+
+(defun read-json (in)
+  (let ((cl-json:*json-identifier-name-to-lisp* 'identity))
+    (cl-json:decode-json-from-string in)))
+
+(defun getjso (key map) (cdr (assoc key map :test #'string=)))
+
+(defun mapjso (func map) (loop for (k . v) in map do (funcall func k v)))
 
 (defmacro with-json-slots ((&rest slot-bindings) object &body body)
   (once-only (object)
