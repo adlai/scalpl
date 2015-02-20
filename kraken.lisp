@@ -116,26 +116,23 @@
     ("TradesHistory" 2) ("QueryTrades" 2)))
 
 (defclass token-minter (actor)
-  ((delay :initform 7) (name :initform (gensym "kraken api minter"))
+  ((delay :initform 10) (name :initform (gensym "kraken api minter"))
    (mint :initform (make-instance 'channel))))
 
 (defmethod perform ((minter token-minter))
   (with-slots (mint delay) minter (send mint 1) (sleep delay)))
 
-(defclass token-handler (parent)
+(defclass token-handler (actor)
   ((count :initform 0) (name :initform (gensym "kraken api pacer"))
    (tokens :initform (make-instance 'channel)) (mint :initarg :mint)))
 
 (defmethod perform ((handler token-handler))
   (with-slots (mint count tokens) handler
-    (handler-case
-        (case count
-          (5 (recv mint) (decf count))
-          (0 (send tokens t) (incf count))
+    (cond ((<= 5 count) (decf count (recv mint)))
+          ((>= 0 count) (send tokens (incf count)))
           (t (select ((recv mint delta) (decf count delta))
                      ((send tokens t) (incf count))
-                     (t (sleep 0.2)))))
-      (unbound-slot () (sleep 2)))))
+                     (t (sleep 0.2)))))))
 
 (defclass kraken-gate (gate parent) (tokens))          ; the handler is internal
 
