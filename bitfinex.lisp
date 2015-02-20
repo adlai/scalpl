@@ -222,11 +222,21 @@
   (rest (nreverse (mapcar (execution-parser market)
                           (raw-executions gate (name market) since)))))
 
+(defun raw-history (gate currency &key since until limit wallet)
+  (macrolet ((maybe-include (option)
+               `(when ,option `((,,(string-downcase option) . ,,option)))))
+    (gate-request gate "history"
+                  `(("currency" . ,currency)
+                    ,@(maybe-include since)
+                    ,@(maybe-include until)
+                    ,@(maybe-include limit)
+                    ,@(maybe-include wallet)))))
+
 ;;;
 ;;; Action API
 ;;;
 
-(defun post-raw-limit (gate type pair hidden amount price)
+(defun post-raw-limit (gate type pair amount price)
   (multiple-value-bind (info error)
       (gate-request gate "order/new"
                     `(("type" . "exchange limit")
@@ -234,18 +244,17 @@
                       ("side" . ,type)
                       ("symbol" . ,pair)
                       ("amount" . ,amount)
-                      ("price" . ,price)
-                      ,@(when hidden `(("is_hidden" . "true")))))
+                      ("price" . ,price)))
     (if error (warn (getjso "message" error)) info)))
 
-(defun post-limit (gate type pair price volume decimals hidden)
+(defun post-limit (gate type pair price volume decimals)
   (let ((price (/ price (expt 10d0 decimals))))
     ;; bitfinex always wants volume in the primary currency units
     ;; scalpl internally represents volume in the consumed currency units
     (when (string-equal type "buy") (setf volume (/ volume price)))
     ;; FIXME: these hardcoded numbers are btcusd-specific!
     (flet ((post (chunk)
-             (post-raw-limit gate type pair hidden
+             (post-raw-limit gate type pair
                              (format nil "~V$" 3 chunk)
                              (format nil "~V$" decimals price))))
       ;; minimal order is 0.01 btc
@@ -253,14 +262,11 @@
         ;; maximal order is 2000 btc
         (if (< volume 2000) (post volume) (error "FIXME: order too large"))))))
 
-(defclass hidden-offer (offer) ())
-
 (defmethod post-offer ((gate bitfinex-gate) offer)
   (with-slots (market volume price) offer
     (flet ((post (type)
              (awhen (post-limit gate type (name market) (abs price) volume
-                                (slot-value market 'decimals)
-                                (typep offer 'hidden-offer))
+                                (slot-value market 'decimals))
                (with-json-slots (order_id) it
                  (change-class offer 'placed :oid order_id)))))
       (post (if (< price 0) "buy" "sell")))))
