@@ -118,19 +118,18 @@
 ;;; Public Data API
 ;;;
 
-(defmethod get-book ((market btce-market) &key (count 200)
-                     &aux (pair (name market)) (decimals (decimals market)))
-  (awhen (get-request (format nil "depth/~A" pair)
-                      `(("limit" . ,(princ-to-string count))))
-    (with-json-slots (bids asks) (getjso pair it)
+(defmethod get-book ((market btce-market) &key (count 200))
+  (with-slots (decimals name) market
+    (with-json-slots (bids asks)
+        (getjso name (get-request (format nil "depth/~A" name)
+                                  `(("limit" . ,count))))
       (flet ((parser (class)
                (lambda (raw-order)
                  (destructuring-bind (price amount) raw-order
                    (make-instance class :market market
                                   :price (round (* price (expt 10 decimals)))
                                   :volume (rationalize amount))))))
-        (values (mapcar (parser 'ask) asks)
-                (mapcar (parser 'bid) bids))))))
+        (values (mapcar (parser 'ask) asks) (mapcar (parser 'bid) bids))))))
 
 (defun trade-parser (market)
   (lambda (trade)
@@ -160,11 +159,11 @@
 (defmethod placed-offers ((gate btce-gate))
   (awhen (gate-request gate "ActiveOrders")
     (mapcar-jso (lambda (id data)
-                  (with-json-slots (pair type amount rate timestamp_created) data
+                  (with-json-slots (pair type amount rate) data
                     (let* ((market (find-market pair *btce*))
                            (decimals (slot-value market 'decimals))
                            (price-int (round (* rate (expt 10 decimals)))))
-                      (make-instance 'placed :oid (parse-integer id)
+                      (make-instance 'placed :oid (parse-integer (string id))
                                      :market market :volume amount
                                      :price (if (string= type "buy")
                                                 (- price-int) price-int)))))
