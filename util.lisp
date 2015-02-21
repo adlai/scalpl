@@ -46,10 +46,9 @@
 (defun shallow-copy (object)
   (multiple-value-bind (create init) (make-load-form-saving-slots object)
     (aprog1 (eval create)
-      (labels ((walk (form) (cond ((eq form object) it)
-                                  ((atom form) form)
-                                  (t (cons (car form)
-                                           (mapcar #'walk (cdr form)))))))
+      (labels ((walk (form)
+                 (cond ((eq form object) it) ((atom form) form)
+                       (t (cons (car form) (mapcar #'walk (cdr form)))))))
         (eval (walk init))))))
 
 (defmacro dbz-guard (form) `(handler-case ,form (division-by-zero () 0)))
@@ -65,22 +64,16 @@
   (let ((path (butlast slots)) (end (car (last slots))))
     (get-setf-expansion `(slot-value (slot-reduce ,root ,@path) ',end) env)))
 
-(defun rehome-symbol (symbol new-home &aux (old-home (symbol-package symbol)))
-  (unintern symbol old-home)
-  (import (list symbol) new-home)
-  (import (list symbol) old-home))
+(defun rehome-symbol (symbol new-home &aux (source (symbol-package symbol)))
+  (unintern symbol source) (import symbol new-home) (import symbol source))
 
 (defgeneric rehome-class (class new-home)
   (:method ((class symbol) new-home)
     (rehome-class (find-class class) (find-package new-home)))
   (:method ((class class) (new-home package))
-    (let ((old-home (symbol-package (class-name class)))
-          (symbols (cons (class-name class)
-                         (mapcar 'slot-definition-name
-                                 (class-direct-slots class)))))
-      (mapc (lambda (symbol) (unintern symbol old-home)) symbols)
-      (import symbols new-home)
-      (import symbols old-home))))
+    (mapcar (lambda (symbol) (rehome-symbol symbol new-home))
+            (cons (class-name class) (mapcar 'slot-definition-name
+                                             (class-direct-slots class))))))
 
 (define-condition price-precision-problem ()
   ((price-string :initarg :price-string)
