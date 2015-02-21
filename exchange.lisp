@@ -299,6 +299,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 ;;; Public Data API
 ;;;
 
+(defgeneric trades-since (market &optional since))
+(defgeneric get-book (market &key))
+
 ;;; should trade direction be represented as:
 ;;; a boolean slot?
 ;;; slots for (consumed|earned)×(volume|asset)?
@@ -333,8 +336,6 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
       (with-slots (primary decimals) market
         (format stream "~A ~A at ~V$: ~V$" timestamp
                 direction decimals price (decimals primary) volume)))))
-
-(defgeneric trades-since (market &optional since))
 
 (defclass trades-fetcher (actor)
   ((market :initarg :market :reader market)
@@ -456,8 +457,6 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                                     :buffer buffer :name (name "fetcher")
                                     :get-book-keys get-book-keys)))))
 
-(defgeneric get-book (market &key))
-
 ;;;
 ;;; Putting things together
 ;;;
@@ -503,8 +502,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defgeneric market-fee (gate market)
   (:method :around ((gate gate) (market market))
-    (actypecase (call-next-method)
-      (number `(,it . ,it)) (cons it) (null))))
+    (actypecase (call-next-method) (number `(,it . ,it)) (cons it) (null))))
 
 ;;;
 ;;; EXECUTION TRACKING
