@@ -119,7 +119,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defun pprint-pq (stream pq)
   (with-slots (decimals name) (find-unit (imagpart pq))
     (format stream "~V$ ~A" decimals
-            (/ (realpart pq) (expt 10 decimals)) name)))
+            (/ (realpart pq) (expt 10 decimals) 1d0) name)))
 
 (set-pprint-dispatch 'physical-quantity #'pprint-pq 1 *pqprint-dispatch*)
 
