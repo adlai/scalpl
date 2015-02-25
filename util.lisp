@@ -140,7 +140,9 @@
   (let ((cl-json:*json-identifier-name-to-lisp* 'identity))
     (cl-json:decode-json-from-string in)))
 
-(defun getjso (key map) (cdr (assoc key map :test #'string=)))
+(defun getjso (key &optional map)
+  (if map (cdr (assoc key map :test #'string=))
+      (lambda (map) (getjso key map))))
 
 (defun mapjso (func map) (loop for (k . v) in map do (funcall func k v)))
 
