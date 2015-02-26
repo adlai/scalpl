@@ -144,7 +144,7 @@
   (if map (cdr (assoc key map :test #'string=))
       (lambda (map) (getjso key map))))
 
-(defun mapjso (func map) (loop for (k . v) in map do (funcall func k v)))
+(defun mapjso (func map) (loop for (k . v) in map do (funcall func (string k) v)))
 
 (defmacro with-json-slots ((&rest slot-bindings) object &body body)
   (once-only (object)

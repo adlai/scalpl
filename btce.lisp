@@ -205,7 +205,7 @@
            (after-fee (- 1 (/ (market-fee nil market) 100)))
            (cost (* rate amount)))
       (make-instance 'execution :direction type
-                     :oid oid :txid (parse-integer (string txid))
+                     :oid oid :txid (parse-integer txid)
                      :price rate :cost cost
                      :volume amount :market market
                      :net-volume (string-case (type)

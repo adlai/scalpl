@@ -106,8 +106,8 @@
               (loop (fee-server-loop tracker)))))))
 
 (defclass ope-filter ()
-  ((bids       :initarg :bids       :initform (make-instance 'channel))
-   (asks       :initarg :asks       :initform (make-instance 'channel))
+  ((bids       :initarg :bids       :initform ())
+   (asks       :initarg :asks       :initform ())
    (market     :initarg :market     :initform (error "must link market"))
    (supplicant :initarg :supplicant :initform (error "must link supplicant"))
    (frequency  :initarg :frequency  :initform 1/7) ; TODO: push depth deltas
@@ -202,11 +202,12 @@
                  `(let* ((n (max (length ,add) (length ,pop)))
                          (m (- n (ceiling (log (1+ (random (1- (exp n)))))))))
                     (macrolet ((wrap (a . b) `(awhen (nth m ,a) (,@b it))))
-                      (wrap ,add place) (wrap ,pop ope-cancel ope)))))
+                      (wrap ,pop ope-cancel ope) (wrap ,add place)))))
       (aif (dolist (new target (sort to-add #'< :key #'price))
              (aif (find (price new) excess :key #'price :test #'=)
                   (setf excess (remove it excess)) (push new to-add)))
-           (frob it excess) (and target placed (frob target placed))))))
+           (frob it excess) (if excess (frob nil excess) ; yuck
+                                (and target placed (frob target placed)))))))
 
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
@@ -454,7 +455,7 @@
    (control :initform (make-instance 'channel))
    (account-tracker :initarg :account-tracker)
    (name :initarg :name :accessor name)
-   (report-depths :initform '(nil 4 1 1/4) :initarg :report-depths)
+   (report-depths :initform (list nil 4 1 1/4) :initarg :report-depths)
    thread))
 
 (defun makereport (maker fund rate btc doge investment risked skew)
@@ -471,7 +472,7 @@
       ;; FIXME: modularize all this decimal point handling
       ;; we need a pprint-style ~/aq/ function, and pass it aq objects!
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (format t "~&~A ~A~{ ~A~} ~2,2$% ~2,2$% ~2,2@$~{ ~6@$~}~%"
+      (format t "~&~A ~A~{ ~A~} ~2,2$% ~2,2$% ~2,2@$~{ ~4@$~}~%"
               name (subseq (princ-to-string (now)) 11 19)
               (mapcar #'sastr '(primary counter primary counter)
                       `(,@#1=`(,fund ,(* fund rate)) ,btc ,doge) `(() () ,@#1#))
