@@ -524,17 +524,45 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
      (cons-aq* (primary market) net-volume)
      (cons-aq* (counter market) net-cost))))
 
-(defclass execution-tracker ()
-  ((gate :initarg :gate)
+(defclass execution-fetcher (actor)
+  ((gate   :initarg :gate)
    ;; TODO: is this the right model for a general execution tracking API?
-   ;; bitfinex requires tracking distinct markets, kraken doesn't
+   ;; bitfinex requires tracking distinct markets, kraken and btc-e don't
    ;; keep your eyes open, for now we'll specify a single market per tracker
+   ;; that's the more general model (can be programmed into exchanges that
+   ;; track all markets in one call) and also reflects the realities of swaps
    (market :initarg :market :reader market)
-   (delay :initform 30 :initarg :delay)
-   (trades :initform nil) (bases :initform nil)
-   (control :initform (make-instance 'channel))
-   (buffer :initform (make-instance 'channel))
-   worker updater))
+   (delay  :initform 30) (buffer :initarg :buffer)))
+
+(defmethod perform ((fetcher execution-fetcher))
+  (with-slots (gate market buffer delay) fetcher
+    (dolist (trade (execution-since gate market (recv buffer)) (sleep delay))
+      (send buffer trade))))
+
+(defclass execution-tracker (parent)
+  ((trades :initform nil) (bases :initform nil)
+   (buffer :initform (make-instance 'channel)) fetcher))
+
+(defmethod execute
+    ((tracker execution-tracker) (command (eql :rebase)))
+  (with-slots (bases trades) tracker
+    (setf bases nil) (dolist (next (reverse trades))
+                       (update-bases tracker next))))
+
+(defmethod perform ((tracker execution-tracker))
+  (with-slots (buffer trades bases) tracker
+    (select ((recv buffer next) (update-bases tracker next)
+             (pushnew next trades :key #'txid :test #'equal))
+            ((send buffer (first trades))) (t (sleep 0.2)))))
+
+(defmethod initialize-instance :after
+    ((tracker execution-tracker) &key market gate)
+  (with-slots (name buffer fetcher) tracker
+    (flet ((name (role) (format nil "~A lictor ~A" market role)))
+      (adopt tracker (setf name (name "tracker") fetcher
+                           (make-instance 'execution-fetcher :market market
+                                          :gate gate :name (name "fetcher")
+                                          :buffer buffer))))))
 
 (defgeneric execution-since (gate market since))
 
@@ -572,46 +600,6 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
             (merge 'list (copy-list (getf bases (asset taken)))
                    (list (list (aq/ given taken) taken given))
                    #'> :key (lambda (row) (realpart (first row))))))))
-
-(defun execution-worker-loop (tracker)
-  (with-slots (control buffer trades bases) tracker
-    (select
-      ((recv control command)
-       ;; commands are (cons command args)
-       (case (car command)
-         ;; pause - wait for any other command to restart
-         (pause (recv control))
-         ;; rebase - rebuild bases from trades
-         (rebase (setf bases nil)
-                 (dolist (next (reverse trades)) (update-bases tracker next)))))
-      ((recv buffer next)                        (update-bases tracker next)
-       (pushnew next trades :key #'txid :test #'equal))
-      ((send buffer (first trades)))
-      (t (sleep 0.2)))))
-
-(defun execution-updater-loop (tracker)
-  (with-slots (gate market buffer delay) tracker
-    (dolist (trade (execution-since gate market (recv buffer)))
-      (send buffer trade))
-    (sleep delay)))
-
-(defmethod shared-initialize :after ((tracker execution-tracker) (slots t) &key)
-  (with-slots (updater worker market) tracker
-    (when (or (not (slot-boundp tracker 'updater))
-              (eq :terminated (task-status updater)))
-      (setf updater
-            (pexec
-                (:name (concatenate 'string "qdm-preα execution updater for " (name market))
-                 :initial-bindings `((*read-default-float-format* double-float)))
-              (loop (execution-updater-loop tracker)))))
-    (when (or (not (slot-boundp tracker 'worker))
-              (eq :terminated (task-status worker)))
-      (setf worker
-            (pexec (:name (concatenate 'string "qdm-preα execution worker for " (name market))
-                          :initial-bindings `((*read-default-float-format* double-float)))
-              ;; TODO: just pexec anew each time...
-              ;; you'll understand what you meant someday, right?
-              (loop (execution-worker-loop tracker)))))))
 
 ;;; TODO: We have the fees paid for each order in the data from the exchange,
 ;;; so we should be able to calculate the _net_ price for each trade, and use

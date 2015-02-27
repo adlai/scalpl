@@ -2,7 +2,7 @@
 
 (defpackage #:scalpl.actor
   (:use #:cl #:anaphora #:local-time #:scalpl.util #:chanl)
-  (:export #:actor #:perform #:halt #:name #:control
+  (:export #:actor #:perform #:halt #:name #:control #:execute
            #:parent #:children #:adopt #:disown))
 
 (in-package #:scalpl.actor)
@@ -60,8 +60,6 @@
 ;;;
 ;;; Parent
 ;;;
-
-;;; An actor with a single child - simple enough to do with mopless ansi clos
 
 (defclass parent (actor) ((children :initform nil :initarg :children)))
 

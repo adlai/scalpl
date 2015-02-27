@@ -1,7 +1,7 @@
 ;;;; db.lisp
 
 (defpackage #:scalpl.db
-  (:use #:cl #:dbi #:anaphora #:local-time #:scalpl.util #:scalpl.actor #:scalpl.exchange))
+  (:use #:cl #:anaphora #:local-time #:scalpl.util #:scalpl.actor #:scalpl.exchange))
 
 (in-package #:scalpl.db)
 
