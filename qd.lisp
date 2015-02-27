@@ -383,7 +383,7 @@
    (input :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
    (control :initform (make-instance 'channel))
-   (gate :initarg :gate)
+   (gate :initarg :gate) (fuzz :initarg :fuzz :initform (random 7))
    updater worker))
 
 (defun balance-worker-loop (tracker)
@@ -405,10 +405,11 @@
       (recv output))))
 
 (defun balance-updater-loop (tracker)
-  (with-slots (gate control input) tracker
+  (with-slots (gate control input fuzz) tracker
     (send (nth-value 1 (recv control))
-          (ignore-errors (awhen1 (account-balances gate)
-                           (send input `(balances . ,it)))))))
+          (ignore-errors (when (zerop (random fuzz))
+                           (awhen1 (account-balances gate)
+                             (send input `(balances . ,it))))))))
 
 (defmethod vwap ((tracker account-tracker) &rest keys)
   (apply #'vwap (slot-value tracker 'lictor) keys))
