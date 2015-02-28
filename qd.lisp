@@ -459,8 +459,12 @@
    (report-depths :initform (list nil 4 1 1/4) :initarg :report-depths)
    thread))
 
+(defmethod print-object ((maker maker) stream)
+  (print-unreadable-object (maker stream :type t :identity nil)
+    (write-string (name maker) stream)))
+
 (defun makereport (maker fund rate btc doge investment risked skew)
-  (print-book (slot-reduce maker account-tracker ope) :prefix (name maker))
+  ;; (print-book (slot-reduce maker account-tracker ope) :prefix (name maker))
   (with-slots (name market account-tracker report-depths) maker
     (labels ((sastr (side amount &optional model) ; TODO factor out aqstr
                (format nil "~V,,V$" (decimals (slot-value market side))
