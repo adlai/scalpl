@@ -350,7 +350,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   ((market  :initarg :market :reader market)
    (buffer  :initform (make-instance 'channel))
    (output  :initform (make-instance 'channel))
-   (trades  :initform nil)))
+   (trades  :initform nil) fetcher))
 
 (defmethod perform ((tracker trades-tracker))
   (with-slots (buffer output trades market) tracker
@@ -365,11 +365,11 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
         (t (sleep 0.2))))))
 
 (defmethod initialize-instance :after ((tracker trades-tracker) &key)
-  (with-slots (name market buffer) tracker
+  (with-slots (name market buffer fetcher) tracker
     (flet ((name (role) (format nil "~A trades ~A" market role)))
-      (setf name (name "tracker"))
-      (adopt tracker (make-instance 'trades-fetcher :market market
-                                    :buffer buffer :name (name "fetcher"))))))
+      (adopt tracker (setf name (name "tracker") fetcher
+                           (make-instance 'trades-fetcher :name (name "fetcher")
+                                          :market market :buffer buffer))))))
 
 (defgeneric vwap (tracker &key type depth &allow-other-keys)
   (:method :around ((tracker t) &key)
@@ -439,7 +439,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defclass book-tracker (parent)
   ((market :initarg :market :reader market)
-   (buffer :initform (make-instance 'channel)) book
+   (buffer :initform (make-instance 'channel)) book fetcher
    (output :initform (make-instance 'channel))))
 
 (defmethod perform ((tracker book-tracker))
@@ -449,12 +449,12 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defmethod initialize-instance :after
     ((tracker book-tracker) &key get-book-keys)
-  (with-slots (name market buffer) tracker
+  (with-slots (name market buffer fetcher) tracker
     (flet ((name (role) (format nil "~A book ~A" market role)))
-      (setf name (name "tracker"))
-      (adopt tracker (make-instance 'book-fetcher :market market
-                                    :buffer buffer :name (name "fetcher")
-                                    :get-book-keys get-book-keys)))))
+      (adopt tracker (setf name (name "tracker") fetcher
+                           (make-instance 'book-fetcher :name (name "fetcher")
+                                          :market market :buffer buffer
+                                          :get-book-keys get-book-keys))))))
 
 ;;;
 ;;; Putting things together
