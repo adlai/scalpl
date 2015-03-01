@@ -121,6 +121,10 @@
 (defmethod get-book ((market btce-market) &key (count 200))
   (with-slots (decimals name) market
     (with-json-slots (bids asks)
+        ;; when the get-request fails, getjso returns a closure, because it
+        ;; thinks it was called as (getjso key), then mapcar fails, and the
+        ;; empty book won't get sent because (perform <book-fetcher>) ignores
+        ;; the error and tries again delay seconds later. ah well.
         (getjso name (get-request (format nil "depth/~A" name)
                                   `(("limit" . ,count))))
       (flet ((parser (class)

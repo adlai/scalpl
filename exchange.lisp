@@ -434,8 +434,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defmethod perform ((fetcher book-fetcher))
   (with-slots (buffer delay market get-book-keys) fetcher
-    (send buffer (multiple-value-call 'cons
-                   (apply #'get-book market get-book-keys)))
+    (ignore-errors (send buffer (multiple-value-call 'cons
+                                  (apply #'get-book market get-book-keys))))
     (sleep delay)))
 
 (defclass book-tracker (parent)
