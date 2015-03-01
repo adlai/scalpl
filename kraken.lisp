@@ -211,14 +211,13 @@
                       (let* ((market (find-market pair *kraken*))
                              (decimals (slot-value market 'decimals))
                              (price-int (parse-price price decimals))
-                             (volume (read-from-string vol)))
+                             (volume (parse-float vol :type 'rational)))
                         (make-instance 'placed :oid id :market market
                                        :price (if (string= type "buy")
                                                   (- price-int) price-int)
-                                       :volume (if (not (search "viqc" oflags))
-                                                   volume
-                                                   (/ volume price-int
-                                                      (expt 1/10 decimals))))))))
+                                       ;; kissumes viqc
+                                       :volume (/ volume price-int
+                                                  (expt 1/10 decimals)))))))
                 (getjso "open" it))))
 
 (defmethod account-balances ((gate kraken-gate))

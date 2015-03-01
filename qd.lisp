@@ -232,7 +232,8 @@
                       epsilon          ; scalar•asset size of smallest order
                       max-orders       ; target amount of offers
                       magic            ; if you have to ask, you'll never know
-                      &aux (acc 0) (share 0) (others (copy-list foreigners)))
+                      &aux (acc 0) (share 0) (others (copy-list foreigners))
+                        (asset (consumed-asset (first others))))
   (do* ((remaining-offers others (rest remaining-offers))
         (processed-tally    0    (1+   processed-tally)))
        ((or (null remaining-offers)  ; EITHER: processed entire order book
@@ -244,11 +245,11 @@
                                       #'> :key (lambda (x) (volume (cdr x))))
                                0 count) #'< :key (lambda (x) (price (cdr x)))))
                (offer-scaler (total bonus count)
-                 (lambda (order)
+                 (lambda (order &aux (vol (* funds (/ (+ bonus (car order))
+                                                      (+ total (* bonus count))))))
                    (with-slots (market price) (cdr order)
                      (make-instance 'offer :market market :price (1- price)
-                                    :volume (* funds (/ (+ bonus (car order))
-                                                        (+ total (* bonus count)))))))))
+                                    :volume vol :given (cons-aq* asset vol))))))
           (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni! wut?
                                     max-orders processed-tally))
                  (chosen-stairs         ; the (shares . foreign-offer)s to fight

@@ -262,11 +262,10 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defmethod print-object ((offer offer) stream)
   (print-unreadable-object (offer stream :type t)
-    (with-slots (volume price market) offer
-      (with-slots (name decimals) (consumed-asset offer)
-        (let ((market-decimals (slot-value market 'decimals)))
-          (format stream "~V$ ~A @ ~V$" decimals volume name market-decimals
-                  (/ (abs price) (expt 10 market-decimals))))))))
+    (with-slots (given price market) offer
+      (let ((market-decimals (slot-value market 'decimals)))
+        (format stream "~A @ ~V$" given market-decimals
+                (/ (abs price) (expt 10 market-decimals)))))))
 
 ;;;
 ;;; Rate Gate

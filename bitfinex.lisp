@@ -163,7 +163,7 @@
               (let* ((market (find-market symbol *bitfinex*))
                      (decimals (slot-value market 'decimals))
                      (price-int (parse-price price decimals))
-                     (volume (read-from-string remaining_amount)))
+                     (volume (parse-float remaining_amount :type 'rational)))
                 (make-instance 'placed :oid id :market market :volume volume
                                :price (if (string= side "buy") (- price-int) price-int)))))
           (open-orders gate)))
