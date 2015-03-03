@@ -60,7 +60,8 @@
     (case status
       (200 (decode-json body))
       ((400 404) (values nil (decode-json body)))
-      ((500 502 503 504 520 522) (sleep 2) (apply #'raw-request path keys))
+      ((500 502 503 504 520 522 524)
+       (sleep 2) (apply #'raw-request path keys))
       (t (cerror "Retry request" "HTTP Error ~D~%~A" status body)
          (apply #'raw-request path keys)))))
 

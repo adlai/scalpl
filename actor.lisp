@@ -47,6 +47,8 @@
 (defgeneric ensure-running (actor)
   (:method ((actor actor))
     (with-slots (name tasks) actor
+      ;; (loop for tasks = (slot-reduce actor tasks) ;; racy innit?
+      ;;    while (find :alive tasks :key #'task-status) finally (return tasks))
       (unless (find :alive tasks :key #'task-status)
         (push (enqueue actor) tasks)))))
 

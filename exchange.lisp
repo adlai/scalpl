@@ -280,19 +280,19 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defgeneric gate-post (gate pubkey secret request)
   (:documentation "Attempts to perform `request' with the provided credentials.")
-  #+nil                                 ; for automatic multiple value wrapping
   (:method :around (gate pubkey secret request)
-    (multiple-value-list (call-next-method))))
+    (rplacd request (call-next-method gate pubkey secret (cdr request)))))
 
 (defmethod perform ((gate gate))
   (with-slots (input output . #1=(pubkey secret cache)) gate
     (when (send-blocks-p output) (setf cache (recv input)))
     (send (slot-value gate 'output) (gate-post gate . #1#))))
 
-(defun gate-request (gate path &optional options)
+(defun gate-request (gate path &optional options &aux (id (cons path options)))
   (with-slots (input output) gate
-    (send input (cons path options))
-    (values-list (recv output))))
+    (send input (list* id path options))
+    (loop for reply = (recv output) until (eq (car reply) id)
+       do (send output reply) finally (return (values-list (cdr reply))))))
 
 ;;;
 ;;; Public Data API

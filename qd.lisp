@@ -433,8 +433,7 @@
 (defmethod shared-initialize :after
     ((tracker account-tracker) (names t) &key market)
   (with-slots (lictor treasurer gate ope) tracker
-    (if (slot-boundp tracker 'lictor)
-        (reinitialize-instance lictor :market market)
+    (if (slot-boundp tracker 'lictor) (reinitialize-instance lictor)
         (setf lictor (make-instance 'execution-tracker :market market :gate gate)))
     (if (slot-boundp tracker 'treasurer) (reinitialize-instance treasurer)
         (setf treasurer (make-instance 'balance-tracker :gate gate)))
