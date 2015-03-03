@@ -169,3 +169,10 @@
 (defun mapjso* (thunk jso)
   (mapjso thunk jso)
   jso)
+
+;;; random useful occasionally
+(defun gapps-rate (from to)
+  (getjso "rate" (read-json (drakma:http-request
+                             "http://rate-exchange.appspot.com/currency"
+                             :parameters `(("from" . ,from) ("to" . ,to))
+                             :want-stream t))))

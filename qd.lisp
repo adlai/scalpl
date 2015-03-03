@@ -442,12 +442,6 @@
       (setf ope (make-instance 'ope-scalper :lictor lictor :gate gate
                                :balance-tracker treasurer :market market)))))
 
-(defun gapps-rate (from to)
-  (getjso "rate" (read-json (drakma:http-request
-                             "http://rate-exchange.appspot.com/currency"
-                             :parameters `(("from" . ,from) ("to" . ,to))
-                             :want-stream t))))
-
 (defclass maker ()
   ((market :initarg :market :reader market)
    (fund-factor :initarg :fund-factor :initform 1)
@@ -458,6 +452,7 @@
    (account-tracker :initarg :account-tracker)
    (name :initarg :name :accessor name)
    (report-depths :initform (list nil 4 1 1/4) :initarg :report-depths)
+   (last-report :initform nil)
    thread))
 
 (defmethod print-object ((maker maker) stream)
@@ -465,8 +460,10 @@
     (write-string (name maker) stream)))
 
 (defun makereport (maker fund rate btc doge investment risked skew)
-  ;; (print-book (slot-reduce maker account-tracker ope) :prefix (name maker))
-  (with-slots (name market account-tracker report-depths) maker
+  (with-slots (name market account-tracker report-depths last-report) maker
+    (let ((new-report (list fund rate btc doge investment risked skew)))
+      (if (equal last-report new-report) (return-from makereport)
+          (setf last-report new-report)))
     (labels ((sastr (side amount &optional model) ; TODO factor out aqstr
                (format nil "~V,,V$" (decimals (slot-value market side))
                        (if model (length (sastr side model)) 0) amount))
