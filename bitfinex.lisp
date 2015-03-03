@@ -237,10 +237,10 @@
 ;;; Action API
 ;;;
 
-(defun post-raw-limit (gate type pair amount price)
+(defun post-raw-limit (gate type pair amount price &optional casinop)
   (multiple-value-bind (info error)
       (gate-request gate "order/new"
-                    `(("type" . "exchange limit")
+                    `(("type" . ,(format nil "~:[exchange ~;~]limit" casinop))
                       ("exchange" . "bitfinex") ; lold habits
                       ("side" . ,type)
                       ("symbol" . ,pair)
@@ -298,3 +298,9 @@
 ;;                   ("amount" . ,amount)
 ;;                   ("price" . ,price)
 ;;                   ("order_id" . ,(oid old)))))
+
+;;; Casino
+
+(defclass leverage-gate (bitfinex-gate)
+  ((gate :initarg :gate) (pair :initarg :pair)
+   (leverage :initarg :leverage :initform 1)))
