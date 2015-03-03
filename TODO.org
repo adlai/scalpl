@@ -17,6 +17,16 @@ a set of numerical parameters representing
 tool for evaluating statistical queries on market events, past and present
 ** Network                                                             :WIP:
 decentralized multimodal swarm optimization of the above guidelines
+* Overview of Current Capabilities
+** what it is / how it acts
+*** acts upon an exchange account (no leverage)
+*** configurable parameters
+*** maintains limit offer distribution according to constraints:
+**** resilience - how deep into the orderbook to place offers
+**** targeting - what allocation is targeted by the relative buy/sell sizes
+**** fund - what proportion of assets is placed on the order book at once
+**** profitability relative to past execution
+** what it should be
 * TODO refactor scalar value representations, to include units
 bitfinex and btce give volume in primary, always; kraken can do either
 ** DONE taken,given - asset×quantity
