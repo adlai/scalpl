@@ -114,7 +114,7 @@
    (lictor     :initarg :lictor     :initform (error "must link lictor"))
    (rudder     :initarg :rudder     :initform '(() . ()))
    (book-cache :initform nil)
-   fee foreigners thread))
+   fee thread))
 
 ;;; TODO: deal with partially completed orders
 (defun ignore-offers (open mine &aux them)
@@ -135,33 +135,13 @@
 ;;; 3) profit vs recent cost basis - done, shittily - TODO parametrize depth
 
 (defun ope-filter-loop (ope)
-  (with-slots (market foreigners book-cache bids asks rudder frequency) ope
-    (flet ((xyz (asset rside type &aux (lictor (slot-value ope 'lictor))
-                       (rval (if (consp rudder) (funcall rside rudder) rudder)))
-             (aif (getf (slot-reduce lictor bases) asset)
-                  (scaled-price
-                   (nth-value 1 (bases-without it (cons-aq* asset rval))))
-                  (vwap lictor :type type :depth rval))))
-      (destructuring-bind (bfee . afee) (recv (slot-reduce ope fee output))
-        (let ((book (recv (slot-reduce market book-tracker output))))
-          (unless (equal book book-cache)
-            (with-slots (placed) (slot-value ope 'supplicant)
-              (setf foreigners (cons (ignore-offers (car book) placed)
-                                     (ignore-offers (cdr book) placed))
-                    book-cache book))
-            (let ((quotient (expt 10 (decimals market)))
-                  (svwap (xyz (counter market) #'car "sell"))
-                  (bvwap (xyz (primary market) #'cdr "buy")))
-              (macrolet ((do-side (vwap side &body args)
-                           `(unless (zerop ,vwap)
-                              (swhen (,side foreigners)
-                                (loop for best = (first it) while best
-                                   for spread = (profit-margin ,@args)
-                                   until (> spread 1) do (pop it))))))
-                (do-side svwap car (/ (price best) quotient) svwap bfee)
-                (do-side bvwap cdr bvwap (/ (price best) quotient) 0 afee)))
-            (setf bids (car foreigners) asks (cdr foreigners))))
-        (sleep frequency)))))
+  (with-slots (market book-cache bids asks frequency) ope
+    (let ((book (recv (slot-reduce market book-tracker output))))
+      (unless (equal book book-cache)
+        (with-slots (placed) (slot-value ope 'supplicant)
+          (setf bids (ignore-offers (car book) placed)
+                asks (ignore-offers (cdr book) placed)))))
+    (sleep frequency)))
 
 (defmethod shared-initialize :after ((ope ope-filter) (slots t) &key gate)
   (with-slots (market fee supplicant) ope
