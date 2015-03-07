@@ -225,9 +225,10 @@
              ;; TODO: this signals !(typep () 'jso) on communication failure
              ;; signaling is a Good Thing™, but let's be more helpful
              (mapcar-jso (lambda (currency amount)
-                           (cons currency (parse-float amount)))
+                           (cons-aq* (find-asset currency *kraken*)
+                                     (parse-float amount :type 'rational)))
                          (gate-request gate "Balance"))
-             :key #'cdr))
+             :key #'quantity))
 
 (defmethod market-fee ((gate kraken-gate) market &aux (pair (name market)))
   (awhen (gate-request gate "TradeVolume" `(("pair" . ,pair)))

@@ -114,6 +114,7 @@
   (destructuring-bind (command . options) request
     (multiple-value-list (post-request command key secret options))))
 
+;;; remind me, why am i even here?
 (defmethod shared-initialize ((gate bitfinex-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
                        (mvwrap pubkey make-key) (mvwrap secret make-signer)))
@@ -170,13 +171,13 @@
           (open-orders gate)))
 
 (defmethod account-balances ((gate bitfinex-gate))
-  (mapcar (lambda (balance)
-            (with-json-slots (currency amount) balance
-              (cons currency (parse-float amount))))
-          ;; TODO: signal on failure, rather than returning empty balances
-          ;; cf sibling method's comment in kraken.lisp
-          (remove "exchange" (gate-request gate "balances")
-                  :test-not #'string= :key (lambda (x) (getjso "type" x)))))
+  (aif (gate-request gate "balances")
+       (mapcan (lambda (balance)
+                 (with-json-slots (currency amount) balance
+                   (awhen (find-asset currency *bitfinex*) ; vestigial scam th1
+                     (list (cons-aq* it (parse-float amount :type 'number))))))
+               (remove "exchange" it :test-not #'string= :key (getjso "type")))
+       (error "communication breakdown")))
 
 (defmethod market-fee ((gate bitfinex-gate) market)
   (awhen (car (gate-request gate "account_infos"))

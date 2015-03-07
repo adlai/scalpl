@@ -5,6 +5,9 @@
 
 (in-package #:scalpl.qd)
 
+(defun asset-funds (asset funds)
+  (aif (find asset funds :key #'asset) (scaled-quantity it) 0))
+
 ;;;
 ;;;  ENGINE
 ;;;
@@ -25,7 +28,7 @@
 (defun balance-guarded-place (ope offer)
   (with-slots (gate placed order-slots balance-tracker) ope
     (let ((asset (consumed-asset offer)))
-      (when (and (>= (asset-balance balance-tracker asset)
+      (when (and (>= (asset-funds asset (slot-reduce balance-tracker balances))
                      (reduce #'+ (mapcar #'volume (offers-spending ope asset))
                              :initial-value (volume offer)))
                  (> order-slots (length placed)))
@@ -137,10 +140,11 @@
 (defun ope-filter-loop (ope)
   (with-slots (market book-cache bids asks frequency) ope
     (let ((book (recv (slot-reduce market book-tracker output))))
-      (unless (equal book book-cache)
+      (unless (eq book book-cache)
         (with-slots (placed) (slot-value ope 'supplicant)
-          (setf bids (ignore-offers (car book) placed)
-                asks (ignore-offers (cdr book) placed)))))
+          (setf book-cache book
+                bids (ignore-offers (cdar book) placed)
+                asks (ignore-offers (cddr book) placed)))))
     (sleep frequency)))
 
 (defmethod shared-initialize :after ((ope ope-filter) (slots t) &key gate)
@@ -332,10 +336,10 @@
     ((ope ope-scalper) (slots t) &key gate market balance-tracker lictor)
   (with-slots (filter prioritizer supplicant) ope
     (unless (slot-boundp ope 'supplicant)
-      (setf supplicant (multiple-value-call 'make-instance
-                         'ope-supplicant :gate gate :placed (placed-offers gate)
-                         (if (null balance-tracker) (values)
-                             (values :balance-tracker balance-tracker)))))
+      (assert balance-tracker (balance-tracker) "must provide balance tracker")
+      (setf supplicant (make-instance 'ope-supplicant :gate gate
+                                      :placed (placed-offers gate)
+                                      :balance-tracker balance-tracker)))
     (if (slot-boundp ope 'prioritizer)
         (reinitialize-instance prioritizer    :supplicant supplicant)
         (setf prioritizer
@@ -363,56 +367,8 @@
    (ope :initarg :ope)
    (lictor :initarg :lictor)))
 
-(defclass balance-tracker ()
-  ((balances :initarg :balances :initform nil)
-   (input :initform (make-instance 'channel))
-   (output :initform (make-instance 'channel))
-   (control :initform (make-instance 'channel))
-   (gate :initarg :gate) (fuzz :initarg :fuzz :initform (random 7))
-   updater worker))
-
-(defun balance-worker-loop (tracker)
-  (with-slots (balances input output) tracker
-    (let ((command (recv input)))
-      (typecase command
-        (string (send output (or (cdr (assoc command balances
-                                             :test #'string=))
-                                 0)))
-        (cons (destructuring-bind (slot-name . value) command
-                (setf (slot-value tracker slot-name) value)))))))
-
-(defgeneric asset-balance (tracker asset)
-  (:method ((tracker account-tracker) asset)
-    (asset-balance (slot-value tracker 'treasurer) asset))
-  (:method ((tracker balance-tracker) asset)
-    (with-slots (input output) tracker
-      (send input (name asset))
-      (recv output))))
-
-(defun balance-updater-loop (tracker)
-  (with-slots (gate control input fuzz) tracker
-    (send (nth-value 1 (recv control))
-          (ignore-errors (when (zerop (random fuzz))
-                           (awhen1 (account-balances gate)
-                             (send input `(balances . ,it))))))))
-
 (defmethod vwap ((tracker account-tracker) &rest keys)
   (apply #'vwap (slot-value tracker 'lictor) keys))
-
-(defmethod shared-initialize :after ((tracker balance-tracker) (names t) &key)
-  (with-slots (updater worker) tracker
-    (when (or (not (slot-boundp tracker 'updater))
-              (eq :terminated (task-status updater)))
-      (setf updater
-            (pexec (:name "qdm-preα balance updater" :initial-bindings
-                          `((*read-default-float-format* double-float)))
-              (loop (balance-updater-loop tracker)))))
-    (when (or (not (slot-boundp tracker 'worker))
-              (eq :terminated (task-status worker)))
-      (setf worker (pexec (:name "qdm-preα balance worker")
-                     ;; TODO: just pexec anew each time...
-                     ;; you'll understand what you meant someday, right?
-                     (loop (balance-worker-loop tracker)))))))
 
 (defmethod shared-initialize :after
     ((tracker account-tracker) (names t) &key market)
@@ -478,14 +434,13 @@
     (let* ((trades (recv (slot-reduce market trades-tracker output)))
            ;; TODO: split into primary resilience and counter resilience
            (resilience (* resilience-factor (reduce #'max (mapcar #'volume trades))))
-           ;; TODO: doge is cute but let's move on
+           (balances (slot-reduce account-tracker treasurer balances))
            (doge/btc (vwap (slot-reduce market trades-tracker) :depth 50 :type :buy)))
-      (with-slots (control) (slot-value account-tracker 'treasurer)
-        (recv (send control nil)))      ; beautiful!
-      (flet ((symbol-funds (symbol) (asset-balance account-tracker symbol))
-             (total-of (btc doge) (+ btc (/ doge doge/btc))))
-        (let* ((total-btc (symbol-funds (slot-value market 'primary)))
-               (total-doge (symbol-funds (slot-value market 'counter)))
+      (with-slots (sync) (slot-reduce account-tracker treasurer)
+        (recv (send sync sync)))      ; excellent!
+      (flet ((total-of (btc doge) (+ btc (/ doge doge/btc))))
+        (let* ((total-btc (asset-funds (primary market) balances))
+               (total-doge (asset-funds (counter market) balances))
                (total-fund (total-of total-btc total-doge)))
           ;; history, yo!
           ;; this test originated in a harried attempt at bugfixing an instance
@@ -608,7 +563,8 @@
 
 (defun performance-overview (maker &optional depth)
   (with-slots (account-tracker market) maker
-    (flet ((funds (symbol) (asset-balance account-tracker symbol))
+    (flet ((funds (symbol)
+             (asset-funds symbol (slot-reduce account-tracker treasurer balances)))
            (total (btc doge)
              (+ btc (/ doge (vwap market :depth 50 :type :buy))))
            (vwap (side)

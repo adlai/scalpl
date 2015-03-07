@@ -176,26 +176,20 @@
 (defun extract-funds (funds)
   (mapcar-jso #'cons (getjso "funds" funds)))
 
-(defun available-balance (gate)
-  (awhen (gate-request gate "getInfo")
-    (extract-funds it)))
-
-(defmethod account-balances ((gate btce-gate))
-  (awhen (gate-request gate "getInfo")  ; ASSUMES that these two API calls have
-    (let ((placed (placed-offers gate)) ; nothing happen in between them!!!!!!!
-          (funds (make-hash-table :size (length (assets *btce*)))))
-      (flet ((incf-fund (asset amount) (incf (gethash asset funds 0) amount)))
-        (dolist (offer placed)
-          (if (eq (consumed-asset offer) (primary (market offer)))
-              (incf-fund (consumed-asset offer) (volume offer))
-              (incf-fund (counter (market offer))
-                         (* (volume offer) (- (price offer))
-                            (expt 1/10 (decimals (market offer))))))))
-      (mapcar (lambda (pair)
-                (aif (gethash (find-asset (car pair) *btce*) funds)
-                     (cons (car pair) (+ (cdr pair) it))
-                     pair))
-              (extract-funds it)))))
+(defmethod account-balances ((gate btce-gate)) ; ASSUMES offer atomicity!
+  (let ((placed (placed-offers gate))
+        (funds (make-hash-table :size (length (assets *btce*)))))
+    (flet ((incf-fund (asset amount) (incf (gethash asset funds 0) amount)))
+      (dolist (offer placed)
+        (if (eq (consumed-asset offer) (primary (market offer)))
+            (incf-fund (consumed-asset offer) (volume offer))
+            (incf-fund (counter (market offer))
+                       (* (volume offer) (- (price offer))
+                          (expt 1/10 (decimals (market offer))))))))
+    (mapcan (lambda (pair)
+              (awhen (find-asset (car pair) *btce*)
+                (list (cons-aq* it (+ (cdr pair) (gethash it funds 0))))))
+            (extract-funds (gate-request gate "getInfo")))))
 
 ;;; they haven't heard of volume discounts yet...
 ;;; actually, they have! https://btc-e.com/news/216

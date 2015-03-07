@@ -12,11 +12,11 @@
            #:offer #:bid #:ask #:placed #:taken #:given
            #:volume #:price #:placed #:oid #:consumed-asset
            #:gate #:gate-post #:gate-request
-           #:thread #:control #:updater #:worker #:output ; coming soon: actors!
+           #:thread #:control #:updater #:worker #:output #:input
            #:trade #:cost #:direction #:txid
            #:trades-tracker #:trades #:trades-since #:vwap
            #:book-tracker #:bids #:asks #:get-book #:get-book-keys
-           #:ensure-tracking
+           #:ensure-tracking #:balance-tracker #:balances #:sync
            #:placed-offers #:account-balances #:market-fee
            #:execution #:fee #:net-cost #:net-volume
            #:execution-tracker #:execution-since #:bases #:bases-without
@@ -498,6 +498,20 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defgeneric placed-offers (gate))
 (defgeneric account-balances (gate))
+
+(defclass balance-tracker (actor)
+  ((gate :initarg :gate) (fuzz :initarg :fuzz :initform (random 7))
+   (sync :initarg :sync :initform (make-instance 'channel))
+   (balances :initarg :balances :initform nil)))
+
+(defmethod perform ((tracker balance-tracker))
+  (with-slots (gate sync buffer fuzz balances) tracker
+    (send (recv sync) (ignore-errors (when (zerop (random fuzz))
+                                       (awhen1 (account-balances gate)
+                                         (setf balances it)))))))
+
+(defmethod shared-initialize :after ((tracker balance-tracker) (names t) &key)
+  (with-slots (name gate) tracker (setf name (format nil "~A treasurer" gate))))
 
 (defgeneric market-fee (gate market)
   (:method :around ((gate gate) (market market))
