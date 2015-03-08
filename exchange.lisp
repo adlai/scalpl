@@ -202,7 +202,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   "A precise price in a given market"
   '(complex unsigned-byte))
 
-(defmethod market (mp) (cdr (assoc (imagpart mp) *unit-registry*)))
+(defgeneric market (object)
+  (:method (object) (slot-value object 'market))
+  (:method ((mp complex)) (cdr (assoc (imagpart mp) *unit-registry*))))
 (defmethod price (mp) (abs (realpart mp)))
 (defun scaled-price (mp) (/ (price mp) (expt 10 (decimals (market mp)))))
 (defun cons-mp (market price) (complex (round price) (index market)))
@@ -276,7 +278,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
    (secret :initarg :secret :initform (error "gate requires API secret"))
    (input  :initarg :input  :initform (make-instance 'channel))
    (output :initarg :output :initform (make-instance 'channel))
-   (cache  :initform nil) (name :initform (gensym "gate"))))
+   (cache  :initform nil)))
 
 (defgeneric gate-post (gate pubkey secret request)
   (:documentation "Attempts to perform `request' with the provided credentials.")
@@ -336,10 +338,10 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
         (format stream "~A ~A at ~V$: ~V$" timestamp
                 direction decimals price (decimals primary) volume)))))
 
-(defclass trades-fetcher (actor)
-  ((market :initarg :market :reader market)
-   (delay  :initarg :delay  :initform 27)
-   (buffer :initarg :buffer)))
+(defclass trades-fetcher (actor) ())
+
+(defmethod christen ((fetcher trades-fetcher))
+  (format nil "trade fetcher ~A" (market fetcher)))
 
 (defmethod perform ((fetcher trades-fetcher))
   (with-slots (market buffer delay) fetcher
@@ -348,9 +350,13 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defclass trades-tracker (parent)
   ((market  :initarg :market :reader market)
+   (delay  :initarg :delay  :initform 27)
    (buffer  :initform (make-instance 'channel))
    (output  :initform (make-instance 'channel))
    (trades  :initform nil) fetcher))
+
+(defmethod christen ((tracker trades-tracker))
+  (format nil "trade tracker ~A" (market tracker)))
 
 (defmethod perform ((tracker trades-tracker))
   (with-slots (buffer output trades market) tracker
@@ -365,11 +371,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
         (t (sleep 0.2))))))
 
 (defmethod initialize-instance :after ((tracker trades-tracker) &key)
-  (with-slots (name market buffer fetcher) tracker
-    (flet ((name (role) (format nil "~A trades ~A" market role)))
-      (adopt tracker (setf name (name "tracker") fetcher
-                           (make-instance 'trades-fetcher :name (name "fetcher")
-                                          :market market :buffer buffer))))))
+  (adopt tracker (setf (slot-value tracker 'fetcher)
+                       (make-instance 'trades-fetcher :delegates `(,tracker)))))
 
 (defgeneric vwap (tracker &key type depth &allow-other-keys)
   (:method :around ((tracker t) &key)
@@ -425,11 +428,10 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 ;;; ORDER BOOK
 ;;;
 
-(defclass book-fetcher (actor)
-  ((market :initarg :market :reader market)
-   (buffer :initarg :buffer)
-   (get-book-keys :initform nil :initarg :get-book-keys)
-   (delay :initarg :delay :initform 4)))
+(defclass book-fetcher (actor) ())
+
+(defmethod christen ((fetcher book-fetcher))
+  (format nil "depth fetcher ~A" (market fetcher)))
 
 (defmethod perform ((fetcher book-fetcher))
   (with-slots (buffer delay market get-book-keys) fetcher
@@ -438,23 +440,23 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (sleep delay)))
 
 (defclass book-tracker (parent)
-  ((market :initarg :market :reader market)
+  ((market :initarg :market :reader market :initform (error "required"))
+   (get-book-keys :initform nil :initarg :get-book-keys)
+   (delay :initarg :delay :initform 4)
    (buffer :initform (make-instance 'channel)) book fetcher
    (output :initform (make-instance 'channel))))
+
+(defmethod christen ((tracker book-tracker))
+  (format nil "depth tracker ~A" (market tracker)))
 
 (defmethod perform ((tracker book-tracker))
   (with-slots (control buffer book output) tracker
     (select ((recv buffer next) (setf book (cons (cdr next) (car next))))
             ((send output book)) (t (sleep 0.2)))))
 
-(defmethod initialize-instance :after
-    ((tracker book-tracker) &key get-book-keys)
-  (with-slots (name market buffer fetcher) tracker
-    (flet ((name (role) (format nil "~A book ~A" market role)))
-      (adopt tracker (setf name (name "tracker") fetcher
-                           (make-instance 'book-fetcher :name (name "fetcher")
-                                          :market market :buffer buffer
-                                          :get-book-keys get-book-keys))))))
+(defmethod initialize-instance :after ((tracker book-tracker) &key)
+  (adopt tracker (setf (slot-value tracker 'fetcher)
+                       (make-instance 'book-fetcher :delegates `(,tracker)))))
 
 ;;;
 ;;; Putting things together
@@ -510,8 +512,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                                        (awhen1 (account-balances gate)
                                          (setf balances it)))))))
 
-(defmethod shared-initialize :after ((tracker balance-tracker) (names t) &key)
-  (with-slots (name gate) tracker (setf name (format nil "~A treasurer" gate))))
+(defmethod christen ((tracker balance-tracker))
+  (format nil "funds on ~A" (slot-reduce tracker gate name)))
 
 (defgeneric market-fee (gate market)
   (:method :around ((gate gate) (market market))
@@ -538,15 +540,11 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
      (cons-aq* (primary market) net-volume)
      (cons-aq* (counter market) net-cost))))
 
-(defclass execution-fetcher (actor)
-  ((gate   :initarg :gate)
-   ;; TODO: is this the right model for a general execution tracking API?
-   ;; bitfinex requires tracking distinct markets, kraken and btc-e don't
-   ;; keep your eyes open, for now we'll specify a single market per tracker
-   ;; that's the more general model (can be programmed into exchanges that
-   ;; track all markets in one call) and also reflects the realities of swaps
-   (market :initarg :market :reader market)
-   (delay  :initform 30) (buffer :initarg :buffer)))
+(defclass execution-fetcher (actor) ())
+
+(defmethod christen ((fetcher execution-fetcher))
+  (with-slots (gate market) fetcher
+    (format nil "exhun fetcher ~A ~A" (name market) (name gate))))
 
 (defmethod perform ((fetcher execution-fetcher))
   (with-slots (gate market buffer delay) fetcher
@@ -554,8 +552,13 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
       (send buffer trade))))
 
 (defclass execution-tracker (parent)
-  ((trades :initform nil) (bases :initform nil)
-   (buffer :initform (make-instance 'channel)) fetcher))
+  ((trades :initform nil) (bases :initform nil) (gate :initarg :gate)
+   (market :initarg :market :reader market :initform (error "required"))
+   (delay :initform 30) (buffer :initform (make-instance 'channel)) fetcher))
+
+(defmethod christen ((tracker execution-tracker))
+  (with-slots (gate market) tracker
+    (format nil "exhun tracker ~A ~A" (name market) (name gate))))
 
 (defmethod execute
     ((tracker execution-tracker) (command (eql :rebase)))
@@ -569,14 +572,10 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
              (pushnew next trades :key #'txid :test #'equal))
             ((send buffer (first trades))) (t (sleep 0.2)))))
 
-(defmethod initialize-instance :after
-    ((tracker execution-tracker) &key market gate)
-  (with-slots (name buffer fetcher) tracker
-    (flet ((name (role) (format nil "~A lictor ~A" market role)))
-      (adopt tracker (setf name (name "tracker") fetcher
-                           (make-instance 'execution-fetcher :market market
-                                          :gate gate :name (name "fetcher")
-                                          :buffer buffer))))))
+(defmethod initialize-instance :after ((tracker execution-tracker) &key)
+  (adopt tracker
+         (setf (slot-value tracker 'fetcher)
+               (make-instance 'execution-fetcher :delegates `(,tracker)))))
 
 (defgeneric execution-since (gate market since))
 

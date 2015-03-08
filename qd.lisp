@@ -431,13 +431,13 @@
   (with-slots (fund-factor resilience-factor targeting-factor skew-factor
                market name account-tracker cut) maker
     ;; Get our balances
+    (with-slots (sync) (slot-reduce account-tracker treasurer)
+      (recv (send sync sync)))          ; excellent!
     (let* ((trades (recv (slot-reduce market trades-tracker output)))
            ;; TODO: split into primary resilience and counter resilience
            (resilience (* resilience-factor (reduce #'max (mapcar #'volume trades))))
            (balances (slot-reduce account-tracker treasurer balances))
            (doge/btc (vwap (slot-reduce market trades-tracker) :depth 50 :type :buy)))
-      (with-slots (sync) (slot-reduce account-tracker treasurer)
-        (recv (send sync sync)))      ; excellent!
       (flet ((total-of (btc doge) (+ btc (/ doge doge/btc))))
         (let* ((total-btc (asset-funds (primary market) balances))
                (total-doge (asset-funds (counter market) balances))

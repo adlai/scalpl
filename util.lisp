@@ -1,5 +1,5 @@
 (defpackage #:scalpl.util
-  (:use #:c2cl #:anaphora #:parse-float #:string-case)
+  (:use #:c2cl #:anaphora #:parse-float #:string-case #:local-time)
   (:export #:once-only
            #:shallow-copy
            #:dbz-guard
@@ -18,6 +18,7 @@
            #:subseq*
            #:with-aslots
            #:lazy-do-instances
+           #:strftime
            ;; json
            #:read-json
            #:getjso
@@ -31,6 +32,8 @@
 (in-package #:scalpl.util)
 
 ;;; Actually useful
+
+(defun strftime (format) (format-timestring () (now) :format format))
 
 (defmacro lazy-do-instances (class agitation &body forms)
   "evaluates FORMS with IT bound to each instance of CLASS touched by AGITATION"

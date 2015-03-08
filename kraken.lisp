@@ -115,16 +115,12 @@
     ("Ledgers" 2) ("QueryLedgers" 2)
     ("TradesHistory" 2) ("QueryTrades" 2)))
 
-(defclass token-minter (actor)
-  ((delay :initform 10) (name :initform (gensym "kraken api minter"))
-   (mint :initform (make-instance 'channel))))
+(defclass token-minter (actor) ())
 
 (defmethod perform ((minter token-minter))
   (with-slots (mint delay) minter (send mint 1) (sleep delay)))
 
-(defclass token-handler (actor)
-  ((count :initform 0) (name :initform (gensym "kraken api pacer"))
-   (tokens :initform (make-instance 'channel)) (mint :initarg :mint)))
+(defclass token-handler (actor) ((count :initform 0)))
 
 (defmethod perform ((handler token-handler))
   (with-slots (mint count tokens) handler
@@ -134,14 +130,16 @@
                      ((send tokens t) (incf count))
                      (t (sleep 0.2)))))))
 
-(defclass kraken-gate (gate parent) (tokens))          ; the handler is internal
+(defclass kraken-gate (gate parent)
+  ((delay :initform 10 :initarg :delay)
+   (tokens :initform (make-instance 'channel))
+   (mint :initform (make-instance 'channel))))
 
-(defmethod initialize-instance :after ((gate kraken-gate) &key)
-  (with-aslots (mint) (make-instance 'token-minter)
-    (adopt gate it)
-    (with-aslots (tokens) (make-instance 'token-handler :mint mint)
-      (adopt gate it)
-      (setf (slot-value gate 'tokens) tokens))))
+(defmethod initialize-instance :after ((gate kraken-gate) &key name)
+  (flet ((make (class role)
+           (adopt gate (make-instance class :delegates `(,gate) :name
+                                      (format nil "api ~A for ~A" role name)))))
+    (mapcar #'make '(token-minter token-handler) '("minter" "counter"))))
 
 (defmethod gate-post ((gate kraken-gate) key secret request)
   (destructuring-bind (command . options) request
@@ -177,8 +175,7 @@
                    (make-instance class :market market
                                   :price (parse-price price decimals)
                                   :volume (parse-float amount :type 'rational))))))
-        (values (mapcar (parser 'ask) asks)
-                (mapcar (parser 'bid) bids))))))
+        (values (mapcar (parser 'ask) asks) (mapcar (parser 'bid) bids))))))
 
 (defmethod trades-since ((market kraken-market) &optional since)
   (awhen (get-request "Trades"
