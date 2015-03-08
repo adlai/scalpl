@@ -30,10 +30,10 @@ decentralized multimodal swarm optimization of the above guidelines
 * TODO refactor scalar value representations, to include units
 bitfinex and btce give volume in primary, always; kraken can do either
 ** DONE taken,given - asset×quantity
+** DONE add markets to asset registry, so we can represent prices?
+*** differentiate buy vs sell via sign bit - works with current price scalars
+*** no need for a separate registry if assets and markets count together
 ** TODO create give/take directly in each exchange API
-** TODO add markets to asset registry, so we can represent prices?
-*** need to differentiate buy vs sell - sign bit?
-*** no need for a separate registry if assets prime and markets rational
 * TODO Basis Tracking
 bastard child from the unholy marriage of balance and execution tracking
 ** DONE account for exchange fees
@@ -54,14 +54,17 @@ aq2 is just (aq* mp aq1)
 so we have more flexibility against future swings
 ** TODO recursive cost basis:
 link the cost basis which was traded away for acquiring the asset
-* DONE spread candidate target offers by profit from bases
-** currently, profitability is checked/attempted:
-*** in ope-filter
-*** against the entire buy/sell history
-** requires basis tracking for the Right Thing™
-** cumulative comparison of
+* TODO evolve spreader
+** DONE spread candidate target offers by profit from bases
+*** currently, profitability is checked/attempted:
+**** in ope-filter
+**** against the entire buy/sell history
+*** requires basis tracking for the Right Thing™
+*** cumulative comparison of
 - candidate targets and
 - executed bases
+** TODO epsilon flexibility based on target skew
+** TODO consume multiple fundcuts
 * TODO normalize rawness convention
 ** current status
 *** some methods take string arguments
@@ -73,11 +76,19 @@ any method with "raw" in its name, such as post-raw-limit:
 * TODO Cleanup TODO.org
 because no circle is complete without its meta
 * TODO Precision
+** DONE Switch to CL-JSON
+for full control of float parsing, rather than ST-JSON's default to #'READ
 ** TODO Eradicate floats from all price calculations
 all price manipulation must be done on integer values! this should already
 be the case, but do a line-by-line audit just to be 100% certain
-** DONE Switch to CL-JSON
-for full control of float parsing, rather than ST-JSON's default to #'READ
+*** TODO actor.lisp
+*** TODO exchange.lisp
+*** TODO bitfinex.lisp
+*** TODO db.lisp
+*** TODO qd.lisp
+*** TODO util.lisp
+*** TODO btce.lisp
+*** TODO kraken.lisp
 ** TODO Replace scalars with asset-quantity where appropriate
 a bit of an endeavor, but will be worthwhile. required for proper level2 depth!
 ** TODO Eradicate floats from all calculations
@@ -91,21 +102,24 @@ Offer placement and offer cancellation
 * TODO Actor Abstraction
 CSP×FSM
 ** DONE MVP
-** TODO factor out parent pattern
+** DONE factor out parent pattern
 *** initialize based on appropriate parent initargs
 *** supervise during parent operation
 *** reinitialize
+** TODO fetcher pattern
+** TODO protocols
 * TODO port existing code to use MVP
 *** DONE gate
 **** DONE kraken
 **** DONE bitfinex
 **** DONE btce
-*** TODO trades-tracker
-*** TODO book-tracker
+*** DONE trades-tracker
+*** DONE book-tracker
+*** DONE execution-tracker
+*** DONE balance-tracker
 *** TODO tracked-market
-*** TODO execution-tracker
+does anything need to be done for this?
 *** TODO fee-tracker
-*** TODO balance-tracker
 *** TODO account-tracker
 *** TODO ope
 **** TODO scalper
@@ -174,15 +188,20 @@ this should perhaps be scrapped / merged into the swarm
 * Exchange modularity
 ** Need to distinguish between:
 *** knowing a market exists
+(find-class 'market)
 **** which assets are traded
+(with-slots (primary counter) market ..)
 **** at what precision
-**** default fee structure
-**** functions for fetching specific market data
-*** tracking a market
+(decimals market)
+**** TODO default fee structure
+implicit in btce, make this explicit everywhere
+*** TODO tracking a market
 **** book tracker, current market depth
 **** trades tracker, past market movements
+**** TODO separate out 'online' calculations
 *** participating in it
 **** market + gate = ope ?
+**** where does the supplicant fit in?
 ** Participation should be mediated by rate gates
 * Account
 ** Contents:
