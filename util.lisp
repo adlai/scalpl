@@ -17,6 +17,7 @@
            #:kw #:mvwrap
            #:subseq*
            #:with-aslots
+           #:lazy-do-instances
            ;; json
            #:read-json
            #:getjso
@@ -30,6 +31,15 @@
 (in-package #:scalpl.util)
 
 ;;; Actually useful
+
+(defmacro lazy-do-instances (class agitation &body forms)
+  "evaluates FORMS with IT bound to each instance of CLASS touched by AGITATION"
+  `(remove-method #'update-instance-for-redefined-class
+                  (prog1 (defmethod update-instance-for-redefined-class
+                              ((it ,class) add discard plist &rest keys)
+                            (assert (every 'null (list add discard plist keys))
+                                    () "is your refrigerator running?") ,@forms)
+                    (make-instances-obsolete ',class) ,agitation)))
 
 (defun subseq* (sequence start &optional end)
   (handler-case (subseq sequence start end)
