@@ -1,7 +1,7 @@
 (defpackage #:scalpl.kraken
-  (:nicknames #:kraken)
-  (:export #:*kraken* #:kraken-gate)
-  (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util #:scalpl.actor #:scalpl.exchange))
+  (:nicknames #:kraken) (:export #:*kraken* #:kraken-gate)
+  (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
+        #:scalpl.actor #:scalpl.exchange))
 
 (in-package #:scalpl.kraken)
 
@@ -21,16 +21,17 @@
 
 (defgeneric make-signer (secret)
   (:method ((signer function)) signer)
-  (:method ((secret string))
+  (:method ((array array))
     (lambda (path data nonce)
       (hmac-sha512 (concatenate '(simple-array (unsigned-byte 8) (*))
                                 (map '(simple-array (unsigned-byte 8) (*)) 'char-code path)
                                 (hash-sha256 (map '(simple-array (unsigned-byte 8) (*))
                                                   'char-code
                                                   (concatenate 'string nonce (urlencode-params data)))))
-                   (base64:base64-string-to-usb8-array secret))))
+                   array)))
+  (:method ((string string)) (make-signer (base64-string-to-usb8-array string)))
   (:method ((stream stream)) (make-signer (read-line stream)))
-  (:method ((path pathname)) (with-open-file (stream path) (make-signer stream))))
+  (:method ((path pathname)) (with-open-file (data path) (make-signer data))))
 
 (defgeneric make-key (key)
   (:method ((key string)) key)

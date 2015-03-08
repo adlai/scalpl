@@ -20,16 +20,16 @@
 
 (defgeneric make-signer (secret)
   (:method ((signer function)) signer)
-  (:method ((secret array))
+  (:method ((array array))
     (lambda (data)
       (apply #'concatenate 'string
              (map 'list (lambda (byte) (string-downcase (format nil "~2,'0X" byte)))
                   (hmac-sha512 (map '(simple-array (unsigned-byte 8) (*)) 'char-code data)
-                               secret)))))
-  (:method ((secret string))
-    (make-signer (map '(simple-array (unsigned-byte 8) (*)) 'char-code secret)))
+                               array)))))
+  (:method ((string string))
+    (make-signer (map '(simple-array (unsigned-byte 8) (*)) 'char-code string)))
   (:method ((stream stream)) (make-signer (read-line stream)))
-  (:method ((path pathname)) (with-open-file (stream path) (make-signer stream))))
+  (:method ((path pathname)) (with-open-file (data path) (make-signer data))))
 
 (defgeneric make-key (key)
   (:method ((key string)) key)

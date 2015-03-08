@@ -8,7 +8,7 @@
            #:awhen1
            #:parse-price
            #:parse-float
-           #:string-octets
+           #:string-octets #:octets
            #:rehome-symbol
            #:rehome-class
            #:string-case
@@ -108,9 +108,9 @@
                         (* int (expt 10 (- delta))))
                     delta))))))
 
-(defun string-octets (string)
-  (declare (type string string))
-  (map '(simple-array (unsigned-byte 8) (*)) 'char-code string))
+(deftype octets (&optional (size '*)) `(simple-array (unsigned-byte 8) (,size)))
+(declaim (ftype (function (string) octets) string-octets))
+(defun string-octets (string) (map 'octets 'char-code string))
 
 (defmacro once-only ((&rest names) &body body)
   (let ((gensyms (loop for n in names collect (gensym (symbol-name n)))))

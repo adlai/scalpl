@@ -39,11 +39,12 @@
     `(("request" . ,path) ("nonce" . ,(nonce)) ,@data))))
 
 (defgeneric make-signer (secret)
-  (:method ((secret simple-array))
-    (lambda (payload) (format nil "~(~96,'0X~)" (hmac-sha384 payload secret))))
-  (:method ((secret string)) (make-signer (string-octets secret)))
+  (:method ((signer function)) signer)
+  (:method ((array array))
+    (lambda (data) (format nil "~(~96,'0X~)" (hmac-sha384 data array))))
+  (:method ((string string)) (make-signer (string-octets string)))
   (:method ((stream stream)) (make-signer (read-line stream)))
-  (:method ((path pathname)) (with-open-file (stream path) (make-signer stream))))
+  (:method ((path pathname)) (with-open-file (data path) (make-signer data))))
 
 (defgeneric make-key (key)
   (:method ((key string)) key)

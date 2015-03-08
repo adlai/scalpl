@@ -433,7 +433,7 @@
     ;; Get our balances
     (with-slots (sync) (slot-reduce account-tracker treasurer)
       (recv (send sync sync)))          ; excellent!
-    (let* ((trades (recv (slot-reduce market trades-tracker output)))
+    (let* ((trades (slot-reduce market trades-tracker trades))
            ;; TODO: split into primary resilience and counter resilience
            (resilience (* resilience-factor (reduce #'max (mapcar #'volume trades))))
            (balances (slot-reduce account-tracker treasurer balances))

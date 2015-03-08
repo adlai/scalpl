@@ -296,6 +296,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (loop for reply = (recv output) until (eq (car reply) id)
        do (send output reply) finally (return (values-list (cdr reply))))))
 
+(defmethod initialize-instance ((gate gate) &rest initargs &key name)
+  (apply #'call-next-method gate :name (format nil "gate ~A" name) initargs))
+
 ;;;
 ;;; Public Data API
 ;;;
@@ -352,17 +355,15 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   ((market  :initarg :market :reader market)
    (delay  :initarg :delay  :initform 27)
    (buffer  :initform (make-instance 'channel))
-   (output  :initform (make-instance 'channel))
    (trades  :initform nil) fetcher))
 
 (defmethod christen ((tracker trades-tracker))
   (format nil "trade tracker ~A" (market tracker)))
 
 (defmethod perform ((tracker trades-tracker))
-  (with-slots (buffer output trades market) tracker
+  (with-slots (buffer trades market) tracker
     (let ((last (car trades)))
       (select
-        ((send output trades))
         ((send buffer last))
         ((recv buffer next)
          (if (trades-mergeable? tracker last next)
