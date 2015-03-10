@@ -453,14 +453,16 @@
             (let* ((investment (dbz-guard (/ total-btc total-fund)))
                    (btc  (* fund-factor total-btc investment targeting-factor))
                    (doge (* fund-factor total-doge
-                            (- 1 (* investment targeting-factor)))))
+                            (- 1 (* investment targeting-factor))))
+                   (skew (/ doge btc doge/btc)))
               ;; report funding
               (makereport maker total-fund doge/btc total-btc total-doge investment
                           (dbz-guard (/ (total-of    btc  doge) total-fund))
                           (dbz-guard (/ (total-of (- btc) doge) total-fund)))
               (send (slot-reduce account-tracker ope input)
-                    (list `((,btc . ,cut)) `((,doge . ,cut)) resilience
-                          (expt (/ doge btc doge/btc) skew-factor)))
+                    (list `((,btc . ,(* cut (1+ (/ (log skew) skew-factor)))))
+                          `((,doge . ,(* cut (1+ (/ (- (log skew)) skew-factor)))))
+                          resilience (expt skew skew-factor)))
               (recv (slot-reduce account-tracker ope output)))))))))
 
 (defun dumbot-loop (maker)
