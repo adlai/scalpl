@@ -3,7 +3,7 @@
   (:export #:once-only
            #:shallow-copy
            #:dbz-guard
-           #:slot-reduce
+           #:slot-reduce #:slot-reducer
            #:aand1
            #:awhen1
            #:parse-price
@@ -71,6 +71,9 @@
 ;;; code, it's a red flag that some abstraction is missing
 (defmacro slot-reduce (root &rest slots)
   `(reduce 'slot-value ',slots :initial-value ,root))
+
+(defmacro slot-reducer (&rest slots &aux (root (gensym "root")))
+  `(lambda (,root) (slot-reduce ,root ,@slots)))
 
 (define-setf-expander slot-reduce (root &rest slots &environment env)
   (assert (not (null slots)) (slots) "must supply at least one slot")
