@@ -12,14 +12,12 @@
 ;;;  ENGINE
 ;;;
 
-(defclass ope-supplicant ()
+(defclass ope-supplicant (actor)
   ((gate :initarg :gate)
    (placed :initform nil :initarg :placed)
-   (control :initarg :control :initform (make-instance 'channel))
-   (response :initarg :response :initform (make-instance 'channel))
+   (response :initform (make-instance 'channel))
    (balance-tracker :initarg :balance-tracker)
-   (order-slots :initform 40 :initarg :order-slots)
-   thread))
+   (order-slots :initform 40 :initarg :order-slots)))
 
 (defun offers-spending (ope asset)
   (remove asset (slot-value ope 'placed)
@@ -34,22 +32,19 @@
                  (> order-slots (length placed)))
         (awhen1 (post-offer gate offer) (push it placed))))))
 
-;;; receives messages in the control channel, outputs from the gate
-(defun ope-supplicant-loop (ope)
-  (with-slots (gate control response placed) ope
-    (let ((command (recv control)))
-      (destructuring-bind (car . cdr) command
-        (send response (case car
-                         (offer (balance-guarded-place ope cdr))
-                         (cancel (awhen1 (cancel-offer gate cdr)
-                                   (setf placed (remove cdr placed))))))))))
+(defmethod execute ((supplicant ope-supplicant) (command cons))
+  (with-slots (gate response placed) supplicant
+    (send response
+          (ecase (car command)
+            (offer (balance-guarded-place supplicant (cdr command)))
+            (cancel (awhen1 (cancel-offer gate (cdr command))
+                      (setf placed (remove (cdr command) placed))))))))
 
-(defmethod shared-initialize :after ((supplicant ope-supplicant) (slots t) &key)
-  (with-slots (thread) supplicant
-    (when (or (not (slot-boundp supplicant 'thread))
-              (eq :terminated (task-status thread)))
-      (setf thread (pexec (:name "qdm-preα ope supplicant")
-                     (loop (ope-supplicant-loop supplicant)))))))
+(defmethod christen ((supplicant ope-supplicant) (type (eql 'actor)))
+  (format nil "~A" (name (slot-value supplicant 'gate))))
+
+(defmethod christen ((supplicant ope-supplicant) (type (eql 'task)))
+  (format nil "~A supplicant" (name supplicant)))
 
 (defun ope-placed (ope)
   (with-slots (placed) (slot-value ope 'supplicant)
@@ -148,11 +143,9 @@
     (sleep frequency)))
 
 (defmethod shared-initialize :after ((ope ope-filter) (slots t) &key gate)
-  (with-slots (market fee supplicant) ope
+  (with-slots (market fee) ope
     (if (slot-boundp ope 'fee) (reinitialize-instance fee)
-        (setf fee (make-instance 'fee-tracker :market market :gate gate)))
-    (if (slot-boundp ope 'supplicant) (reinitialize-instance supplicant)
-        (setf supplicant (make-instance 'ope-supplicant :gate gate)))))
+        (setf fee (make-instance 'fee-tracker :market market :gate gate)))))
 
 (defmethod shared-initialize :around ((ope ope-filter) (slots t) &key)
   (call-next-method)                    ; this is an after-after method...
@@ -163,15 +156,6 @@
             (pexec (:name (concatenate
                            'string "qdm-preα ope filter for " (name market)))
               (loop (ope-filter-loop ope)))))))
-
-(defmethod reinitialize-instance :after ((ope ope-filter) &key gate)
-  (with-slots (fee market supplicant) ope
-    (ensure-tracking market)
-    (multiple-value-call 'reinitialize-instance fee
-                         (if (null market) (values) (values :market market))
-                         (if (null gate) (values) (values :gate gate)))
-    (multiple-value-call 'reinitialize-instance supplicant
-                         (if (null gate) (values) (values :gate gate)))))
 
 (defclass ope-prioritizer ()
   ((next-bids :initform (make-instance 'channel))
@@ -335,11 +319,10 @@
 (defmethod shared-initialize :after
     ((ope ope-scalper) (slots t) &key gate market balance-tracker lictor)
   (with-slots (filter prioritizer supplicant) ope
-    (unless (slot-boundp ope 'supplicant)
-      (assert balance-tracker (balance-tracker) "must provide balance tracker")
-      (setf supplicant (make-instance 'ope-supplicant :gate gate
-                                      :placed (placed-offers gate)
-                                      :balance-tracker balance-tracker)))
+    (if (slot-boundp ope 'supplicant) (reinitialize-instance supplicant)
+        (setf supplicant (make-instance 'ope-supplicant :gate gate
+                                        :placed (placed-offers gate)
+                                        :balance-tracker balance-tracker)))
     (if (slot-boundp ope 'prioritizer)
         (reinitialize-instance prioritizer    :supplicant supplicant)
         (setf prioritizer
