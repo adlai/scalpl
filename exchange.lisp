@@ -343,7 +343,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defclass trades-fetcher (actor) ())
 
-(defmethod christen ((fetcher trades-fetcher))
+(defmethod christen ((fetcher trades-fetcher) (type (eql 'actor)))
   (format nil "trade fetcher ~A" (market fetcher)))
 
 (defmethod perform ((fetcher trades-fetcher))
@@ -357,7 +357,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
    (buffer  :initform (make-instance 'channel))
    (trades  :initform nil) fetcher))
 
-(defmethod christen ((tracker trades-tracker))
+(defmethod christen ((tracker trades-tracker) (type (eql 'actor)))
   (format nil "trade tracker ~A" (market tracker)))
 
 (defmethod perform ((tracker trades-tracker))
@@ -431,7 +431,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defclass book-fetcher (actor) ())
 
-(defmethod christen ((fetcher book-fetcher))
+(defmethod christen ((fetcher book-fetcher) (type (eql 'actor)))
   (format nil "depth fetcher ~A" (market fetcher)))
 
 (defmethod perform ((fetcher book-fetcher))
@@ -447,7 +447,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
    (buffer :initform (make-instance 'channel)) book fetcher
    (output :initform (make-instance 'channel))))
 
-(defmethod christen ((tracker book-tracker))
+(defmethod christen ((tracker book-tracker) (type (eql 'actor)))
   (format nil "depth tracker ~A" (market tracker)))
 
 (defmethod perform ((tracker book-tracker))
@@ -513,7 +513,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                                        (awhen1 (account-balances gate)
                                          (setf balances it)))))))
 
-(defmethod christen ((tracker balance-tracker))
+(defmethod christen ((tracker balance-tracker) (type (eql 'actor)))
   (format nil "funds on ~A" (slot-reduce tracker gate name)))
 
 (defgeneric market-fee (gate market)
@@ -543,7 +543,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defclass execution-fetcher (actor) ())
 
-(defmethod christen ((fetcher execution-fetcher))
+(defmethod christen ((fetcher execution-fetcher) (type (eql 'actor)))
   (with-slots (gate market) fetcher
     (format nil "exhun fetcher ~A ~A" (name market) (name gate))))
 
@@ -557,7 +557,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
    (market :initarg :market :reader market :initform (error "required"))
    (delay :initform 30) (buffer :initform (make-instance 'channel)) fetcher))
 
-(defmethod christen ((tracker execution-tracker))
+(defmethod christen ((tracker execution-tracker) (type (eql 'actor)))
   (with-slots (gate market) tracker
     (format nil "exhun tracker ~A ~A" (name market) (name gate))))
 

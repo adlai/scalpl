@@ -25,19 +25,20 @@
    (tasks :initform nil :documentation "Tasks performing this actor's behavior")
    (delegates :initform nil :initarg :delegates
               :documentation "Other actors for delegating missing slot values")
-   (control :initform (make-instance 'channel)
+   (control :initform (make-instance 'channel) :reader control
             :documentation "Channel for controlling this actor")))
 
 (defvar *date+time* (subseq +iso-8601-format+ 2 9))
 (defvar *time-format* (subseq +iso-8601-time-format+ 0 5))
 
-(defgeneric christen (actor) (:method ((actor actor)) (strftime *date+time*)))
+(defgeneric christen (actor type)
+  (:method ((actor actor) (type (eql 'actor))) (strftime *date+time*))
+  (:method ((actor actor) (type (eql 'task))) (name actor))
+  (:method :around ((actor actor) (type (eql 'task)))
+    (strftime `(,@*time-format* #\Space ,(call-next-method)))))
 
 (defmethod slot-unbound ((class t) (actor actor) (slot-name (eql 'name)))
-  (setf (slot-value actor 'name) (christen actor)))
-
-(defgeneric christen-task (actor)
-  (:method ((actor actor)) (strftime `(,@*time-format* #\  ,(name actor)))))
+  (setf (slot-value actor 'name) (christen actor 'actor)))
 
 (defmethod print-object ((actor actor) stream)
   (print-unreadable-object (actor stream :type t :identity t)
@@ -55,14 +56,14 @@
 
 (defgeneric enqueue (actor)
   (:method ((actor actor))
-    (pexec (:name (christen-task actor)) (catch :halt (perform actor)))))
+    (pexec (:name (christen actor 'task)) (catch :halt (perform actor)))))
 
 (defgeneric perform (actor)
   (:documentation "Implement actor's behavior, executing commands by default")
   (:method :before ((actor actor))
-    (with-slots (control tasks) actor
-      (awhen (recv control :blockp nil) (execute actor it))
+    (with-slots (tasks) actor
       (setf tasks (remove :terminated tasks :key #'task-status))))
+  (:method ((actor actor)) (awhen (recv (control actor)) (execute actor it)))
   (:method :after ((actor actor))
     (push (enqueue actor) (slot-value actor 'tasks))))
 
@@ -74,7 +75,7 @@
 
 (defgeneric halt (actor)
   (:documentation "Signals `actor' to terminate")
-  (:method ((actor actor)) (send (slot-value actor 'control) :halt)))
+  (:method ((actor actor)) (send (control actor) :halt)))
 
 (defmethod shared-initialize :after ((actor actor) (slot-names t) &key)
   (ensure-running actor))
