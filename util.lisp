@@ -3,7 +3,7 @@
   (:export #:once-only
            #:shallow-copy
            #:dbz-guard
-           #:slot-reduce #:slot-reducer
+           #:slot-reduce #:slot-reducer #:slot-setter
            #:aand1
            #:awhen1
            #:parse-price
@@ -74,6 +74,9 @@
 
 (defmacro slot-reducer (&rest slots &aux (root (gensym "root")))
   `(lambda (,root) (slot-reduce ,root ,@slots)))
+
+(defmacro slot-setter (new-value &rest slots &aux (root (gensym "root")))
+  `(lambda (,root) (setf (slot-reduce ,root ,@slots) ,new-value)))
 
 (define-setf-expander slot-reduce (root &rest slots &environment env)
   (assert (not (null slots)) (slots) "must supply at least one slot")

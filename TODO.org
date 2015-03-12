@@ -52,6 +52,7 @@ aq2 is just (aq* mp aq1)
 **** currently, we use LIFO: most recent cost basis gets consumed
 **** CIFO - cheapest-in first-out: consume the least profitable
 so we have more flexibility against future swings
+** TODO print-book pair-basis
 ** TODO recursive cost basis:
 link the cost basis which was traded away for acquiring the asset
 * TODO evolve spreader
@@ -65,14 +66,6 @@ link the cost basis which was traded away for acquiring the asset
 - executed bases
 ** TODO epsilon flexibility based on target skew
 ** TODO consume multiple fundcuts
-* TODO normalize rawness convention
-** current status
-*** some methods take string arguments
-*** some take values and adapt them - fix these!
-** desired behavior
-any method with "raw" in its name, such as post-raw-limit:
-*** receives literal parameters, get inserted as-is to API requests
-*** returns json object of exchange's response
 * TODO Cleanup TODO.org
 because no circle is complete without its meta
 * TODO Precision
@@ -93,6 +86,14 @@ be the case, but do a line-by-line audit just to be 100% certain
 a bit of an endeavor, but will be worthwhile. required for proper level2 depth!
 ** TODO Eradicate floats from all calculations
 using floats for statistical calculations is tolerable, but we can do better
+* TODO normalize rawness convention
+** current status
+*** some methods take string arguments
+*** some take values and adapt them - fix these!
+** desired behavior
+any method with "raw" in its name, such as post-raw-limit:
+*** receives literal parameters, get inserted as-is to API requests
+*** returns json object of exchange's response
 * TODO Book Filter
 ** Receives order book updates from a book-tracker
 Currently these are simply entire books, but depth updates would be best.
@@ -107,7 +108,15 @@ CSP×FSM
 *** supervise during parent operation
 *** reinitialize
 ** TODO fetcher pattern
+*** TODO should not use #'sleep
+*** TODO needs separate actor, or can fetcher be just a task?
+** TODO spammer pattern
+- https://github.com/adlai/scalpl/blob/8c9f905/qd.lisp#L271-272
+- https://github.com/adlai/scalpl/blob/8c9f905/qd.lisp#L302
 ** TODO protocols
+** TODO compare memento-mori to actor.lisp https://github.com/zkat/memento-mori
+*** TODO (set-difference actor memento-mori)
+*** TODO (set-difference memento-mori actor)
 * TODO port existing code to use MVP
 *** DONE gate
 **** DONE kraken
@@ -123,7 +132,7 @@ does anything need to be done for this?
 *** TODO account-tracker
 *** TODO ope
 **** TODO scalper
-**** TODO supplicant
+**** DONE supplicant
 **** TODO filter
 **** TODO prioritizer
 *** TODO maker
