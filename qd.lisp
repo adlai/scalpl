@@ -12,7 +12,7 @@
 ;;;  ENGINE
 ;;;
 
-(defclass supplicant (actor)
+(defclass supplicant (parent)
   ((gate :initarg :gate) fee (market :initarg :market :reader market)
    (placed :initform nil :initarg :placed)
    (response :initform (make-instance 'channel))
@@ -40,6 +40,10 @@
             (cancel (awhen1 (cancel-offer gate (cdr command))
                       (setf placed (remove (cdr command) placed))))))))
 
+(defmethod initialize-instance :after ((supp supplicant) &key)
+  (adopt supp (setf (slot-value supp 'fee)
+                    (make-instance 'fee-tracker :delegates (list supp)))))
+
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
   (format nil "~A" (name (slot-value supplicant 'gate))))
 
@@ -63,45 +67,6 @@
 (defun ope-cancel (ope offer)
   (with-slots (control response) (slot-value ope 'supplicant)
     (send control (cons 'cancel offer)) (recv response)))
-
-(defclass fee-tracker ()
-  ((market :initarg :market :accessor market)
-   (delay  :initarg :delay  :initform 67)
-   (gate   :initarg :gate)
-   (input  :initarg :input  :initform (make-instance 'channel))
-   (output :initarg :output :initform (make-instance 'channel))
-   fee updater server))
-
-(defun fee-updater-loop (tracker)
-  (with-slots (market gate delay input) tracker
-    (awhen (market-fee gate market) (send input it))
-    (sleep delay)))
-
-(defun fee-server-loop (tracker)
-  (with-slots (input output fee) tracker
-    (ignore-errors (select ((recv input new) (setf fee new))
-                           ((send output fee)) (t (sleep 1/7))))))
-
-(defmethod shared-initialize :after ((tracker fee-tracker) (names t) &key)
-  (with-slots (updater server market) tracker
-    (when (or (not (slot-boundp tracker 'updater))
-              (eq :terminated (task-status updater)))
-      (setf updater
-            (pexec
-                (:name (concatenate 'string "qdm-preα fee updater for " (name market))
-                 :initial-bindings `((*read-default-float-format* double-float)))
-              ;; TODO: just pexec anew each time...
-              ;; you'll understand what you meant someday, right?
-              (loop (fee-updater-loop tracker)))))
-    (when (or (not (slot-boundp tracker 'server))
-              (eq :terminated (task-status server)))
-      (setf server
-            (pexec
-                (:name (concatenate 'string "qdm-preα fee server for " (name market))
-                 :initial-bindings `((*read-default-float-format* double-float)))
-              ;; TODO: just pexec anew each time...
-              ;; you'll understand what you meant someday, right?
-              (loop (fee-server-loop tracker)))))))
 
 (defclass ope-filter ()
   ((bids       :initarg :bids       :initform ())
@@ -141,11 +106,6 @@
                 bids (ignore-offers (cdar book) placed)
                 asks (ignore-offers (cddr book) placed)))))
     (sleep frequency)))
-
-(defmethod shared-initialize :after ((ope ope-filter) (slots t) &key gate)
-  (with-slots (market fee) ope
-    (if (slot-boundp ope 'fee) (reinitialize-instance fee)
-        (setf fee (make-instance 'fee-tracker :market market :gate gate)))))
 
 (defmethod shared-initialize :around ((ope ope-filter) (slots t) &key)
   (call-next-method)                    ; this is an after-after method...

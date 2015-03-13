@@ -18,7 +18,7 @@
            #:book-tracker #:bids #:asks #:get-book #:get-book-keys
            #:ensure-tracking #:balance-tracker #:balances #:sync
            #:placed-offers #:account-balances #:market-fee
-           #:execution #:fee #:net-cost #:net-volume
+           #:execution #:fee #:net-cost #:net-volume #:fee-tracker
            #:execution-tracker #:execution-since #:bases #:bases-without
            #:post-offer #:cancel-offer))
 
@@ -519,6 +519,35 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defgeneric market-fee (gate market)
   (:method :around ((gate gate) (market market))
     (actypecase (call-next-method) (number `(,it . ,it)) (cons it) (null))))
+
+(defclass fee-fetcher (actor) ())
+
+(defmethod christen ((fetcher fee-fetcher) (type (eql 'actor)))
+  (with-slots (gate market) fetcher
+    (format nil "fee fetcher ~A ~A" (name gate) market)))
+
+(defclass fee-tracker (parent)
+  ((delay  :initarg :delay  :initform 67) fee fetcher
+   (input  :initarg :input  :initform (make-instance 'channel))
+   (output :initarg :output :initform (make-instance 'channel))))
+
+(defmethod christen ((tracker fee-tracker) (type (eql 'actor)))
+  (with-slots (gate market) tracker
+    (format nil "fee tracker ~A ~A" (name gate) market)))
+
+(defmethod perform ((fetcher fee-fetcher))
+  (with-slots (market gate delay input) fetcher
+    (awhen (market-fee gate market) (send input it))
+    (sleep delay)))
+
+(defmethod perform ((tracker fee-tracker))
+  (with-slots (input output fee) tracker
+    (ignore-errors (select ((recv input new) (setf fee new))
+                           ((send output fee)) (t (sleep 1/7))))))
+
+(defmethod initialize-instance :after ((tracker fee-tracker) &key)
+  (adopt tracker (setf (slot-value tracker 'fetcher)
+                       (make-instance 'fee-fetcher :delegates (list tracker)))))
 
 ;;;
 ;;; EXECUTION TRACKING
