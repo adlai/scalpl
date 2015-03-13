@@ -12,8 +12,8 @@
 ;;;  ENGINE
 ;;;
 
-(defclass ope-supplicant (actor)
-  ((gate :initarg :gate)
+(defclass supplicant (actor)
+  ((gate :initarg :gate) fee (market :initarg :market :reader market)
    (placed :initform nil :initarg :placed)
    (response :initform (make-instance 'channel))
    (balance-tracker :initarg :balance-tracker)
@@ -32,7 +32,7 @@
                  (> order-slots (length placed)))
         (awhen1 (post-offer gate offer) (push it placed))))))
 
-(defmethod execute ((supplicant ope-supplicant) (command cons))
+(defmethod execute ((supplicant supplicant) (command cons))
   (with-slots (gate response placed) supplicant
     (send response
           (ecase (car command)
@@ -40,10 +40,10 @@
             (cancel (awhen1 (cancel-offer gate (cdr command))
                       (setf placed (remove (cdr command) placed))))))))
 
-(defmethod christen ((supplicant ope-supplicant) (type (eql 'actor)))
+(defmethod christen ((supplicant supplicant) (type (eql 'actor)))
   (format nil "~A" (name (slot-value supplicant 'gate))))
 
-(defmethod christen ((supplicant ope-supplicant) (type (eql 'task)))
+(defmethod christen ((supplicant supplicant) (type (eql 'task)))
   (format nil "~A supplicant" (name supplicant)))
 
 (defun ope-placed (ope)
@@ -280,13 +280,15 @@
         (ope-sprinner it funds (/ count 2) magic
                       (getf (slot-reduce ope filter lictor bases)
                             (asset (given (first it))))
-                      (macrolet ((punk (&rest args)
-                                   `(lambda (price vwab inner-cut)
-                                      (- (* 100 (1- (profit-margin ,@args)))
-                                         inner-cut))))
-                        (let ((fees (recv (slot-reduce ope filter fee output))))
-                          (if (eq side 'bids) (punk price vwab (car fees))
-                              (punk vwab price 0 (cdr fees)))))
+                      (destructuring-bind (bid . ask)
+                          (recv (slot-reduce ope supplicant fee output))
+                        (macrolet ((punk (&rest args)
+                                     `(lambda (price vwab inner-cut)
+                                        (- (* 100 (1- (profit-margin ,@args)))
+                                           inner-cut))))
+                          (ccase side   ; give ☮ a chance!
+                            (bids (punk price vwab bid))
+                            (asks (punk vwab  price 0 ask)))))
                       #'dunk book)))))
 
 (defun ope-scalper-loop (ope)
@@ -320,7 +322,7 @@
     ((ope ope-scalper) (slots t) &key gate market balance-tracker lictor)
   (with-slots (filter prioritizer supplicant) ope
     (if (slot-boundp ope 'supplicant) (reinitialize-instance supplicant)
-        (setf supplicant (make-instance 'ope-supplicant :gate gate
+        (setf supplicant (make-instance 'supplicant :gate gate :market market
                                         :placed (placed-offers gate)
                                         :balance-tracker balance-tracker)))
     (if (slot-boundp ope 'prioritizer)
