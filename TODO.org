@@ -114,6 +114,8 @@ CSP×FSM
 - https://github.com/adlai/scalpl/blob/8c9f905/qd.lisp#L271-272
 - https://github.com/adlai/scalpl/blob/8c9f905/qd.lisp#L302
 ** TODO protocols
+** TODO method-combination chanl:select
+** TODO initializaton race
 ** TODO compare memento-mori to actor.lisp https://github.com/zkat/memento-mori
 *** TODO (set-difference actor memento-mori)
 *** TODO (set-difference memento-mori actor)

@@ -644,10 +644,6 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                    (list (list (aq/ given taken) taken given))
                    #'> :key (lambda (row) (realpart (first row))))))))
 
-;;; TODO: We have the fees paid for each order in the data from the exchange,
-;;; so we should be able to calculate the _net_ price for each trade, and use
-;;; that for profitability calculations, rather than fee at time of calculation.
-
 (defmethod vwap ((tracker execution-tracker) &key type depth)
   (let ((trades (slot-value tracker 'trades)))
     (when type

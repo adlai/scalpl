@@ -17,6 +17,7 @@
    (placed :initform nil :initarg :placed)
    (response :initform (make-instance 'channel))
    (balance-tracker :initarg :balance-tracker)
+   ;; TODO (lictor :initarg :lictor)
    (order-slots :initform 40 :initarg :order-slots)))
 
 (defun offers-spending (ope asset)
@@ -42,7 +43,9 @@
 
 (defmethod initialize-instance :after ((supp supplicant) &key)
   (adopt supp (setf (slot-value supp 'fee)
-                    (make-instance 'fee-tracker :delegates (list supp)))))
+                    (make-instance 'fee-tracker :delegates (list supp))))#|
+  (adopt supp (setf (slot-value supp 'lictor)
+                    (make-instance 'execution-tracker :delegates `(,supp))))|#)
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
   (format nil "~A" (name (slot-value supplicant 'gate))))
