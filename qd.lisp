@@ -538,3 +538,9 @@
                  (and (numberp count) (= -1 (decf count)))))
           (format t "~&~@[~A ~]~V@A || ~V@A~%"
                   prefix bw (first bids) aw (first asks)))))))
+
+(defmethod describe-object ((maker maker) (stream t))
+  (with-slots (ope lictor) (slot-reduce maker account-tracker)
+    (print-book ope) (performance-overview maker)
+    (multiple-value-call 'format t "~@{~A~#[~:; ~]~}" (name maker)
+                         (trades-profits (slot-reduce lictor trades)))))
