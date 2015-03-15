@@ -294,8 +294,7 @@
               (make-instance 'ope-prioritizer :supplicant supplicant)))
     (if (slot-boundp ope 'filter) (reinitialize-instance filter)
         (setf filter (make-instance 'ope-filter :market market
-                                    :lictor lictor :gate gate
-                                    :supplicant supplicant)))))
+                                    :lictor lictor :supplicant supplicant)))))
 
 (defmethod shared-initialize :around ((ope ope-scalper) (slots t) &key)
   (call-next-method)                    ; another after-after method...
@@ -413,17 +412,6 @@
                           resilience (expt skew skew-factor)))
               (recv (slot-reduce account-tracker ope output)))))))))
 
-(defun dumbot-loop (maker)
-  (with-slots (control) maker
-    (select
-      ((recv control command)
-       ;; commands are (cons command args)
-       (case (car command)
-         ;; pause - wait for any other command to restart
-         (pause (recv control))
-         (stream (setf *standard-output* (cdr command)))))
-      (t (%round maker)))))
-
 (defmethod shared-initialize :after ((maker maker) (names t) &key gate)
   (with-slots (market account-tracker thread) maker
     (ensure-tracking market)
@@ -439,7 +427,7 @@
                  :initial-bindings `((*read-default-float-format* double-float)))
               ;; TODO: just pexec anew each time...
               ;; you'll understand what you meant someday, right?
-              (loop (dumbot-loop maker)))))))
+              (loop (%round maker)))))))
 
 (defun pause-maker (maker) (send (slot-value maker 'control) '(pause)))
 
@@ -487,13 +475,6 @@
   `(defvar ,name (make-instance 'maker :market ,market :gate ,gate
                                 :name ,(string-trim "*+<>" name)
                                 ,@keys)))
-
-#+nil
-(define-maker *maker*
-    :market (find-market "XXBTZEUR" kraken:*kraken*)
-    :gate (make-instance 'kraken:kraken-gate
-                         :pubkey #P "secrets/some.pubkey"
-                         :secret #P "secrets/some.secret"))
 
 (defun current-depth (maker)
   (with-slots (resilience-factor market) maker

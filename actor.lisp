@@ -44,11 +44,13 @@
   (print-unreadable-object (actor stream :type t :identity t)
     (write-string (name actor) stream)))
 
-(defmethod slot-missing ((class t) (object actor) slot-name
-                         (operation (eql 'slot-value)) &optional new-value)
-  (declare (ignore new-value))          ; a sufficiently smart compiler...
-  (dolist (actor (slot-value object 'delegates) (call-next-method))
-    (when (slot-boundp actor slot-name) (return (slot-value actor slot-name)))))
+(defmacro define-delegated-slot-operation (operation return)
+  `(defmethod slot-missing ((class t) (object actor) slot-name
+                            (operation (eql ',operation)) &optional new-value)
+     (declare (ignore new-value))       ; a sufficiently smart compiler...
+     (dolist (actor (slot-value object 'delegates) (call-next-method))
+       (when (slot-boundp actor slot-name) (return ,return)))))
+(define-delegated-slot-operation slot-value (slot-value actor slot-name))
 
 (defgeneric execute (actor command)
   (:method ((actor actor) (command function)) (funcall command actor))
@@ -85,6 +87,8 @@
 ;;;
 
 (defclass parent (actor) ((children :initform nil)))
+
+(define-delegated-slot-operation slot-boundp t)
 
 (defun map-children (parent function)   ; ... i'm not sure what i expected
   (mapcar function (slot-value parent 'children)))

@@ -280,6 +280,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
    (output :initarg :output :initform (make-instance 'channel))
    (cache  :initform nil)))
 
+(defmethod christen ((gate gate) (type (eql 'actor)))
+  (subseq (slot-value gate 'pubkey) 0 3))
+
 (defgeneric gate-post (gate pubkey secret request)
   (:documentation "Attempts to perform `request' with the provided credentials.")
   (:method :around (gate pubkey secret request)
@@ -295,9 +298,6 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (send input (list* id path options))
     (loop for reply = (recv output) until (eq (car reply) id)
        do (send output reply) finally (return (values-list (cdr reply))))))
-
-(defmethod initialize-instance ((gate gate) &rest initargs &key name)
-  (apply #'call-next-method gate :name (format nil "gate ~A" name) initargs))
 
 ;;;
 ;;; Public Data API
