@@ -338,7 +338,7 @@
    (control :initform (make-instance 'channel))
    (account-tracker :initarg :account-tracker)
    (name :initarg :name :accessor name)
-   (report-depths :initform (list nil 4 1 1/4) :initarg :report-depths)
+   (snake :initform (list 15 "ZYXWVUSRQPONMGECA" "zyxwvusrqponmgeca"))
    (last-report :initform nil)
    thread))
 
@@ -346,32 +346,47 @@
   (print-unreadable-object (maker stream :type t :identity nil)
     (write-string (name maker) stream)))
 
+(defun profit-snake (lictor length positive-chars negative-chars
+                     &aux (trades (slot-value lictor 'trades)))
+  (flet ((depth-profit (depth)
+           (flet ((vwap (side) (vwap lictor :type side :depth depth)))
+             (dbz-guard (* 100 (1- (profit-margin (vwap "buy") (vwap "sell")))))))
+         (side-last (side) (find side trades :key #'direction :test #'string-equal))
+         (chr (chrs fraction &aux (length (length chrs)))
+           (char chrs (1- (ceiling (* length fraction))))))
+    (let* ((min-sum (loop for trade in trades for volume = (net-volume trade)
+                       if (string-equal (direction trade) "buy")
+                       sum volume into buy-sum else sum volume into sell-sum
+                       finally (return (min buy-sum sell-sum))))
+           (min-last (apply 'min (mapcar 'volume (mapcar #'side-last '("buy" "sell")))))
+           (scale (expt (/ min-sum min-last) (/ length))))
+      (with-output-to-string (out)
+        (let* ((dps (loop for i to length collect (depth-profit (/ min-sum (expt scale i)))))
+               (highest (reduce #'max (remove-if #'minusp dps) :initial-value 0))
+               (lowest  (reduce #'min (remove-if #'plusp  dps) :initial-value 0)))
+          (format out "~4@$" (depth-profit min-sum))
+          (dolist (dp dps (format out "~4@$" (depth-profit min-last)))
+            (format out "~C" (case (round (signum dp))
+                               (+1 (chr positive-chars (/ dp highest)))
+                               (-1 (chr negative-chars (/ dp lowest)))))))))))
+
 (defun makereport (maker fund rate btc doge investment risked skew)
-  (with-slots (name market account-tracker report-depths last-report) maker
+  (with-slots (name market account-tracker snake last-report) maker
     (let ((new-report (list fund rate btc doge investment risked skew)))
       (if (equal last-report new-report) (return-from makereport)
           (setf last-report new-report)))
     (labels ((sastr (side amount &optional model) ; TODO factor out aqstr
                (format nil "~V,,V$" (decimals (slot-value market side))
-                       (if model (length (sastr side model)) 0) amount))
-             (depth-profit (&optional depth)
-               (flet ((vwap (side) (vwap account-tracker :type side
-                                         :market market :depth depth)))
-                 (dbz-guard (* 100 (1- (profit-margin (vwap "buy")
-                                                      (vwap "sell"))))))))
+                       (if model (length (sastr side model)) 0) amount)))
       ;; FIXME: modularize all this decimal point handling
       ;; we need a pprint-style ~/aq/ function, and pass it aq objects!
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (format t "~&~A ~A~{ ~A~} ~2,2$% ~2,2$% ~2,2@$~{ ~4@$~}~%"
+      (format t "~&~A ~A~{ ~A~} ~2,2$% ~2,2$% ~2,2@$ ~A~%"
               name (subseq (princ-to-string (now)) 11 19)
               (mapcar #'sastr '(primary counter primary counter)
                       `(,@#1=`(,fund ,(* fund rate)) ,btc ,doge) `(() () ,@#1#))
               (* 100 investment) (* 100 risked) (* 100 skew)
-              (maplist (lambda (depths)
-                         (apply #'depth-profit
-                                (sctypecase (first depths)
-                                  (null) (number `(,(* fund it))))))
-                       report-depths))))
+              (apply 'profit-snake (slot-value account-tracker 'lictor) snake))))
   (force-output))
 
 (defun %round (maker)
