@@ -17,7 +17,7 @@
    (placed :initform nil :initarg :placed)
    (response :initform (make-instance 'channel))
    (balance-tracker :initarg :balance-tracker)
-   ;; TODO (lictor :initarg :lictor)
+   (lictor :initarg :lictor)
    (order-slots :initform 40 :initarg :order-slots)))
 
 (defun offers-spending (ope asset)
@@ -43,9 +43,9 @@
 
 (defmethod initialize-instance :after ((supp supplicant) &key)
   (adopt supp (setf (slot-value supp 'fee)
-                    (make-instance 'fee-tracker :delegates (list supp))))#|
+                    (make-instance 'fee-tracker :delegates (list supp))))
   (adopt supp (setf (slot-value supp 'lictor)
-                    (make-instance 'execution-tracker :delegates `(,supp))))|#)
+                    (make-instance 'execution-tracker :delegates (list supp)))))
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
   (format nil "~A" (name (slot-value supplicant 'gate))))
@@ -77,8 +77,6 @@
    (market     :initarg :market     :initform (error "must link market"))
    (supplicant :initarg :supplicant :initform (error "must link supplicant"))
    (frequency  :initarg :frequency  :initform 1/7) ; TODO: push depth deltas
-   (lictor     :initarg :lictor     :initform (error "must link lictor"))
-   (rudder     :initarg :rudder     :initform '(() . ()))
    (book-cache :initform nil)
    fee thread))
 
@@ -112,7 +110,7 @@
 
 (defmethod shared-initialize :around ((ope ope-filter) (slots t) &key)
   (call-next-method)                    ; this is an after-after method...
-  (with-slots (fee thread market) ope
+  (with-slots (thread market) ope
     (when (or (not (slot-boundp ope 'thread))
               (eq :terminated (task-status thread)))
       (setf thread
@@ -242,7 +240,7 @@
     (with-slots (count magic cut) ope
       (awhen (dunk book funds (/ count 2) magic)
         (ope-sprinner it funds (/ count 2) magic
-                      (getf (slot-reduce ope filter lictor bases)
+                      (getf (slot-reduce ope supplicant lictor bases)
                             (asset (given (first it))))
                       (destructuring-bind (bid . ask)
                           (recv (slot-reduce ope supplicant fee output))
@@ -286,8 +284,8 @@
     ((ope ope-scalper) (slots t) &key gate market balance-tracker lictor)
   (with-slots (filter prioritizer supplicant) ope
     (if (slot-boundp ope 'supplicant) (reinitialize-instance supplicant)
-        (setf supplicant (make-instance 'supplicant :gate gate :market market
-                                        :placed (placed-offers gate)
+        (setf supplicant (make-instance 'supplicant :placed (placed-offers gate)
+                                        :lictor lictor :gate gate :market market
                                         :balance-tracker balance-tracker)))
     (if (slot-boundp ope 'prioritizer)
         (reinitialize-instance prioritizer    :supplicant supplicant)
@@ -295,7 +293,7 @@
               (make-instance 'ope-prioritizer :supplicant supplicant)))
     (if (slot-boundp ope 'filter) (reinitialize-instance filter)
         (setf filter (make-instance 'ope-filter :market market
-                                    :lictor lictor :supplicant supplicant)))))
+                                    :supplicant supplicant)))))
 
 (defmethod shared-initialize :around ((ope ope-scalper) (slots t) &key)
   (call-next-method)                    ; another after-after method...
@@ -476,7 +474,7 @@
               (list (slot-reduce maker market)
                     (slot-reduce maker account-tracker gate)
                     (slot-reduce maker account-tracker treasurer)
-                    (slot-reduce maker account-tracker ope filter lictor)
+                    (slot-reduce maker account-tracker ope supplicant lictor)
                     (slot-reduce maker account-tracker ope)
                     maker))
       (sleep delay)
@@ -516,7 +514,7 @@
              (+ btc (/ doge (vwap market :depth 50 :type :buy))))
            (vwap (side)
              (vwap account-tracker :type side :market market :depth depth)))
-      (let* ((trades (slot-reduce account-tracker ope filter lictor trades))
+      (let* ((trades (slot-reduce account-tracker ope supplicant lictor trades))
              (uptime (timestamp-difference (now) (timestamp (first (last trades)))))
              (updays (/ uptime 60 60 24))
              (volume (or depth (reduce #'+ (mapcar #'volume trades))))
