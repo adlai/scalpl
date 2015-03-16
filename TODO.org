@@ -128,16 +128,18 @@ CSP×FSM
 *** DONE book-tracker
 *** DONE execution-tracker
 *** DONE balance-tracker
+*** DONE fee-tracker
 *** TODO tracked-market
 does anything need to be done for this?
-*** TODO fee-tracker
 *** TODO account-tracker
+how about this one gets merged into the supplicant?
 *** TODO ope
-**** TODO scalper
 **** DONE supplicant
+**** TODO scalper
 **** TODO filter
 **** TODO prioritizer
 *** TODO maker
+this should be trivial once after all the above
 ** macro prototype
 *** TODO sample
 **** input - port current gate, as-is, to imagipony defactor macro

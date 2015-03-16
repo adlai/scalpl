@@ -137,8 +137,9 @@
       (aif (dolist (new target (sort to-add #'< :key #'price))
              (aif (find (price new) excess :key #'price :test #'=)
                   (setf excess (remove it excess)) (push new to-add)))
-           (frob it excess) (if excess (frob nil excess) ; yuck
-                                (and target placed (frob target placed)))))))
+           (frob it (reverse excess))   ; which of these is worse?
+           (if excess (frob nil excess)  ; which of these is best?
+               (and target placed (frob target placed)))))))
 
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
@@ -354,21 +355,21 @@
          (side-last (side) (find side trades :key #'direction :test #'string-equal))
          (chr (chrs fraction &aux (length (length chrs)))
            (char chrs (1- (ceiling (* length fraction))))))
-    (let* ((min-sum (loop for trade in trades for volume = (net-volume trade)
-                       if (string-equal (direction trade) "buy")
-                       sum volume into buy-sum else sum volume into sell-sum
-                       finally (return (min buy-sum sell-sum))))
-           (min-last (apply 'min (mapcar 'volume (mapcar #'side-last '("buy" "sell")))))
-           (scale (expt (/ min-sum min-last) (/ length))))
-      (with-output-to-string (out)
-        (let* ((dps (loop for i to length collect (depth-profit (/ min-sum (expt scale i)))))
-               (highest (reduce #'max (remove-if #'minusp dps) :initial-value 0))
-               (lowest  (reduce #'min (remove-if #'plusp  dps) :initial-value 0)))
-          (format out "~4@$" (depth-profit min-sum))
-          (dolist (dp dps (format out "~4@$" (depth-profit min-last)))
-            (format out "~C" (case (round (signum dp))
-                               (+1 (chr positive-chars (/ dp highest)))
-                               (-1 (chr negative-chars (/ dp lowest)))))))))))
+    (with-output-to-string (out)
+      (let* ((min-sum (loop for trade in trades for volume = (net-volume trade)
+                         if (string-equal (direction trade) "buy")
+                         sum volume into buy-sum else sum volume into sell-sum
+                         finally (return (min buy-sum sell-sum))))
+             (min-last (apply 'min (mapcar 'volume (mapcar #'side-last '("buy" "sell")))))
+             (scale (expt (/ min-sum min-last) (/ (1+ length))))
+             (dps (loop for i to length collect (depth-profit (/ min-sum (expt scale i)))))
+             (highest (reduce #'max (remove-if #'minusp dps) :initial-value 0))
+             (lowest  (reduce #'min (remove-if #'plusp  dps) :initial-value 0)))
+        (format out "~4@$" (depth-profit min-sum))
+        (dolist (dp dps (format out "~4@$" (depth-profit min-last)))
+          (format out "~C" (case (round (signum dp)) (0 #\Space)
+                             (+1 (chr positive-chars (/ dp highest)))
+                             (-1 (chr negative-chars (/ dp lowest))))))))))
 
 (defun makereport (maker fund rate btc doge investment risked skew)
   (with-slots (name market account-tracker snake last-report) maker
@@ -381,7 +382,7 @@
       ;; FIXME: modularize all this decimal point handling
       ;; we need a pprint-style ~/aq/ function, and pass it aq objects!
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (format t "~&~A ~A~{ ~A~} ~2,2$% ~2,2$% ~2,2@$ ~A~%"
+      (format t "~&~A ~A~{ ~A~} ~2,2$% ~2,2$%~2,2@$ ~A~%"
               name (subseq (princ-to-string (now)) 11 19)
               (mapcar #'sastr '(primary counter primary counter)
                       `(,@#1=`(,fund ,(* fund rate)) ,btc ,doge) `(() () ,@#1#))
