@@ -1,7 +1,8 @@
 ;;;; qd.lisp
 
 (defpackage #:scalpl.qd
-  (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util #:scalpl.exchange #:scalpl.actor))
+  (:use #:cl #:chanl #:anaphora #:local-time
+        #:scalpl.util #:scalpl.exchange #:scalpl.actor))
 
 (in-package #:scalpl.qd)
 
@@ -170,31 +171,33 @@
   (do* ((remaining-offers others (rest remaining-offers))
         (processed-tally    0    (1+   processed-tally)))
        ((or (null remaining-offers)  ; EITHER: processed entire order book
-            (and (> acc resilience)  ;     OR: (   BOTH: processed past resilience
-                 (> processed-tally max-orders))) ; AND: processed enough orders )
+            (and (> acc resilience)  ;     OR:   BOTH: processed past resilience
+                 (> processed-tally max-orders))) ; AND: processed enough orders
         (flet ((pick (count offers)
                  (sort (subseq* (sort (or (subseq offers 0 (1- processed-tally))
                                           (warn "~&FIXME: GO DEEPER!~%") offers)
                                       #'> :key (lambda (x) (volume (cdr x))))
                                0 count) #'< :key (lambda (x) (price (cdr x)))))
                (offer-scaler (total bonus count)
-                 (lambda (order &aux (vol (* funds (/ (+ bonus (car order))
-                                                      (+ total (* bonus count))))))
-                   (with-slots (market price) (cdr order)
-                     (make-instance 'offer :market market :price (1- price)
-                                    :volume vol :given (cons-aq* asset vol))))))
+                 (let ((scale (/ funds (+ total (* bonus count)))))
+                   (lambda (order &aux (vol (* scale (+ bonus (car order)))))
+                     (with-slots (market price) (cdr order)
+                       (make-instance 'offer ; FIXME: :given (ring a bell?)
+                                      :given (cons-aq* asset vol) :volume vol
+                                      :market market :price (1- price)))))))
           (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni! wut?
                                     max-orders processed-tally))
                  (chosen-stairs         ; the (shares . foreign-offer)s to fight
                   (if (>= magic target-count) (pick target-count others)
-                      (cons (first others) (pick (1- target-count) (rest others)))))
+                      (cons (first others)
+                            (pick (1- target-count) (rest others)))))
                  (total-shares (reduce #'+ (mapcar #'car chosen-stairs)))
                  ;; we need the smallest order to be epsilon
                  (e/f (/ epsilon funds))
                  (bonus (if (>= 1 target-count) 0
                             (/ (- (* e/f total-shares) (caar chosen-stairs))
                                (- 1 (* e/f target-count))))))
-            (break-errors (not division-by-zero) ; dbz = no funds left, no biggie
+            (break-errors (not division-by-zero) ; dbz = no funds left, too bad
               (mapcar (offer-scaler total-shares bonus target-count)
                       chosen-stairs)))))
     ;; TODO - use a callback for liquidity distribution control
@@ -226,9 +229,10 @@
                     (decimals (asset cost)) (scaled-quantity cost))
             (let ((book (rest (member 0 book :test #'< :key #'profit))))
               (if (plusp (profit top))
-                  `(,top ,@(ope-sprinner offers `((,(- (caar funds) (volume top))
-                                                    . ,(cdar funds)))
-                                         (1- count) magic bases punk dunk book))
+                  `(,top ,@(ope-sprinner
+                            offers `((,(- (caar funds) (volume top))
+                                       . ,(cdar funds)))
+                            (1- count) magic bases punk dunk book))
                   (ope-sprinner (funcall dunk book funds count magic) funds
                                 count magic `((,vwab ,(aq* vwab cost) ,cost)
                                               ,@bases) punk dunk book))))))))
@@ -276,7 +280,8 @@
           (do-side primary asks next-asks (* epsilon (max (/ ratio) 1))))))
     (send output nil)))
 
-(defmethod shared-initialize :after ((prioritizer ope-prioritizer) (slots t) &key)
+(defmethod shared-initialize :after
+    ((prioritizer ope-prioritizer) (slots t) &key)
   (with-slots (thread) prioritizer
     (when (or (not (slot-boundp prioritizer 'thread))
               (eq :terminated (task-status thread)))
@@ -308,17 +313,6 @@
 ;;; ACCOUNT TRACKING
 ;;;
 
-(defclass account-tracker () ((gate :initarg :gate) (ope :initarg :ope)))
-
-(defmethod vwap ((tracker account-tracker) &rest keys)
-  (apply #'vwap (slot-value tracker 'lictor) keys))
-
-(defmethod shared-initialize :after
-    ((tracker account-tracker) (names t) &key market)
-  (with-slots (gate ope) tracker
-    (unless (ignore-errors ope)
-      (setf ope (make-instance 'ope-scalper :gate gate :market market)))))
-
 (defclass maker ()
   ((market :initarg :market :reader market)
    (fund-factor :initarg :fund-factor :initform 1)
@@ -327,7 +321,7 @@
    (skew-factor :initarg :skew-factor :initform 1)
    (cut :initform 0)
    (control :initform (make-instance 'channel))
-   (account-tracker :initarg :account-tracker)
+   (gate :initarg :gate) ope
    (name :initarg :name :accessor name)
    (snake :initform (list 15 "ZYXWVUSRQPONMGECA" "zyxwvusrqponmgeca"))
    (last-report :initform nil)
@@ -341,8 +335,9 @@
                      &aux (trades (slot-value lictor 'trades)))
   (flet ((depth-profit (depth)
            (flet ((vwap (side) (vwap lictor :type side :depth depth)))
-             (dbz-guard (* 100 (1- (profit-margin (vwap "buy") (vwap "sell")))))))
-         (side-last (side) (find side trades :key #'direction :test #'string-equal))
+             (* 100 (1- (profit-margin (vwap "buy") (vwap "sell"))))))
+         (side-last (side)
+           (volume (find side trades :key #'direction :test #'string-equal)))
          (chr (chrs fraction &aux (length (length chrs)))
            (char chrs (1- (ceiling (* length fraction))))))
     (with-output-to-string (out)
@@ -350,9 +345,10 @@
                          if (string-equal (direction trade) "buy")
                          sum volume into buy-sum else sum volume into sell-sum
                          finally (return (min buy-sum sell-sum))))
-             (min-last (apply 'min (mapcar 'volume (mapcar #'side-last '("buy" "sell")))))
+             (min-last (apply 'min (mapcar #'side-last '("buy" "sell"))))
              (scale (expt (/ min-sum min-last) (/ (1+ length))))
-             (dps (loop for i to length collect (depth-profit (/ min-sum (expt scale i)))))
+             (dps (loop for i to length collect
+                       (depth-profit (/ min-sum (expt scale i)))))
              (highest (apply #'max (remove-if #'minusp dps)))
              (lowest  (apply #'min (remove-if #'plusp  dps))))
         (format out "~4@$" (depth-profit min-sum))
@@ -362,7 +358,7 @@
                              (-1 (chr negative-chars (/ dp lowest))))))))))
 
 (defun makereport (maker fund rate btc doge investment risked skew)
-  (with-slots (name market account-tracker snake last-report) maker
+  (with-slots (name market gate ope snake last-report) maker
     (let ((new-report (list fund rate btc doge investment risked skew)))
       (if (equal last-report new-report) (return-from makereport)
           (setf last-report new-report)))
@@ -377,20 +373,21 @@
               (mapcar #'sastr '(primary counter primary counter)
                       `(,@#1=`(,fund ,(* fund rate)) ,btc ,doge) `(() () ,@#1#))
               (* 100 investment) (* 100 risked) (* 100 skew)
-              (apply 'profit-snake (slot-reduce account-tracker ope supplicant lictor) snake))))
+              (apply 'profit-snake (slot-reduce ope supplicant lictor) snake))))
   (force-output))
 
 (defun %round (maker)
   (with-slots (fund-factor resilience-factor targeting-factor skew-factor
-               market name account-tracker cut) maker
+               market name gate ope cut) maker
     ;; Get our balances
-    (with-slots (sync) (slot-reduce account-tracker ope supplicant treasurer)
+    (with-slots (sync) (slot-reduce ope supplicant treasurer)
       (recv (send sync sync)))          ; excellent!
     (let* ((trades (slot-reduce market trades-tracker trades))
            ;; TODO: split into primary resilience and counter resilience
-           (resilience (* resilience-factor (reduce #'max (mapcar #'volume trades))))
-           (balances (slot-reduce account-tracker ope supplicant treasurer balances))
-           (doge/btc (vwap (slot-reduce market trades-tracker) :depth 50 :type :buy)))
+           (resilience (* resilience-factor ; FIXME online histomabob
+                          (reduce #'max (mapcar #'volume trades))))
+           (balances (slot-reduce ope supplicant treasurer balances))
+           (doge/btc (vwap market :depth 50 :type :buy)))
       (flet ((total-of (btc doge) (+ btc (/ doge doge/btc))))
         (let* ((total-btc (asset-funds (primary market) balances))
                (total-doge (asset-funds (counter market) balances))
@@ -403,78 +400,47 @@
           ;; Maybe thru recognition, the test remains; for when you lose the bug
           ;; don't lose the lesson, nor the joke.
           (unless (zerop total-fund)
-            (let* ((investment (dbz-guard (/ total-btc total-fund)))
-                   (btc  (* fund-factor total-btc investment targeting-factor))
+            (let* ((buyin (dbz-guard (/ total-btc total-fund)))
+                   (btc  (* fund-factor total-btc buyin targeting-factor))
                    (doge (* fund-factor total-doge
-                            (- 1 (* investment targeting-factor))))
-                   (skew (/ doge btc doge/btc)))
+                            (- 1 (* buyin targeting-factor))))
+                   (skew (log (/ doge btc doge/btc))))
               ;; report funding
-              (makereport maker total-fund doge/btc total-btc total-doge investment
+              (makereport maker total-fund doge/btc total-btc total-doge buyin
                           (dbz-guard (/ (total-of    btc  doge) total-fund))
                           (dbz-guard (/ (total-of (- btc) doge) total-fund)))
-              (send (slot-reduce account-tracker ope input)
-                    (list `((,btc . ,(* cut (1+ (/ (log skew) skew-factor)))))
-                          `((,doge . ,(* cut (1+ (/ (- (log skew)) skew-factor)))))
-                          resilience (expt skew skew-factor)))
-              (recv (slot-reduce account-tracker ope output)))))))))
+              (send (slot-reduce ope input)
+                    (list `((,btc . ,(* cut (1+ (/ skew skew-factor)))))
+                          `((,doge . ,(* cut (1+ (/ (- skew) skew-factor)))))
+                          resilience (expt (exp skew) skew-factor)))
+              (recv (slot-reduce ope output)))))))))
 
-(defmethod shared-initialize :after ((maker maker) (names t) &key gate)
-  (with-slots (market account-tracker thread) maker
-    (ensure-tracking market)
-    (if (slot-boundp maker 'account-tracker)
-        (reinitialize-instance account-tracker :market market)
-        (setf account-tracker
-              (make-instance  'account-tracker :gate gate :market market)))
+(defmethod shared-initialize :after ((maker maker) (names t) &key)
+  (with-slots (market gate ope thread) maker
+    (ensure-tracking market) (reinitialize-instance gate)
+    (unless (ignore-errors ope)
+      (setf ope (make-instance 'ope-scalper :gate gate :market market)))
     (when (or (not (slot-boundp maker 'thread))
               (eq :terminated (task-status thread)))
       (setf thread
-            (pexec
-                (:name (concatenate 'string "qdm-preα " (name market))
-                 :initial-bindings `((*read-default-float-format* double-float)))
-              ;; TODO: just pexec anew each time...
-              ;; you'll understand what you meant someday, right?
+            (pexec (:name (concatenate 'string "qdm-preα " (name market)))
               (loop (%round maker)))))))
 
 (defun pause-maker (maker) (send (slot-value maker 'control) '(pause)))
 
 (defun reset-the-net (maker &key (revive t) (delay 5))
   (mapc 'kill (mapcar 'task-thread (pooled-tasks)))
-  #+ (or)
-  (flet ((ensure-death (list)
-           (let ((thread (reduce #'slot-value list :initial-value maker)))
-             (tagbody
-                (if (eq :terminated (task-status thread)) (go end)
-                    (kill (task-thread thread)))
-              loop
-                (if (eq :terminated (task-status thread)) (go end) (go loop))
-              end))))
-    (mapc #'ensure-death
-          `((thread)
-            (account-tracker gate thread)
-            (account-tracker ope scalper)
-            (account-tracker ope prioritizer)
-            (account-tracker ope supplicant thread)
-            (account-tracker ope scalper)
-            (account-tracker worker)
-            (account-tracker updater)
-            (account-tracker lictor worker)
-            (account-tracker lictor updater)
-            (fee-tracker thread))))
   #+sbcl (sb-ext:gc :full t)
   (when revive
-    (dolist (actor
-              (list (slot-reduce maker market)
-                    (slot-reduce maker account-tracker gate)
-                    (slot-reduce maker account-tracker ope)
-                    maker))
-      (sleep delay)
-      (reinitialize-instance actor))))
+    (dolist (actor (list (slot-reduce maker market) (slot-reduce maker gate)
+                         (slot-reduce maker ope) maker))
+      (sleep delay) (reinitialize-instance actor))))
 
 (defmacro define-maker (name &rest keys
                         &key market gate
                           ;; just for interactive convenience
-                          fund-factor targeting resilience account-tracker)
-  (declare (ignore fund-factor targeting resilience account-tracker))
+                          fund-factor targeting resilience)
+  (declare (ignore fund-factor targeting resilience))
   (dolist (key '(:market :gate)) (remf keys key))
   `(defvar ,name (make-instance 'maker :market ,market :gate ,gate
                                 :name ,(string-trim "*+<>" name)
@@ -497,37 +463,38 @@
         (+2 (values (aq/ (- (conjugate aq2)) aq1) aq1 aq2))))))
 
 (defun performance-overview (maker &optional depth)
-  (with-slots (account-tracker market) maker
-    (flet ((funds (symbol)
-             (asset-funds symbol (slot-reduce account-tracker ope
-                                              supplicant treasurer balances)))
-           (total (btc doge)
-             (+ btc (/ doge (vwap market :depth 50 :type :buy))))
-           (vwap (side)
-             (vwap account-tracker :type side :market market :depth depth)))
-      (let* ((trades (slot-reduce account-tracker ope supplicant lictor trades))
-             (uptime (timestamp-difference (now) (timestamp (first (last trades)))))
-             (updays (/ uptime 60 60 24))
-             (volume (or depth (reduce #'+ (mapcar #'volume trades))))
-             (profit (* volume (1- (profit-margin (vwap "buy") (vwap "sell"))) 1/2))
-             (total (total (funds (primary market)) (funds (counter market)))))
-        (format t "~&Been up              ~7@F days,~
+  (with-slots (gate ope market) maker
+    (with-slots (treasurer lictor) (slot-reduce ope supplicant)
+      (flet ((funds (symbol)
+               (asset-funds symbol (slot-reduce treasurer balances)))
+             (total (btc doge)
+               (+ btc (/ doge (vwap market :depth 50 :type :buy))))
+             (vwap (side) (vwap lictor :type side :market market :depth depth)))
+        (let* ((trades (slot-reduce ope supplicant lictor trades))
+               (uptime (timestamp-difference
+                        (now) (timestamp (first (last trades)))))
+               (updays (/ uptime 60 60 24))
+               (volume (or depth (reduce #'+ (mapcar #'volume trades))))
+               (profit (* volume
+                          (1- (profit-margin (vwap "buy") (vwap "sell"))) 1/2))
+               (total (total (funds (primary market))
+                             (funds (counter market)))))
+          (format t "~&Been up              ~7@F days,~
                    ~%traded               ~7@F coins,~
                    ~%profit               ~7@F coins,~
                    ~%portfolio flip per   ~7@F days,~
                    ~%avg daily profit:    ~4@$%~
                    ~%estd monthly profit: ~4@$%~%"
-                updays volume profit (/ (* total updays 2) volume)
-                (/ (* 100 profit) updays total) ; ignores compounding, too high!
-                (/ (* 100 profit) (/ updays 30) total))))))
+                  updays volume profit (/ (* total updays 2) volume)
+                  (/ (* 100 profit) updays total) ; ignores compounding, du'e!
+                  (/ (* 100 profit) (/ updays 30) total)))))))
 
 (defgeneric print-book (book &key count prefix)
   (:method ((maker maker) &rest keys)
     (macrolet ((path (&rest path)
                  `(apply #'print-book (slot-reduce maker ,@path) keys)))
       ;; TODO: interleaving
-      (path account-tracker ope)
-      (path market book-tracker)))
+      (path ope) (path market book-tracker)))
   (:method ((ope ope-scalper) &rest keys)
     (apply #'print-book (multiple-value-call 'cons (ope-placed ope)) keys))
   (:method ((tracker book-tracker) &rest keys)
@@ -545,7 +512,7 @@
                   prefix bw (first bids) aw (first asks)))))))
 
 (defmethod describe-object ((maker maker) (stream t))
-  (with-slots (ope lictor) (slot-reduce maker account-tracker supplicant)
-    (print-book ope) (performance-overview maker)
-    (multiple-value-call 'format t "~@{~A~#[~:; ~]~}" (name maker)
-                         (trades-profits (slot-reduce lictor trades)))))
+  (print-book (slot-reduce maker ope)) (performance-overview maker)
+  (multiple-value-call 'format
+    t "~@{~A~#[~:; ~]~}" (name maker)
+    (trades-profits (slot-reduce maker ope supplicant lictor trades))))
