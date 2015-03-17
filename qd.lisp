@@ -75,14 +75,16 @@
   (with-slots (control response) (slot-value ope 'supplicant)
     (send control (cons 'cancel offer)) (recv response)))
 
-(defclass ope-filter ()
-  ((bids       :initarg :bids       :initform ())
-   (asks       :initarg :asks       :initform ())
-   (market     :initarg :market     :initform (error "must link market"))
+(defclass filter (actor)
+  ((bids :initform ()) (asks :initform ()) (book-cache :initform nil)
    (supplicant :initarg :supplicant :initform (error "must link supplicant"))
-   (frequency  :initarg :frequency  :initform 1/7) ; TODO: push depth deltas
-   (book-cache :initform nil)
-   fee thread))
+   (frequency  :initarg :frequency  :initform 1/7)))
+
+(defmethod christen ((filter filter) (type (eql 'actor)))
+  (with-aslots #1=(name market) (slot-reduce filter supplicant)
+    (format nil "~A ~A" name #1#)))
+(defmethod christen ((filter filter) (type (eql 'task)))
+  (format nil "~A filter" (name filter)))
 
 ;;; TODO: deal with partially completed orders
 (defun ignore-offers (open mine &aux them)
@@ -102,25 +104,15 @@
 ;;; 2) profitable spread - already does (via ecase spaghetti)
 ;;; 3) profit vs recent cost basis - done, shittily - TODO parametrize depth
 
-(defun ope-filter-loop (ope)
-  (with-slots (market book-cache bids asks frequency) ope
+(defmethod perform ((filter filter))
+  (with-slots (market book-cache bids asks frequency supplicant) filter
     (let ((book (recv (slot-reduce market book-tracker output))))
       (unless (eq book book-cache)
-        (with-slots (placed) (slot-value ope 'supplicant)
+        (with-slots (placed) supplicant
           (setf book-cache book
                 bids (ignore-offers (cdar book) placed)
                 asks (ignore-offers (cddr book) placed)))))
     (sleep frequency)))
-
-(defmethod shared-initialize :around ((ope ope-filter) (slots t) &key)
-  (call-next-method)                    ; this is an after-after method...
-  (with-slots (thread market) ope
-    (when (or (not (slot-boundp ope 'thread))
-              (eq :terminated (task-status thread)))
-      (setf thread
-            (pexec (:name (concatenate
-                           'string "qdm-preα ope filter for " (name market)))
-              (loop (ope-filter-loop ope)))))))
 
 (defclass ope-prioritizer ()
   ((next-bids :initform (make-instance 'channel))
@@ -160,7 +152,7 @@
            (/ (* ask (- 1 (/ ask-fee 100)))
               (* bid (+ 1 (/ bid-fee 100)))))))
 
-(defun dumbot-offers (foreigners       ; w/ope-filter to avoid feedback
+(defun dumbot-offers (foreigners       ; w/filter to avoid feedback
                       resilience       ; scalar•asset target offer depth to fill
                       funds            ; scalar•asset target total offer volume
                       epsilon          ; scalar•asset size of smallest order
@@ -298,8 +290,9 @@
         (setf prioritizer
               (make-instance 'ope-prioritizer :supplicant supplicant)))
     (if (slot-boundp ope 'filter) (reinitialize-instance filter)
-        (setf filter (make-instance 'ope-filter :market market
-                                    :supplicant supplicant)))))
+        (setf filter (make-instance 'filter :market market
+                                    :supplicant supplicant
+                                    :delegates (list supplicant))))))
 
 (defmethod shared-initialize :around ((ope ope-scalper) (slots t) &key)
   (call-next-method)                    ; another after-after method...
