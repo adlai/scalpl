@@ -503,7 +503,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defgeneric account-balances (gate))
 
 (defclass balance-tracker (actor)
-  ((gate :initarg :gate) (fuzz :initarg :fuzz :initform (random 7))
+  ((fuzz :initarg :fuzz :initform (random 7))
    (sync :initarg :sync :initform (make-instance 'channel))
    (balances :initarg :balances :initform nil)))
 

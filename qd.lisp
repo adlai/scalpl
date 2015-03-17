@@ -13,11 +13,9 @@
 ;;;
 
 (defclass supplicant (parent)
-  ((gate :initarg :gate) fee (market :initarg :market :reader market)
-   (placed :initform nil :initarg :placed)
+  ((gate :initarg :gate) (market :initarg :market :reader market) placed
    (response :initform (make-instance 'channel))
-   (balance-tracker :initarg :balance-tracker)
-   (lictor :initarg :lictor)
+   (treasurer :initarg :treasurer) (lictor :initarg :lictor) (fee :initarg :fee)
    (order-slots :initform 40 :initarg :order-slots)))
 
 (defun offers-spending (ope asset)
@@ -25,9 +23,9 @@
           :key #'consumed-asset :test-not #'eq))
 
 (defun balance-guarded-place (ope offer)
-  (with-slots (gate placed order-slots balance-tracker) ope
+  (with-slots (gate placed order-slots treasurer) ope
     (let ((asset (consumed-asset offer)))
-      (when (and (>= (asset-funds asset (slot-reduce balance-tracker balances))
+      (when (and (>= (asset-funds asset (slot-reduce treasurer balances))
                      (reduce #'+ (mapcar #'volume (offers-spending ope asset))
                              :initial-value (volume offer)))
                  (> order-slots (length placed)))
@@ -42,10 +40,15 @@
                       (setf placed (remove (cdr command) placed))))))))
 
 (defmethod initialize-instance :after ((supp supplicant) &key)
-  (adopt supp (setf (slot-value supp 'fee)
-                    (make-instance 'fee-tracker :delegates (list supp))))
-  (adopt supp (setf (slot-value supp 'lictor)
-                    (make-instance 'execution-tracker :delegates (list supp)))))
+  (macrolet ((init (slot class)
+               `(unless (ignore-errors ,slot)
+                  (adopt supp (setf ,slot (make-instance
+                                           ',class :delegates `(,supp)))))))
+    (with-slots (fee lictor treasurer placed) supp
+      (unless (ignore-errors placed) (setf placed (placed-offers supp)))
+      (init   fee          fee-tracker)
+      (init  lictor  execution-tracker)
+      (init treasurer  balance-tracker))))
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
   (format nil "~A" (name (slot-value supplicant 'gate))))
@@ -281,12 +284,10 @@
                      (loop (ope-prioritizer-loop prioritizer)))))))
 
 (defmethod shared-initialize :after
-    ((ope ope-scalper) (slots t) &key gate market balance-tracker lictor)
+    ((ope ope-scalper) (slots t) &key gate market)
   (with-slots (filter prioritizer supplicant) ope
     (if (slot-boundp ope 'supplicant) (reinitialize-instance supplicant)
-        (setf supplicant (make-instance 'supplicant :placed (placed-offers gate)
-                                        :lictor lictor :gate gate :market market
-                                        :balance-tracker balance-tracker)))
+        (setf supplicant (make-instance 'supplicant :gate gate :market market)))
     (if (slot-boundp ope 'prioritizer)
         (reinitialize-instance prioritizer    :supplicant supplicant)
         (setf prioritizer
@@ -307,25 +308,16 @@
 ;;; ACCOUNT TRACKING
 ;;;
 
-(defclass account-tracker ()
-  ((gate :initarg :gate)
-   (treasurer :initarg :treasurer)
-   (ope :initarg :ope)
-   (lictor :initarg :lictor)))
+(defclass account-tracker () ((gate :initarg :gate) (ope :initarg :ope)))
 
 (defmethod vwap ((tracker account-tracker) &rest keys)
   (apply #'vwap (slot-value tracker 'lictor) keys))
 
 (defmethod shared-initialize :after
     ((tracker account-tracker) (names t) &key market)
-  (with-slots (lictor treasurer gate ope) tracker
-    (if (slot-boundp tracker 'lictor) (reinitialize-instance lictor)
-        (setf lictor (make-instance 'execution-tracker :market market :gate gate)))
-    (if (slot-boundp tracker 'treasurer) (reinitialize-instance treasurer)
-        (setf treasurer (make-instance 'balance-tracker :gate gate)))
-    (unless (slot-boundp tracker 'ope)
-      (setf ope (make-instance 'ope-scalper :lictor lictor :gate gate
-                               :balance-tracker treasurer :market market)))))
+  (with-slots (gate ope) tracker
+    (unless (ignore-errors ope)
+      (setf ope (make-instance 'ope-scalper :gate gate :market market)))))
 
 (defclass maker ()
   ((market :initarg :market :reader market)
@@ -385,19 +377,19 @@
               (mapcar #'sastr '(primary counter primary counter)
                       `(,@#1=`(,fund ,(* fund rate)) ,btc ,doge) `(() () ,@#1#))
               (* 100 investment) (* 100 risked) (* 100 skew)
-              (apply 'profit-snake (slot-value account-tracker 'lictor) snake))))
+              (apply 'profit-snake (slot-reduce account-tracker ope supplicant lictor) snake))))
   (force-output))
 
 (defun %round (maker)
   (with-slots (fund-factor resilience-factor targeting-factor skew-factor
                market name account-tracker cut) maker
     ;; Get our balances
-    (with-slots (sync) (slot-reduce account-tracker treasurer)
+    (with-slots (sync) (slot-reduce account-tracker ope supplicant treasurer)
       (recv (send sync sync)))          ; excellent!
     (let* ((trades (slot-reduce market trades-tracker trades))
            ;; TODO: split into primary resilience and counter resilience
            (resilience (* resilience-factor (reduce #'max (mapcar #'volume trades))))
-           (balances (slot-reduce account-tracker treasurer balances))
+           (balances (slot-reduce account-tracker ope supplicant treasurer balances))
            (doge/btc (vwap (slot-reduce market trades-tracker) :depth 50 :type :buy)))
       (flet ((total-of (btc doge) (+ btc (/ doge doge/btc))))
         (let* ((total-btc (asset-funds (primary market) balances))
@@ -473,8 +465,6 @@
     (dolist (actor
               (list (slot-reduce maker market)
                     (slot-reduce maker account-tracker gate)
-                    (slot-reduce maker account-tracker treasurer)
-                    (slot-reduce maker account-tracker ope supplicant lictor)
                     (slot-reduce maker account-tracker ope)
                     maker))
       (sleep delay)
@@ -509,7 +499,8 @@
 (defun performance-overview (maker &optional depth)
   (with-slots (account-tracker market) maker
     (flet ((funds (symbol)
-             (asset-funds symbol (slot-reduce account-tracker treasurer balances)))
+             (asset-funds symbol (slot-reduce account-tracker ope
+                                              supplicant treasurer balances)))
            (total (btc doge)
              (+ btc (/ doge (vwap market :depth 50 :type :buy))))
            (vwap (side)
@@ -554,7 +545,7 @@
                   prefix bw (first bids) aw (first asks)))))))
 
 (defmethod describe-object ((maker maker) (stream t))
-  (with-slots (ope lictor) (slot-reduce maker account-tracker)
+  (with-slots (ope lictor) (slot-reduce maker account-tracker supplicant)
     (print-book ope) (performance-overview maker)
     (multiple-value-call 'format t "~@{~A~#[~:; ~]~}" (name maker)
                          (trades-profits (slot-reduce lictor trades)))))
