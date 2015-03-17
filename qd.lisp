@@ -349,8 +349,8 @@
              (scale (expt (/ min-sum min-last) (/ (1+ length))))
              (dps (loop for i to length collect
                        (depth-profit (/ min-sum (expt scale i)))))
-             (highest (apply #'max (remove-if #'minusp dps)))
-             (lowest  (apply #'min (remove-if #'plusp  dps))))
+             (highest (apply #'max 0 (remove-if #'minusp dps)))
+             (lowest  (apply #'min 0 (remove-if #'plusp  dps))))
         (format out "~4@$" (depth-profit min-sum))
         (dolist (dp dps (format out "~4@$" (first (last dps))))
           (format out "~C" (case (round (signum dp)) (0 #\Space)
@@ -410,8 +410,8 @@
                           (dbz-guard (/ (total-of    btc  doge) total-fund))
                           (dbz-guard (/ (total-of (- btc) doge) total-fund)))
               (send (slot-reduce ope input)
-                    (list `((,btc . ,(* cut (1+ (/ skew skew-factor)))))
-                          `((,doge . ,(* cut (1+ (/ (- skew) skew-factor)))))
+                    (list `((,btc  . ,(* cut (+ 3/2 (/    skew  skew-factor)))))
+                          `((,doge . ,(* cut (+ 3/2 (/ (- skew) skew-factor)))))
                           resilience (expt (exp skew) skew-factor)))
               (recv (slot-reduce ope output)))))))))
 
