@@ -2,8 +2,8 @@
 
 (defpackage #:scalpl.actor
   (:use #:cl #:anaphora #:local-time #:scalpl.util #:chanl)
-  (:export #:actor #:perform #:halt #:name #:control #:execute
-           #:parent #:children #:adopt #:disown #:christen))
+  (:export #:actor #:perform #:halt #:name #:control #:execute #:abbrev
+           #:parent #:children #:adopt #:disown #:christen #:tasks))
 
 (in-package #:scalpl.actor)
 
@@ -22,6 +22,7 @@
 (defclass actor ()
   ((name :initarg :name :reader name    ; if you must, use (setf slot-value)
          :documentation "Name for identifying this actor and its tasks")
+   (abbrev :initform () :allocation :class)
    (tasks :initform nil :documentation "Tasks performing this actor's behavior")
    (delegates :initform nil :initarg :delegates
               :documentation "Other actors for delegating missing slot values")
@@ -33,7 +34,8 @@
 
 (defgeneric christen (actor type)
   (:method ((actor actor) (type (eql 'actor))) (strftime *date+time*))
-  (:method ((actor actor) (type (eql 'task))) (name actor))
+  (:method ((actor actor) (type (eql 'task)))
+    (with-slots (name abbrev) actor (format nil "~A~@[ ~A~]" name abbrev)))
   (:method :around ((actor actor) (type (eql 'task)))
     (strftime `(,@*time-format* #\Space ,(call-next-method)))))
 

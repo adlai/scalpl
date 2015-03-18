@@ -16,6 +16,7 @@
 (defclass supplicant (parent)
   ((gate :initarg :gate) (market :initarg :market :reader market) placed
    (response :initform (make-instance 'channel))
+   (abbrev :allocation :class :initform "supplicant")
    (treasurer :initarg :treasurer) (lictor :initarg :lictor) (fee :initarg :fee)
    (order-slots :initform 40 :initarg :order-slots)))
 
@@ -52,18 +53,15 @@
       (init treasurer  balance-tracker))))
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
-  (format nil "~A" (name (slot-value supplicant 'gate))))
-
-(defmethod christen ((supplicant supplicant) (type (eql 'task)))
-  (format nil "~A supplicant" (name supplicant)))
+  (with-aslots (gate market) supplicant
+    (format nil "~A ~A" (name gate) (name market))))
 
 (defun ope-placed (ope)
   (with-slots (placed) (slot-value ope 'supplicant)
     (let ((all (sort (copy-list placed) #'< :key #'price)))
-      (flet ((split (sign)
-               (remove sign all :key (lambda (x) (signum (price x))))))
-        ;;       bids       asks
-        (values (split 1) (split -1))))))
+      (flet ((split (test) (remove-if test all :key #'price)))
+        ;;               bids             asks
+        (values (split #'plusp) (split #'minusp))))))
 
 ;;; response: placed offer if successful, nil if not
 (defun ope-place (ope offer)
@@ -76,15 +74,13 @@
     (send control (cons 'cancel offer)) (recv response)))
 
 (defclass filter (actor)
-  ((bids :initform ()) (asks :initform ()) (book-cache :initform nil)
+  ((abbrev :allocation :class :initform "filter")
+   (bids :initform ()) (asks :initform ()) (book-cache :initform nil)
    (supplicant :initarg :supplicant :initform (error "must link supplicant"))
-   (frequency  :initarg :frequency  :initform 1/7)))
+   (frequency  :initarg :frequency  :initform 1/7))) ; FIXME: s/ll/sh/
 
 (defmethod christen ((filter filter) (type (eql 'actor)))
-  (with-aslots #1=(name market) (slot-reduce filter supplicant)
-    (format nil "~A ~A" name #1#)))
-(defmethod christen ((filter filter) (type (eql 'task)))
-  (format nil "~A filter" (name filter)))
+  (slot-reduce filter supplicant name))
 
 ;;; TODO: deal with partially completed orders
 (defun ignore-offers (open mine &aux them)
@@ -94,8 +90,7 @@
            (setf mine (remove it mine))
            (unless (< without-me 0.001)
              (push (make-instance 'offer :market (slot-value offer 'market)
-                                  :price (price offer)
-                                  :volume without-me)
+                                  :price (price offer) :volume without-me)
                    them)))
          (push offer them))))
 
@@ -119,12 +114,11 @@
    (next-asks :initform (make-instance 'channel))
    (response :initform (make-instance 'channel))
    (supplicant :initarg :supplicant)
+   (abbrev :allocation :class :initform "prioritizer")
    (frequency :initarg :frequency :initform 1/7))) ; FIXME: s/ll/sh/
 
 (defmethod christen ((prioritizer prioritizer) (type (eql 'actor)))
-  (slot-reduce prioritizer supplicant name))
-(defmethod christen ((prioritizer prioritizer) (type (eql 'task)))
-  (format nil "~A prioritizer" (name prioritizer))) ; this is starting to rhyme
+  (slot-reduce prioritizer supplicant name)) ; this is starting to rhyme
 
 (defun prioriteaze (ope target placed &aux to-add (excess placed))
   (flet ((place (new) (ope-place (slot-value ope 'supplicant) new)))

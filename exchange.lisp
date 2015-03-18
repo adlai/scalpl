@@ -505,7 +505,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defclass balance-tracker (actor)
   ((fuzz :initarg :fuzz :initform (random 7))
    (sync :initarg :sync :initform (make-instance 'channel))
-   (balances :initarg :balances :initform nil)))
+   (balances :initarg :balances :initform nil)
+   (abbrev :allocation :class :initform "funds")))
 
 (defmethod perform ((tracker balance-tracker))
   (with-slots (gate sync buffer fuzz balances) tracker
@@ -514,26 +515,28 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                                          (setf balances it)))))))
 
 (defmethod christen ((tracker balance-tracker) (type (eql 'actor)))
-  (format nil "funds on ~A" (slot-reduce tracker gate name)))
+  (slot-reduce tracker gate name))
 
 (defgeneric market-fee (gate market)
   (:method :around ((gate gate) (market market))
     (actypecase (call-next-method) (number `(,it . ,it)) (cons it) (null))))
 
-(defclass fee-fetcher (actor) ())
+(defclass fee-fetcher (actor)
+  ((abbrev :allocation :class :initform "fee fetcher")))
 
 (defmethod christen ((fetcher fee-fetcher) (type (eql 'actor)))
   (with-slots (gate market) fetcher
-    (format nil "fee fetcher ~A ~A" (name gate) market)))
+    (format nil "~A ~A" (name gate) (name market))))
 
 (defclass fee-tracker (parent)
-  ((delay  :initarg :delay  :initform 67) fee fetcher
+  ((abbrev :allocation :class :initform "fee tracker")
+   (delay  :initarg :delay  :initform 67) fee fetcher
    (input  :initarg :input  :initform (make-instance 'channel))
    (output :initarg :output :initform (make-instance 'channel))))
 
 (defmethod christen ((tracker fee-tracker) (type (eql 'actor)))
   (with-slots (gate market) tracker
-    (format nil "fee tracker ~A ~A" (name gate) market)))
+    (format nil "~A ~A" (name gate) (name market))))
 
 (defmethod perform ((fetcher fee-fetcher))
   (with-slots (market gate delay input) fetcher
@@ -570,11 +573,12 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
      (cons-aq* (primary market) net-volume)
      (cons-aq* (counter market) net-cost))))
 
-(defclass execution-fetcher (actor) ())
+(defclass execution-fetcher (actor)
+  ((abbrev :allocation :class :initform "exhun fetcher")))
 
 (defmethod christen ((fetcher execution-fetcher) (type (eql 'actor)))
   (with-slots (gate market) fetcher
-    (format nil "exhun fetcher ~A ~A" (name market) (name gate))))
+    (format nil "~A ~A" (name gate) (name market))))
 
 (defmethod perform ((fetcher execution-fetcher))
   (with-slots (gate market buffer delay) fetcher
@@ -582,16 +586,16 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
       (send buffer trade))))
 
 (defclass execution-tracker (parent)
-  ((trades :initform nil) (bases :initform nil) (gate :initarg :gate)
+  ((abbrev :allocation :class :initform "exhun tracker")
+   (trades :initform nil) (bases :initform nil) (gate :initarg :gate)
    (market :initarg :market :reader market :initform (error "required"))
    (delay :initform 30) (buffer :initform (make-instance 'channel)) fetcher))
 
 (defmethod christen ((tracker execution-tracker) (type (eql 'actor)))
   (with-slots (gate market) tracker
-    (format nil "exhun tracker ~A ~A" (name market) (name gate))))
+    (format nil "~A ~A" (name gate) (name market))))
 
-(defmethod execute
-    ((tracker execution-tracker) (command (eql :rebase)))
+(defmethod execute ((tracker execution-tracker) (command (eql :rebase)))
   (with-slots (bases trades) tracker
     (setf bases nil) (dolist (next (reverse trades))
                        (update-bases tracker next))))
