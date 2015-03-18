@@ -114,12 +114,17 @@
                 asks (ignore-offers (cddr book) placed)))))
     (sleep frequency)))
 
-(defclass ope-prioritizer ()
+(defclass prioritizer (actor)
   ((next-bids :initform (make-instance 'channel))
    (next-asks :initform (make-instance 'channel))
    (response :initform (make-instance 'channel))
-   (supplicant :initarg :supplicant) thread
-   (frequency :initarg :frequency :initform 1/7)))
+   (supplicant :initarg :supplicant)
+   (frequency :initarg :frequency :initform 1/7))) ; FIXME: s/ll/sh/
+
+(defmethod christen ((prioritizer prioritizer) (type (eql 'actor)))
+  (slot-reduce prioritizer supplicant name))
+(defmethod christen ((prioritizer prioritizer) (type (eql 'task)))
+  (format nil "~A prioritizer" (name prioritizer))) ; this is starting to rhyme
 
 (defun prioriteaze (ope target placed &aux to-add (excess placed))
   (flet ((place (new) (ope-place (slot-value ope 'supplicant) new)))
@@ -138,13 +143,13 @@
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
 ;;; sends completion acknowledgement to response channel
-(defun ope-prioritizer-loop (ope)
-  (with-slots (next-bids next-asks response frequency) ope
+(defmethod perform ((prioritizer prioritizer))
+  (with-slots (next-bids next-asks response frequency) prioritizer
     (multiple-value-bind (next source)
         (recv (list next-bids next-asks) :blockp nil)
-      (multiple-value-bind (placed-bids placed-asks) (ope-placed ope)
+      (multiple-value-bind (placed-bids placed-asks) (ope-placed prioritizer)
         (if (null source) (sleep frequency)
-            ((lambda (side) (send response (prioriteaze ope next side)))
+            ((lambda (side) (send response (prioriteaze prioritizer next side)))
              (if (eq source next-bids) placed-bids placed-asks)))))))
 
 (defun profit-margin (bid ask &optional (bid-fee 0) (ask-fee 0))
@@ -273,25 +278,15 @@
     (send output nil)))
 
 (defmethod shared-initialize :after
-    ((prioritizer ope-prioritizer) (slots t) &key)
-  (with-slots (thread) prioritizer
-    (when (or (not (slot-boundp prioritizer 'thread))
-              (eq :terminated (task-status thread)))
-      (setf thread (pexec (:name "qdm-preα ope prioritizer")
-                     (loop (ope-prioritizer-loop prioritizer)))))))
-
-(defmethod shared-initialize :after
     ((ope ope-scalper) (slots t) &key gate market)
   (with-slots (filter prioritizer supplicant) ope
     (if (slot-boundp ope 'supplicant) (reinitialize-instance supplicant)
         (setf supplicant (make-instance 'supplicant :gate gate :market market)))
-    (if (slot-boundp ope 'prioritizer)
-        (reinitialize-instance prioritizer    :supplicant supplicant)
-        (setf prioritizer
-              (make-instance 'ope-prioritizer :supplicant supplicant)))
+    (if (slot-boundp ope 'prioritizer) (reinitialize-instance prioritizer)
+        (setf prioritizer (make-instance 'prioritizer :supplicant supplicant
+                                         :delegates (list supplicant))))
     (if (slot-boundp ope 'filter) (reinitialize-instance filter)
-        (setf filter (make-instance 'filter :market market
-                                    :supplicant supplicant
+        (setf filter (make-instance 'filter :supplicant supplicant
                                     :delegates (list supplicant))))))
 
 (defmethod shared-initialize :around ((ope ope-scalper) (slots t) &key)

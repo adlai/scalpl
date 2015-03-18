@@ -134,9 +134,9 @@ CSP×FSM
 does anything need to be done for this?
 *** TODO ope
 **** DONE supplicant
+**** DONE filter
+**** DONE prioritizer
 **** TODO scalper
-**** TODO filter
-**** TODO prioritizer
 *** TODO maker
 this should be trivial once after all the above
 ** macro prototype
