@@ -195,16 +195,18 @@
     (with-slots (volume) (first remaining-offers)
       (push (incf share (* 4/3 (incf acc volume))) (first remaining-offers)))))
 
-(defclass ope-scalper ()
+(defclass ope-scalper (parent)
   ((input :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
-   (supplicant :initarg :supplicant)
-   (filter :initarg :filter)
+   (abbrev :allocation :class :initform "ope")
+   (supplicant :initarg :supplicant) filter prioritizer
    (epsilon :initform 0.001 :initarg :epsilon)
    (count :initform 30 :initarg :offer-count)
    (magic :initform 3 :initarg :magic-count)
-   (spam :initform nil :initarg :spam)
-   prioritizer thread))
+   (spam :initform nil :initarg :spam)))
+
+(defmethod christen ((ope ope-scalper) (type (eql 'actor)))
+  (name (slot-value ope 'supplicant)))
 
 (defun ope-sprinner (offers funds count magic bases punk dunk book)
   (if (or (null bases) (zerop count) (null offers)) offers
@@ -251,7 +253,7 @@
                             (asks (punk vwab  price 0 ask)))))
                       #'dunk book)))))
 
-(defun ope-scalper-loop (ope)
+(defmethod perform ((ope ope-scalper))
   (with-slots (input output filter prioritizer epsilon) ope
     (destructuring-bind (primary counter resilience ratio) (recv input)
       (with-slots (next-bids next-asks response) prioritizer
@@ -271,25 +273,14 @@
           (do-side primary asks next-asks (* epsilon (max (/ ratio) 1))))))
     (send output nil)))
 
-(defmethod shared-initialize :after
-    ((ope ope-scalper) (slots t) &key gate market)
+(defmethod initialize-instance :after ((ope ope-scalper) &key)
   (with-slots (filter prioritizer supplicant) ope
-    (if (slot-boundp ope 'supplicant) (reinitialize-instance supplicant)
-        (setf supplicant (make-instance 'supplicant :gate gate :market market)))
-    (if (slot-boundp ope 'prioritizer) (reinitialize-instance prioritizer)
-        (setf prioritizer (make-instance 'prioritizer :supplicant supplicant
-                                         :delegates (list supplicant))))
-    (if (slot-boundp ope 'filter) (reinitialize-instance filter)
-        (setf filter (make-instance 'filter :supplicant supplicant
-                                    :delegates (list supplicant))))))
-
-(defmethod shared-initialize :around ((ope ope-scalper) (slots t) &key)
-  (call-next-method)                    ; another after-after method...
-  (with-slots (thread) ope
-    (when (or (not (slot-boundp ope 'thread))
-              (eq :terminated (task-status thread)))
-      (setf thread (pexec (:name "qdm-preα ope scalper")
-                     (loop (ope-scalper-loop ope)))))))
+    (macrolet ((init (slot)
+                 `(setf ,slot (make-instance ',slot :supplicant supplicant
+                                             :delegates (list supplicant))))
+               (children (&rest slots)
+                 `(progn ,@(mapcar (lambda (slot) `(adopt ope ,slot)) slots))))
+      (children supplicant (init prioritizer) (init filter)))))
 
 ;;;
 ;;; ACCOUNT TRACKING
@@ -401,7 +392,9 @@
   (with-slots (market gate ope thread) maker
     (ensure-tracking market) (reinitialize-instance gate)
     (unless (ignore-errors ope)
-      (setf ope (make-instance 'ope-scalper :gate gate :market market)))
+      (setf ope (make-instance 'ope-scalper :supplicant
+                               (make-instance 'supplicant :gate gate
+                                              :market market))))
     (when (or (not (slot-boundp maker 'thread))
               (eq :terminated (task-status thread)))
       (setf thread
