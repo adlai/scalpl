@@ -488,7 +488,6 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (apply #'vwap (slot-value market 'trades-tracker) keys))
 
 (defgeneric ensure-tracking (market)
-  (:method :around (market) (call-next-method) market)
   (:method ((market market)) (change-class market 'tracked-market))
   (:method ((market tracked-market))
     (with-slots (trades-tracker book-tracker) market

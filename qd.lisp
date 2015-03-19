@@ -331,7 +331,7 @@
                              (-1 (chr negative-chars (/ dp lowest))))))))))
 
 (defun makereport (maker fund rate btc doge investment risked skew)
-  (with-slots (name market gate ope snake last-report) maker
+  (with-slots (name market ope snake last-report) maker
     (let ((new-report (list fund rate btc doge investment risked skew)))
       (if (equal last-report new-report) (return-from makereport)
           (setf last-report new-report)))
@@ -351,7 +351,7 @@
 
 (defun %round (maker)
   (with-slots (fund-factor resilience-factor targeting-factor skew-factor
-               market name gate ope cut) maker
+               market name ope cut) maker
     ;; Get our balances
     (with-slots (sync) (slot-reduce ope supplicant treasurer)
       (recv (send sync sync)))          ; excellent!
@@ -390,11 +390,11 @@
 
 (defmethod shared-initialize :after ((maker maker) (names t) &key)
   (with-slots (market gate ope thread) maker
-    (ensure-tracking market) (reinitialize-instance gate)
-    (unless (ignore-errors ope)
-      (setf ope (make-instance 'ope-scalper :supplicant
-                               (make-instance 'supplicant :gate gate
-                                              :market market))))
+    (ensure-running market) (reinitialize-instance gate)
+    (if (ignore-errors ope) (reinitialize-instance ope)
+        (setf ope (make-instance 'ope-scalper :supplicant
+                                 (make-instance 'supplicant :gate gate
+                                                :market market))))
     (when (or (not (slot-boundp maker 'thread))
               (eq :terminated (task-status thread)))
       (setf thread
@@ -438,7 +438,7 @@
         (+2 (values (aq/ (- (conjugate aq2)) aq1) aq1 aq2))))))
 
 (defun performance-overview (maker &optional depth)
-  (with-slots (gate ope market) maker
+  (with-slots (ope market) maker
     (with-slots (treasurer lictor) (slot-reduce ope supplicant)
       (flet ((funds (symbol)
                (asset-funds symbol (slot-reduce treasurer balances)))
@@ -455,11 +455,11 @@
                (total (total (funds (primary market))
                              (funds (counter market)))))
           (format t "~&Been up              ~7@F days,~
-                   ~%traded               ~7@F coins,~
-                   ~%profit               ~7@F coins,~
-                   ~%portfolio flip per   ~7@F days,~
-                   ~%avg daily profit:    ~4@$%~
-                   ~%estd monthly profit: ~4@$%~%"
+                     ~%traded               ~7@F coins,~
+                     ~%profit               ~7@F coins,~
+                     ~%portfolio flip per   ~7@F days,~
+                     ~%avg daily profit:    ~4@$%~
+                     ~%estd monthly profit: ~4@$%~%"
                   updays volume profit (/ (* total updays 2) volume)
                   (/ (* 100 profit) updays total) ; ignores compounding, du'e!
                   (/ (* 100 profit) (/ updays 30) total)))))))

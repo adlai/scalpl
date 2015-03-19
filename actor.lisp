@@ -60,7 +60,9 @@
 
 (defgeneric enqueue (actor)
   (:method ((actor actor))
-    (pexec (:name (christen actor 'task)) (catch :halt (perform actor)))))
+    (pexec (:name (christen actor 'task)
+            :initial-bindings '((*read-default-float-format* double-float)))
+      (catch :halt (perform actor)))))
 
 (defgeneric perform (actor)
   (:documentation "Implement actor's behavior, executing commands by default")
@@ -73,9 +75,9 @@
 
 (defgeneric ensure-running (actor)
   (:method ((actor actor) &aux (cache (slot-value actor 'tasks)))
-    (with-slots (tasks) actor
-      (unless (and (find :alive cache :key #'task-status) (eq tasks cache))
-        (push (enqueue actor) tasks)))))
+    (with-slots (tasks) actor           ; this cache business, blech… scheduler?
+      (aif (and (find :alive cache :key #'task-status) (eq tasks cache))
+           it (aprog1 (enqueue actor) (push it tasks))))))
 
 (defgeneric halt (actor)
   (:documentation "Signals `actor' to terminate")
@@ -100,10 +102,8 @@
 
 (defgeneric adopt (parent child)
   (:method ((parent parent) (child actor))
-    (pushnew child  (slot-value parent 'children))
-    (pushnew parent (slot-value child  'delegates))))
+    (pushnew child  (slot-value parent 'children))))
 
 (defgeneric disown (parent child)
   (:method ((parent parent) (child actor))
-    (with-slots (children) parent (setf children  (remove child  children)))
-    (with-slots (delegates) child (setf delegates (remove parent delegates)))))
+    (with-slots (children) parent (setf children (remove child children)))))
