@@ -11,12 +11,11 @@
            #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/ #:aq*
            #:offer #:bid #:ask #:placed #:taken #:given
            #:volume #:price #:placed #:oid #:consumed-asset
-           #:gate #:gate-post #:gate-request
-           #:thread #:control #:updater #:worker #:output #:input
+           #:gate #:gate-post #:gate-request #:output #:input
            #:trade #:cost #:direction #:txid
            #:trades-tracker #:trades #:trades-since #:vwap
            #:book-tracker #:bids #:asks #:get-book #:get-book-keys
-           #:ensure-tracking #:balance-tracker #:balances #:sync
+           #:balance-tracker #:balances #:sync
            #:placed-offers #:account-balances #:market-fee
            #:execution #:fee #:net-cost #:net-volume #:fee-tracker
            #:execution-tracker #:execution-since #:bases #:bases-without
@@ -352,10 +351,11 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (sleep delay)))
 
 (defclass trades-tracker (parent)
-  ((market  :initarg :market :reader market)
+  ((market :initarg :market :reader market)
    (delay  :initarg :delay  :initform 27)
-   (buffer  :initform (make-instance 'channel))
-   (trades  :initform nil) fetcher))
+   (buffer :initform (make-instance 'channel))
+   (output :initform (make-instance 'channel))
+   (trades :initform nil) fetcher))
 
 (defmethod christen ((tracker trades-tracker) (type (eql 'actor)))
   (format nil "trade tracker ~A" (market tracker)))
@@ -451,7 +451,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (format nil "depth tracker ~A" (market tracker)))
 
 (defmethod perform ((tracker book-tracker))
-  (with-slots (control buffer book output) tracker
+  (with-slots (buffer book output) tracker
     (select ((recv buffer next) (setf book (cons (cdr next) (car next))))
             ((send output book)) (t (sleep 0.2)))))
 
@@ -463,36 +463,27 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 ;;; Putting things together
 ;;;
 
-(defclass tracked-market (market)
-  ((%market :initarg :market :initform (error "must specify market"))
-   ;; (book :reader book) (trades :reader trades)
-   book-tracker trades-tracker))
+(defclass tracked-market (market parent)
+  ((%market :initarg :market) (book :reader book) (trades :reader trades)
+   book-tracker trades-tracker))        ; unleash the cspaken!
 
-;;; this shameful disgusting hack preserves method dispatch on market subclasses
-(defmethod update-instance-for-different-class :before
+;;; shameful? ☑ disgusting? ☑ preserves dispatch? ☑
+(defmethod update-instance-for-different-class :after
     ((prev market) (new tracked-market) &key)
-  (setf (slot-value new '%market) (shallow-copy prev)))
-
-(defmethod shared-initialize :after ((market tracked-market) (names t) &key)
-  (macrolet ((init-tracker (tracker channel)
-               `(with-slots (%market ,tracker ,channel) market
-                  (if (slot-boundp market ',tracker)
-                      (reinitialize-instance ,tracker)
-                      ;; shameful? ☑ disgusting? ☑ preserves dispatch? ☑
-                      (setf ,tracker (make-instance ',tracker :market %market))))))
-                         ;; ,channel (slot-value ,tracker 'output)
-    (init-tracker book-tracker book)
-    (init-tracker trades-tracker trades)))
+  (macrolet ((init (feed &aux (class (intern (format nil "~A-TRACKER" feed))))
+               `(adopt new (aprog1 (make-instance ',class :market %market)
+                             (setf (slot-value new ',class) it
+                                   (slot-value new ',feed)
+                                   (slot-value it 'output))))))
+    (with-slots (%market book trades) new
+      (setf %market (shallow-copy prev)) (init book) (init trades))))
 
 (defmethod vwap ((market tracked-market) &rest keys)
   (apply #'vwap (slot-value market 'trades-tracker) keys))
 
-(defgeneric ensure-tracking (market)
-  (:method ((market market)) (change-class market 'tracked-market))
-  (:method ((market tracked-market))
-    (with-slots (trades-tracker book-tracker) market
-      (reinitialize-instance trades-tracker)
-      (reinitialize-instance  book-tracker))))
+(defmethod ensure-running ((market market))
+  (change-class market 'tracked-market))
+(defmethod ensure-running ((market tracked-market)))
 
 ;;;
 ;;; Private Data API

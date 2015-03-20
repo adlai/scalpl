@@ -3,7 +3,7 @@
 (defpackage #:scalpl.actor
   (:use #:cl #:anaphora #:local-time #:scalpl.util #:chanl)
   (:export #:actor #:perform #:halt #:name #:control #:execute #:abbrev
-           #:parent #:children #:adopt #:disown #:christen #:tasks))
+           #:ensure-running #:parent #:children #:adopt #:christen #:tasks))
 
 (in-package #:scalpl.actor)
 
