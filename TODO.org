@@ -179,9 +179,9 @@ send a function to be applied to the actor (return handled by caller)
 *** DONE balance-tracker
 *** DONE fee-tracker
 *** DONE account-tracker - he ded
-*** TODO tracked-market
+*** DONE tracked-market
 does anything need to be done for this? -> yes
-**** TODO s/(ensure-)tracking/$1running/
+**** DONE s/(ensure-)tracking/$1running/
 *** DONE ope
 **** DONE supplicant
 **** DONE filter

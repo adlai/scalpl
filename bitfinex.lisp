@@ -192,10 +192,16 @@
 
 (defun execution-parser (market)
   (lambda (json)
-    (with-json-slots (price fee_amount amount timestamp type tid order_id) json
+    (with-json-slots (price fee_amount fee_currency
+                      amount timestamp type tid order_id) json
       (let* ((volume (parse-float amount))
              (price (parse-float price))
              (fee (parse-float fee_amount))
+             (cost-fee (with-slots (primary counter) market
+                         (cond
+                           ((string-equal (name primary) fee_currency) nil)
+                           ((string-equal (name counter) fee_currency)  t)
+                           (t (error "something bad happened")))))
              (cost (* volume price)))
         (make-instance 'execution
                        :direction type
@@ -204,12 +210,8 @@
                        :price price
                        :volume volume
                        :fee fee
-                       :net-cost (string-case (type)
-                                   ("Buy" cost)
-                                   ("Sell" (+ cost fee)))
-                       :net-volume (string-case (type)
-                                     ("Buy" (+ volume fee))
-                                     ("Sell" volume))
+                       :net-cost (+ cost (if cost-fee fee 0))
+                       :net-volume (+ volume (if cost-fee 0 fee))
                        :market market
                        :timestamp (parse-timestamp *bitfinex* timestamp))))))
 
