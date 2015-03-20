@@ -33,6 +33,27 @@ Currently these are simply entire books, but depth updates would be best.
 ** DONE Pulls offer status updates from a supplicant
 Offer placement and offer cancellation
 ** DONE Support multiple filters on a single book
+* DONE port existing code to use MVP
+*** DONE gate
+**** DONE kraken
+**** DONE bitfinex
+**** DONE btce
+*** DONE trades-tracker
+*** DONE book-tracker
+*** DONE execution-tracker
+*** DONE balance-tracker
+*** DONE fee-tracker
+*** DONE account-tracker - he ded
+*** DONE tracked-market
+does anything need to be done for this? -> yes
+**** DONE s/(ensure-)tracking/$1running/
+*** DONE ope
+**** DONE supplicant
+**** DONE filter
+**** DONE prioritizer
+**** DONE scalper
+*** DONE maker
+this should be trivial once after all the above ← lol!
 * TODO refactor scalar value representations, to include units
 bitfinex and btce give volume in primary, always; kraken can do either
 ** DONE taken,given - asset×quantity
@@ -168,27 +189,6 @@ we'll need a cross-actor debugger / condition handler, and repl-like functionali
 make the condition system and debugger function across threads, see cond.js
 **** reflection / inspection
 send a function to be applied to the actor (return handled by caller)
-* TODO port existing code to use MVP
-*** DONE gate
-**** DONE kraken
-**** DONE bitfinex
-**** DONE btce
-*** DONE trades-tracker
-*** DONE book-tracker
-*** DONE execution-tracker
-*** DONE balance-tracker
-*** DONE fee-tracker
-*** DONE account-tracker - he ded
-*** DONE tracked-market
-does anything need to be done for this? -> yes
-**** DONE s/(ensure-)tracking/$1running/
-*** DONE ope
-**** DONE supplicant
-**** DONE filter
-**** DONE prioritizer
-**** DONE scalper
-*** TODO maker
-this should be trivial once after all the above
 * TODO Portfolio Handling Guidelines
 How the investor specifies guidelines to the automated market maker
 ** "risk tolerances"

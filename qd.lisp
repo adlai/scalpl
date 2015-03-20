@@ -46,7 +46,8 @@
                `(unless (ignore-errors ,slot)
                   (adopt supp (setf ,slot (make-instance
                                            ',class :delegates `(,supp)))))))
-    (with-slots (fee lictor treasurer placed) supp
+    (with-slots (fee lictor treasurer placed market gate) supp
+      (adopt supp market) (adopt supp gate)
       (unless (ignore-errors placed) (setf placed (placed-offers supp)))
       (init   fee          fee-tracker)
       (init  lictor  execution-tracker)
@@ -286,19 +287,14 @@
 ;;; ACCOUNT TRACKING
 ;;;
 
-(defclass maker ()
-  ((market :initarg :market :reader market)
-   (fund-factor :initarg :fund-factor :initform 1)
+(defclass maker (parent)
+  ((fund-factor :initarg :fund-factor :initform 1)
    (resilience-factor :initarg :resilience :initform 1)
    (targeting-factor :initarg :targeting :initform (random 1.0))
    (skew-factor :initarg :skew-factor :initform 1)
-   (cut :initform 0)
-   (control :initform (make-instance 'channel))
-   (gate :initarg :gate) ope
-   (name :initarg :name :accessor name)
+   (cut :initform 0) ope (supplicant :initarg :supplicant)
    (snake :initform (list 15 "ZYXWVUSRQPONMGECA" "zyxwvusrqponmgeca"))
-   (last-report :initform nil)
-   thread))
+   (last-report :initform nil)))
 
 (defmethod print-object ((maker maker) stream)
   (print-unreadable-object (maker stream :type t :identity nil)
@@ -349,7 +345,7 @@
               (apply 'profit-snake (slot-reduce ope supplicant lictor) snake))))
   (force-output))
 
-(defun %round (maker)
+(defmethod perform ((maker maker))
   (with-slots (fund-factor resilience-factor targeting-factor skew-factor
                market name ope cut) maker
     ;; Get our balances
@@ -388,20 +384,11 @@
                           resilience (expt (exp skew) skew-factor)))
               (recv (slot-reduce ope output)))))))))
 
-(defmethod shared-initialize :after ((maker maker) (names t) &key)
-  (with-slots (market gate ope thread) maker
-    (ensure-running market) (reinitialize-instance gate)
-    (if (ignore-errors ope) (reinitialize-instance ope)
-        (setf ope (make-instance 'ope-scalper :supplicant
-                                 (make-instance 'supplicant :gate gate
-                                                :market market))))
-    (when (or (not (slot-boundp maker 'thread))
-              (eq :terminated (task-status thread)))
-      (setf thread
-            (pexec (:name (concatenate 'string "qdm-preα " (name market)))
-              (loop (%round maker)))))))
-
-(defun pause-maker (maker) (send (slot-value maker 'control) '(pause)))
+(defmethod initialize-instance :after ((maker maker) &key)
+  (with-slots (supplicant ope delegates) maker
+    (adopt maker supplicant) (push supplicant delegates)
+    (adopt maker (setf ope (make-instance 'ope-scalper
+                                          :supplicant supplicant)))))
 
 (defun reset-the-net (maker &key (revive t) (delay 5))
   (mapc 'kill (mapcar 'task-thread (pooled-tasks)))

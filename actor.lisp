@@ -2,8 +2,8 @@
 
 (defpackage #:scalpl.actor
   (:use #:cl #:anaphora #:local-time #:scalpl.util #:chanl)
-  (:export #:actor #:perform #:halt #:name #:control #:execute #:abbrev
-           #:ensure-running #:parent #:children #:adopt #:christen #:tasks))
+  (:export #:actor #:perform #:halt #:name #:control #:execute #:abbrev #:tasks
+           #:ensure-running #:parent #:children #:adopt #:christen #:delegates))
 
 (in-package #:scalpl.actor)
 
