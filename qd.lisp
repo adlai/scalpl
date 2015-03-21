@@ -294,7 +294,11 @@
    (skew-factor :initarg :skew-factor :initform 1)
    (cut :initform 0) ope (supplicant :initarg :supplicant)
    (snake :initform (list 15 "ZYXWVUSRQPONMGECA" "zyxwvusrqponmgeca"))
+   (abbrev :initform "maker" :allocation :class)
    (last-report :initform nil)))
+
+(defmethod christen ((maker maker) (type (eql 'actor)))
+  (name (slot-reduce maker gate)))
 
 (defmethod print-object ((maker maker) stream)
   (print-unreadable-object (maker stream :type t :identity nil)

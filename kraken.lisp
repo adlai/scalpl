@@ -54,7 +54,7 @@
                    (describe error)
                    (values result error))
                  (values nil t))
-            ((400 409 500 502 503 504 520 522)
+            ((400 409 500 502 503 504 520 522 524 525)
              (format t "~&Retrying after ~D...~%" status)
              (sleep 2) (apply #'raw-request path keys))
             (t (cerror "Retry request" "HTTP Error ~D" status)
