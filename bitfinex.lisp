@@ -188,7 +188,7 @@
                    (getjso "fees" it) :test #'string-equal
                    :key (lambda (x) (getjso "pairs" x)))))
       (awhen (or (asset-fee 'primary) (asset-fee 'counter))
-        (parse-float (getjso "maker_fees" it))))))
+        (parse-float (getjso "taker_fees" it))))))
 
 (defun execution-parser (market)
   (lambda (json)
