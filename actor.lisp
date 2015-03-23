@@ -107,3 +107,25 @@
 (defgeneric disown (parent child)
   (:method ((parent parent) (child actor))
     (with-slots (children) parent (setf children (remove child children)))))
+
+;;;
+;;; Method Combination
+;;;
+
+(define-method-combination select ()    ; TODO: &optional sleep
+  ((recv (recv . *)) (send (send . *)) (default ())) (:arguments actor)
+  (flet ((build-recv (method &aux (qualifiers (method-qualifiers method)))
+           `((recv (slot-value ,actor ',(second qualifiers)) value)
+             (call-method (make-method (call-next-method ,actor value))
+                          ,method)))
+         (build-send (method &aux (qualifiers (method-qualifiers method)))
+           `((send (slot-value ,actor ',(second qualifiers))
+                   (slot-value ,actor ',(third qualifiers)))
+             (call-method ,method))))
+    `(select ,@(mapcar #'build-recv recv) ,@(mapcar #'build-send send)
+             ,@(when default `((t (call-method ,(first default))))))))
+
+(defgeneric performance (actor &optional value)
+  (:documentation "`select'-based `perform'") (:method-combination select)
+  (:method ((actor actor) &optional ignore) (declare (ignore ignore)) (sleep 1))
+  (:method recv control ((actor actor) &optional op) (execute actor op)))
