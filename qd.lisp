@@ -332,19 +332,19 @@
 
 (defun makereport (maker fund rate btc doge investment risked skew)
   (with-slots (name market ope snake last-report) maker
-    (let ((new-report (list fund rate btc doge investment risked skew)))
+    (let ((new-report (list btc doge investment risked skew)))
       (if (equal last-report new-report) (return-from makereport)
           (setf last-report new-report)))
-    (labels ((sastr (side amount &optional model) ; TODO factor out aqstr
-               (format nil "~V,,V$" (decimals (slot-value market side))
-                       (if model (length (sastr side model)) 0) amount)))
+    (labels ((sastr (side amount) ; TODO factor out aqstr
+               (format nil "~V,,V$"
+                       (decimals (slot-value market side)) 0 amount)))
       ;; FIXME: modularize all this decimal point handling
       ;; we need a pprint-style ~/aq/ function, and pass it aq objects!
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (format t "~&~A ~A~{ ~A~} ~2,2$% ~2,2$%~2,2@$ ~A~%"
+      (format t "~&~A ~A ~{~A~^~1,2@T~} ~4,6T~2,2$% ~2,2$~2,2@$ ~A~%"
               name (subseq (princ-to-string (now)) 11 19)
               (mapcar #'sastr '(primary counter primary counter)
-                      `(,@#1=`(,fund ,(* fund rate)) ,btc ,doge) `(() () ,@#1#))
+                      `(,@#1=`(,fund ,(* fund rate)) ,btc ,doge))
               (* 100 investment) (* 100 risked) (* 100 skew)
               (apply 'profit-snake (slot-reduce ope supplicant lictor) snake))))
   (force-output))
