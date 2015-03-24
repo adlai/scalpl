@@ -8,7 +8,8 @@
   :description "Bitcoin exchange API & market maker"
   :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
   :depends-on (#:anaphora #:string-case #:parse-float #:drakma
-               #:cl-base64 #:ironclad #:local-time #:chanl #:dbi #:cl-json)
+               #:method-combination-utilities #:dbi #:cl-json
+               #:cl-base64 #:ironclad #:local-time #:chanl)
   :components ((:file "util")
                (:file "actor"    :depends-on ("util"))
                (:file "exchange" :depends-on ("actor"))

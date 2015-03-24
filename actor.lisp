@@ -113,7 +113,8 @@
 ;;;
 
 (define-method-combination select ()    ; TODO: &optional sleep
-  ((recv (recv . *)) (send (send . *)) (default ())) (:arguments actor)
+  ((recv (recv . *)) (send (send . *)) (default ())
+   (before (:before)) (after (:after)) (around (:around))) (:arguments actor)
   (flet ((build-recv (method &aux (qualifiers (method-qualifiers method)))
            `((recv (slot-value ,actor ',(second qualifiers)) value)
              (call-method (make-method (call-next-method ,actor value))
@@ -122,10 +123,17 @@
            `((send (slot-value ,actor ',(second qualifiers))
                    (slot-value ,actor ',(third qualifiers)))
              (call-method ,method))))
-    `(select ,@(mapcar #'build-recv recv) ,@(mapcar #'build-send send)
-             ,@(when default `((t (call-method ,(first default))))))))
+    (method-combination-utilities:wrap-primary-form
+     `(select ,@(mapcar #'build-recv recv) ,@(mapcar #'build-send send)
+              ,@(when default `((t (call-method ,(first default))))))
+     around before after)))
 
 (defgeneric performance (actor &optional value)
   (:documentation "`select'-based `perform'") (:method-combination select)
   (:method ((actor actor) &optional ignore) (declare (ignore ignore)) (sleep 1))
-  (:method recv control ((actor actor) &optional op) (execute actor op)))
+  (:method recv control ((actor actor) &optional op) (execute actor op))
+  (:method :before ((actor actor) &optional ignore) (declare (ignore ignore))
+    (with-slots (tasks) actor
+      (setf tasks (remove :terminated tasks :key #'task-status))))
+  (:method :after ((actor actor) &optional ignore) (declare (ignore ignore))
+    (push (enqueue actor) (slot-value actor 'tasks))))
