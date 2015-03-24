@@ -281,7 +281,7 @@
                                              :delegates (list supplicant))))
                (children (&rest slots)
                  `(progn ,@(mapcar (lambda (slot) `(adopt ope ,slot)) slots))))
-      (children supplicant (init prioritizer) (init filter)))))
+      (children (init prioritizer) (init filter)))))
 
 ;;;
 ;;; ACCOUNT TRACKING
