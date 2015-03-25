@@ -131,9 +131,13 @@
       (aif (dolist (new target (sort to-add #'< :key #'price))
              (aif (find (price new) excess :key #'price :test #'=)
                   (setf excess (remove it excess)) (push new to-add)))
-           (frob it (reverse excess))   ; which of these is worse?
-           (if excess (frob nil excess)  ; which of these is best?
-               (and target placed (frob target placed)))))))
+           (frob it (reverse excess))   ; which of these is worst?
+           (if excess (frob () excess)  ; choose the lesser weevil
+               (and target placed (= (length target) (length placed))
+                    (loop for new in target and old in placed
+                       when (< 1/19 (abs (log (/ (volume new) (volume old)))))
+                       collect new into news and collect old into olds
+                       finally (when news (frob news olds)))))))))
 
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
@@ -200,6 +204,7 @@
   ((input :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
    (abbrev :allocation :class :initform "ope")
+   (frequency :initform (random 1e1) :initarg :frequency) ; lel = l0l0
    (supplicant :initarg :supplicant) filter prioritizer
    (epsilon :initform 0.001 :initarg :epsilon)
    (count :initform 30 :initarg :offer-count)
@@ -255,13 +260,13 @@
                       #'dunk book)))))
 
 (defmethod perform ((ope ope-scalper))
-  (with-slots (input output filter prioritizer epsilon) ope
+  (with-slots (input output filter prioritizer epsilon frequency) ope
     (destructuring-bind (primary counter resilience ratio) (recv input)
       (with-slots (next-bids next-asks response) prioritizer
         (macrolet ((do-side (amount side chan epsilon)
                      `(let ((,side (copy-list (slot-value filter ',side))))
                         (unless (or (actypecase ,amount (number (zerop it))
-                                               (cons (zerop (caar it))))
+                                                (cons (zerop (caar it))))
                                     (null ,side))
                           (send ,chan (handler-bind
                                           ((simple-condition (ope-logger ope)))
@@ -272,7 +277,7 @@
                    (* epsilon (abs (price (first bids))) (max ratio 1)
                       (expt 10 (- (decimals (market (first bids)))))))
           (do-side primary asks next-asks (* epsilon (max (/ ratio) 1))))))
-    (send output nil)))
+    (send output (sleep frequency))))
 
 (defmethod initialize-instance :after ((ope ope-scalper) &key)
   (with-slots (filter prioritizer supplicant) ope
