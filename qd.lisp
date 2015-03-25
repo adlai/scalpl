@@ -467,6 +467,7 @@
     (apply #'print-book     (recv   (slot-value tracker 'output))    keys))
   (:method ((book cons) &key count prefix)
     (destructuring-bind (bids . asks) book
+      (when count (setf bids (subseq bids 0 count) asks (subseq asks 0 count)))
       (flet ((width (side)
                (reduce 'max (mapcar 'length (mapcar 'princ-to-string side))
                        :initial-value 0)))

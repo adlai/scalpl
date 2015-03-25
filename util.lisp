@@ -33,7 +33,12 @@
 
 ;;; Actually useful
 
-(defun strftime (format) (format-timestring () (now) :format format))
+(defun strftime (&optional datep)
+  (if datep (format-timestring () (now) :format (subseq +iso-8601-format+ 2 9))
+      (multiple-value-bind (hrsmin sec) (floor (sec-of (now)) 60)
+        (multiple-value-bind (hrs min) (floor hrsmin 60)
+          (concatenate 'string (princ-to-string hrs) ":"
+                       (princ-to-string min) ":" (princ-to-string sec))))))
 
 (defmacro lazy-do-instances (class agitation &body forms)
   "evaluates FORMS with IT bound to each instance of CLASS touched by AGITATION"

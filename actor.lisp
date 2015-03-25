@@ -29,15 +29,12 @@
    (control :initform (make-instance 'channel) :reader control
             :documentation "Channel for controlling this actor")))
 
-(defvar *date+time* (subseq +iso-8601-format+ 2 9))
-(defvar *time-format* (subseq +iso-8601-time-format+ 0 5))
-
 (defgeneric christen (actor type)
-  (:method ((actor actor) (type (eql 'actor))) (strftime *date+time*))
+  (:method ((actor actor) (type (eql 'actor))) (strftime t))
   (:method ((actor actor) (type (eql 'task)))
     (with-slots (name abbrev) actor (format nil "~A~@[ ~A~]" name abbrev)))
   (:method :around ((actor actor) (type (eql 'task)))
-    (strftime `(,@*time-format* #\Space ,(call-next-method)))))
+    (concatenate 'string (strftime) " " (call-next-method))))
 
 (defmethod slot-unbound ((class t) (actor actor) (slot-name (eql 'name)))
   (setf (slot-value actor 'name) (christen actor 'actor)))
