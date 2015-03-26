@@ -407,15 +407,9 @@
                          (slot-reduce maker ope) maker))
       (sleep delay) (reinitialize-instance actor))))
 
-(defmacro define-maker (name &rest keys
-                        &key market gate
-                          ;; just for interactive convenience
-                          fund-factor targeting resilience)
-  (declare (ignore fund-factor targeting resilience))
-  (dolist (key '(:market :gate)) (remf keys key))
-  `(defvar ,name (make-instance 'maker :market ,market :gate ,gate
-                                :name ,(string-trim "*+<>" name)
-                                ,@keys)))
+(defmacro define-maker (name &rest keys)
+  `(defvar ,name
+     (make-instance 'maker :name ,(string-trim "*+<>" name) ,@keys)))
 
 (defun current-depth (maker)
   (with-slots (resilience-factor market) maker
