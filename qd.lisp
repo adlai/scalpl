@@ -47,8 +47,8 @@
                   (adopt supp (setf ,slot (make-instance
                                            ',class :delegates `(,supp)))))))
     (with-slots (fee lictor treasurer placed market gate) supp
-      (adopt supp market) (adopt supp gate)
-      (unless (ignore-errors placed) (setf placed (placed-offers supp)))
+      (adopt supp (ensure-running market)) (adopt supp gate)
+      (unless (ignore-errors placed) (setf placed (placed-offers gate)))
       (init   fee          fee-tracker)
       (init  lictor  execution-tracker)
       (init treasurer  balance-tracker))))
@@ -215,34 +215,35 @@
   (name (slot-value ope 'supplicant)))
 
 (defun ope-sprinner (offers funds count magic bases punk dunk book)
-  (if (or (null bases) (zerop count) (null offers)) offers
-      (destructuring-bind (top . offers) offers
+  (if (or (null bases) (zerop count) (null offers)) offers ; c'est pas un bean
+      (destructuring-bind (car . cdr) offers
         (multiple-value-bind (bases vwab cost)
             ;; what appears to be the officer, problem?
             ;; (bases-without bases (given top)) fails, because bids are `viqc'
-            (bases-without bases (cons-aq* (consumed-asset top) (volume top)))
+            (bases-without bases (cons-aq* (consumed-asset car) (volume car)))
           (flet ((profit (o)
                    (funcall punk (1- (price o)) (price vwab) (cdar funds))))
-            (signal "~4,2@$ ~A ~D ~V$ ~V$" (profit top) top (length bases)
+            (signal "~4,2@$ ~A ~D ~V$ ~V$" (profit car) car (length bases)
                     (decimals (market vwab)) (scaled-price vwab)
                     (decimals (asset cost)) (scaled-quantity cost))
-            (let ((book (rest (member 0 book :test #'< :key #'profit))))
-              (if (plusp (profit top))
-                  `(,top ,@(ope-sprinner
-                            offers `((,(- (caar funds) (volume top))
-                                       . ,(cdar funds)))
-                            (1- count) magic bases punk dunk book))
-                  (ope-sprinner (funcall dunk book funds count magic) funds
-                                count magic `((,vwab ,(aq* vwab cost) ,cost)
-                                              ,@bases) punk dunk book))))))))
+            (setf book (rest (member 0 book :test #'< :key #'profit)))
+            (if (plusp (profit car))
+                `(,car .,(ope-sprinner
+                          cdr (destructuring-bind ((caar . cdar) . cdr) funds
+                                (aprog1 `((,(- caar (volume car)) .,cdar) .,cdr)
+                                  (signal "~S" it)))
+                          (1- count) magic bases punk dunk book))
+                (ope-sprinner (funcall dunk book funds count magic) funds
+                              count magic `((,vwab ,(aq* vwab cost) ,cost)
+                                            ,@bases) punk dunk book)))))))
 
 (defun ope-logger (ope)
   (lambda (log) (awhen (slot-value ope 'spam) (format t "~&~A ~A~%" it log))))
 
 (defun ope-spreader (book resilience funds epsilon side ope)
-  (flet ((dunk (book funds count magic)
+  (flet ((dunk (book funds count magic &optional (start epsilon))
            (and book (dumbot-offers book resilience (caar funds)
-                                    epsilon count magic))))
+                                    start count magic))))
     (with-slots (count magic cut) ope
       (awhen (dunk book funds (/ count 2) magic)
         (ope-sprinner it funds (/ count 2) magic
@@ -297,8 +298,8 @@
    (resilience-factor :initarg :resilience :initform 1)
    (targeting-factor :initarg :targeting :initform (random 1.0))
    (skew-factor :initarg :skew-factor :initform 1)
-   (cut :initform 0) ope (supplicant :initarg :supplicant)
-   (snake :initform (list 15 "ZYXWVUSRQPONMGECA" "zyxwvusrqponmgeca"))
+   (cut :initform 0 :initarg :cut) ope (supplicant :initarg :supplicant)
+   (snake :initform (list 21 "ZYXWVUSRQPONMGECA" "zyxwvusrqponmgeca"))
    (abbrev :initform "maker" :allocation :class)
    (last-report :initform nil)))
 
@@ -388,8 +389,8 @@
                           (dbz-guard (/ (total-of    btc  doge) total-fund))
                           (dbz-guard (/ (total-of (- btc) doge) total-fund)))
               (send (slot-reduce ope input)
-                    (list `((,btc  . ,(* cut (+ 3/2 (/    skew  skew-factor)))))
-                          `((,doge . ,(* cut (+ 3/2 (/ (- skew) skew-factor)))))
+                    (list `((,btc  . ,(* cut (max 0 (/    skew  skew-factor)))))
+                          `((,doge . ,(* cut (max 0 (/ (- skew) skew-factor)))))
                           resilience (expt (exp skew) skew-factor)))
               (recv (slot-reduce ope output)))))))))
 

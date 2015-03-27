@@ -443,8 +443,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defclass book-tracker (parent)
   ((market :initarg :market :reader market :initform (error "required"))
    (get-book-keys :initform nil :initarg :get-book-keys)
-   (delay :initarg :delay :initform 4)
-   (buffer :initform (make-instance 'channel)) book fetcher
+   (delay :initarg :delay :initform 4) (book :initform ())
+   (buffer :initform (make-instance 'channel)) fetcher
    (output :initform (make-instance 'channel))))
 
 (defmethod christen ((tracker book-tracker) (type (eql 'actor)))
@@ -483,7 +483,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defmethod ensure-running ((market market))
   (change-class market 'tracked-market))
-(defmethod ensure-running ((market tracked-market)))
+(defmethod ensure-running ((market tracked-market)) market)
 
 ;;;
 ;;; Private Data API
@@ -577,8 +577,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defclass execution-tracker (parent)
   ((abbrev :allocation :class :initform "exhun tracker")
-   (trades :initform nil) (bases :initform nil) (gate :initarg :gate)
-   (market :initarg :market :reader market :initform (error "required"))
+   (trades :initform nil) (bases :initform nil)
    (delay :initform 30) (buffer :initform (make-instance 'channel)) fetcher))
 
 (defmethod christen ((tracker execution-tracker) (type (eql 'actor)))
