@@ -237,6 +237,20 @@
                     ,@(maybe-include limit)
                     ,@(maybe-include wallet)))))
 
+(defun balances-at (gate timestamp &rest currencies)
+  (mapcar (lambda (asset &aux (name (name asset)))
+            (with-json-slots (timestamp currency balance (idiots "description"))
+                (first (raw-history gate name :until
+                                    (flotsam (timestamp+ timestamp 1 :minute))))
+              (list (parse-timestamp *bitfinex* timestamp)
+                    (case (awhen (some 'search '("exchange" "trading" "deposit")
+                                       (make-list 3 :initial-element idiots))
+                            (char idiots it))
+                      (#\e :exchange) (#\t :trading) (#\d :deposit))
+                    (cons-aq* (find-asset currency *bitfinex*)
+                              (parse-float balance :type 'number)))))
+          currencies))
+
 ;;;
 ;;; Action API
 ;;;
