@@ -207,7 +207,6 @@
    (frequency :initform (random 1e1) :initarg :frequency) ; lel = l0l0
    (supplicant :initarg :supplicant) filter prioritizer
    (epsilon :initform 0.001 :initarg :epsilon)
-   (count :initform 30 :initarg :offer-count)
    (magic :initform 3 :initarg :magic-count)
    (spam :initform nil :initarg :spam)))
 
@@ -244,21 +243,22 @@
   (flet ((dunk (book funds count magic &optional (start epsilon))
            (and book (dumbot-offers book resilience (caar funds)
                                     start count magic))))
-    (with-slots (count magic cut) ope
-      (awhen (dunk book funds (/ count 2) magic)
-        (ope-sprinner it funds (/ count 2) magic
-                      (getf (slot-reduce ope supplicant lictor bases)
-                            (asset (given (first it))))
-                      (destructuring-bind (bid . ask)
-                          (recv (slot-reduce ope supplicant fee output))
-                        (macrolet ((punk (&rest args)
-                                     `(lambda (price vwab inner-cut)
-                                        (- (* 100 (1- (profit-margin ,@args)))
-                                           inner-cut))))
-                          (ccase side   ; give ☮ a chance!
-                            (bids (punk price vwab bid))
-                            (asks (punk vwab  price 0 ask)))))
-                      #'dunk book)))))
+    (with-slots (supplicant magic cut) ope
+      (with-slots (order-slots) supplicant
+        (awhen (dunk book funds (/ order-slots 2) magic)
+          (ope-sprinner it funds (/ order-slots 2) magic
+                        (getf (slot-reduce ope supplicant lictor bases)
+                              (asset (given (first it))))
+                        (destructuring-bind (bid . ask)
+                            (recv (slot-reduce ope supplicant fee output))
+                          (macrolet ((punk (&rest args)
+                                       `(lambda (price vwab inner-cut)
+                                          (- (* 100 (1- (profit-margin ,@args)))
+                                             inner-cut))))
+                            (ccase side ; give ☮ a chance!
+                              (bids (punk price vwab bid))
+                              (asks (punk vwab  price 0 ask)))))
+                        #'dunk book))))))
 
 (defmethod perform ((ope ope-scalper))
   (with-slots (input output filter prioritizer epsilon frequency) ope
