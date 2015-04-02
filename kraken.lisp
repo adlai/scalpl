@@ -306,10 +306,10 @@
                           ("type" . ,type) ("pair" . ,pair)
                           ("volume" . ,(format nil "~V$" vol-decimals volume))
                           ("price" . ,(format nil "~V$" decimals price))))
-        (if errors (dolist (message errors) (warn "~&~A~%" message))
-            ;; theoretically, we could get multiple oids here, (why "txid"!?)
-            ;; but kraken's margin casino isn't open for visitors yet
-            (car (getjso "txid" info)))))))
+        (unless errors
+          ;; theoretically, we could get multiple oids here, (why "txid"!?)
+          ;; but kraken's margin casino isn't open for visitors yet
+          (car (getjso "txid" info)))))))
 
 (defmethod post-offer ((gate kraken-gate) offer)
   ;; (format t "~&place  ~A~%" offer)
