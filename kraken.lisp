@@ -246,11 +246,13 @@
                                  ("buy" (+ cost fee))
                                  ("sell" (- cost fee)))))))
 
-(defun raw-executions (gate &optional last)
-  (gate-request gate "TradesHistory" (when last `(("start" . ,(txid last))))))
+(defun raw-executions (gate &key start end)
+  (gate-request gate "TradesHistory"
+                `(,@(when start `(("start" . ,(txid start))))
+                  ,@(when end `(("end" . ,(txid end)))))))
 
 (defmethod execution-since ((gate kraken-gate) (market market) since)
-  (awhen (raw-executions gate since)
+  (awhen (raw-executions gate :start since)
     (with-json-slots (trades) it
         (remove market (mapcar-jso #'parse-execution trades)
                 :key #'market :test-not #'eq))))

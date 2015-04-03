@@ -215,17 +215,19 @@
                        :market market
                        :timestamp (parse-timestamp *bitfinex* timestamp))))))
 
-(defun raw-executions (gate symbol &optional last)
-  (gate-request gate "mytrades"
-                `(("symbol" . ,symbol)
-                  ,@(when last
-                      `(("timestamp"    ; FIXME: raw-foo should get raw params
-                         . ,(princ-to-string (timestamp-to-unix (timestamp last)))))))))
+(defun raw-executions (gate symbol &key since until)
+  (flet ((convert-time (time key)
+           (when time `((,key . ,(princ-to-string (timestamp-to-unix time)))))))
+    (gate-request gate "mytrades"
+                  `(("symbol" . ,symbol)
+                    ,@(convert-time since "timestamp")
+                    ,@(convert-time until   "until")))))
 
 (defmethod execution-since ((gate bitfinex-gate) (market market) since)
   ;; bitfinex always returns the `since' trade, so discard it here
   (rest (nreverse (mapcar (execution-parser market)
-                          (raw-executions gate (name market) since)))))
+                          (raw-executions gate (name market)
+                                          :since (timestamp since))))))
 
 (defun raw-history (gate currency &key since until limit wallet)
   (macrolet ((maybe-include (option)
