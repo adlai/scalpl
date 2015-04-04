@@ -33,12 +33,15 @@
 
 ;;; Actually useful
 
-(defun strftime (&optional datep)
-  (if datep (format-timestring () (now) :format (subseq +iso-8601-format+ 2 9))
-      (multiple-value-bind (hrsmin sec) (floor (sec-of (now)) 60)
-        (multiple-value-bind (hrs min) (floor hrsmin 60)
-          (concatenate 'string (princ-to-string hrs) ":"
-                       (princ-to-string min) ":" (princ-to-string sec))))))
+(defun strftime (&optional datep &aux bits)
+  (let ((data (multiple-value-list      ; my kingdom for a stack!
+               (decode-universal-time (get-universal-time)))))
+    (symbol-macrolet ((next (princ-to-string (pop data))))
+      (macrolet ((collect (&rest xs)
+                   `(progn ,@(mapcar (lambda (x) `(push ,x bits)) xs))))
+        (collect next ":" next ":" next)
+        (when datep (collect " " next "-" next)))))
+  (apply 'concatenate 'string bits))
 
 (defmacro lazy-do-instances (class agitation &body forms)
   "evaluates FORMS with IT bound to each instance of CLASS touched by AGITATION"
