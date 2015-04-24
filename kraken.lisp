@@ -11,7 +11,7 @@
 (defun hmac-sha512 (message secret)
   (let ((hmac (ironclad:make-hmac secret 'ironclad:sha512)))
     (ironclad:update-hmac hmac message)
-    (base64:usb8-array-to-base64-string (ironclad:hmac-digest hmac))))
+    (ironclad:hmac-digest hmac)))
 
 (defun hash-sha256 (message)
   (ironclad:digest-sequence :sha256 message))
@@ -76,7 +76,8 @@
                  :method :post
                  :parameters data
                  :additional-headers `(("API-Key"  . ,key)
-                                       ("API-Sign" . ,(funcall signer path data nonce))
+                                       ("API-Sign" . ,(base64:usb8-array-to-base64-string
+                                                       (funcall signer path data nonce)))
                                        ("Content-Type" . "application/x-www-form-urlencoded")))))
 
 (defun get-assets ()
@@ -116,12 +117,14 @@
     ("Ledgers" 2) ("QueryLedgers" 2)
     ("TradesHistory" 2) ("QueryTrades" 2)))
 
-(defclass token-minter (actor) ())
+(defclass token-minter (actor)
+  ((abbrev :allocation :class :initform "token minter")))
 
 (defmethod perform ((minter token-minter))
   (with-slots (mint delay) minter (send mint 1) (sleep delay)))
 
-(defclass token-handler (actor) ((count :initform 0)))
+(defclass token-handler (actor)
+  ((count :initform 0) (abbrev :allocation :class :initform "token handler")))
 
 (defmethod perform ((handler token-handler))
   (with-slots (mint count tokens) handler
