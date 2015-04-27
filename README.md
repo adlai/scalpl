@@ -54,3 +54,40 @@ larval lisper's quest; and
 * Timothy B Lee's [cards](http://www.vox.com/cards/bitcoin/what-is-bitcoin)
 summarize the Bitcoin phenomenon for the unfamiliar, purely as enrichment;
 though catalyzed by cryptocurrency, ScalpL itself is agn-_asset_-ic.
+
+# Current Status
+
+## Taming the Beast
+
+The hardcoded volatility harvesting algorithm obeys several parameters:
+
+* _fund-factor_ indicates the largest total fraction of the account funds (from
+either asset) which should ever be offered for trade.
+
+* _resilience-factor_ affects how deeply offers penetrate into the order book;
+the factor is multiplied by the recent maximal trade volume.
+
+* _targeting-factor_ is part of a negative feedback loop used to maintain a
+desired balance between the traded assets, although it is not a hard limit;
+persistent markets can elude this factor's rebalancing effect indefinitely.
+
+* _skew-factor_ controls the *non*linearity of the feedback loop.
+
+* _cut_ controls the tightness of placed offers; raising it yields a more
+profitable spread, at the cost of reduced execution volume.
+
+## Nature of the Beast
+
+* Harvesting progresses best when the market moves harmoniously with the
+configured parameters: for example, the most profitable targeting for a market
+which trends sideways will be equal allocation.
+
+* Allocation too far in the "wrong" direction other results in the harvester
+accumulating the asset unloaded by other market participants, eventually getting
+"run over": the portfolio is sufficiently imbalanced to prevent further market
+making. One can either wait for the trend to reverse, or rebalance at a loss.
+
+* Poorly calibrated resilience also weakens returns: if the resilience is too
+high compared to current market activity, execution volume suffers; too low, and
+the increased volume is _only_ beneficial when the market moves match the
+targeting feedback cycle (mismatch accelerates the "running-over").
