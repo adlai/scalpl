@@ -11,8 +11,7 @@
                #:method-combination-utilities #:dbi #:cl-json
                #:cl-base64 #:ironclad #:local-time #:chanl)
   :components ((:file "util")
-               (:file "actor"    :depends-on ("util"))
-               (:file "exchange" :depends-on ("actor"))
+               (:file "exchange" :depends-on ("util"))
                (:file "kraken"   :depends-on ("exchange"))
                (:file "bitfinex" :depends-on ("exchange"))
                (:file "btce"     :depends-on ("exchange"))
