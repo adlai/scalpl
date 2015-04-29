@@ -1,7 +1,7 @@
 ;;;; exchange.lisp
 
 (defpackage #:scalpl.exchange
-  (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util #:scalpl.actor)
+  (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util #:chanl.actors)
   (:export #:http-request
            #:exchange #:name #:assets #:markets #:parse-timestamp
            #:*exchanges* #:find-exchange #:fetch-exchange-data
@@ -277,9 +277,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   ((exchange :initarg :exchange :initform (error "EI4NI"))
    (pubkey :initarg :pubkey :initform (error "gate requires API pubkey"))
    (secret :initarg :secret :initform (error "gate requires API secret"))
-   (input  :initarg :input  :initform (make-instance 'channel))
-   (output :initarg :output :initform (make-instance 'channel))
-   (cache  :initform nil)))
+   (output :reader output :initform (make-instance 'channel)) input))
+
+(defmethod compute-tubes list ((gate gate)) 'input)
 
 (defmethod christen ((gate gate) (type (eql 'actor)))
   (subseq (slot-value gate 'pubkey) 0 3))
@@ -289,16 +289,14 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (:method :around (gate pubkey secret request)
     (rplacd request (call-next-method gate pubkey secret (cdr request)))))
 
-(defmethod perform ((gate gate))
-  (with-slots (input output . #1=(exchange pubkey secret cache)) gate ;¡ has-a !
-    (when (send-blocks-p output) (setf cache (recv input)))
-    (send (slot-value gate 'output) (gate-post . #1#))))
+(defmethod perform recv input ((gate gate))
+  (with-slots (output . #1=(exchange pubkey secret input)) gate ; ¡ has-a !
+    (send output (gate-post . #1#))))
 
 (defun gate-request (gate path &optional options &aux (id (cons path options)))
-  (with-slots (input output) gate
-    (send input (list* id path options))
-    (loop for reply = (recv output) until (eq (car reply) id)
-       do (send output reply) finally (return (values-list (cdr reply))))))
+  (send (slot-channel gate 'input) (list* id path options))
+  (loop for reply = (recv (output gate)) until (eq (car reply) id)
+     do (send (output gate) reply) finally (return (values-list (cdr reply)))))
 
 ;;;
 ;;; Public Data API
@@ -342,25 +340,24 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
         (format stream "~A ~A at ~V$: ~V$" timestamp
                 direction decimals price (decimals primary) volume)))))
 
-(defclass trades-fetcher (actor) ())
+(defclass trades-fetcher (actor)
+  ((abbrev :allocation :class :initform "trade fetcher")
+   new-trades last-trade))
 
-(defmethod christen ((fetcher trades-fetcher) (type (eql 'actor)))
-  (format nil "trade fetcher ~A" (market fetcher)))
+(defmethod compute-tubes ((fetcher trades-fetcher))
+  '((new-trades :to buffer) (last-trade :from buffer)))
 
-(defmethod perform ((fetcher trades-fetcher))
-  (with-slots (market buffer delay) fetcher
-    (dolist (trade (trades-since market (recv buffer))) (send buffer trade))
-    (sleep delay)))
+(defmethod perform recv new-trades ((fetcher trades-fetcher))
+  (with-slots (market new-trades) fetcher
+    (dolist (trade (trades-since market (recv buffer))) (send buffer trade))))
 
-(defclass trades-tracker (parent)
+(defclass trades-tracker (boss)
   ((market :initarg :market :reader market)
    (delay  :initarg :delay  :initform 27)
    (buffer :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
+   (abbrev :allocation :class :initform "trade tracker")
    (trades :initform nil) fetcher))
-
-(defmethod christen ((tracker trades-tracker) (type (eql 'actor)))
-  (format nil "trade tracker ~A" (market tracker)))
 
 (defmethod perform ((tracker trades-tracker))
   (with-slots (buffer trades market) tracker
@@ -375,7 +372,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defmethod initialize-instance :after ((tracker trades-tracker) &key)
   (adopt tracker (setf (slot-value tracker 'fetcher)
-                       (make-instance 'trades-fetcher :delegates `(,tracker)))))
+                       (make-instance 'trades-fetcher :boss tracker))))
 
 (defgeneric vwap (tracker &key type depth &allow-other-keys)
   (:method :around ((tracker t) &key)
