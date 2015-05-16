@@ -137,7 +137,8 @@
 (defclass kraken-gate (gate parent)
   ((delay :initform 10 :initarg :delay)
    (tokens :initform (make-instance 'channel))
-   (mint :initform (make-instance 'channel))))
+   (mint :initform (make-instance 'channel))
+   (exchange :initform *kraken* :allocation :class)))
 
 (defmethod initialize-instance :after ((gate kraken-gate) &key name)
   (flet ((make (class role)
@@ -145,7 +146,7 @@
                                       (format nil "api ~A for ~A" role name)))))
     (mapcar #'make '(token-minter token-handler) '("minter" "counter"))))
 
-(defmethod gate-post ((gate kraken-gate) key secret request)
+(defmethod gate-post ((gate (eql *kraken*)) key secret request)
   (destructuring-bind (command . options) request
     ;; FIXME: this prevents add/cancel requests from going through while
     ;; other requests wait for tokens. possible solution - queue closures

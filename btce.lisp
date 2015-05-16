@@ -102,13 +102,13 @@
   (with-slots (markets assets) exchange
     (setf (values markets assets) (get-info))))
 
-(defclass btce-gate (gate) ())
+(defclass btce-gate (gate) ((exchange :allocation :class :initform *btce*)))
 
 (defmethod shared-initialize ((gate btce-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
                        (mvwrap pubkey make-key) (mvwrap secret make-signer)))
 
-(defmethod gate-post ((gate btce-gate) key secret request)
+(defmethod gate-post ((gate (eql *btce*)) key secret request)
   (destructuring-bind (command . options) request
     (awhen (post-request command key secret options)
       (with-json-slots (success return error) it

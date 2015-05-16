@@ -273,7 +273,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 ;;;
 
 (defclass gate (actor)
-  ((pubkey :initarg :pubkey :initform (error "gate requires API pubkey"))
+  ((exchange :initarg :exchange :initform (error "EI4NI"))
+   (pubkey :initarg :pubkey :initform (error "gate requires API pubkey"))
    (secret :initarg :secret :initform (error "gate requires API secret"))
    (input  :initarg :input  :initform (make-instance 'channel))
    (output :initarg :output :initform (make-instance 'channel))
@@ -288,9 +289,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (rplacd request (call-next-method gate pubkey secret (cdr request)))))
 
 (defmethod perform ((gate gate))
-  (with-slots (input output . #1=(pubkey secret cache)) gate
+  (with-slots (input output . #1=(exchange pubkey secret cache)) gate
     (when (send-blocks-p output) (setf cache (recv input)))
-    (send (slot-value gate 'output) (gate-post gate . #1#))))
+    (send (slot-value gate 'output) (gate-post . #1#))))
 
 (defun gate-request (gate path &optional options &aux (id (cons path options)))
   (with-slots (input output) gate

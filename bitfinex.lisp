@@ -109,9 +109,10 @@
   (with-slots (markets assets) exchange
     (setf assets (get-assets) markets (get-markets assets))))
 
-(defclass bitfinex-gate (gate) ())
+(defclass bitfinex-gate (gate)
+  ((exchange :initform *bitfinex* :allocation :class)))
 
-(defmethod gate-post ((gate bitfinex-gate) key secret request)
+(defmethod gate-post ((gate (eql *bitfinex*)) key secret request)
   (destructuring-bind (command . options) request
     (multiple-value-list (post-request command key secret options))))
 
