@@ -1,5 +1,4 @@
-(cl:defpackage #:scalpl.asd
-  (:use #:cl #:asdf #:asdf/run-program #:asdf/component))
+(cl:defpackage #:scalpl.asd (:use #:cl #:asdf))
 
 (cl:in-package #:scalpl.asd)
 
