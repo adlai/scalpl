@@ -139,7 +139,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (:method (designator (assets list))
     (find designator assets :key 'name :test 'string-equal))
   (:method (designator (exchange exchange))
-    (find-market designator (assets exchange)))
+    (find-asset designator (assets exchange)))
   (:method (designator (name symbol))
     (find-asset designator (find-exchange name))))
 
