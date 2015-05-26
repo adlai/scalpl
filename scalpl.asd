@@ -12,8 +12,9 @@
   :components ((:file "util")
                (:file "actor"    :depends-on ("util"))
                (:file "exchange" :depends-on ("actor"))
-               (:file "kraken"   :depends-on ("exchange"))
-               (:file "bitfinex" :depends-on ("exchange"))
-               (:file "btce"     :depends-on ("exchange"))
+               (:file "kraken"   :depends-on ("exchange")) ; TODO:      :∃MXIꟻ
+               (:file "bitfinex" :depends-on ("exchange")) ; factor these into
+               (:file "btce"     :depends-on ("exchange")) ; sub-systems for
+               (:file "mpex"     :depends-on ("exchange")) ; modularitizations
                (:file "qd"       :depends-on ("exchange"))
                (:file "db"       :depends-on ("exchange"))))

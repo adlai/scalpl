@@ -29,13 +29,15 @@
 ;;                  :additional-headers `(("Key"  . ,key)
 ;;                                        ("Sign" . ,(funcall signer data))))))
 
+(defclass mpex-market (market) ((exchange :initform *mpex*)))  ; FIXME is-a → has-a
+
 (defun get-info ()
   (flet ((make-asset (name &optional (d 0))
            (make-instance 'asset :name name :decimals d :exchange *mpex*)))
     (let* ((bitcoin (make-asset "CxBTC" 8)) (assets (list bitcoin)))
       (values (mapcar (lambda (name &aux (asset (make-asset name)))
                         (push asset assets)
-                        (make-instance 'market :primary asset :counter bitcoin
+                        (make-instance 'mpex-market :primary asset :counter bitcoin
                                        :exchange *mpex* :decimals 8 :name name))
                       (mapcar #'car (get-request "mktdepth")))
               assets))))
@@ -44,40 +46,43 @@
   (with-slots (markets assets) exchange
     (setf (values markets assets) (get-info))))
 
-(defclass mpex-gate (gate)
+;;; https://github.com/jurov/MPExAgent
+(defclass mpex-agent (gate)
   ((exchange :allocation :class :initform *mpex*)
-   (agent-url :initarg :agent-url :type string)))
+   (url  :initarg :url  :type string)
+   (user :initarg :user :type string)
+   (pass :initarg :pass :type string)))
 
-(defmethod gate-post ((gate (eql *mpex*)) key secret request))
+(defmethod gate-post ((gate (eql *mpex*)) key secret request) (error "FIXME"))
 
 ;;;
 ;;; Public Data API
 ;;;
 
-(defmethod get-book ((market mpex-market) &key (count 200)))
+(defmethod get-book ((market mpex-market) &key (count 200)) (error "FIXME"))
 
-(defun trade-parser (market))
-(defmethod trades-since ((market mpex-market) &optional since))
+(defun trade-parser (market) (error "FIXME"))
+(defmethod trades-since ((market mpex-market) &optional since) (error "FIXME"))
 
 ;;;
 ;;; Private Data API
 ;;;
 
-(defmethod placed-offers ((gate mpex-gate)))
+(defmethod placed-offers ((gate mpex-agent)) (error "FIXME"))
 
-(defmethod account-balances ((gate mpex-gate)))
+(defmethod account-balances ((gate mpex-agent)) (error "FIXME"))
 
 ;;; All sellers are assesed a 0.2% fee at the moment the sale completes (so if
 ;;; you sell 500 stocks for 100 satoshi each you get 49`900 satoshi or
 ;;; 0.000499 BTC). All MKOPT and MKFUT orders are assesed a 2% fee
-(defmethod market-fee ((mpex-gate t) market) (fee market))
+(defmethod market-fee ((gate t) (market mpex-market)) '(0 . 0.2))
 
-(defun parse-execution (txid json))
-(defun raw-executions (gate &key pair from end))
-(defmethod execution-since ((gate mpex-gate) market since))
+(defun parse-execution (txid json) (error "FIXME"))
+(defun raw-executions (gate &key pair from end) (error "FIXME"))
+(defmethod execution-since ((gate mpex-agent) market since) (error "FIXME"))
 
-(defun post-raw-limit (gate type market price volume))
-(defmethod post-offer ((gate mpex-gate) offer))
+(defun post-raw-limit (gate type market price volume) (error "FIXME"))
+(defmethod post-offer ((gate mpex-agent) offer) (error "FIXME"))
 
-(defun cancel-raw-order (gate oid))
-(defmethod cancel-offer ((gate mpex-gate) offer))
+(defun cancel-raw-order (gate oid) (error "FIXME"))
+(defmethod cancel-offer ((gate mpex-agent) offer) (error "FIXME"))

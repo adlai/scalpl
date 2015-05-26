@@ -289,7 +289,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (rplacd request (call-next-method gate pubkey secret (cdr request)))))
 
 (defmethod perform ((gate gate))
-  (with-slots (input output . #1=(exchange pubkey secret cache)) gate
+  (with-slots (input output . #1=(exchange pubkey secret cache)) gate ;¡ has-a !
     (when (send-blocks-p output) (setf cache (recv input)))
     (send (slot-value gate 'output) (gate-post . #1#))))
 
@@ -509,6 +509,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (slot-reduce tracker gate name))
 
 (defgeneric market-fee (gate market)
+  (:documentation "(bid . ask) fees, in percent")
   (:method :around ((gate gate) (market market))
     (actypecase (call-next-method) (number `(,it . ,it)) (cons it) (null))))
 

@@ -121,6 +121,12 @@ using floats for statistical calculations is tolerable, but we can do better
 any method with "raw" in its name, such as post-raw-limit:
 *** receives literal parameters, get inserted as-is to API requests
 *** returns json object of exchange's response
+* TODO Names Abstraction                                            :OVERDUE:
+** example: exchanges, assets, markets, bots (but NOT actors?)
+** aspects to flesh out
+*** TODO class metaclass for named instance classes
+*** TODO generic function metaclass for named dispatch
+*** TODO registered (symbol?) vs unregistered (string?) names
 * TODO Actor Abstraction
 CSP×FSM
 ** DONE MVP
