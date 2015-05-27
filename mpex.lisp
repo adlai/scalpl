@@ -1,6 +1,6 @@
 (defpackage #:scalpl.mpex
   (:nicknames #:mpex)
-  (:export #:*mpex* #:mpex-gate)
+  (:export #:*mpex* #:mpex-agent)
   (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util #:scalpl.exchange))
 
 (in-package #:scalpl.mpex)
@@ -48,12 +48,15 @@
 
 ;;; https://github.com/jurov/MPExAgent
 (defclass mpex-agent (gate)
-  ((exchange :allocation :class :initform *mpex*)
-   (url  :initarg :url  :type string)
-   (user :initarg :user :type string)
-   (pass :initarg :pass :type string)))
+  ((exchange :allocation :class :initform *mpex*)))
 
-(defmethod gate-post ((gate (eql *mpex*)) key secret request) (error "FIXME"))
+(defmethod gate-post ((gate (eql *mpex*)) key secret request)
+  (drakma:http-request key :method :post :basic-authorization secret
+                       :content-type "text/plain" :content
+                       (json:encode-json-plist-to-string
+                        `("method" ,(car request)
+                                   "params" ,(apply 'vector (cdr request))
+                                   "jsonrpc" "2.0" "id" "1")))) ; sxhash?
 
 ;;;
 ;;; Public Data API
