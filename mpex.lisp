@@ -50,13 +50,18 @@
 (defclass mpex-agent (gate)
   ((exchange :allocation :class :initform *mpex*)))
 
-(defmethod gate-post ((gate (eql *mpex*)) key secret request)
-  (drakma:http-request key :method :post :basic-authorization secret
-                       :content-type "text/plain" :content
-                       (json:encode-json-plist-to-string
-                        `("method" ,(car request)
-                                   "params" ,(apply 'vector (cdr request))
-                                   "jsonrpc" "2.0" "id" "1")))) ; sxhash?
+(defmethod gate-post ((gate (eql *mpex*)) key secret request
+                      &aux (reply-id (sxhash request)))
+  (json:json-bind (jsonrpc result error id)
+      (http-request key :content-type "text/plain" :method :post
+                    :want-stream t :external-format-in :ascii
+                    :basic-authorization secret :content
+                    (json:encode-json-plist-to-string
+                     `("method" ,(car request)
+                       "params" ,(apply 'vector (cdr request))
+                       "jsonrpc" "2.0" "id" ,reply-id)))
+    (assert (string= jsonrpc "2.0")) (when id (assert (= reply-id id)))
+    (list result error)))
 
 ;;;
 ;;; Public Data API
