@@ -62,7 +62,16 @@
 ;;; Public Data API
 ;;;
 
-(defmethod get-book ((market mpex-market) &key (count 200)) (error "FIXME"))
+(defmethod get-book ((market mpex-market) &key)
+  (awhen (assoc (name market) (get-request "mktdepth"))
+    (flet ((process (side class predicate)
+             (destructuring-bind (token &rest data) (pop it)
+               (assert (eq token side))
+               (mapcar (lambda (pair)
+                         (make-instance class :market market
+                                        :price (car pair) :volume (cadr pair)))
+                       (sort data predicate :key #'first)))))
+      (pop it) (values (process :S 'ask #'<) (process :B 'bid #'>)))))
 
 (defun trade-parser (market) (error "FIXME"))
 (defmethod trades-since ((market mpex-market) &optional since) (error "FIXME"))
