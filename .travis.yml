@@ -1,0 +1,46 @@
+language: lisp
+sudo: required
+
+env:
+  matrix:
+    - LISP=abcl
+    - LISP=allegro
+    - LISP=sbcl
+    - LISP=sbcl32
+    - LISP=ccl
+    - LISP=ccl32
+    - LISP=clisp
+    - LISP=clisp32
+#    - LISP=cmucl
+    - LISP=ecl
+
+#matrix:
+#  allow_failures:
+#    # CIM not available for CMUCL
+#    - env: LISP=cmucl
+
+# uses a local script. Felt free to simplify this section in my own file.
+install:
+    ./travis-install.sh;
+    sudo apt-get install libssl-dev
+
+# this bit is just testing that travis correctly sets up ASDF to find
+# systems placed somewhere within ~/lisp. You can remove this section
+# in your own .travis.yml file.
+before_script:
+  - echo "(defsystem :dummy-cl-travis-system)" > ~/lisp/dummy-cl-travis-system.asd
+
+# this serves as an example of how to use the 'cl' script (provided by
+# CIM) to test your Lisp project. Here, we're using the RT framework
+# to do unit testing; other frameworks will have different ways of
+# determining whether a test suite fails or succeeds.
+script:
+  - cl -e '(ql:quickload :scalpl) (uiop:quit 0))'
+
+  # testing (albeit not extensively) that, even when invoked directly,
+  # Lisps still have Quicklisp available.
+  - if [ "$LISP" = "sbcl" ]; then
+      sbcl --non-interactive
+           --eval '(format t "~%Quicklisp version ~a is available!~%"
+                             (ql:client-version))';
+    fi
