@@ -20,6 +20,9 @@ matrix:
     - env: LISP=cmucl
     # Reported upstream bugs
     - env: LISP=allegro
+    - env: LISP=clisp
+    - env: LISP=clisp32
+    - env: LISP=ecl
 
 # uses a local script. Felt free to simplify this section in my own file.
 install:
