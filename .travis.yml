@@ -11,18 +11,20 @@ env:
     - LISP=ccl32
     - LISP=clisp
     - LISP=clisp32
-#    - LISP=cmucl
+    - LISP=cmucl
     - LISP=ecl
 
-#matrix:
-#  allow_failures:
-#    # CIM not available for CMUCL
-#    - env: LISP=cmucl
+matrix:
+  allow_failures:
+    # CIM not available for CMUCL
+    - env: LISP=cmucl
+    # Reported upstream bugs
+    - env: LISP=allegro
 
 # uses a local script. Felt free to simplify this section in my own file.
 install:
     ./travis-install.sh;
-    sudo apt-get install libssl-dev
+    sudo apt-get install libssl-dev libssl0.9.8:i386
 
 # this bit is just testing that travis correctly sets up ASDF to find
 # systems placed somewhere within ~/lisp. You can remove this section
