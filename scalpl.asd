@@ -15,6 +15,12 @@
                (:file "kraken"   :depends-on ("exchange")) ; TODO:      :∃MXIꟻ
                (:file "bitfinex" :depends-on ("exchange")) ; factor these into
                (:file "btce"     :depends-on ("exchange")) ; sub-systems for
-               (:file "mpex"     :depends-on ("exchange")) ; modularitizations
-               (:file "qd"       :depends-on ("exchange"))
+               (:file "qd"       :depends-on ("exchange")) ; modularitizations
                (:file "db"       :depends-on ("exchange"))))
+
+(defsystem #:scalpl.mpex
+  :license "all rights reserved"
+  :description "scalpl mpex api"
+  :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
+  :depends-on (#:scalpl #:rss)
+  :components ((:file "mpex")))
