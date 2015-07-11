@@ -12,11 +12,11 @@
 (defun raw-request (path &rest keys)
   (multiple-value-bind (body status)
       (apply #'http-request (concatenate 'string +base-path+ path) keys)
-    (if (= status 200) (read-json body)
+    (if (= status 200) body
         (values nil (format nil "HTTP Error ~D~%~A" status body)))))
 
 (defun get-request (path)
-  (raw-request (concatenate 'string +public-stub+ path ".php")))
+  (raw-request (concatenate 'string +public-stub+ path ".php") :want-stream t))
 
 (defvar *mpex* (make-instance 'exchange :name :mpex))
 
@@ -39,7 +39,7 @@
                         (push asset assets)
                         (make-instance 'mpex-market :primary asset :counter bitcoin
                                        :exchange *mpex* :decimals 8 :name name))
-                      (mapcar #'car (get-request "mktdepth")))
+                      (mapcar #'car (read-json (get-request "mktdepth"))))
               assets))))
 
 (defmethod fetch-exchange-data ((exchange (eql *mpex*)))
@@ -68,7 +68,7 @@
 ;;;
 
 (defmethod get-book ((market mpex-market) &key)
-  (awhen (assoc (name market) (get-request "mktdepth"))
+  (awhen (assoc (name market) (read-json (get-request "mktdepth")))
     (flet ((process (side class predicate)
              (destructuring-bind (token &rest data) (pop it)
                (assert (eq token side))
