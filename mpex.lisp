@@ -109,8 +109,18 @@
 (defun raw-executions (gate &key pair from end) (error "FIXME"))
 (defmethod execution-since ((gate mpex-agent) market since) (error "FIXME"))
 
-(defun post-raw-limit (gate type market price volume) (error "FIXME"))
-(defmethod post-offer ((gate mpex-agent) offer) (error "FIXME"))
+(defun post-raw-limit (gate type market price volume)
+  ;; orderType : 'B' or 'S'
+  ;; price - unit price in satoshi
+  (gate-request gate "neworder" (list type market volume price)))
+(defmethod post-offer ((gate mpex-agent) (offer offer))
+  (with-slots (market volume price) offer
+    (flet ((post (type)
+             (post-raw-limit gate type (string (name market)) (abs price) volume)
+             ;; (with-json-slots (order_id) it
+             ;;   (change-class offer 'placed :oid order_id))
+             ))
+      (post (if (< price 0) "B" "S")))))
 
-(defun cancel-raw-order (gate oid) (error "FIXME"))
-(defmethod cancel-offer ((gate mpex-agent) offer) (error "FIXME"))
+(defmethod cancel-offer ((gate mpex-agent) offer)
+  (gate-request gate "cancel" (list (oid offer))))
