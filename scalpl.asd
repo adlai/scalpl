@@ -22,5 +22,5 @@
   :license "all rights reserved"
   :description "scalpl mpex api"
   :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
-  :depends-on (#:scalpl #:rss)
+  :depends-on (#:scalpl #:split-sequence #:rss)
   :components ((:file "mpex")))

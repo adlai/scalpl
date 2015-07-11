@@ -1,7 +1,8 @@
 (defpackage #:scalpl.mpex
   (:nicknames #:mpex)
   (:export #:*mpex* #:mpex-agent)
-  (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util #:scalpl.exchange))
+  (:use #:cl #:chanl #:anaphora #:local-time
+        #:split-sequence #:scalpl.util #:scalpl.exchange))
 
 (in-package #:scalpl.mpex)
 
@@ -78,8 +79,18 @@
                        (sort data predicate :key #'first)))))
       (pop it) (values (process :S 'ask #'<) (process :B 'bid #'>)))))
 
-(defun trade-parser (market) (error "FIXME"))
-(defmethod trades-since ((market mpex-market) &optional since) (error "FIXME"))
+(defun parse-trade (item)
+  (destructuring-bind (amount market price)
+      (split-sequence #\Space (rss:title item))
+    (make-instance 'trade :market (find-market market *mpex*)
+                   ;; TODO: :timestamp, :cost
+                   :volume (parse-integer (remove #\` amount))
+                   :price (parse-price (subseq price 1) 8)
+                   :direction (fourth (split-sequence #\Space (rss:description item))))))
+(defmethod trades-since ((market mpex-market) &optional since)
+  (remove market (mapcar #'parse-trade
+                         (rss:items (rss:parse-rss-stream (get-request "rss"))))
+          :test-not #'eq :key #'market))
 
 ;;;
 ;;; Private Data API
