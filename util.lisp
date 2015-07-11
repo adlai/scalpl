@@ -168,7 +168,9 @@
 
 (defun read-json (in)
   (let ((cl-json:*json-identifier-name-to-lisp* 'identity))
-    (cl-json:decode-json-from-string in)))
+    (ctypecase in
+      (string (cl-json:decode-json-from-string in))
+      (stream (cl-json:decode-json in)))))
 
 (defun getjso (key &optional map)
   (if map (cdr (assoc key map :test #'string=))
