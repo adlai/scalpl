@@ -455,28 +455,15 @@
                   (/ (* 100 profit) updays total) ; ignores compounding, du'e!
                   (/ (* 100 profit) (/ updays 30) total)))))))
 
-(defgeneric print-book (book &key count prefix)
-  (:method ((maker maker) &rest keys)
-    (macrolet ((path (&rest path)
-                 `(apply #'print-book (slot-reduce maker ,@path) keys)))
-      ;; TODO: interleaving
-      (path ope) (path market book-tracker)))
-  (:method ((ope ope-scalper) &rest keys)
-    (apply #'print-book (multiple-value-call 'cons (ope-placed ope)) keys))
-  (:method ((tracker book-tracker) &rest keys)
-    (apply #'print-book     (recv   (slot-value tracker 'output))    keys))
-  (:method ((book cons) &key count prefix)
-    (destructuring-bind (bids . asks) book
-      (when count (setf bids (subseq bids 0 count) asks (subseq asks 0 count)))
-      (flet ((width (side)
-               (reduce 'max (mapcar 'length (mapcar 'princ-to-string side))
-                       :initial-value 0)))
-        (do ((bids bids (rest bids)) (bw (width bids))
-             (asks asks (rest asks)) (aw (width asks)))
-            ((or (and (null bids) (null asks))
-                 (and (numberp count) (= -1 (decf count)))))
-          (format t "~&~@[~A ~]~V@A || ~V@A~%"
-                  prefix bw (first bids) aw (first asks)))))))
+(defmethod print-book ((ope ope-scalper) &rest keys)
+  (apply #'print-book (multiple-value-call 'cons (ope-placed ope)) keys))
+
+(defmethod print-book ((maker maker) &rest keys)
+  (macrolet ((path (&rest path)
+               `(apply #'print-book (slot-reduce maker ,@path) keys)))
+    ;; TODO: interleaving ; FIXME: gamgembarurioter
+    (path ope) (path market book-tracker)))
+
 
 (defmethod describe-object ((maker maker) (stream t))
   (print-book (slot-reduce maker ope)) (performance-overview maker)

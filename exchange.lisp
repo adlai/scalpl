@@ -15,7 +15,7 @@
            #:trade #:cost #:direction #:txid
            #:trades-tracker #:trades #:trades-since #:vwap
            #:book-tracker #:bids #:asks #:get-book #:get-book-keys
-           #:balance-tracker #:balances #:sync
+           #:balance-tracker #:balances #:sync #:print-book
            #:placed-offers #:account-balances #:market-fee
            #:execution #:fee #:net-cost #:net-volume #:fee-tracker
            #:execution-tracker #:execution-since #:bases #:bases-without
@@ -459,6 +459,22 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defmethod initialize-instance :after ((tracker book-tracker) &key)
   (adopt tracker (setf (slot-value tracker 'fetcher)
                        (make-instance 'book-fetcher :delegates `(,tracker)))))
+
+(defgeneric print-book (book &key count prefix)
+  (:method ((tracker book-tracker) &rest keys)
+    (apply #'print-book     (recv   (slot-value tracker 'output))    keys))
+  (:method ((book cons) &key count prefix)
+    (destructuring-bind (bids . asks) book
+      (when count (setf bids (subseq bids 0 count) asks (subseq asks 0 count)))
+      (flet ((width (side)
+               (reduce 'max (mapcar 'length (mapcar 'princ-to-string side))
+                       :initial-value 0)))
+        (do ((bids bids (rest bids)) (bw (width bids))
+             (asks asks (rest asks)) (aw (width asks)))
+            ((or (and (null bids) (null asks))
+                 (and (numberp count) (= -1 (decf count)))))
+          (format t "~&~@[~A ~]~V@A || ~V@A~%"
+                  prefix bw (first bids) aw (first asks)))))))
 
 ;;;
 ;;; Putting things together
