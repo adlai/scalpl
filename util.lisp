@@ -1,3 +1,4 @@
+
 (defpackage #:scalpl.util
   (:use #:c2cl #:anaphora #:parse-float #:string-case #:local-time)
   (:export #:once-only
@@ -27,11 +28,17 @@
            #:jso-keys
            #:with-json-slots
            #:mapjso*
+           #:short-month-index
            ))
 
 (in-package #:scalpl.util)
 
 ;;; Actually useful
+
+(defun short-month-index (short-name)
+  (string-case (short-name)
+    ("Jan" 1) ("Feb" 2) ("Mar" 3) ("Apr" 4) ("May" 5) ("Jun" 6)
+    ("Jul" 7) ("Aug" 8) ("Sep" 9) ("Oct" 10) ("Nov" 11) ("Dec" 12)))
 
 (defun strftime (&optional datep &aux bits)
   (let ((data (multiple-value-list      ; my kingdom for a stack!
