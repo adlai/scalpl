@@ -40,7 +40,9 @@
                         (push asset assets)
                         (make-instance 'mpex-market :primary asset :counter bitcoin
                                        :exchange *mpex* :decimals 8 :name name))
-                      (mapcar #'car (read-json (get-request "mktdepth"))))
+                      (mapcar #'car (with-open-stream
+                                        (response (get-request "mktdepth"))
+                                      (read-json response))))
               assets))))
 
 (defmethod fetch-exchange-data ((exchange (eql *mpex*)))
@@ -53,23 +55,25 @@
 
 (defmethod gate-post ((gate (eql *mpex*)) key secret request
                       &aux (reply-id (sxhash request)))
-  (json:json-bind (jsonrpc result error id)
+  (with-open-stream (response
       (http-request key :content-type "text/plain" :method :post
                     :want-stream t :external-format-in :ascii
                     :basic-authorization secret :content
                     (json:encode-json-plist-to-string
                      `("method" ,(car request)
                        "params" ,(apply 'vector (cdr request))
-                       "jsonrpc" "2.0" "id" ,reply-id)))
-    (assert (string= jsonrpc "2.0")) (when id (assert (= reply-id id)))
-    (list result error)))
+                       "jsonrpc" "2.0" "id" ,reply-id))))
+    (json:json-bind (jsonrpc result error id) response
+        (assert (string= jsonrpc "2.0")) (when id (assert (= reply-id id)))
+        (list result error))))
 
 ;;;
 ;;; Public Data API
 ;;;
 
 (defmethod get-book ((market mpex-market) &key)
-  (awhen (assoc (name market) (read-json (get-request "mktdepth")))
+  (awhen (with-open-stream (response (get-request "mktdepth"))
+           (assoc (name market) (read-json response)))
     (flet ((process (side class predicate)
              (destructuring-bind (token &rest data) (pop it)
                (assert (eq token side))
