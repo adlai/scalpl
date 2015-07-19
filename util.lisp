@@ -1,6 +1,7 @@
 
 (defpackage #:scalpl.util
-  (:use #:c2cl #:anaphora #:parse-float #:string-case #:local-time)
+  (:use #:c2cl #:anaphora #:parse-float
+        #:string-case #:local-time #:split-sequence)
   (:export #:once-only
            #:shallow-copy
            #:dbz-guard
@@ -29,6 +30,7 @@
            #:with-json-slots
            #:mapjso*
            #:short-month-index
+           #:parse-rfc1123-timestring
            ))
 
 (in-package #:scalpl.util)
@@ -39,6 +41,16 @@
   (string-case (short-name)
     ("Jan" 1) ("Feb" 2) ("Mar" 3) ("Apr" 4) ("May" 5) ("Jun" 6)
     ("Jul" 7) ("Aug" 8) ("Sep" 9) ("Oct" 10) ("Nov" 11) ("Dec" 12)))
+
+;;; TODO: row, row, row, your boat, gently up the stream...
+(defun parse-rfc1123-timestring (timestring &key) ; TODO: fail-on-error etc
+  (let ((timestamp (destructuring-bind (dd mmm yyyy hhmmss zone)
+                       (cdr (split-sequence #\Space timestring))
+                     (parse-rfc3339-timestring
+                      (format nil "~A-~2,'0D-~AT~A~A" yyyy
+                              (short-month-index mmm) dd hhmmss zone)))))
+    (assert (string= timestring (to-rfc1123-timestring timestamp)))
+    timestamp))
 
 (defun strftime (&optional datep &aux bits)
   (let ((data (multiple-value-list      ; my kingdom for a stack!

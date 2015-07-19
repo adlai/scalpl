@@ -86,17 +86,11 @@
 (defun parse-trade (item)
   (destructuring-bind (amount market price)
       (split-sequence #\Space (rss:title item))
-    (let ((timestamp
-           (destructuring-bind (dd mmm yyyy hhmmss zone)
-               (cdr (split-sequence #\Space (rss:pub-date item)))
-             (parse-rfc3339-timestring
-              (format nil "~A-~2,'0D-~AT~A~A" yyyy
-                      (short-month-index mmm) dd hhmmss zone)))))
-      (assert (string= (rss:pub-date item) (to-rfc1123-timestring timestamp)))
-      (make-instance 'trade :market (find-market market *mpex*)
-                     :timestamp timestamp :direction "soldorp"
-                     :volume (parse-integer (remove #\` amount))
-                     :price (parse-price (subseq price 1) 8)))))
+    (make-instance 'trade :market (find-market market *mpex*)
+                   :timestamp (parse-rfc1123-timestring (rss:pub-date item))
+                   :price (parse-price (subseq price 1) 8) :direction "soldorp"
+                   :volume (parse-integer (remove #\` amount)))))
+
 (defmethod trades-since ((market mpex-market) &optional since)
   (remove market (mapcar #'parse-trade
                          (rss:items (rss:parse-rss-stream (get-request "rss"))))
