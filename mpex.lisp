@@ -91,11 +91,13 @@
                    :price (parse-price (subseq price 1) 8) :direction "soldorp"
                    :volume (parse-integer (remove #\` amount)))))
 
+(defun trades-rss ()
+  (with-open-stream (stream (get-request "rss"))
+    (rss:items (rss:parse-rss-stream stream))))
+
 (defmethod trades-since ((market mpex-market) &optional since)
   (when since (assert (eq market (market since))))
-  (aprog1 (nreverse (remove market (mapcar #'parse-trade
-                                           (rss:items (rss:parse-rss-stream
-                                                       (get-request "rss"))))
+  (aprog1 (nreverse (remove market (mapcar #'parse-trade (trades-rss))
                             :test-not #'eq :key #'market))
     (when since
       (awhen (member (timestamp since) it :key #'timestamp :test #'timestamp=)
