@@ -92,9 +92,16 @@
                    :volume (parse-integer (remove #\` amount)))))
 
 (defmethod trades-since ((market mpex-market) &optional since)
-  (remove market (mapcar #'parse-trade
-                         (rss:items (rss:parse-rss-stream (get-request "rss"))))
-          :test-not #'eq :key #'market))
+  (when since (assert (eq market (market since))))
+  (aprog1 (nreverse (remove market (mapcar #'parse-trade
+                                           (rss:items (rss:parse-rss-stream
+                                                       (get-request "rss"))))
+                            :test-not #'eq :key #'market))
+    (when since
+      (awhen (member (timestamp since) it :key #'timestamp :test #'timestamp=)
+        (return-from trades-since (rest it)))
+      (flet ((hms (time) (subseq (princ-to-string (timestamp time)) 11 19)))
+        (warn "missing trades: ~A - ~A" (hms since) (hms (first it)))))))
 
 ;;;
 ;;; Private Data API
