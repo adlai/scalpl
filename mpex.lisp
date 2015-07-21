@@ -109,9 +109,24 @@
 ;;; Private Data API
 ;;;
 
-(defmethod placed-offers ((gate mpex-agent)) (error "FIXME"))
+(defmethod placed-offers ((gate mpex-agent))
+  (mapcar (lambda (data)
+            (flet ((value (key) (cdr (assoc key data))))  ; i smell a pattern
+              (make-instance 'placed :oid (parse-integer (string (pop data)))
+                             :price (* (value :*price)
+                                       (string-case ((value :+bs+))
+                                         ("S" 1) ("B" -1)))
+                             :volume (value :*quantity)
+                             :market (find-market (value :+mpsic+) *mpex*))))
+          (cdr (assoc :*book (gate-request gate "statjson")))))
 
-(defmethod account-balances ((gate mpex-agent)) (error "FIXME"))
+(defmethod account-balances ((gate mpex-agent))
+  (mapcar (lambda (data)
+            (cons-aq (find-asset
+                      (if (eq (car data) :*cx-+btc+) "CxBTC"
+                          (string-trim "+" (string (car data)))) *mpex*)
+                     (cdr data)))
+          (cdr (assoc :*holdings (gate-request gate "statjson")))))
 
 ;;; All sellers are assesed a 0.2% fee at the moment the sale completes (so if
 ;;; you sell 500 stocks for 100 satoshi each you get 49`900 satoshi or
