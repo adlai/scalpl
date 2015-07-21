@@ -100,8 +100,12 @@
   (aprog1 (nreverse (remove market (mapcar #'parse-trade (trades-rss))
                             :test-not #'eq :key #'market))
     (when since
-      (awhen (member (timestamp since) it :key #'timestamp :test #'timestamp=)
-        (return-from trades-since (rest it)))
+      (flet ((same-trade (a b)
+               (and (timestamp= (timestamp a) (timestamp b))
+                    (         =  (volume  a)     (volume b))
+                    (         =   (price a)       (price b)))))
+        (awhen (member since it :test #'same-trade)
+          (return-from trades-since (rest it))))
       (flet ((hms (time) (subseq (princ-to-string (timestamp time)) 11 19)))
         (warn "missing trades: ~A - ~A" (hms since) (hms (first it)))))))
 
