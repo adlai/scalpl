@@ -403,11 +403,12 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (:method-combination and)
   (:method and ((tracker t) (prev null) (next t)))
   (:method and ((tracker trades-tracker) (prev trade) (next trade))
-    (with-slots (market-timestamp-sensitivity)
-        (slot-reduce tracker market exchange) ; !
-      (and (string= (direction prev) (direction next))
-           (> market-timestamp-sensitivity
-              (timestamp-difference (timestamp next) (timestamp prev)))))))
+    (with-slots (exchange) (slot-reduce tracker market)
+      (when (slot-boundp exchange 'market-timestamp-sensitivity)
+        (with-slots (market-timestamp-sensitivity) exchange
+          (and (string= (direction prev) (direction next))
+               (> market-timestamp-sensitivity
+                  (timestamp-difference (timestamp next) (timestamp prev)))))))))
 
 ;; (defgeneric same-trades? (trades-tracker prev next)
 ;;   (:method-combination and)
