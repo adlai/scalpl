@@ -137,22 +137,63 @@
 ;;; 0.000499 BTC). All MKOPT and MKFUT orders are assesed a 2% fee
 (defmethod market-fee ((gate t) (market mpex-market)) '(0 . 0.2))
 
-(defun parse-execution (txid json) (error "FIXME"))
-(defun raw-executions (gate &key pair from end) (error "FIXME"))
-(defmethod execution-since ((gate mpex-agent) market since) (error "FIXME"))
+(defun parse-execution (data)
+  (flet ((value (key) (cdr (assoc key data))))  ; i smell a pattern
+    (let* ((direction (value :+bs+)) (volume (value :*quantity))
+           (market (find-market (value :+mpsic+) *mpex*))
+           (phactor (expt 10 (- (decimals market))))
+           (price (* (value :*price) phactor)) (cost (* price volume))
+           (timestamp (parse-rfc3339-timestring (value :*date))))
+      (make-instance 'execution :direction direction :market market
+                     :price price :timestamp timestamp
+                     ;; (sqrt (expt 16 4)) => unhappy birthday
+                     :txid (format () "~A@~D" (value :*track)
+                                   (timestamp-to-unix timestamp))
+                     :volume volume :net-volume volume :cost cost
+                     :net-cost (if (string= direction "B") cost
+                                   (* (floor (* cost 998/1000) ; yuck
+                                             phactor) phactor))))))
+
+;;; The trade and dividend history start with the first transaction after a
+;;; point in time one hour previous to the last STAT issued to that user.
+(defun raw-executions (gate)
+  (cdr (assoc :*trade-history (gate-request gate "statjson"))))
+
+(defmethod execution-since ((gate mpex-agent) market since)
+  (awhen (raw-executions gate)          ; spot the twist?
+    (sort (remove market (mapcar #'parse-execution it)
+                  :key #'market :test-not #'eq)
+          #'timestamp< :key #'timestamp)))
 
 (defun post-raw-limit (gate type market price volume)
-  ;; orderType : 'B' or 'S'
-  ;; price - unit price in satoshi
-  (gate-request gate "neworder" (list type market volume price)))
+  ;; TODO: optional price & expiry
+  (awhen (gate-request gate "neworder" (list type market volume price))
+    (flet ((value (key) (cdr (assoc key it))))  ; i smell a pattern
+      (and (string= (value :result) "OK") ; TODO: fail earlier
+           (apply #'values (mapcar #'value '(:order :message :track)))))))
+
 (defmethod post-offer ((gate mpex-agent) (offer offer))
   (with-slots (market volume price) offer
-    (flet ((post (type)
-             (post-raw-limit gate type (string (name market)) (abs price) volume)
-             ;; (with-json-slots (order_id) it
-             ;;   (change-class offer 'placed :oid order_id))
-             ))
+    (flet ((post (type) ; TODO: fail loudierly
+             (awhen (post-raw-limit gate type (string (name market))
+                                    (abs price) volume)
+               (flet ((value (key) (cdr (assoc key it))))
+                 (dotimes (verbosely-named-attempt-index 5)
+                   (sleep (random (exp 1)))
+                   (awhen (find-if (lambda (placed)
+                                     (every #'eql
+                                            (list (volume placed)
+                                                  (price  placed)
+                                                  (market placed))
+                                            (list (value :amount)
+                                                  price market)))
+                                   (placed-offers gate))
+                     (return (change-class offer 'placed :oid (oid it)
+                                           :volume (value :amount)))))))))
       (post (if (< price 0) "B" "S")))))
 
 (defmethod cancel-offer ((gate mpex-agent) offer)
-  (gate-request gate "cancel" (list (oid offer))))
+  (awhen (gate-request gate "cancel" (list (oid offer)))
+    (flet ((value (key) (cdr (assoc key it))))  ; i smell a pattern
+      (if (string= (value :result) "OK") (value :message)
+          (values () (value :result) (value :message))))))
