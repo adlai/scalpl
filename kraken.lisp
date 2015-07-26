@@ -258,8 +258,8 @@
 (defmethod execution-since ((gate kraken-gate) (market market) since)
   (awhen (raw-executions gate :start since)
     (with-json-slots (trades) it
-        (remove market (mapcar-jso #'parse-execution trades)
-                :key #'market :test-not #'eq))))
+      (remove market (mapcar-jso #'parse-execution trades)
+              :key #'market :test-not #'eq))))
 
 #+nil
 (defun trades-history-chunk (tracker &key until since)
