@@ -461,22 +461,6 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (adopt tracker (setf (slot-value tracker 'fetcher)
                        (make-instance 'book-fetcher :delegates `(,tracker)))))
 
-(defgeneric print-book (book &key count prefix)
-  (:method ((tracker book-tracker) &rest keys)
-    (apply #'print-book (recv (slot-value tracker 'output)) keys))
-  (:method ((book cons) &key count prefix)
-    (destructuring-bind (bids . asks) book
-      (when count (setf bids (subseq bids 0 count) asks (subseq asks 0 count)))
-      (flet ((width (side)
-               (reduce 'max (mapcar 'length (mapcar 'princ-to-string side))
-                       :initial-value 0)))
-        (do ((bids bids (rest bids)) (bw (width bids))
-             (asks asks (rest asks)) (aw (width asks)))
-            ((or (and (null bids) (null asks))
-                 (and (numberp count) (= -1 (decf count)))))
-          (format t "~&~@[~A ~]~V@A || ~V@A~%"
-                  prefix bw (first bids) aw (first asks)))))))
-
 ;;;
 ;;; Putting things together
 ;;;
@@ -502,6 +486,24 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defmethod ensure-running ((market market))
   (change-class market 'tracked-market))
 (defmethod ensure-running ((market tracked-market)) market)
+
+(defgeneric print-book (book &key count prefix)
+  (:method ((book cons) &key count prefix)
+    (destructuring-bind (bids . asks) book
+      (when count (setf bids (subseq bids 0 count) asks (subseq asks 0 count)))
+      (flet ((width (side)
+               (reduce 'max (mapcar 'length (mapcar 'princ-to-string side))
+                       :initial-value 0)))
+        (do ((bids bids (rest bids)) (bw (width bids))
+             (asks asks (rest asks)) (aw (width asks)))
+            ((or (and (null bids) (null asks))
+                 (and (numberp count) (= -1 (decf count)))))
+          (format t "~&~@[~A ~]~V@A || ~V@A~%"
+                  prefix bw (first bids) aw (first asks))))))
+  (:method ((tracker book-tracker) &rest keys)
+    (apply #'print-book (recv (slot-value tracker 'output)) keys))
+  (:method ((market tracked-market) &rest keys)
+    (apply #'print-book (slot-value market 'book-tracker) keys)))
 
 ;;;
 ;;; Private Data API
