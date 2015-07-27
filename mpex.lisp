@@ -135,7 +135,7 @@
 ;;; All sellers are assesed a 0.2% fee at the moment the sale completes (so if
 ;;; you sell 500 stocks for 100 satoshi each you get 49`900 satoshi or
 ;;; 0.000499 BTC). All MKOPT and MKFUT orders are assesed a 2% fee
-(defmethod market-fee ((gate t) (market mpex-market)) '(0 . 0.2))
+(defmethod market-fee ((gate mpex-agent) (market market)) '(0 . 0.2))
 
 (defun parse-execution (data)
   (flet ((value (key) (cdr (assoc key data))))  ; i smell a pattern
@@ -176,7 +176,7 @@
   (with-slots (market volume price) offer
     (flet ((post (type) ; TODO: fail loudierly
              (awhen (post-raw-limit gate type (string (name market))
-                                    (abs price) volume)
+                                    (abs price) (round volume))
                (flet ((value (key) (cdr (assoc key it))))
                  (dotimes (verbosely-named-attempt-index 5)
                    (sleep (random (exp 1)))
