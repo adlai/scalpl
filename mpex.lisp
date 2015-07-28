@@ -86,10 +86,12 @@
 (defun parse-trade (item)
   (destructuring-bind (amount market price)
       (split-sequence #\Space (rss:title item))
-    (make-instance 'trade :market (find-market market *mpex*)
-                   :timestamp (parse-rfc1123-timestring (rss:pub-date item))
-                   :price (parse-price (subseq price 1) 8) :direction "soldorp"
-                   :volume (parse-integer (remove #\` amount)))))
+    (let* ((price (parse-float price :start 1 :type 'rational))
+           (volume (parse-integer (remove #\` amount)))
+           (cost (* price volume)))
+      (make-instance 'trade :market (find-market market *mpex*) :cost cost
+                     :timestamp (parse-rfc1123-timestring (rss:pub-date item))
+                     :price price :direction "slold" :volume volume))))
 
 (defun trades-rss ()
   (with-open-stream (stream (get-request "rss"))
@@ -145,9 +147,9 @@
            (price (* (value :*price) phactor)) (cost (* price volume))
            (timestamp (parse-rfc3339-timestring (value :*date))))
       (make-instance 'execution :direction direction :market market
-                     :price price :timestamp timestamp
+                     :price price :timestamp timestamp ; TODO: :fee?
                      ;; (sqrt (expt 16 4)) => unhappy birthday
-                     :txid (format () "~A@~D" (value :*track)
+                     :txid (format () "~A~A~D" (value :*track) direction
                                    (timestamp-to-unix timestamp))
                      :volume volume :net-volume volume :cost cost
                      :net-cost (if (string= direction "B") cost
