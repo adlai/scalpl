@@ -163,9 +163,12 @@
 
 (defmethod execution-since ((gate mpex-agent) market since)
   (awhen (raw-executions gate)          ; spot the twist?
-    (sort (remove market (mapcar #'parse-execution it)
-                  :key #'market :test-not #'eq)
-          #'timestamp< :key #'timestamp)))
+    (let ((parsed (sort (remove market (mapcar #'parse-execution it)
+                                :key #'market :test-not #'eq)
+                        #'timestamp< :key #'timestamp)))
+      (if (null since) parsed
+          (member (timestamp since) parsed
+                  :key #'timestamp :test #'timestamp<)))))
 
 (defun post-raw-limit (gate type market price volume)
   ;; TODO: optional price & expiry
