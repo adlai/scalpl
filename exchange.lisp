@@ -490,7 +490,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defgeneric print-book (book &key count prefix)
   (:method ((book cons) &key count prefix)
     (destructuring-bind (bids . asks) book
-      (when count (setf bids (subseq bids 0 count) asks (subseq asks 0 count)))
+      (when count
+        (ignore-errors (setf bids (subseq bids 0 count)))
+        (ignore-errors (setf asks (subseq asks 0 count))))
       (flet ((width (side)
                (reduce 'max (mapcar 'length (mapcar 'princ-to-string side))
                        :initial-value 0)))
