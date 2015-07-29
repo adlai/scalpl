@@ -262,11 +262,12 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
         (do-slot taken counter (* volume factor) primary volume)))))
 
 (defmethod print-object ((offer offer) stream)
-  (print-unreadable-object (offer stream :type t)
+  (print-unreadable-object
+        (offer stream :type (not (typep offer 'placed)))
     (with-slots (given price market) offer
       (let ((market-decimals (slot-value market 'decimals)))
-        (format stream "~A @ ~V$" given market-decimals
-                (/ (abs price) (expt 10 market-decimals)))))))
+        (format stream "~@[~A ~]~A @ ~V$" (ignore-errors (oid offer)) given
+                market-decimals (/ (abs price) (expt 10 market-decimals)))))))
 
 ;;;
 ;;; Rate Gate
