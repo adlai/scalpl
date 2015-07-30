@@ -24,12 +24,13 @@
   (remove asset (slot-value ope 'placed)
           :key #'consumed-asset :test-not #'eq))
 
-(defun balance-guarded-place (ope offer)
+(defun balance-guarded-place (ope offer &aux (asset (consumed-asset offer)))
   (with-slots (gate placed order-slots treasurer) ope
-    (let ((asset (consumed-asset offer)))
-      (when (and (>= (asset-funds asset (slot-reduce treasurer balances))
-                     (reduce #'+ (mapcar #'volume (offers-spending ope asset))
-                             :initial-value (volume offer)))
+    (let* ((spending (offers-spending ope asset))
+           (mapreduc (reduce #'aq+ (mapcar #'given spending)
+                             :initial-value (given offer)))
+           (ourfunds (asset-funds asset (slot-reduce treasurer balances))))
+      (when (and (>= ourfunds (scaled-quantity mapreduc))
                  (> order-slots (length placed)))
         (awhen1 (post-offer gate offer) (push it placed))))))
 
@@ -39,7 +40,8 @@
           (ecase (car command)
             (offer (balance-guarded-place supplicant (cdr command)))
             (cancel (awhen1 (cancel-offer gate (cdr command))
-                      (setf placed (remove (cdr command) placed))))))))
+                      (setf placed (remove (oid (cdr command))
+                                           placed :key #'oid))))))))
 
 (defmethod initialize-instance :after ((supp supplicant) &key)
   (macrolet ((init (slot class)
@@ -135,7 +137,7 @@
            (if excess (frob () excess)  ; choose the lesser weevil
                (and target placed (= (length target) (length placed))
                     (loop for new in target and old in placed
-                       when (< 1/19 (abs (log (/ (volume new) (volume old)))))
+                       when (/= (given new) (given old))
                        collect new into news and collect old into olds
                        finally (when news (frob news olds)))))))))
 
