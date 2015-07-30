@@ -488,7 +488,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (change-class market 'tracked-market))
 (defmethod ensure-running ((market tracked-market)) market)
 
-(defgeneric print-book (book &key count prefix)
+(defgeneric print-book (book &key count prefix &allow-other-keys)
   (:method ((book cons) &key count prefix)
     (destructuring-bind (bids . asks) book
       (when count

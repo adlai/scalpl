@@ -336,11 +336,12 @@
                              (+1 (chr positive-chars (/ dp highest)))
                              (-1 (chr negative-chars (/ dp lowest))))))))))
 
-(defun makereport (maker fund rate btc doge investment risked skew)
+(defun makereport (maker fund rate btc doge investment risked skew &optional ha)
   (with-slots (name market ope snake last-report) maker
-    (let ((new-report (list btc doge investment risked skew)))
-      (if (equal last-report new-report) (return-from makereport)
-          (setf last-report new-report)))
+    (unless ha
+      (let ((new-report (list btc doge investment risked skew)))
+        (if (equal last-report new-report) (return-from makereport)
+            (setf last-report new-report))))
     (labels ((sastr (side amount) ; TODO factor out aqstr
                (format nil "~V,,V$"
                        (decimals (slot-value market side)) 0 amount)))
@@ -458,11 +459,11 @@
 (defmethod print-book ((ope ope-scalper) &rest keys)
   (apply #'print-book (multiple-value-call 'cons (ope-placed ope)) keys))
 
-(defmethod print-book ((maker maker) &rest keys)
+(defmethod print-book ((maker maker) &rest keys &key market)
   (macrolet ((path (&rest path)
                `(apply #'print-book (slot-reduce maker ,@path) keys)))
     ;; TODO: interleaving ; FIXME: gamgembarurioter
-    (path ope) (path market book-tracker)))
+    (path ope) (when market (path market book-tracker))))
 
 
 (defmethod describe-object ((maker maker) (stream t))
