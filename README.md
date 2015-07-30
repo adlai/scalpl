@@ -25,8 +25,11 @@ as a market maker.
 # Exchanges
 
 Three Bitcoin exchanges are supported: [Bitfinex](https://www.bitfinex.com),
-[BTC-e](https://www.btc-e.com), and [Kraken](https://www.kraken.com). More is
-in the works; contact Adlai on Freenode for details and inquiries.
+[BTC-e](https://www.btc-e.com), and [Kraken](https://www.kraken.com). ScalpL
+also supports [MPExAgent](https://github.com/jurov/MPExAgent), if your luck
+includes a seat at [that table](http://mpex.ws/faq.html).
+
+More's ever in the works; contact Adlai on Freenode for details!
 
 # Mockumentation
 
