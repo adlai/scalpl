@@ -195,28 +195,28 @@
       (and (string= (value :result) "OK") ; TODO: fail earlier
            (apply #'values (mapcar #'value '(:order :message :track)))))))
 
-(defmethod post-offer ((gate mpex-agent) (offer offer))
+(defmethod post-offer ((gate mpex-agent) (offer offer)
+                       &aux (old (placed-offers gate)))
   (with-slots (market volume price) offer
-    (flet ((post (type) ; TODO: fail loudierly
-             (awhen (post-raw-limit gate type (string (name market))
-                                    (abs price) (round volume))
-               (flet ((value (key) (cdr (assoc key it))))
-                 (dotimes (verbosely-named-attempt-index 5)
-                   (sleep (random (exp 1)))
-                   (awhen (find-if (lambda (placed)
-                                     (every #'eql
-                                            (list (volume placed)
-                                                  (price  placed)
-                                                  (market placed))
-                                            (list (value :amount)
-                                                  price market)))
-                                   (placed-offers gate))
-                     (return (change-class offer 'placed :oid (oid it)
-                                           :volume (value :amount)))))))))
-      (post (if (< price 0) "B" "S")))))
+    (flet ((post (type &aux (dir (if type "B" "S"))) ; TODO: fail loudierly
+             (let ((sv (* volume (expt 10 (decimals market)))))
+               (awhen (post-raw-limit
+                       gate dir (string (name market)) (abs price)
+                       (floor (if type (/ sv (abs price)) volume)))
+                 (let ((amount (cdr (assoc :amount it))))
+                   (dotimes (i 5 (format t "~&LOST ~A ~A" dir offer))
+                     (sleep (random (exp 1)))
+                     (awhen (find-if (lambda (placed)
+                                       (and (= (volume placed) amount)
+                                            (= (price  placed) price)))
+                                     (set-difference (placed-offers gate) old))
+                       (return (change-class offer 'placed :volume amount :oid
+                                             (oid it) :given (given it))))))))))
+      (post (< price 0)))))
 
-(defmethod cancel-offer ((gate mpex-agent) offer)
-  (awhen (gate-request gate "cancel" (list (oid offer)))
+(defmethod cancel-offer ((gate mpex-agent) offer &aux (oid (oid offer)))
+  (awhen (gate-request gate "cancel" (list oid))
     (flet ((value (key) (cdr (assoc key it))))  ; i smell a pattern
-      (if (string= (value :result) "OK") (value :message)
-          (values () (value :result) (value :message))))))
+      (string-case ((value :result))
+        ("OK" t) ("Failed" (not (find oid (placed-offers gate) :key #'oid)))
+        (t (values () (value :result) (value :message)))))))
