@@ -115,24 +115,42 @@
 ;;; Private Data API
 ;;;
 
+(defun parse-placed (statjson)
+  (mapcar (lambda (data &aux (oid (parse-integer (string (pop data)))))
+            (flet ((value (key) (cdr (assoc key data)))) ; i smell a pattern
+              (let ((aksp (string-equal (value :+bs+) "S"))
+                    (market (find-market (value :+mpsic+) *mpex*))
+                    (volume (value :*quantity)) (price (value :*price)))
+                (make-instance 'placed :oid oid :volume volume :market market
+                               :given (if aksp (cons-aq (primary market) volume)
+                                          (cons-aq (counter market)
+                                                   (* price volume)))
+                               :price (* price (if aksp 1 -1))))))
+          (cdr (assoc :*book statjson))))
+
+(defun parse-balances (statjson)
+  (let ((placed (parse-placed statjson))
+        (funds (make-hash-table :size (length (assets *mpex*)))))
+    (flet ((incf-fund (asset amount)
+             (incf (gethash asset funds 0) amount)))
+      (dolist (offer placed)
+        (incf-fund (consumed-asset offer) (quantity (given offer)))))
+    (mapcar (lambda (pair &aux (asset (asset pair)))
+              (cons-aq asset (+ (quantity pair) (gethash asset funds 0))))
+            (mapcar (lambda (data)
+                      (destructuring-bind (a . q) data
+                        (cons-aq (find-asset
+                                  (if (eq a :*cx-+btc+) "CxBTC"
+                                      (string-trim
+                                       "+" (string (car data))))
+                                  *mpex*) q)))
+                    (cdr (assoc :*holdings statjson))))))
+
 (defmethod placed-offers ((gate mpex-agent))
-  (mapcar (lambda (data)
-            (flet ((value (key) (cdr (assoc key data))))  ; i smell a pattern
-              (make-instance 'placed :oid (parse-integer (string (pop data)))
-                             :price (* (value :*price)
-                                       (string-case ((value :+bs+))
-                                         ("S" 1) ("B" -1)))
-                             :volume (value :*quantity)
-                             :market (find-market (value :+mpsic+) *mpex*))))
-          (cdr (assoc :*book (gate-request gate "statjson")))))
+  (awhen (gate-request gate "statjson")  (parse-placed  it)))
 
 (defmethod account-balances ((gate mpex-agent))
-  (mapcar (lambda (data)
-            (cons-aq (find-asset
-                      (if (eq (car data) :*cx-+btc+) "CxBTC"
-                          (string-trim "+" (string (car data)))) *mpex*)
-                     (cdr data)))
-          (cdr (assoc :*holdings (gate-request gate "statjson")))))
+  (awhen (gate-request gate "statjson") (parse-balances it)))
 
 ;;; All sellers are assesed a 0.2% fee at the moment the sale completes (so if
 ;;; you sell 500 stocks for 100 satoshi each you get 49`900 satoshi or
