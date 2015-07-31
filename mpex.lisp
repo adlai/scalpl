@@ -74,10 +74,14 @@
 (defmethod vwap ((market mpex-market) &key (window :30\d))
   (awhen (with-open-stream (response (get-request "vwap"))
            (read-json response))
-    (parse-integer (reduce (lambda (x y) (cdr (assoc x y)))
-                           (list :|avg| window (name market))
-                           :from-end t :initial-value it)
-                   :junk-allowed t)))
+    (cons-mp market (parse-float (reduce (lambda (x y) (cdr (assoc x y)))
+                                         (list :|avg| window (name market))
+                                         :from-end t :initial-value it)))))
+
+(defmethod vwap :around ((market scalpl.exchange::tracked-market) &rest args)
+  (with-slots ((market scalpl.exchange::%market)) market
+    (if (typep market '(not mpex-market)) (call-next-method)
+        (scaled-price (apply #'vwap market args)))))
 
 (defmethod get-book ((market mpex-market) &key)
   (awhen (with-open-stream (response (get-request "mktdepth"))
