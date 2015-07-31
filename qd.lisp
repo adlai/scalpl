@@ -458,14 +458,13 @@
                   (/ (* 100 profit) updays total) ; ignores compounding, du'e!
                   (/ (* 100 profit) (/ updays 30) total)))))))
 
-(defmethod print-book ((ope ope-scalper) &rest keys)
-  (apply #'print-book (multiple-value-call 'cons (ope-placed ope)) keys))
-
-(defmethod print-book ((maker maker) &rest keys &key market)
+(defmethod print-book ((maker maker) &rest keys &key market ours)
   (macrolet ((path (&rest path)
-               `(apply #'print-book (slot-reduce maker ,@path) keys)))
-    ;; TODO: interleaving ; FIXME: gamgembarurioter
-    (path ope) (when market (path market book-tracker))))
+               `(apply #'print-book (slot-reduce ,@path) keys)))
+    (let ((placed (multiple-value-call 'cons
+                    (ope-placed (slot-reduce maker ope)))))
+      (path placed) (terpri) (when ours (setf (getf keys :ours) placed))
+      (when market (path maker market book-tracker)))))
 
 
 (defmethod describe-object ((maker maker) (stream t))

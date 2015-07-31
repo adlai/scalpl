@@ -489,11 +489,19 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defmethod ensure-running ((market tracked-market)) market)
 
 (defgeneric print-book (book &key count prefix &allow-other-keys)
-  (:method ((book cons) &key count prefix)
+  (:method ((book cons) &key count prefix ours)
     (destructuring-bind (bids . asks) book
       (when count
         (ignore-errors (setf bids (subseq bids 0 count)))
         (ignore-errors (setf asks (subseq asks 0 count))))
+      (when (and ours (typep ours '(cons cons cons)))
+        (macrolet ((side (side type)
+                     `(loop for bid in (,side ours) for next-tail = ,type do
+                           (loop for tail on next-tail
+                              when (and (=  (price (car tail))  (price bid))
+                                        (= (volume (car tail)) (volume bid)))
+                              return (setf (car tail) bid)))))
+          (side car bids) (side cdr asks)))
       (flet ((width (side)
                (reduce 'max (mapcar 'length (mapcar 'princ-to-string side))
                        :initial-value 0)))
