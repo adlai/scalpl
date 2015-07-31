@@ -71,6 +71,14 @@
 ;;; Public Data API
 ;;;
 
+(defmethod vwap ((market mpex-market) &key (window :30\d))
+  (awhen (with-open-stream (response (get-request "vwap"))
+           (read-json response))
+    (parse-integer (reduce (lambda (x y) (cdr (assoc x y)))
+                           (list :|avg| window (name market))
+                           :from-end t :initial-value it)
+                   :junk-allowed t)))
+
 (defmethod get-book ((market mpex-market) &key)
   (awhen (with-open-stream (response (get-request "mktdepth"))
            (assoc (name market) (read-json response)))
