@@ -648,9 +648,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defun bases-without (bases given)
   (handler-case
-      (loop for basis = (pop bases) for first = t then ()
-         for (bp baq other) = basis for acc = baq then (aq+ acc baq)
-         for vwab-sum = other then (aq+ vwab-sum other)
+      (loop for basis = (pop bases) for (bp baq other) = basis
+         for acc = baq then (aq+ acc baq) for vwab-sum = other
+         then (aq+ vwab-sum other) sum (* (price bp) (quantity baq)) into pwa
          when (> (quantity acc) (quantity given)) return
            (let* ((excess (aq- acc given))
                   (other (cons-aq (asset other)
@@ -658,7 +658,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                                      (/ (quantity excess) (quantity baq)))))
                   (recur (aq- vwab-sum other)))
              (values (cons (list bp excess other) bases)
-                     (if first bp (aq/ recur given)) recur))
+                     (cons-mp (market bp)
+                              (/ (- pwa (* (price bp) (quantity excess)))
+                                 (quantity given))) recur))
          when (null bases) return
            (values nil (aq/ vwab-sum acc) vwab-sum))
     ((or division-by-zero arithmetic-error) ())))
