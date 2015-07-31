@@ -179,7 +179,8 @@
       (make-instance 'execution :direction direction :market market
                      :price price :timestamp timestamp ; TODO: :fee?
                      ;; (sqrt (expt 16 4)) => unhappy birthday
-                     :txid (format () "~A~A~D" (value :*track) direction
+                     :txid (format () "~D~A~D@~D|~D" (value :*track)
+                                   direction volume (value :*price)
                                    (timestamp-to-unix timestamp))
                      :volume volume :net-volume volume :cost cost
                      :net-cost (if (string= direction "B") cost
