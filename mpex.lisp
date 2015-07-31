@@ -78,10 +78,10 @@
                                          (list :|avg| window (name market))
                                          :from-end t :initial-value it)))))
 
-(defmethod vwap :around ((market scalpl.exchange::tracked-market) &rest args)
-  (with-slots ((market scalpl.exchange::%market)) market
-    (if (typep market '(not mpex-market)) (call-next-method)
-        (scaled-price (apply #'vwap market args)))))
+(defmethod vwap :around ((market market) &rest args &key (mp #'scaled-price))
+  (with-slots ((market #1=scalpl.exchange::%market)) market
+    (if (not (ignore-errors (typep market 'mpex-market))) (call-next-method)
+        (funcall mp (apply #'vwap market args)))))
 
 (defmethod get-book ((market mpex-market) &key)
   (awhen (with-open-stream (response (get-request "mktdepth"))
