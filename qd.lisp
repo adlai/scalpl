@@ -239,7 +239,10 @@
                                             ,@bases) punk dunk book)))))))
 
 (defun ope-logger (ope)
-  (lambda (log) (awhen (slot-value ope 'spam) (format t "~&~A ~A~%" it log))))
+  (lambda (log)
+    (awhen (slot-value ope 'spam)
+      (format t "~:[~*~;~&~A~] ~A~@*~:[~%~;~]"
+              (cdr (simple-condition-format-arguments log)) it log))))
 
 (defun ope-spreader (book resilience funds epsilon side ope)
   (flet ((dunk (book funds count magic &optional (start epsilon))
