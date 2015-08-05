@@ -140,23 +140,19 @@
                                :price (* price (if aksp 1 -1))))))
           (cdr (assoc :*book statjson))))
 
-(defun parse-balances (statjson)
-  (let ((placed (parse-placed statjson))
-        (funds (make-hash-table :size (length (assets *mpex*)))))
-    (flet ((incf-fund (asset amount)
-             (incf (gethash asset funds 0) amount)))
-      (dolist (offer placed)
-        (incf-fund (consumed-asset offer) (quantity (given offer)))))
-    (mapcar (lambda (pair &aux (asset (asset pair)))
-              (cons-aq asset (+ (quantity pair) (gethash asset funds 0))))
-            (mapcar (lambda (data)
-                      (destructuring-bind (a . q) data
-                        (cons-aq (find-asset
-                                  (if (eq a :*cx-+btc+) "CxBTC"
-                                      (string-trim
-                                       "+" (string (car data))))
-                                  *mpex*) q)))
-                    (cdr (assoc :*holdings statjson))))))
+(defun parse-balances (statjson &aux funds)
+  (flet ((incf-fund (asset amount)
+           (incf (getf funds asset 0) amount)))
+    (dolist (offer (parse-placed statjson))
+      (incf-fund (consumed-asset offer) (quantity (given offer))))
+    (dolist (asset-data (cdr (assoc :*holdings statjson)))
+      (destructuring-bind (name . amount) asset-data
+        (incf-fund (find-asset (if (eq name :*cx-+btc+) "CxBTC"
+                                   (string-trim "+" (string name)))
+                               *mpex*)
+                   amount)))
+    (loop for (asset amount) on funds by #'cddr
+       collect (cons-aq asset amount))))
 
 (defmethod placed-offers ((gate mpex-agent))
   (awhen (gate-request gate "statjson")  (parse-placed  it)))
