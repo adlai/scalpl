@@ -348,8 +348,8 @@
         (if (equal last-report new-report) (return-from makereport)
             (setf last-report new-report))))
     (labels ((sastr (side amount) ; TODO factor out aqstr
-               (format nil "~V,,V$"
-                       (decimals (slot-value market side)) 0 amount)))
+               (format nil "~V,,V$" (decimals (slot-value market side))
+                       0 (float amount 0d0))))
       ;; FIXME: modularize all this decimal point handling
       ;; we need a pprint-style ~/aq/ function, and pass it aq objects!
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
