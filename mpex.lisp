@@ -21,15 +21,6 @@
 
 (defvar *mpex* (make-instance 'exchange :name :mpex))
 
-;; (defun post-request (method key signer &optional params &aux (nonce (nonce)))
-;;   (push (cons "method" method) params)
-;;   (push (cons "nonce" nonce) params)
-;;   (let ((data (urlencode-params params)))
-;;     (raw-request (concatenate 'string +private-stub+)
-;;                  :method :post :content data
-;;                  :additional-headers `(("Key"  . ,key)
-;;                                        ("Sign" . ,(funcall signer data))))))
-
 (defclass mpex-market (market) ((exchange :initform *mpex*)))  ; FIXME is-a → has-a
 
 (defun get-info ()
