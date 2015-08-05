@@ -461,12 +461,14 @@
                   (/ (* 100 profit) updays total) ; ignores compounding, du'e!
                   (/ (* 100 profit) (/ updays 30) total)))))))
 
-(defmethod print-book ((maker maker) &rest keys &key market ours)
+(defmethod print-book ((maker maker) &rest keys &key market ours wait)
   (macrolet ((path (&rest path)
                `(apply #'print-book (slot-reduce ,@path) keys)))
     (let ((placed (multiple-value-call 'cons
                     (ope-placed (slot-reduce maker ope)))))
-      (path placed) (terpri) (when ours (setf (getf keys :ours) placed))
+      (with-slots (output) (slot-reduce maker ope)
+        (when wait (send output (recv output))) (path placed) (terpri))
+      (when ours (setf (getf keys :ours) placed))
       (when market (path maker market book-tracker)))))
 
 
