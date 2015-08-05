@@ -50,10 +50,11 @@
                                            ',class :delegates `(,supp)))))))
     (with-slots (fee lictor treasurer placed market gate) supp
       (adopt supp (ensure-running market)) (adopt supp gate)
-      (unless (ignore-errors placed) (setf placed (placed-offers gate)))
       (init   fee          fee-tracker)
       (init  lictor  execution-tracker)
-      (init treasurer  balance-tracker))))
+      (init treasurer  balance-tracker)
+      (unless (ignore-errors placed)
+        (setf placed (placed-offers gate))))))
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
   (with-aslots (gate market) supplicant
@@ -224,19 +225,21 @@
             (bases-without bases (cons-aq* (consumed-asset car) (volume car)))
           (flet ((profit (o)
                    (funcall punk (1- (price o)) (price vwab) (cdar funds))))
-            (signal "~4,2@$ ~A ~D ~V$ ~V$" (profit car) car (length bases)
-                    (decimals (market vwab)) (scaled-price vwab)
-                    (decimals (asset cost)) (scaled-quantity cost))
-            (setf book (rest (member 0 book :test #'< :key #'profit)))
-            (if (plusp (profit car))
+            (when vwab
+              (signal "~4,2@$ ~A ~D ~V$ ~V$" (profit car) car (length bases)
+                      (decimals (market vwab)) (scaled-price vwab)
+                      (decimals (asset cost)) (scaled-quantity cost))
+              (setf book (rest (member 0 book :test #'< :key #'profit))))
+            (if (and vwab (plusp (profit car)))
                 `(,car .,(ope-sprinner
                           cdr (destructuring-bind ((caar . cdar) . cdr) funds
                                 (aprog1 `((,(- caar (volume car)) .,cdar) .,cdr)
                                   (signal "~S" it)))
                           (1- count) magic bases punk dunk book))
                 (ope-sprinner (funcall dunk book funds count magic) funds
-                              count magic `((,vwab ,(aq* vwab cost) ,cost)
-                                            ,@bases) punk dunk book)))))))
+                              count magic (and vwab `((,vwab ,(aq* vwab cost)
+                                                             ,cost) ,@bases))
+                              punk dunk book)))))))
 
 (defun ope-logger (ope)
   (lambda (log)
@@ -464,12 +467,13 @@
 (defmethod print-book ((maker maker) &rest keys &key market ours wait)
   (macrolet ((path (&rest path)
                `(apply #'print-book (slot-reduce ,@path) keys)))
-    (let ((placed (multiple-value-call 'cons
-                    (ope-placed (slot-reduce maker ope)))))
-      (with-slots (output) (slot-reduce maker ope)
-        (when wait (send output (recv output))) (path placed) (terpri))
-      (when ours (setf (getf keys :ours) placed))
-      (when market (path maker market book-tracker)))))
+    (with-slots (response) (slot-reduce maker ope prioritizer)
+      (multiple-value-bind (next source) (when wait (recv response))
+        (let ((placed (multiple-value-call 'cons
+                        (ope-placed (slot-reduce maker ope)))))
+          (path placed) (terpri) (when ours (setf (getf keys :ours) placed))
+          (when source (send source next)))))
+    (when market (path maker market book-tracker))))
 
 
 (defmethod describe-object ((maker maker) (stream t))

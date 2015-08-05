@@ -44,13 +44,12 @@
 
 ;;; TODO: row, row, row, your boat, gently up the stream...
 (defun parse-rfc1123-timestring (timestring &key) ; TODO: fail-on-error etc
-  (let ((timestamp (destructuring-bind (dd mmm yyyy hhmmss zone)
-                       (cdr (split-sequence #\Space timestring))
-                     (parse-rfc3339-timestring
-                      (format nil "~A-~2,'0D-~AT~A~A" yyyy
-                              (short-month-index mmm) dd hhmmss zone)))))
-    (assert (string= timestring (to-rfc1123-timestring timestamp)))
-    timestamp))
+  (destructuring-bind (dd mmm yyyy hhmmss zone)
+      (cdr (split-sequence #\Space timestring))
+    (let ((temp (format nil "~A-~2,'0D-~AT~A~A"
+                        yyyy (short-month-index mmm) dd hhmmss zone)))
+      (declare (dynamic-extent temp))
+      (parse-rfc3339-timestring temp))))
 
 (defun strftime (&optional datep &aux bits)
   (let ((data (multiple-value-list      ; my kingdom for a stack!
