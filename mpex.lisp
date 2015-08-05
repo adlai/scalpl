@@ -10,14 +10,14 @@
 (defparameter +base-path+ "http://mpex.co/")  ; TODO: auto-fallback to proxies
 (defparameter +public-stub+ "mpex-")
 
-(defun raw-request (path &rest keys)
-  (multiple-value-bind (body status)
-      (apply #'http-request (concatenate 'string +base-path+ path) keys)
-    (if (= status 200) body
-        (values nil (format nil "HTTP Error ~D~%~A" status body)))))
-
-(defun get-request (path)
-  (raw-request (concatenate 'string +public-stub+ path ".php") :want-stream t))
+(defmacro with-request (path form)
+  `(multiple-value-bind (stream status)
+       (http-request ,(format () "~A~A~A.php" +base-path+ ; TODO: proxies
+                              +public-stub+ path) :want-stream t)
+     (with-open-stream (it stream)
+       (if (= status 200) ,form
+           (values () (format () "HTTP Error ~D~%~A" status
+                              (read-line stream)))))))
 
 (defvar *mpex* (make-instance 'exchange :name :mpex))
 
@@ -29,11 +29,10 @@
     (let* ((bitcoin (make-asset "CxBTC" 8)) (assets (list bitcoin)))
       (values (mapcar (lambda (name &aux (asset (make-asset name)))
                         (push asset assets)
-                        (make-instance 'mpex-market :primary asset :counter bitcoin
-                                       :exchange *mpex* :decimals 8 :name name))
-                      (mapcar #'car (with-open-stream
-                                        (response (get-request "mktdepth"))
-                                      (read-json response))))
+                        (make-instance 'mpex-market :primary asset
+                                       :counter bitcoin :exchange *mpex*
+                                       :decimals 8 :name name))
+                      (with-request "mktdepth" (mapcar #'car (read-json it))))
               assets))))
 
 (defmethod fetch-exchange-data ((exchange (eql *mpex*)))
@@ -63,8 +62,7 @@
 ;;;
 
 (defmethod vwap ((market mpex-market) &key (window :30\d))
-  (awhen (with-open-stream (response (get-request "vwap"))
-           (read-json response))
+  (awhen (with-request "vwap" (read-json it))
     (cons-mp market (parse-float (reduce (lambda (x y) (cdr (assoc x y)))
                                          (list :|avg| window (name market))
                                          :from-end t :initial-value it)))))
@@ -75,8 +73,7 @@
         (funcall mp (apply #'vwap market args)))))
 
 (defmethod get-book ((market mpex-market) &key)
-  (awhen (with-open-stream (response (get-request "mktdepth"))
-           (assoc (name market) (read-json response)))
+  (awhen (with-request "mktdepth" (assoc (name market) (read-json it)))
     (flet ((process (side class predicate)
              (destructuring-bind (token &rest data) (pop it)
                (assert (eq token side))
@@ -97,8 +94,7 @@
                      :price price :direction "slold" :volume volume))))
 
 (defun trades-rss ()
-  (with-open-stream (stream (get-request "rss"))
-    (rss:items (rss:parse-rss-stream stream))))
+  (with-request "rss" (rss:items (rss:parse-rss-stream it))))
 
 (defmethod trades-since ((market mpex-market) &optional since)
   (aprog1 (nreverse (remove-if-not (lambda (trade)
