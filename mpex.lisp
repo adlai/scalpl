@@ -7,13 +7,12 @@
 (in-package #:scalpl.mpex)
 
 ;;; General Parameters
-(defparameter +base-path+ "http://mpex.co/")  ; TODO: auto-fallback to proxies
-(defparameter +public-stub+ "mpex-")
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defparameter +base-stub+ "http://mpex.co/mpex-"))
 
 (defmacro with-request (path form)
   `(multiple-value-bind (stream status)
-       (http-request ,(format () "~A~A~A.php" +base-path+ ; TODO: proxies
-                              +public-stub+ path) :want-stream t)
+       (http-request ,(format () "~A~A.php" +base-stub+ path) :want-stream t)
      (with-open-stream (it stream)
        (if (= status 200) ,form
            (values () (format () "HTTP Error ~D~%~A" status
