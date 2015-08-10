@@ -637,10 +637,10 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                        (update-bases tracker next))))
 
 (defmethod perform ((tracker execution-tracker))
-  (with-slots (buffer trades bases) tracker
+  (with-slots (buffer trades bases control) tracker
     (select ((recv buffer next)
-             (unless (find (txid next) trades :key #'txid :test #'equal)
-               (update-bases tracker next) (push next trades)))
+             (update-bases tracker next) (push next trades))
+            ((recv control command) (execute tracker command))
             ((send buffer (first trades))) (t (sleep 0.2)))))
 
 (defmethod initialize-instance :after ((tracker execution-tracker) &key)
