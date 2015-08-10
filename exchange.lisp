@@ -492,12 +492,16 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (:method ((book cons) &key count prefix ours)
     (destructuring-bind (bids . asks) book
       (flet ((width (side)
-               (loop for o in side for max = o repeat (or count 15)
-                  when (> (volume o) (volume max)) do (setf max o)
-                  finally (return (+ (length (princ-to-string max))
-                                     (if (atom ours) 0 3))))))
-        (let ((ctrl (format () "~~&~~@[~~A ~~]~~~D@A | ~~~D@A~~%"
-                            (width bids) (width asks))))
+               (flet ((vol (o) (quantity (given o))))
+                 (loop for o in side repeat (or count 15)
+                    for max = o then (if (> (vol o) (vol max)) o max)
+                    finally (return (length (princ-to-string max)))))))
+        (let ((ctrl (multiple-value-call #'format
+                      () "~~&~~@[~~A ~~]~~~D@A | ~~~D@A~~%"
+                      (if (atom ours) (values (width bids) (width asks))
+                          (destructuring-bind (my-bids . my-asks) ours
+                            (values (max (width bids) (width my-bids))
+                                    (max (width asks) (width my-asks))))))))
           (flet ((line (bid ask) (format t ctrl prefix bid ask)))
             (if (atom ours)
                 (do ((bids bids (rest bids)) (asks asks (rest asks)))
