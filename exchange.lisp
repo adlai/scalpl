@@ -501,7 +501,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                     for max = o then (if (> (vol o) (vol max)) o max)
                     finally (return (length (princ-to-string max)))))))
         (let ((ctrl (multiple-value-call #'format
-                      () "~~&~~@[~~A ~~]~~~D@A | ~~~D@A~~%"
+                      () "~~&~~@[~~A ~~]~~~D@A ~~~D@A~~%"
                       (if (atom ours) (values (width bids) (width asks))
                           (destructuring-bind (my-bids . my-asks) ours
                             (values (max (width bids) (width my-bids))
