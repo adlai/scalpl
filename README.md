@@ -20,7 +20,9 @@ The software is provided devoid of warantee, guarranty, liesense, and noncence:
 
 ScalpL *will be* an engine for expressing arbitrarily intricate policies for
 placement and removal of offers in asset exchanges; today, it *is* hardcoded
-as a market maker.
+as a market maker. We also *endeavor* to extend [Kerckhoff's
+Principle](https://en.wikipedia.org/wiki/Kerckhoffs%27s_principle) to finance,
+although a full proof may require [un?]countably infinitely many steps.
 
 # Exchanges
 
