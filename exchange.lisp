@@ -439,8 +439,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defmethod perform ((fetcher book-fetcher))
   (with-slots (buffer delay market get-book-keys) fetcher
-    (ignore-errors (send buffer (multiple-value-call 'cons
-                                  (apply #'get-book market get-book-keys))))
+    (send buffer (multiple-value-call 'cons
+                   (apply #'get-book market get-book-keys)))
     (sleep delay)))
 
 (defclass book-tracker (parent)
@@ -480,6 +480,10 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                                    (slot-value it 'output))))))
     (with-slots (%market book trades) new
       (setf %market (shallow-copy prev)) (init book) (init trades))))
+
+;;; tonight we dine in fail
+(defmethod get-book ((market tracked-market) &key)
+  (get-book (slot-value market '%market)))
 
 (defmethod vwap ((market tracked-market) &rest keys)
   (apply #'vwap (slot-value market 'trades-tracker) keys))
@@ -545,10 +549,10 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
    (abbrev :allocation :class :initform "funds")))
 
 (defmethod perform ((tracker balance-tracker))
-  (with-slots (gate sync buffer fuzz balances) tracker
-    (send (recv sync) (ignore-errors (when (zerop (random fuzz))
-                                       (awhen1 (account-balances gate)
-                                         (setf balances it)))))))
+  (with-slots (gate sync fuzz balances) tracker
+    (send (recv sync) (when (zerop (random fuzz))
+                        (awhen1 (account-balances gate)
+                          (setf balances it))))))
 
 (defmethod christen ((tracker balance-tracker) (type (eql 'actor)))
   (slot-reduce tracker gate name))
