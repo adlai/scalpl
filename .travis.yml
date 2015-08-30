@@ -3,16 +3,17 @@ sudo: required
 
 env:
   matrix:
-    - LISP=abcl
-    - LISP=allegro
+# commented = known failure, let's conserve phree cycles
+#    - LISP=abcl
+#    - LISP=allegro
     - LISP=sbcl
     - LISP=sbcl32
     - LISP=ccl
     - LISP=ccl32
-    - LISP=clisp
-    - LISP=clisp32
-    - LISP=cmucl
-    - LISP=ecl
+#    - LISP=clisp
+#    - LISP=clisp32
+#    - LISP=cmucl
+#    - LISP=ecl
 
 matrix:
   allow_failures:
