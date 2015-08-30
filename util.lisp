@@ -185,7 +185,8 @@
 ;;; json
 
 (defun read-json (in)
-  (let ((cl-json:*json-identifier-name-to-lisp* 'identity))
+  (let ((cl-json:*real-handler* (lambda (x) (parse-float x :type 'rational)))
+        (cl-json:*json-identifier-name-to-lisp* 'identity))
     (ctypecase in
       (string (cl-json:decode-json-from-string in))
       (stream (cl-json:decode-json in)))))
