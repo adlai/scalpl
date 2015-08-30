@@ -34,4 +34,4 @@ install:
 # to do unit testing; real frameworks should have various ways of determining
 # whether a test suite fails or succeeds, but don't hold your breath.
 script:
-  - cl -e '(ql:quickload :scalpl) (uiop:quit 0))'
+  - cl -e '(ql:quickload :scalpl) (asdf:load-system :scalpl.mpex) (uiop:quit 0))'
