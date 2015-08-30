@@ -397,11 +397,11 @@
               (makereport maker total-fund doge/btc total-btc total-doge buyin
                           (dbz-guard (/ (total-of    btc  doge) total-fund))
                           (dbz-guard (/ (total-of (- btc) doge) total-fund)))
-              (send (slot-reduce ope input)
-                    (list `((,btc  . ,(* cut (max 0 (/    skew  skew-factor)))))
-                          `((,doge . ,(* cut (max 0 (/ (- skew) skew-factor)))))
-                          resilience (expt (exp skew) skew-factor)))
-              (recv (slot-reduce ope output)))))))))
+              (flet ((f (g h) `((,g . ,(* cut (max 0 (* skew-factor h)))))))
+                (send (slot-reduce ope input)
+                      (list (f btc skew) (f doge (- skew)) resilience
+                            (expt (exp skew) skew-factor)))
+                (recv (slot-reduce ope output))))))))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
   (with-slots (supplicant ope delegates) maker
