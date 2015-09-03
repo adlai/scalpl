@@ -196,8 +196,12 @@
   ;; TODO: optional price & expiry
   (awhen (gate-request gate "neworder" (list type market volume price))
     (flet ((value (key) (cdr (assoc key it))))  ; i smell a pattern
-      (and (string= (value :result) "OK") ; TODO: fail earlier
-           (apply #'values (mapcar #'value '(:order :message :track)))))))
+      (cond
+        ((string= (value :result) "OK")
+         (apply #'values (mapcar #'value '(:order :message :track))))
+        ((search "Insufficient funds for this request." (value :message))
+         (values () (princ `(:unfund ,type ,price ,volume))))
+        (t (values () (print it)))))))
 
 (defmethod post-offer ((gate mpex-agent) (offer offer)
                        &aux (old (placed-offers gate)))
