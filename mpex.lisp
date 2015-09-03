@@ -52,9 +52,13 @@
                      `("method" ,(car request)
                        "params" ,(apply 'vector (cdr request))
                        "jsonrpc" "2.0" "id" ,reply-id))))
-    (json:json-bind (jsonrpc result error id) response
-        (assert (string= jsonrpc "2.0")) (when id (assert (= reply-id id)))
-        (list result error))))
+    (json:json-bind (jsonrpc id . #1=(result error)) response
+      #.`(progn ,@(mapcar (lambda (ion) `(assert ,@ion))
+                          '(((string= "2.0" . #2=(jsonrpc)) #2#
+                             "Want jsonrpc \"2.0\", instead: ~S" . #1#)
+                            ( (= . #4=(reply-id . #3=(id))) #3#
+                               "Expected id ~A, instead got: ~A" . #4#))))
+      (list . #1#))))
 
 ;;;
 ;;; Public Data API
