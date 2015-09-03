@@ -391,8 +391,8 @@
             (let* ((buyin (dbz-guard (/ total-btc total-fund)))
                    (btc  (* fund-factor total-btc buyin targeting-factor))
                    (doge (* fund-factor total-doge
-                            (- 1 (* buyin targeting-factor))))
-                   (skew (log (/ doge btc doge/btc))))
+                            (max 0 (- 1 (* buyin targeting-factor)))))
+                   (skew (log (max 1/100 (/ doge btc doge/btc)))))
               ;; report funding
               (makereport maker total-fund doge/btc total-btc total-doge buyin
                           (dbz-guard (/ (total-of    btc  doge) total-fund))

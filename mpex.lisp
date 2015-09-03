@@ -213,7 +213,7 @@
                        (floor (if type (/ sv (abs price)) volume)))
                  (let ((amount (cdr (assoc :amount it))))
                    (dotimes (i 5 (format t "~&LOST ~A ~A" dir offer))
-                     (sleep (random (exp 1)))
+                     (sleep (random (exp 3)))
                      (awhen (find-if (lambda (placed)
                                        (and (= (volume placed) amount)
                                             (= (price  placed) price)))
