@@ -166,7 +166,7 @@
                   (with-json-slots (pair type amount rate) data
                     (let* ((market (find-market pair *btce*))
                            (decimals (slot-value market 'decimals))
-                           (price-int (round (* rate (expt 10 decimals)))))
+                           (price-int (* rate (expt 10 decimals))))
                       (make-instance 'placed :oid (parse-integer (string id))
                                      :market market :volume amount
                                      :price (if (string= type "buy")
@@ -214,11 +214,14 @@
                                  ("buy" cost)
                                  ("sell" (* cost after-fee)))))))
 
-(defun raw-executions (gate &key pair from end)
-  (gate-request gate "TradeHistory"
-                `(,@(when pair `(("pair"    . ,pair)))
-                  ,@(when from `(("from_id" . ,(princ-to-string from))))
-                  ,@(when end  `(("end_id"  . ,(princ-to-string end)))))))
+(defun raw-executions (gate &key pair from end count)
+  (macrolet ((params (&body body)
+               `(append ,@(loop for (val key exp) in body
+                             collect `(when ,val `((,,key . ,,exp)))))))
+    (gate-request gate "TradeHistory"
+                  (params (pair "pair" pair) (count "count" count)
+                          (from "from_id" (princ-to-string from))
+                          (end "end_id" (princ-to-string end))))))
 
 (defmethod execution-since ((gate btce-gate) market since)
   (let ((txid (when since (txid since))))
