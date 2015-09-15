@@ -230,6 +230,13 @@
       ;; in the case where from_id was in a different market. thus, #'remove
       (remove txid (mapcar-jso #'parse-execution it) :key #'txid))))
 
+(defun executions-until (gate market until)
+  (let ((txid (when until (txid until))))
+    (awhen (raw-executions gate :pair (name market) :end txid)
+      ;; btce's end_id is inclusive, although just using #'rest will bug out
+      ;; in the case where end_id was in a different market. thus, #'remove
+      (remove txid (mapcar-jso #'parse-execution it) :key #'txid))))
+
 (defun post-raw-limit (gate type market price volume)
   (gate-request gate "Trade"
                 `(("pair"   . ,market)
