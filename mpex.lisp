@@ -165,13 +165,15 @@
 (defmethod market-fee ((gate mpex-agent) (market market)) '(0 . 0.2))
 
 (defun parse-execution (data)
-  (flet ((value (key) (cdr (assoc key data))))  ; i smell a pattern
+  (flet ((value (key) (cdr (assoc key data))))  ; i smell a[nother] pattern
     (let* ((direction (value :+bs+)) (volume (value :*quantity))
            (market (find-market (value :+mpsic+) *mpex*))
            (phactor (expt 10 (- (decimals market))))
            (price (* (value :*price) phactor)) (cost (* price volume))
            (timestamp (parse-rfc3339-timestring (value :*date))))
-      (make-instance 'execution :direction direction :market market
+      (make-instance 'execution :market market :direction
+                     (format () "~A~:[uy~;ell~]"
+                             direction (string= direction "S"))
                      :price price :timestamp timestamp ; TODO: :fee?
                      ;; (sqrt (expt 16 4)) => unhappy birthday
                      :txid (format () "~D~A~D@~D|~D" (value :*track)
@@ -204,7 +206,7 @@
         ((string= (value :result) "OK")
          (apply #'values (mapcar #'value '(:order :message :track))))
         ((search "Insufficient funds for this request." (value :message))
-         (values () (princ `(:unfund ,type ,price ,volume))))
+         (values () #|(princ `(:unfund ,type ,price ,volume))|#))
         (t (values () (print it)))))))
 
 (defmethod post-offer ((gate mpex-agent) (offer offer)
@@ -216,8 +218,8 @@
                        gate dir (string (name market)) (abs price)
                        (floor (if type (/ sv (abs price)) volume)))
                  (let ((amount (cdr (assoc :amount it))))
-                   (dotimes (i 5 (format t "~&LOST ~A ~A" dir offer))
-                     (sleep (random (exp 3)))
+                   (dotimes (i 3 (format t "~&LOST ~A ~A" dir offer))
+                     (sleep (random (exp 2)))
                      (awhen (find-if (lambda (placed)
                                        (and (= (volume placed) amount)
                                             (= (price  placed) price)))
@@ -231,4 +233,4 @@
     (flet ((value (key) (cdr (assoc key it))))  ; i smell a pattern
       (string-case ((value :result))
         ("OK" t) ("Failed" (not (find oid (placed-offers gate) :key #'oid)))
-        (t (values () (value :result) (value :message)))))))
+        (t (values (pprint `(:stuck ,offer)) (value :result) (value :message)))))))
