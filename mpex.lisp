@@ -56,8 +56,8 @@
       #.`(progn ,@(mapcar (lambda (ion) `(assert ,@ion))
                           '(((string= "2.0" . #2=(jsonrpc)) #2#
                              "Want jsonrpc \"2.0\", instead: ~S" . #1#)
-                            ( (= . #4=(reply-id . #3=(id))) #3#
-                               "Expected id ~A, instead got: ~A" . #4#))))
+                            ((if error t (= . #4=(reply-id . #3=(id)))) #3#
+                             "Expected id ~A, instead got: ~A" . #4#))))
       (list . #1#))))
 
 ;;;

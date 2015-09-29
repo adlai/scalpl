@@ -287,7 +287,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defgeneric gate-post (gate pubkey secret request)
   (:documentation "Attempts to perform `request' with the provided credentials.")
   (:method :around (gate pubkey secret request)
-    (rplacd request (call-next-method gate pubkey secret (cdr request)))))
+    (rplacd request                     ; restart may belong in actors.lisp
+            (restart-case (call-next-method gate pubkey secret (cdr request))
+              (abort () :report "Abort request, keep gate" '(() :aborted))))))
 
 (defmethod perform ((gate gate))
   (with-slots (input output . #1=(exchange pubkey secret cache)) gate ;¡ has-a !
