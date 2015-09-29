@@ -1,14 +1,14 @@
 ```
-  ██████==▄████▄===▄▄▄=======██▓=====██▓███===██▓====
-▒██≡≡≡≡▒≡▒██▀≡▀█≡≡▒████▄≡≡≡≡▓██▒≡≡≡≡▓██░≡≡██▒▓██▒≡≡≡≡
-░=▓██▄===▒▓█====▄=▒██==▀█▄==▒██░====▓██░=██▓▒▒██░====
-≡≡▒≡≡≡██▒▒▓▓▄≡▄██▒░██▄▄▄▄██≡▒██░≡≡≡≡▒██▄█▓▒≡▒▒██░≡≡≡≡
-▒██████▒▒▒=▓███▀=░=▓█===▓██▒░██████▒▒██▒=░==░░██████▒
-▒.▒▓▒.▒.░░.░▒.▒..░.▒▒...▓▒█░░.▒░▓..░▒▓▒░.░..░░.▒░▓..░
- ░.▒..░.░..░..▒...`.░...▒▒.░░.░.▒..░░▒.░..`..░.░.▒..░
-   ░..░.`░..`..`.....`..▒.`░..░.░..`░░..`.....`░.░...
-      ░..░..░..markets..░...`..`.░..░.`..lisp...`░..░
-            ░.............mayhem..`..`............`..
+  SSSSSS==cCCCCc===aAAa======LL&=====PPPPPP===LL&====
+#SS----#-#CC--CC--#AAAAa----&LL#----&PPo--PP#&LL#----
+o=&SSs===#&c======#AA==Aa=-=#LLo====&PPPPPP&##LLo====
+--#-&SSS##&Cc-CCC#oAAaaaAA--#LLo----#PPP#==-##LLo----
+#SSSSSS###=&CCCC=o=&A===&AA#oLLLLLL##PP#=o==ooLLLLLL#
+#.#&#.#.oo.o#.#..o.##...&#Aoo.#o&..o#P#o.o..oo.#o&..o
+ o.#..o.o..o..#...`.o...##.oo.o.#..o&#.o..`..o.o.#..o
+   o..o.`o..`..`.....`..#.`o..o.o..`oo..`.....`o.o...
+      o..o..o..markets..o...`..`.o..o.`..lisp...`o..o
+            o.............mayhem..`..`............`..
 ```
 
 # Legal-_ease_
@@ -31,7 +31,7 @@ Three Bitcoin exchanges are supported: [Bitfinex](https://www.bitfinex.com),
 also supports [MPExAgent](https://github.com/jurov/MPExAgent), if your luck
 includes a seat at [that table](http://mpex.ws/faq.html).
 
-More's ever in the works; contact Adlai on Freenode for details!
+More's ever in the works; contact Adlai for details.
 
 # Mockumentation
 
@@ -60,7 +60,7 @@ larval lisper's quest; and
 summarize the Bitcoin phenomenon for the unfamiliar, purely as enrichment;
 though catalyzed by cryptocurrency, ScalpL itself is agn-_asset_-ic.
 
-# Current Status [![Build Status](https://travis-ci.org/adlai/scalpl.svg?branch=master)](https://travis-ci.org/adlai/scalpl)
+# Current Status [![Build Status](https://travis-ci.org/adlai/scalpl.svg?branch=master)](https://travis-ci.org/adlai/scalpl) [![Quicklisp](http://quickdocs.org/badge/scalpl.svg)](http://quickdocs.org/scalpl/)
 
 ## Taming the Beast
 
