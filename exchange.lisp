@@ -379,7 +379,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (adopt tracker (setf (slot-value tracker 'fetcher)
                        (make-instance 'trades-fetcher :delegates `(,tracker)))))
 
-(defgeneric vwap (tracker &key type depth &allow-other-keys)
+(defgeneric vwap (tracker &key &allow-other-keys)
   (:method :around ((tracker t) &key)
     (handler-case (call-next-method) (division-by-zero () 0)))
   (:method ((tracker trades-tracker) &key since depth type)
@@ -494,7 +494,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (change-class market 'tracked-market))
 (defmethod ensure-running ((market tracked-market)) market)
 
-(defgeneric print-book (book &key count prefix &allow-other-keys)
+(defgeneric print-book (book &key &allow-other-keys)
   (:method ((book cons) &key count prefix ours)
     (destructuring-bind (bids . asks) book
       (flet ((width (side)
