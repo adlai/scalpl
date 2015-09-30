@@ -266,7 +266,7 @@
 (defun cancel-raw-order (gate oid)
   (gate-request gate "CancelOrder" `(("order_id" . ,oid))))
 
-(defmethod cancel-offer ((gate btce-gate) offer)
+(defmethod cancel-offer ((gate btce-gate) (offer placed))
   ;; (format t "~&cancel ~A~%" offer)
   (multiple-value-bind (ret err)
       (cancel-raw-order gate (princ-to-string (oid offer)))

@@ -228,7 +228,8 @@
                                              (oid it) :given (given it))))))))))
       (post (< price 0)))))
 
-(defmethod cancel-offer ((gate mpex-agent) offer &aux (oid (oid offer)))
+(defmethod cancel-offer ((gate mpex-agent) (offer placed)
+                         &aux (oid (oid offer)))
   (awhen (gate-request gate "cancel" (list oid))
     (flet ((value (key) (cdr (assoc key it))))  ; i smell a pattern
       (string-case ((value :result))

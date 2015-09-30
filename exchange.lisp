@@ -710,4 +710,6 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 ;;;
 
 (defgeneric post-offer (gate offer))
-(defgeneric cancel-offer (gate offer))
+(defgeneric cancel-offer (gate offer)
+  (:method ((gate gate) (offer offer))
+    (warn "Tried cancelling unplaced offer ~A" offer)))

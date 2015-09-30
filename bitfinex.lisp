@@ -303,7 +303,7 @@
     ;; if any cancellation fails, notany #'null ensures that we'll try again
     (list (notany #'null (mapcar (lambda (id) (cancel-order gate id)) oid)))))
 
-(defmethod cancel-offer ((gate bitfinex-gate) offer)
+(defmethod cancel-offer ((gate bitfinex-gate) (offer placed))
   ;; (format t "~&cancel ~A~%" offer)
   (multiple-value-bind (ret err) (cancel-order gate (oid offer))
     (or ret (string= "Order could not be cancelled." (getjso "message" err)))))
