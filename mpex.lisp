@@ -71,7 +71,7 @@
                                          :from-end t :initial-value it)))))
 
 (defmethod vwap :around ((market market) &rest args &key (mp #'scaled-price))
-  (with-slots ((market #1=scalpl.exchange::%market)) market
+  (with-slots ((market #1=scalpl.exchange::%market)) market ; dis%usting
     (if (not (ignore-errors (typep market 'mpex-market))) (call-next-method)
         (funcall mp (apply #'vwap market args)))))
 

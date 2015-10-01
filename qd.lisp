@@ -6,59 +6,9 @@
 
 (in-package #:scalpl.qd)
 
-(defun asset-funds (asset funds)
-  (aif (find asset funds :key #'asset) (scaled-quantity it) 0))
-
 ;;;
 ;;;  ENGINE
 ;;;
-
-(defclass supplicant (parent)
-  ((gate :initarg :gate) (market :initarg :market :reader market) placed
-   (response :initform (make-instance 'channel))
-   (abbrev :allocation :class :initform "supplicant")
-   (treasurer :initarg :treasurer) (lictor :initarg :lictor) (fee :initarg :fee)
-   (order-slots :initform 40 :initarg :order-slots)))
-
-(defun offers-spending (ope asset)
-  (remove asset (slot-value ope 'placed)
-          :key #'consumed-asset :test-not #'eq))
-
-(defun balance-guarded-place (ope offer &aux (asset (consumed-asset offer)))
-  (with-slots (gate placed order-slots treasurer) ope
-    (let* ((spending (offers-spending ope asset))
-           (mapreduc (reduce #'aq+ (mapcar #'given spending)
-                             :initial-value (given offer)))
-           (ourfunds (asset-funds asset (slot-reduce treasurer balances))))
-      (when (and (>= ourfunds (scaled-quantity mapreduc))
-                 (> order-slots (length placed)))
-        (awhen1 (post-offer gate offer) (push it placed))))))
-
-(defmethod execute ((supplicant supplicant) (command cons))
-  (with-slots (gate response placed) supplicant
-    (send response
-          (ecase (car command)
-            (offer (balance-guarded-place supplicant (cdr command)))
-            (cancel (awhen1 (cancel-offer gate (cdr command))
-                      (setf placed (remove (oid (cdr command))
-                                           placed :key #'oid))))))))
-
-(defmethod initialize-instance :after ((supp supplicant) &key)
-  (macrolet ((init (slot class)
-               `(unless (ignore-errors ,slot)
-                  (adopt supp (setf ,slot (make-instance
-                                           ',class :delegates `(,supp)))))))
-    (with-slots (fee lictor treasurer placed market gate) supp
-      (adopt supp (ensure-running market)) (adopt supp gate)
-      (init   fee          fee-tracker)
-      (init  lictor  execution-tracker)
-      (init treasurer  balance-tracker)
-      (unless (ignore-errors placed)
-        (setf placed (placed-offers gate))))))
-
-(defmethod christen ((supplicant supplicant) (type (eql 'actor)))
-  (with-aslots (gate market) supplicant
-    (format nil "~A ~A" (name gate) (name market))))
 
 (defun ope-placed (ope)
   (with-slots (placed) (slot-value ope 'supplicant)
@@ -70,12 +20,12 @@
 ;;; response: placed offer if successful, nil if not
 (defun ope-place (ope offer)
   (with-slots (control response) ope
-    (send control (cons 'offer offer)) (recv response)))
+    (send control (cons :offer offer)) (recv response)))
 
 ;;; response: trueish = offer no longer placed, nil = unknown badness
 (defun ope-cancel (ope offer)
   (with-slots (control response) (slot-value ope 'supplicant)
-    (send control (cons 'cancel offer)) (recv response)))
+    (send control (cons :cancel offer)) (recv response)))
 
 (defclass filter (actor)
   ((abbrev :allocation :class :initform "filter")

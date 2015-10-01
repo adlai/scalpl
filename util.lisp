@@ -1,4 +1,3 @@
-
 (defpackage #:scalpl.util
   (:use #:c2cl #:anaphora #:parse-float
         #:string-case #:local-time #:split-sequence)

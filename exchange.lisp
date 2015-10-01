@@ -15,7 +15,7 @@
            #:trade #:cost #:direction #:txid
            #:trades-tracker #:trades #:trades-since #:vwap
            #:book-tracker #:bids #:asks #:get-book #:get-book-keys
-           #:balance-tracker #:balances #:sync #:print-book
+           #:balance-tracker #:balances #:sync #:print-book #:asset-funds
            #:placed-offers #:account-balances #:market-fee
            #:execution #:fee #:net-cost #:net-volume #:fee-tracker
            #:execution-tracker #:execution-since #:bases #:bases-without
@@ -559,6 +559,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defmethod christen ((tracker balance-tracker) (type (eql 'actor)))
   (slot-reduce tracker gate name))
 
+(defun asset-funds (asset funds)
+  (aif (find asset funds :key #'asset) (scaled-quantity it) 0))
+
 (defgeneric market-fee (gate market)
   (:documentation "(bid . ask) fees, in percent")
   (:method :around ((gate gate) (market market))
@@ -713,3 +716,50 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defgeneric cancel-offer (gate offer)
   (:method ((gate gate) (offer offer))
     (warn "Tried cancelling unplaced offer ~A" offer)))
+
+(defclass supplicant (parent)
+  ((gate :initarg :gate) (market :initarg :market :reader market) placed
+   (response :initform (make-instance 'channel))
+   (abbrev :allocation :class :initform "supplicant")
+   (treasurer :initarg :treasurer) (lictor :initarg :lictor) (fee :initarg :fee)
+   (order-slots :initform 40 :initarg :order-slots)))
+
+(defun offers-spending (ope asset)
+  (remove asset (slot-value ope 'placed)
+          :key #'consumed-asset :test-not #'eq))
+
+(defun balance-guarded-place (ope offer &aux (asset (consumed-asset offer)))
+  (with-slots (gate placed order-slots treasurer) ope
+    (let* ((spending (offers-spending ope asset))
+           (mapreduc (reduce #'aq+ (mapcar #'given spending)
+                             :initial-value (given offer)))
+           (ourfunds (asset-funds asset (slot-reduce treasurer balances))))
+      (when (and (>= ourfunds (scaled-quantity mapreduc))
+                 (> order-slots (length placed)))
+        (awhen1 (post-offer gate offer) (push it placed))))))
+
+(defmethod execute ((supplicant supplicant) (command cons))
+  (with-slots (gate response placed) supplicant
+    (send response
+          (ecase (car command)
+            (:offer (balance-guarded-place supplicant (cdr command)))
+            (:cancel (awhen1 (cancel-offer gate (cdr command))
+                      (setf placed (remove (oid (cdr command))
+                                           placed :key #'oid))))))))
+
+(defmethod christen ((supplicant supplicant) (type (eql 'actor)))
+  (with-aslots (gate market) supplicant
+    (format nil "~A ~A" (name gate) (name market))))
+
+(defmethod initialize-instance :after ((supp supplicant) &key)
+  (macrolet ((init (slot class)
+               `(unless (ignore-errors ,slot)
+                  (adopt supp (setf ,slot (make-instance
+                                           ',class :delegates `(,supp)))))))
+    (with-slots (fee lictor treasurer placed market gate) supp
+      (adopt supp (ensure-running market)) (adopt supp gate)
+      (init   fee          fee-tracker)
+      (init  lictor  execution-tracker)
+      (init treasurer  balance-tracker)
+      (unless (ignore-errors placed)
+        (setf placed (placed-offers gate))))))
