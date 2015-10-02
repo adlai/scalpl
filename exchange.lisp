@@ -19,7 +19,8 @@
            #:placed-offers #:account-balances #:market-fee
            #:execution #:fee #:net-cost #:net-volume #:fee-tracker
            #:execution-tracker #:execution-since #:bases #:bases-without
-           #:post-offer #:cancel-offer #:supplicant #:lictor #:treasurer))
+           #:post-offer #:cancel-offer #:supplicant #:lictor #:treasurer
+           #:order-slots #:response))
 
 (in-package #:scalpl.exchange)
 
@@ -527,11 +528,11 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                     (let ((bs (side mbid my-bids bids))
                           (as (side mask my-asks asks)))
                       (line (or mbid (car bids)) (or mask (car asks)))
-                      (and (or mbid mask) (or bs as)
-                           (line (if (and mbid bs) (car bids)
-                                     (pop (cdr bids)))
-                                 (if (and mask as) (car asks)
-                                     (pop (cdr asks))))))))))))))
+                      (macrolet ((apop (x) `(and (cdr ,x) (pop ,x))))
+                        (and (or mbid mask) (or bs as)
+                             (line (if (and mbid bs) (car bids) (apop bids))
+                                   (if (and mask as) (car asks)
+                                       (apop asks))))))))))))))
   (:method ((tracker book-tracker) &rest keys)
     (apply #'print-book (recv (slot-value tracker 'output)) keys))
   (:method ((market tracked-market) &rest keys)
