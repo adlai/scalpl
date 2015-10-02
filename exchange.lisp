@@ -19,7 +19,7 @@
            #:placed-offers #:account-balances #:market-fee
            #:execution #:fee #:net-cost #:net-volume #:fee-tracker
            #:execution-tracker #:execution-since #:bases #:bases-without
-           #:post-offer #:cancel-offer))
+           #:post-offer #:cancel-offer #:supplicant #:lictor #:treasurer))
 
 (in-package #:scalpl.exchange)
 
