@@ -297,7 +297,8 @@
 (defun makereport (maker fund rate btc doge investment risked skew &optional ha)
   (with-slots (name market ope snake last-report) maker
     (unless ha
-      (let ((new-report (list btc doge investment risked skew)))
+      (let ((new-report (list btc doge investment risked skew
+                              (first (slot-reduce maker lictor trades)))))
         (if (equal last-report new-report) (return-from makereport)
             (setf last-report new-report))))
     (labels ((sastr (side amount) ; TODO factor out aqstr
