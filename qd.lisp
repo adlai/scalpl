@@ -384,7 +384,7 @@
     (let ((aq1 (aq- (side-sum "buy"  #'taken) (side-sum "sell" #'given)))
           (aq2 (aq- (side-sum "sell" #'taken) (side-sum "buy"  #'given))))
       (ecase (- (signum (quantity aq1)) (signum (quantity aq2)))
-        (0 (values nil aq1 aq2))
+        ((0 1 -1) (values nil aq1 aq2))
         (-2 (values (aq/ (- (conjugate aq1)) aq2) aq2 aq1))
         (+2 (values (aq/ (- (conjugate aq2)) aq1) aq1 aq2))))))
 
