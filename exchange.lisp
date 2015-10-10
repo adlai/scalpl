@@ -33,7 +33,7 @@
          usocket:deadline-timeout-error usocket:timeout-error
          usocket:timeout-error usocket:ns-host-not-found-error
          end-of-file chunga::input-chunking-unexpected-end-of-file
-         cl+ssl::ssl-error)
+         cl+ssl::ssl-error usocket:connection-refused-error)
            (error) (describe error) (sleep (incf backoff))))))
 
 ;;; TODO
