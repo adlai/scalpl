@@ -30,6 +30,7 @@
            #:mapjso*
            #:short-month-index
            #:parse-rfc1123-timestring
+           #+clozure #:memory-usage
            ))
 
 (in-package #:scalpl.util)
@@ -226,3 +227,13 @@
                              "http://rate-exchange.appspot.com/currency"
                              :parameters `(("from" . ,from) ("to" . ,to))
                              :want-stream t))))
+
+;;; memory introspection, where supported
+#+clozure
+(defun memory-usage ()
+  "Scrapes a memory usage estimate from `ROOM' output"
+  (let ((parts (split-sequence
+                #\( (with-output-to-string (*standard-output*) (room)))))
+    (reduce
+     '+ (mapcar (lambda (part) (parse-integer part :junk-allowed t))
+                (list (nth 1 parts) (nth 4 parts) (nth 7 parts))))))

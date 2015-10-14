@@ -316,6 +316,7 @@
   (force-output))
 
 (defmethod perform ((maker maker) &key)
+  (call-next-method maker :blockp ())
   (with-slots (fund-factor resilience-factor targeting-factor skew-factor
                market name ope cut) maker
     ;; Get our balances
@@ -426,9 +427,36 @@
           (when source (send source next)))))
     (when market (path maker market book-tracker))))
 
-
 (defmethod describe-object ((maker maker) (stream t))
   (print-book (slot-reduce maker ope)) (performance-overview maker)
   (multiple-value-call 'format
     t "~@{~A~#[~:; ~]~}" (name maker)
     (trades-profits (slot-reduce maker ope supplicant lictor trades))))
+
+#+clozure
+(progn
+  (defclass memory-supervisor (actor)
+    ((to-halt :initarg :to-halt) (trigger :initarg :trigger)
+     (frequency :initarg :frequency :initform 15)
+     (leave-alive :initarg :leave-alive :initform 2)))
+
+  (defmethod christen ((supervisor memory-supervisor) (type (eql 'actor)))
+    (format () "memory supervisor ~A"
+            (first (last (slot-value supervisor 'to-halt)))))
+
+  (defmethod perform ((supervisor memory-supervisor) &key)
+    (with-slots (to-halt frequency trigger leave-alive tasks) supervisor
+      (sleep frequency)
+      (when (or (> (memory-usage) trigger)
+                (> (length (pooled-tasks)) 17)) ; races, hardcoding, :(
+        (etypecase leave-alive
+          (integer
+           (mapc #'halt (reverse to-halt)) (sleep frequency)
+           (mapc 'kill (mapcar 'task-thread
+                               (set-difference (butlast (pooled-tasks)
+                                                        leave-alive)
+                                               tasks))) ; nerd motivation!
+           (loop until (< (memory-usage) trigger) do
+                (ccl:gc) (sleep frequency))
+           (mapc #'reinitialize-instance to-halt)) ; races :(
+          (function (error "TODO")))))))
