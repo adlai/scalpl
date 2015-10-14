@@ -53,7 +53,7 @@
 ;;; 2) profitable spread - already does (via ecase spaghetti)
 ;;; 3) profit vs recent cost basis - done, shittily - TODO parametrize depth
 
-(defmethod perform ((filter filter))
+(defmethod perform ((filter filter) &key)
   (with-slots (market book-cache bids asks frequency supplicant) filter
     (let ((book (recv (slot-reduce market book-tracker output))))
       (unless (eq book book-cache)
@@ -95,7 +95,7 @@
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
 ;;; sends completion acknowledgement to response channel
-(defmethod perform ((prioritizer prioritizer))
+(defmethod perform ((prioritizer prioritizer) &key)
   (with-slots (next-bids next-asks response frequency) prioritizer
     (multiple-value-bind (next source)
         (recv (list next-bids next-asks) :blockp nil)
@@ -218,7 +218,7 @@
                               (asks (punk vwab  price 0 ask)))))
                         #'dunk book))))))
 
-(defmethod perform ((ope ope-scalper))
+(defmethod perform ((ope ope-scalper) &key)
   (with-slots (input output filter prioritizer epsilon frequency) ope
     (destructuring-bind (primary counter resilience ratio) (recv input)
       (with-slots (next-bids next-asks response) prioritizer
@@ -315,7 +315,7 @@
               (apply 'profit-snake (slot-reduce ope supplicant lictor) snake))))
   (force-output))
 
-(defmethod perform ((maker maker))
+(defmethod perform ((maker maker) &key)
   (with-slots (fund-factor resilience-factor targeting-factor skew-factor
                market name ope cut) maker
     ;; Get our balances

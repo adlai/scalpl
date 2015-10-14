@@ -292,7 +292,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
             (restart-case (call-next-method gate pubkey secret (cdr request))
               (abort () :report "Abort request, keep gate" '(() :aborted))))))
 
-(defmethod perform ((gate gate))
+(defmethod perform ((gate gate) &key)
+  (call-next-method gate :blockp ())
   (with-slots (input output . #1=(exchange pubkey secret cache)) gate ;¡ has-a !
     (when (send-blocks-p output) (setf cache (recv input)))
     (send (slot-value gate 'output) (gate-post . #1#))))
@@ -350,7 +351,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defmethod christen ((fetcher trades-fetcher) (type (eql 'actor)))
   (format nil "trade fetcher ~A" (market fetcher)))
 
-(defmethod perform ((fetcher trades-fetcher))
+(defmethod perform ((fetcher trades-fetcher) &key)
   (with-slots (market buffer delay) fetcher
     (dolist (trade (trades-since market (recv buffer))) (send buffer trade))
     (sleep delay)))
@@ -365,7 +366,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defmethod christen ((tracker trades-tracker) (type (eql 'actor)))
   (format nil "trade tracker ~A" (market tracker)))
 
-(defmethod perform ((tracker trades-tracker))
+(defmethod perform ((tracker trades-tracker) &key)
   (with-slots (buffer trades market) tracker
     (let ((last (car trades)))
       (select
@@ -440,7 +441,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defmethod christen ((fetcher book-fetcher) (type (eql 'actor)))
   (format nil "depth fetcher ~A" (market fetcher)))
 
-(defmethod perform ((fetcher book-fetcher))
+(defmethod perform ((fetcher book-fetcher) &key)
   (with-slots (buffer delay market get-book-keys) fetcher
     (send buffer (multiple-value-call 'cons
                    (apply #'get-book market get-book-keys)))
@@ -456,7 +457,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defmethod christen ((tracker book-tracker) (type (eql 'actor)))
   (format nil "depth tracker ~A" (market tracker)))
 
-(defmethod perform ((tracker book-tracker))
+(defmethod perform ((tracker book-tracker) &key)
   (with-slots (buffer book output) tracker
     (select ((recv buffer next) (setf book (cons (cdr next) (car next))))
             ((send output book)) (t (sleep 0.2)))))
@@ -546,7 +547,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
    (balances :initarg :balances :initform nil)
    (abbrev :allocation :class :initform "funds")))
 
-(defmethod perform ((tracker balance-tracker))
+(defmethod perform ((tracker balance-tracker) &key)
   (with-slots (gate sync fuzz balances) tracker
     (send (recv sync) (when (zerop (random fuzz))
                         (awhen1 (account-balances gate)
@@ -580,12 +581,12 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (with-slots (gate market) tracker
     (format nil "~A ~A" (name gate) (name market))))
 
-(defmethod perform ((fetcher fee-fetcher))
+(defmethod perform ((fetcher fee-fetcher) &key)
   (with-slots (market gate delay input) fetcher
     (awhen (market-fee gate market) (send input it))
     (sleep delay)))
 
-(defmethod perform ((tracker fee-tracker))
+(defmethod perform ((tracker fee-tracker) &key)
   (with-slots (input output fee) tracker
     (ignore-errors (select ((recv input new) (setf fee new))
                            ((send output fee)) (t (sleep 1/7))))))
@@ -622,7 +623,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (with-slots (gate market) fetcher
     (format nil "~A ~A" (name gate) (name market))))
 
-(defmethod perform ((fetcher execution-fetcher))
+(defmethod perform ((fetcher execution-fetcher) &key)
   (with-slots (gate market buffer delay) fetcher
     (dolist (trade (execution-since gate market (recv buffer)) (sleep delay))
       (send buffer trade))))
@@ -641,7 +642,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (setf bases nil) (dolist (next (reverse trades))
                        (update-bases tracker next))))
 
-(defmethod perform ((tracker execution-tracker))
+(defmethod perform ((tracker execution-tracker) &key)
   (with-slots (buffer trades bases control) tracker
     (select ((recv buffer next)
              (update-bases tracker next) (push next trades))
