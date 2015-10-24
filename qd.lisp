@@ -57,10 +57,16 @@
   (with-slots (market book-cache bids asks frequency supplicant) filter
     (let ((book (recv (slot-reduce market book-tracker output))))
       (unless (eq book book-cache)
-        (with-slots (placed) supplicant
-          (setf book-cache book
-                bids (ignore-offers (cdar book) placed)
-                asks (ignore-offers (cddr book) placed)))))
+        (with-slots (placed fee) supplicant
+          (destructuring-bind (bid . ask) (recv (slot-reduce fee output))
+            (macrolet ((ignore-from (car cdr)
+                         `(values (ignore-offers (,car book) placed)
+                                  (ignore-offers (,cdr book) placed)))
+                       (cache (side) `(price (,side book-cache))))
+              (setf book-cache book (values bids asks)
+                    (if (plusp (1- (profit-margin
+                                    (cache caar) (cache cadr) bid ask)))
+                        (ignore-from car cdr) (ignore-from cdar cddr))))))))
     (sleep frequency)))
 
 (defclass prioritizer (actor)
