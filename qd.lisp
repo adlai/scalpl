@@ -454,7 +454,8 @@
     (with-slots (to-halt frequency trigger leave-alive tasks) supervisor
       (sleep frequency)
       (when (or (> (memory-usage) trigger)
-                (> (length (pooled-tasks)) 17)) ; races, hardcoding, :(
+                (> (length (set-difference (pooled-tasks) tasks)) 17))
+        (format t "~&(memory-usage) = ~D, cycling~%" (memory-usage))
         (etypecase leave-alive
           (integer
            (mapc #'halt (reverse to-halt)) (sleep frequency)
@@ -464,5 +465,6 @@
                                                tasks))) ; nerd motivation!
            (loop until (< (memory-usage) trigger) do
                 (ccl:gc) (sleep frequency))
-           (mapc #'reinitialize-instance to-halt)) ; races :(
+           (dolist (actor to-halt)
+             (reinitialize-instance actor) (sleep frequency)))  ; races :(
           (function (error "TODO")))))))

@@ -298,6 +298,10 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (when (send-blocks-p output) (setf cache (recv input)))
     (send (slot-value gate 'output) (gate-post . #1#))))
 
+(defmethod halt :before ((gate gate))
+  (pexec (:name "gate kill helper")
+    (loop until (print (account-balances gate)) do (sleep 15))))
+
 (defun gate-request (gate path &optional options &aux (id (cons path options)))
   (with-slots (input output) gate
     (send input (list* id path options))
