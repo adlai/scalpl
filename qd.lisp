@@ -454,7 +454,11 @@
     (with-slots (to-halt frequency trigger leave-alive tasks) supervisor
       (sleep frequency)
       (when (or (> (memory-usage) trigger)
-                (> (length (set-difference (pooled-tasks) tasks)) 17))
+                (< 17 (count-if #'thread-alive-p
+                                (remove-if
+                                 #'null (mapcar #'task-thread
+                                                (set-difference (pooled-tasks)
+                                                                tasks))))))
         (format t "~&(memory-usage) = ~D, cycling~%" (memory-usage))
         (etypecase leave-alive
           (integer
@@ -463,6 +467,7 @@
                                (set-difference (butlast (pooled-tasks)
                                                         leave-alive)
                                                tasks))) ; nerd motivation!
+           (sleep frequency)            ; "this is just cr*p" - Linus
            (loop until (< (memory-usage) trigger) do
                 (ccl:gc) (sleep frequency))
            (dolist (actor to-halt)
