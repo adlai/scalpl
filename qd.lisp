@@ -396,29 +396,29 @@
         (+2 (values (aq/ (- (conjugate aq2)) aq1) aq1 aq2))))))
 
 (defun performance-overview (maker &optional depth)
-  (with-slots (ope market) maker
-    (with-slots (treasurer lictor) (slot-reduce ope supplicant)
+  (with-slots (treasurer lictor) maker
+    (with-slots (primary counter) #1=(market maker)
       (flet ((funds (symbol)
                (asset-funds symbol (slot-reduce treasurer balances)))
-             (total (btc doge)
-               (+ btc (/ doge (vwap market :depth 50 :type :buy))))
-             (vwap (side) (vwap lictor :type side :market market :depth depth)))
-        (let* ((trades (slot-reduce ope supplicant lictor trades))
+             (total (btc doge)          ; patt'ring on my chamber door?
+               (+ btc (/ doge (vwap #1# :depth 50 :type :buy))))
+             (vwap (side) (vwap lictor :type side :market #1# :depth depth)))
+        (let* ((trades (slot-reduce maker lictor trades))
                (uptime (timestamp-difference
                         (now) (timestamp (first (last trades)))))
                (updays (/ uptime 60 60 24))
                (volume (or depth (reduce #'+ (mapcar #'volume trades))))
-               (profit (* volume
-                          (1- (profit-margin (vwap "buy") (vwap "sell"))) 1/2))
-               (total (total (funds (primary market))
-                             (funds (counter market)))))
+               (profit (* volume (1- (profit-margin (vwap "buy")
+                                                    (vwap "sell"))) 1/2))
+               (total (total (funds primary) (funds counter))))
           (format t "~&Been up              ~7@F days,~
-                     ~%traded               ~7@F coins,~
-                     ~%profit               ~7@F coins,~
+                     ~%traded               ~7@F ~(~A~),~
+                     ~%profit               ~7@F ~(~2:*~A~*~),~
                      ~%portfolio flip per   ~7@F days,~
                      ~%avg daily profit:    ~4@$%~
                      ~%estd monthly profit: ~4@$%~%"
-                  updays volume profit (/ (* total updays 2) volume)
+                  updays volume (name primary) profit
+                  (/ (* total updays 2) volume)
                   (/ (* 100 profit) updays total) ; ignores compounding, du'e!
                   (/ (* 100 profit) (/ updays 30) total)))))))
 
