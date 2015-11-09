@@ -453,23 +453,19 @@
   (defmethod perform ((supervisor memory-supervisor) &key)
     (with-slots (to-halt frequency trigger leave-alive tasks) supervisor
       (sleep frequency)
-      (when (or (> (memory-usage) trigger)
-                (< 17 (count-if #'thread-alive-p
-                                (remove-if
-                                 #'null (mapcar #'task-thread
-                                                (set-difference (pooled-tasks)
-                                                                tasks))))))
-        (format t "~&(memory-usage) = ~D, cycling~%" (memory-usage))
-        (etypecase leave-alive
-          (integer
-           (mapc #'halt (reverse to-halt)) (sleep frequency)
-           (mapc 'kill (mapcar 'task-thread
-                               (set-difference (butlast (pooled-tasks)
-                                                        leave-alive)
-                                               tasks))) ; nerd motivation!
-           (sleep frequency)            ; "this is just cr*p" - Linus
-           (loop until (< (memory-usage) trigger) do
-                (ccl:gc) (sleep frequency))
-           (dolist (actor to-halt)
-             (reinitialize-instance actor) (sleep frequency)))  ; races :(
-          (function (error "TODO")))))))
+      (flet ((threads (all)
+               (remove () (mapcar #'task-thread (set-difference all tasks)))))
+        (when (or (> (memory-usage) trigger)
+                  (< 17 (count-if #'thread-alive-p (threads (pooled-tasks)))))
+          (format t "~&(memory-usage) = ~D, cycling~%" (memory-usage))
+          (etypecase leave-alive
+            (integer
+             (mapc #'halt (reverse to-halt)) (sleep frequency)
+             (loop for them = (threads (butlast (pooled-tasks) leave-alive))
+                while them do (mapc 'kill them))
+             (sleep frequency)            ; "this is just cr*p" - Linus
+             (loop until (< (memory-usage) (/ trigger 2)) do
+                  (ccl:gc) (sleep frequency))
+             (dolist (actor to-halt)
+               (reinitialize-instance actor) (sleep frequency)))  ; races :(
+            (function (error "TODO"))))))))

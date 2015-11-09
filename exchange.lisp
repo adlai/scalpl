@@ -300,7 +300,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defmethod halt :before ((gate gate))
   (pexec (:name "gate kill helper")
-    (loop until (print (account-balances gate)) do (sleep 15))))
+    (loop until (account-balances gate) do (sleep 15))))
 
 (defun gate-request (gate path &optional options &aux (id (cons path options)))
   (with-slots (input output) gate
