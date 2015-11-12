@@ -11,7 +11,7 @@
   (defparameter +base-stub+ "http://mpex.co/mpex-"))
 
 (defmacro with-request (path form)
-  `(multiple-value-bind (stream status)
+  `(multiple-value-bind (stream status) ; FIXME: false factoring
        (http-request ,(format () "~A~A.php" +base-stub+ path) :want-stream t)
      (with-open-stream (it stream)
        (if (= status 200) ,form
@@ -43,10 +43,10 @@
   ((exchange :allocation :class :initform *mpex*)))
 
 (defmethod gate-post ((gate (eql *mpex*)) key secret request
-                      &aux (reply-id (sxhash request)))
+                      &aux (reply-id (timestamp-to-unix (now))))
   (with-open-stream (response
       (http-request key :content-type "text/plain" :method :post
-                    :want-stream t :external-format-in :ascii
+                    :want-stream t :connection-timeout 30
                     :basic-authorization secret :content
                     (json:encode-json-plist-to-string
                      `("method" ,(car request)
@@ -57,7 +57,8 @@
                           '(((string= "2.0" . #2=(jsonrpc)) #2#
                              "Want jsonrpc \"2.0\", instead: ~S" . #1#)
                             ((if error t (= . #4=(reply-id . #3=(id)))) #3#
-                             "Expected id ~A, instead got: ~A" . #4#))))
+                             "Expected id ~A, instead got: ~A" . #4#)
+                            ((or result error) () "Insert coin to replay?"))))
       (list . #1#))))
 
 ;;;
