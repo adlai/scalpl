@@ -29,12 +29,12 @@
 (defun http-request (path &rest keys &aux (backoff 0))
   (loop (handler-case (return (apply #'drakma:http-request path
                                      :connection-timeout 30 keys))
-       ((or simple-error drakma::drakma-simple-error
-         usocket:deadline-timeout-error usocket:timeout-error
-         usocket:timeout-error usocket:ns-host-not-found-error
-         end-of-file chunga::input-chunking-unexpected-end-of-file
-         cl+ssl::ssl-error usocket:connection-refused-error)
-           (error) (describe error) (sleep (incf backoff))))))
+          ((or simple-error drakma::drakma-simple-error
+            usocket:deadline-timeout-error usocket:timeout-error
+            usocket:timeout-error usocket:ns-host-not-found-error
+            end-of-file chunga::input-chunking-unexpected-end-of-file
+            cl+ssl::ssl-error usocket:connection-refused-error)
+              (error) (describe error) (sleep (incf backoff backoff))))))
 
 ;;; TODO
 ;;; This file should lay out the interface that each exchange client needs to
