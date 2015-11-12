@@ -80,6 +80,9 @@
 (defmethod christen ((prioritizer prioritizer) (type (eql 'actor)))
   (slot-reduce prioritizer supplicant name)) ; this is starting to rhyme
 
+(defun sufficiently-different? (new old) ; someday dispatch on market
+  (> (abs (log (/ (quantity (given new)) (quantity (given old))))) 0.03))
+
 (defun prioriteaze (ope target placed &aux to-add (excess placed))
   (flet ((place (new) (ope-place (slot-value ope 'supplicant) new)))
     (macrolet ((frob (add pop)
@@ -94,7 +97,7 @@
            (if excess (frob () excess)  ; choose the lesser weevil
                (and target placed (= (length target) (length placed))
                     (loop for new in target and old in placed
-                       when (/= (given new) (given old))
+                       when (sufficiently-different? new old)
                        collect new into news and collect old into olds
                        finally (when news (frob news olds)))))))))
 
