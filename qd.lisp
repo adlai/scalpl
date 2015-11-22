@@ -81,7 +81,7 @@
   (slot-reduce prioritizer supplicant name)) ; this is starting to rhyme
 
 (defun sufficiently-different? (new old) ; someday dispatch on market
-  (> (abs (log (/ (quantity (given new)) (quantity (given old))))) 0.03))
+  (< 0.03 (abs (log (/ (quantity (given new)) (quantity (given old)))))))
 
 (defun prioriteaze (ope target placed &aux to-add (excess placed))
   (flet ((place (new) (ope-place (slot-value ope 'supplicant) new)))
@@ -437,10 +437,9 @@
     (when market (path maker market book-tracker))))
 
 (defmethod describe-object ((maker maker) (stream t))
-  (print-book (slot-reduce maker ope)) (performance-overview maker)
-  (multiple-value-call 'format
-    t "~@{~A~#[~:; ~]~}" (name maker)
-    (trades-profits (slot-reduce maker ope supplicant lictor trades))))
+  (print-book maker) (performance-overview maker)
+  (multiple-value-call 'format t "~@{~A~#[~:; ~]~}" (name maker)
+                       (trades-profits (slot-reduce maker lictor trades))))
 
 #+clozure
 (progn
