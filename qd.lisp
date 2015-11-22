@@ -59,14 +59,17 @@
       (unless (eq book book-cache)
         (with-slots (placed fee) supplicant
           (destructuring-bind (bid . ask) (recv (slot-reduce fee output))
-            (macrolet ((ignore-from (car cdr)
-                         `(values (ignore-offers (,car book) placed)
-                                  (ignore-offers (,cdr book) placed)))
-                       (cache (side) `(price (,side book-cache))))
-              (setf book-cache book (values bids asks)
-                    (if (plusp (1- (profit-margin
-                                    (cache caar) (cache cadr) bid ask)))
-                        (ignore-from car cdr) (ignore-from cdar cddr))))))))
+            (macrolet ((ignore (side)
+                         `(ignore-offers (nthcdr ,side (,side book)) placed))
+                       (cache (n side) `(price (nth ,n (,side book-cache)))))
+              (flet ((ignore-both (car &aux (cdr car))
+                       (values (ignore car) (ignore cdr))))
+                (setf book-cache book (values bids asks)
+                      (ignore-both      ; TODO: targeting-aware lopsidedness
+                       (1- (loop for i from 0 count t until
+                                (plusp (1- (profit-margin
+                                            (cache i car) (cache i cdr)
+                                            bid ask)))))))))))))
     (sleep frequency)))
 
 (defclass prioritizer (actor)
