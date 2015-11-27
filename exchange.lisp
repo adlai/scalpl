@@ -356,7 +356,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (format nil "trade fetcher ~A" (market fetcher)))
 
 (defmethod perform ((fetcher trades-fetcher) &key)
-  (with-slots (market buffer delay) fetcher
+  (with-slots (market buffer delay)
+      (first (slot-value fetcher 'delegates)) ; FIXME MUCH BAD SUCH HATE
     (dolist (trade (trades-since market (recv buffer))) (send buffer trade))
     (sleep delay)))
 
