@@ -61,6 +61,17 @@
                             ((or result error) () "Insert coin to replay?"))))
       (list . #1#))))
 
+(defmethod gate-post :around ((gate (eql *mpex*)) key secret request)
+  (handler-bind ((error                 ; define-condition pls!
+                  (lambda (error)       ; and now abort-request
+                    (awhen (and (string= ; define-condition pls
+                                 "Insert coin to replay?"
+                                 (simple-condition-format-control error))
+                                (find 'abort (compute-restarts error)
+                                      :key #'restart-name))
+                      (invoke-restart it)))))
+    (call-next-method gate key secret request)))
+
 ;;;
 ;;; Public Data API
 ;;;
