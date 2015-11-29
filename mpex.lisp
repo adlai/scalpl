@@ -198,17 +198,18 @@
 
 ;;; The trade and dividend history start with the first transaction after a
 ;;; point in time one hour previous to the last STAT issued to that user.
-(defun raw-executions (gate)
-  (cdr (assoc :*trade-history (gate-request gate "statjson"))))
+(defun raw-executions (json) (cdr (assoc :*trade-history json)))
+
+(defun parse-executions (raw market)
+  (sort (remove market (mapcar #'parse-execution raw) :key #'market
+                :test-not #'eq) #'timestamp< :key #'timestamp))
 
 (defmethod execution-since ((gate mpex-agent) market since)
-  (awhen (raw-executions gate)          ; spot the twist?
-    (let ((parsed (sort (remove market (mapcar #'parse-execution it)
-                                :key #'market :test-not #'eq)
-                        #'timestamp< :key #'timestamp)))
-      (if (null since) parsed
-          (member (timestamp since) parsed
-                  :key #'timestamp :test #'timestamp<)))))
+  (awhen (raw-executions (gate-request gate "statjson"))
+    (flet ((trim (all) (member (timestamp since) all
+                               :key #'timestamp :test #'timestamp<)))
+      (funcall (if (null since) #'identity #'trim)
+               (parse-executions it market)))))
 
 (defun post-raw-limit (gate type market price volume)
   ;; TODO: optional price & expiry
