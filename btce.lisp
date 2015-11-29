@@ -48,7 +48,7 @@
   (raw-request (concatenate 'string +public-stub+ path "?"
                             (urlencode-params data))))
 
-(defconstant +kludge+ -1439197049797)   ; sometimes one can!
+(defvar +kludge+ -1439197049797)        ; FIXME: (- (to-unix (now)) #.TODO)
 
 (defun nonce (&aux (now (now)))
   (princ-to-string (+ (floor (nsec-of now) 1000000)
@@ -110,9 +110,15 @@
 
 (defmethod gate-post ((gate (eql *btce*)) key secret request)
   (destructuring-bind (command . options) request
-    (awhen (post-request command key secret options)
-      (with-json-slots (success return error) it
-        (if (zerop success) (list (warn error) error) (list return))))))
+    (tagbody
+     attempt
+       (awhen (post-request command key secret options)
+         (with-json-slots (success return error) it
+           (cond ((not (zerop success)) (list return))
+                 ((not (search "invalid nonce parameter; on key:"
+                               error :end2 32))
+                  (defparameter +kludge+ (error)))) ; now recalculate n stuff
+           (if (zerop success) (list (warn error) error) (list return)))))))
 
 ;;;
 ;;; Public Data API
