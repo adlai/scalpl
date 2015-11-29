@@ -51,7 +51,9 @@
 
 (defvar *exchanges* (make-hash-table))
 
-(defun find-exchange (name) (gethash name *exchanges*))
+(defun find-exchange (name &aux (str (format () "scalpl.~(~A~)" name)))
+  (symbol-macrolet ((get (gethash name *exchanges*)))
+    (or get (awhen (asdf:find-system str) (asdf:load-system it) get))))
 
 (defclass exchange ()
   ((name    :initarg :name    :reader name)
