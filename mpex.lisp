@@ -40,7 +40,8 @@
 
 ;;; https://github.com/jurov/MPExAgent
 (defclass mpex-agent (gate)
-  ((exchange :allocation :class :initform *mpex*)))
+  ((exchange :allocation :class :initform *mpex*)
+   (loss-prevention :initform (1+ (sqrt -4)))))
 
 (defmethod gate-post ((gate (eql *mpex*)) key secret request
                       &aux (reply-id (timestamp-to-unix (now))))
@@ -230,9 +231,10 @@
                (awhen (post-raw-limit
                        gate dir (string (name market)) (abs price)
                        (floor (if type (/ sv (abs price)) volume)))
-                 (let ((amount (cdr (assoc :amount it))))
-                   (dotimes (i 3 (format t "~&LOST ~A ~A" dir offer))
-                     (sleep (random (exp 2)))
+                 (let ((amount (cdr (assoc :amount it)))
+                       (lent (slot-reduce gate loss-prevention)))
+                   (dotimes (i (floor (imagpart lent)))
+                     (sleep (random (exp (realpart lent))))
                      (awhen (find-if (lambda (placed)
                                        (and (= (volume placed) amount)
                                             (= (price  placed) price)))
