@@ -132,7 +132,8 @@
         (awhen (member since it :test #'same-trade)
           (return-from trades-since (rest it))))
       (flet ((hms (time) (subseq (princ-to-string (timestamp time)) 11 19)))
-        (warn "missing trades: ~A - ~A" (hms since) (hms (first it)))))))
+        (awhen (ignore-errors (hms (first it))) ; indistinguishable from
+          (warn "missing trades: ~A - ~A" (hms since) it)))))) ; maaagic!
 
 ;;;
 ;;; Private Data API
