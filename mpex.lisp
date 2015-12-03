@@ -122,9 +122,8 @@
   (with-request "rss" (rss:items (rss:parse-rss-stream it))))
 
 (defmethod trades-since ((market mpex-market) &optional since)
-  (aprog1 (nreverse (remove-if-not (lambda (trade)
-                                     (eq (name (market trade)) (name market)))
-                                   (mapcar #'parse-trade (trades-rss))))
+  (aprog1 (nreverse (remove market (mapcar #'parse-trade (trades-rss))
+                            :key #'market :test-not #'eq))
     (when since
       (flet ((same-trade (a b)
                (and (timestamp= (timestamp a) (timestamp b))

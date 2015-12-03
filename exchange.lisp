@@ -742,14 +742,17 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                  (> order-slots (length placed)))
         (awhen1 (post-offer gate offer) (push it placed))))))
 
+(defgeneric supplicate (supplicant gate op args)
+  (:method ((supplicant supplicant) (gate gate) (op (eql :cancel)) id)
+    (awhen1 (cancel-offer gate id)
+      (with-slots (placed) supplicant
+        (setf placed (remove (oid id) placed :key #'oid)))))
+  (:method ((supplicant supplicant) (gate gate) (op (eql :offer)) args)
+    (balance-guarded-place supplicant args)))
+
 (defmethod execute ((supplicant supplicant) (command cons))
-  (with-slots (gate response placed) supplicant
-    (send response
-          (ecase (car command)
-            (:offer (balance-guarded-place supplicant (cdr command)))
-            (:cancel (awhen1 (cancel-offer gate (cdr command))
-                      (setf placed (remove (oid (cdr command))
-                                           placed :key #'oid))))))))
+  (with-slots (gate response) supplicant
+    (send response (supplicate supplicant gate (car command) (cdr command)))))
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
   (with-aslots (gate market) supplicant
