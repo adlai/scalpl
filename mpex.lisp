@@ -45,14 +45,13 @@
 
 (defmethod gate-post ((gate (eql *mpex*)) key secret request
                       &aux (reply-id (timestamp-to-unix (now))))
-  (with-open-stream (response
-      (http-request key :content-type "text/plain" :method :post
-                    :want-stream t :connection-timeout 30
-                    :basic-authorization secret :content
-                    (json:encode-json-plist-to-string
-                     `("method" ,(car request)
-                       "params" ,(apply 'vector (cdr request))
-                       "jsonrpc" "2.0" "id" ,reply-id))))
+  (with-open-stream
+      (response (http-request
+                 key :content-type "text/plain" :method :post :want-stream t
+                 :connection-timeout 30 :basic-authorization secret :content
+                 (json:encode-json-plist-to-string
+                  `("method" ,(car request) "jsonrpc" "2.0" "id" ,reply-id
+                    "params" ,(apply 'vector (cdr request))))))
     (json:json-bind (jsonrpc id . #1=(result error)) response
       #.`(progn ,@(mapcar (lambda (ion) `(assert ,@ion))
                           '(((string= "2.0" . #2=(jsonrpc)) #2#
