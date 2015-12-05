@@ -461,7 +461,8 @@
       (flet ((threads (all)
                (remove () (mapcar #'task-thread (set-difference all tasks)))))
         (when (or (> (memory-usage) trigger)
-                  (< 17 (count-if #'thread-alive-p (threads (pooled-tasks)))))
+                  (< (+ frequency leave-alive)
+                     (count-if #'thread-alive-p (threads (pooled-tasks)))))
           (format t "~&(memory-usage) = ~D, cycling~%" (memory-usage))
           (etypecase leave-alive
             (integer
