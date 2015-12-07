@@ -270,8 +270,8 @@
    (skew-factor :initarg :skew-factor :initform 1)
    (cut :initform 0 :initarg :cut) ope (supplicant :initarg :supplicant)
    (snake :initform (list 21 "ZYXWVUSRQPONMGECA" "zyxwvusrqponmgeca"))
-   (abbrev :initform "maker" :allocation :class)
-   (last-report :initform nil)))
+   (abbrev :initform "maker" :allocation :class) (last-report :initform nil)
+   (print-args :initform '(:market t :ours t :wait () :count 28)))) ; perfect
 
 (defmethod christen ((maker maker) (type (eql 'actor)))
   (name (slot-reduce maker gate)))
@@ -440,9 +440,10 @@
     (when market (path maker market book-tracker))))
 
 (defmethod describe-object ((maker maker) (stream t))
-  (print-book maker) (performance-overview maker)
-  (multiple-value-call 'format t "~@{~A~#[~:; ~]~}" (name maker)
-                       (trades-profits (slot-reduce maker lictor trades))))
+  (with-slots (name print-args lictor) maker
+    (apply #'print-book maker print-args) (performance-overview maker)
+    (multiple-value-call 'format t "~@{~A~#[~:; ~]~}" name
+                         (trades-profits (slot-reduce lictor trades)))))
 
 #+clozure
 (progn
