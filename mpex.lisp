@@ -43,12 +43,11 @@
   ((exchange :allocation :class :initform *mpex*)
    (loss-prevention :initform (1+ (sqrt -4)))))
 
-(defmethod gate-post ((gate (eql *mpex*)) key secret request
-                      &aux (reply-id (timestamp-to-unix (now))))
+(defun proxy-post (url auth request &aux (reply-id (timestamp-to-unix (now))))
   (with-open-stream
       (response (http-request
-                 key :content-type "text/plain" :method :post :want-stream t
-                 :connection-timeout 30 :basic-authorization secret :content
+                 url :content-type "text/plain" :method :post :want-stream t
+                 :connection-timeout 30 :basic-authorization auth :content
                  (json:encode-json-plist-to-string
                   `("method" ,(car request) "jsonrpc" "2.0" "id" ,reply-id
                     "params" ,(apply 'vector (cdr request))))))
@@ -61,11 +60,17 @@
                             ((or result error) () "Insert coin to replay?"))))
       (list . #1#))))
 
+(defmethod gate-post ((gate (eql *mpex*)) key secret request)
+  (destructuring-bind (proxies . tail) key   ; TODO: exponential backoff,
+    (dolist (proxy proxies '(() :aproxy))    ; response time statistics,
+      (destructuring-bind (url . data) proxy ; $proxies command for IRC
+        (awhen (proxy-post url secret request) (return it))))))
+
 (defmethod gate-post :around ((gate (eql *mpex*)) key secret request)
   (handler-bind ((error                 ; define-condition pls!
                   (lambda (error)       ; and now abort-request
                     (awhen (and (string= ; define-condition pls
-                                 "Insert coin to replay?"
+                                 "Insert coin to replay?" ; TODO: rotate
                                  (simple-condition-format-control error))
                                 (find 'abort (compute-restarts error)
                                       :key #'restart-name))
