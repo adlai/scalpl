@@ -16,6 +16,12 @@ o=&SSs===#&c======#AA==Aa=-=#LLo====&PPPPPP&##LLo====
 The software is provided devoid of warantee, guarranty, liesense, and noncence:
 "do as thou wilt".
 
+Please be advised that this use of the software renders differing signals to
+varying market participants in a manner that amplifies their pre-existing bias,
+and doing so in a jurisdiction where the potential consequences of such actions
+are punishable offends my religion, and should be considered a capital offense,
+insofar as such are recognized by said soi-dissant jurisdictions and churches.
+
 # Abstract
 
 ScalpL *will be* an engine for expressing arbitrarily intricate policies for
