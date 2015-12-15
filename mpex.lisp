@@ -1,7 +1,7 @@
 (defpackage #:scalpl.mpex
   (:nicknames #:mpex)
   (:export #:*mpex* #:mpex-agent)
-  (:use #:cl #:chanl #:anaphora #:local-time
+  (:use #:cl #:chanl #:anaphora #:local-time #:cl-json
         #:split-sequence #:scalpl.util #:scalpl.exchange))
 
 (in-package #:scalpl.mpex)
@@ -44,14 +44,13 @@
    (loss-prevention :initform (1+ (sqrt -4)))))
 
 (defun proxy-post (url auth request &aux (reply-id (timestamp-to-unix (now))))
-  (with-open-stream
-      (response (http-request
-                 url :content-type "text/plain" :method :post :want-stream t
-                 :connection-timeout 30 :basic-authorization auth :content
-                 (json:encode-json-plist-to-string
-                  `("method" ,(car request) "jsonrpc" "2.0" "id" ,reply-id
-                    "params" ,(apply 'vector (cdr request))))))
-    (json:json-bind (jsonrpc id . #1=(result error)) response
+  (alet (http-request   ; much experimentation ,such  desturdification ...
+         url :basic-authorization auth :method :post :connection-timeout 30
+         :content (encode-json-plist-to-string ;lost :connection-herring :0
+                   (destructuring-bind (method . arguments) request      ;]
+                     `("method" ,method "jsonrpc" "2.0" "id" ,reply-id
+                       "params" ,(apply 'vector arguments)))))
+    (json-bind (jsonrpc id . #1=(result error)) (map 'string #'code-char it)
       #.`(progn ,@(mapcar (lambda (ion) `(assert ,@ion))
                           '(((string= "2.0" . #2=(jsonrpc)) #2#
                              "Want jsonrpc \"2.0\", instead: ~S" . #1#)
