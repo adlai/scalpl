@@ -11,7 +11,7 @@
            #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/ #:aq*
            #:offer #:bid #:ask #:placed #:taken #:given
            #:volume #:price #:placed #:oid #:consumed-asset
-           #:gate #:gate-post #:gate-request #:output #:input
+           #:gate #:gate-post #:gate-request #:output #:input #:cache
            #:trade #:cost #:direction #:txid
            #:trades-tracker #:trades #:trades-since #:vwap
            #:book-tracker #:bids #:asks #:get-book #:get-book-keys
@@ -20,7 +20,7 @@
            #:execution #:fee #:net-cost #:net-volume #:fee-tracker
            #:execution-tracker #:execution-since #:bases #:bases-without
            #:post-offer #:cancel-offer #:supplicant #:lictor #:treasurer
-           #:order-slots #:response))
+           #:order-slots #:response #:supplicate))
 
 (in-package #:scalpl.exchange)
 

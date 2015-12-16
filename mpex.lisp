@@ -254,3 +254,20 @@
       (string-case ((value :result))
         ("OK" t) ("Failed" (not (find oid (placed-offers gate) :key #'oid)))
         (t (values (pprint `(:stuck ,offer)) (value :result) (value :message)))))))
+
+(defun reconcile-book (supplicant statjson)
+  (awhen (parse-placed statjson)        ; sometimes proxies return empty data
+    (with-slots (placed) supplicant
+      (flet ((sdko (a b) (set-difference a b :key #'oid)))
+        (setf placed (sdko placed (sdko placed it))))
+      (dolist (maybe it)
+        (unless (find (oid maybe) placed :key #'oid)
+          (push maybe placed))))))
+
+(defmethod supplicate :around
+    ((supplicant supplicant) (gate mpex-agent) (op t) (args t))
+  (with-slots (cache) gate
+    (destructuring-bind (car . cdr) (or (ignore-errors cache) '(()))
+      (when (and (equal car '("statjson")) (not (equal car cdr)))
+        (reconcile-book supplicant cdr)))
+    (call-next-method)))
