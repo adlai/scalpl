@@ -12,6 +12,7 @@
   :components ((:file "util")
                (:file "actor"    :depends-on ("util"))
                (:file "exchange" :depends-on ("actor"))
+               (:file "bitmex"   :depends-on ("exchange"))
                (:file "kraken"   :depends-on ("exchange")) ; TODO:      :∃MXIꟻ
                (:file "bitfinex" :depends-on ("exchange")) ; factor these into
                (:file "btce"     :depends-on ("exchange")) ; sub-systems for
