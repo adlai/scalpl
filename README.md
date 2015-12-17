@@ -26,7 +26,7 @@ insofar as such are recognized by said soi-dissant jurisdictions and churches.
 
 ScalpL *will be* an engine for expressing arbitrarily intricate policies for
 placement and removal of offers in asset exchanges; today, it *is* hardcoded
-as a market maker. We also *endeavor* to extend [Kerckhoff's
+as a market maker. We also *endeavor* to extend [Kerckhoffs's
 Principle](https://en.wikipedia.org/wiki/Kerckhoffs%27s_principle) to finance,
 although a full proof may require [un?]countably infinitely many steps.
 
