@@ -535,7 +535,11 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                     (let ((bs (side mbid my-bids bids))
                           (as (side mask my-asks asks)))
                       (line (or mbid (car bids)) (or mask (car asks)))
-                      (or bs (pop bids)) (or as (pop asks)))))))))))
+                      (or bs (pop bids)) (or as (pop asks))))))
+            (flet ((shit (shinola)      ; so es dreht...
+                     (reduce #'aq+ (mapcar #'given shinola))))
+              (format t "~&Totals:~%") (line (shit bids) (shit asks))))))))
+  (:method :after ((tracker t) &key) (terpri)) ; breathe! care! share!
   (:method ((tracker book-tracker) &rest keys)
     (apply #'print-book (recv (slot-value tracker 'output)) keys))
   (:method ((market tracked-market) &rest keys)
@@ -711,6 +715,17 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                          sum (volume trade) into sum until (>= sum depth))))
     (/ (reduce '+ (mapcar #'net-cost trades))
        (reduce '+ (mapcar #'net-volume trades)))))
+
+(defmethod print-book ((lictor execution-tracker) &rest keys)
+  (with-slots (bases market) lictor
+    (flet ((basis-offer (basis)
+             (make-instance 'offer :price (first basis) :market market
+                            :taken (second basis) :given (third basis))))
+      (with-slots (primary counter) market
+        (apply #'print-book
+               (cons (mapcar #'basis-offer (getf bases counter))
+                     (mapcar #'basis-offer (getf bases primary)))
+               keys)))))
 
 ;;;
 ;;; Action API

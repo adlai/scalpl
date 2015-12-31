@@ -435,7 +435,7 @@
       (multiple-value-bind (next source) (when wait (recv response))
         (let ((placed (multiple-value-call 'cons
                         (ope-placed (slot-reduce maker ope)))))
-          (path placed) (terpri) (when ours (setf (getf keys :ours) placed))
+          (path placed) (when ours (setf (getf keys :ours) placed))
           (when source (send source next)))))
     (when market (path maker market book-tracker))))
 
