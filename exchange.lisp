@@ -537,7 +537,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                       (line (or mbid (car bids)) (or mask (car asks)))
                       (or bs (pop bids)) (or as (pop asks))))))
             (flet ((shit (shinola)      ; so es dreht...
-                     (reduce #'aq+ (mapcar #'given shinola))))
+                     (when shinola (reduce #'aq+ (mapcar #'given shinola)))))
               (format t "~&Totals:~%") (line (shit bids) (shit asks))))))))
   (:method :after ((tracker t) &key) (terpri)) ; breathe! care! share!
   (:method ((tracker book-tracker) &rest keys)
