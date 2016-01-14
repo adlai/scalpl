@@ -8,7 +8,7 @@
 
 ;;; General Parameters
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defparameter +base-stub+ "http://mpex.co/mpex-"))
+  (defparameter +base-stub+ "http://mpex.re/mpex-"))
 
 (defmacro with-request (path form)
   `(multiple-value-bind (stream status) ; FIXME: false factoring
@@ -252,7 +252,7 @@
   (awhen (gate-request gate "cancel" (list oid))
     (flet ((value (key) (cdr (assoc key it))))  ; i smell a pattern
       (string-case ((value :result))
-        ("OK" t) ("Failed" (not (find oid (placed-offers gate) :key #'oid)))
+        ("OK" offer) ("Failed" (not (find oid (placed-offers gate) :key #'oid)))
         (t (values (pprint `(:stuck ,offer)) (value :result) (value :message)))))))
 
 (defun reconcile-book (supplicant statjson)
