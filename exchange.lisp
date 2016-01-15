@@ -539,7 +539,6 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
             (flet ((shit (shinola)      ; so es dreht...
                      (when shinola (reduce #'aq+ (mapcar #'given shinola)))))
               (format t "~&Totals:~%") (line (shit bids) (shit asks))))))))
-  (:method :after ((tracker t) &key) (terpri)) ; breathe! care! share!
   (:method ((tracker book-tracker) &rest keys)
     (apply #'print-book (recv (slot-value tracker 'output)) keys))
   (:method ((market tracked-market) &rest keys)
