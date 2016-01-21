@@ -31,7 +31,7 @@
   ((abbrev :allocation :class :initform "filter")
    (bids :initform ()) (asks :initform ()) (book-cache :initform nil)
    (supplicant :initarg :supplicant :initform (error "must link supplicant"))
-   (frequency  :initarg :frequency  :initform 1/7))) ; FIXME: s/ll/sh/
+   (frequency  :initarg :frequency  :initform 17))) ; FIXME: s/ll/sh/!?
 
 (defmethod christen ((filter filter) (type (eql 'actor)))
   (slot-reduce filter supplicant name))

@@ -365,7 +365,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defclass trades-tracker (parent)
   ((market :initarg :market :reader market)
-   (delay  :initarg :delay  :initform 27)
+   (delay  :initarg :delay  :initform 47)
    (buffer :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
    (trades :initform nil) fetcher))
@@ -457,7 +457,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defclass book-tracker (parent)
   ((market :initarg :market :reader market :initform (error "required"))
    (get-book-keys :initform nil :initarg :get-book-keys)
-   (delay :initarg :delay :initform 4) (book :initform ())
+   (delay :initarg :delay :initform 41) (book :initform ())
    (buffer :initform (make-instance 'channel)) fetcher
    (output :initform (make-instance 'channel))))
 
@@ -583,7 +583,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defclass fee-tracker (parent)
   ((abbrev :allocation :class :initform "fee tracker")
-   (delay  :initarg :delay  :initform 67) fee fetcher
+   (delay  :initarg :delay  :initform 127) fee fetcher
    (input  :initarg :input  :initform (make-instance 'channel))
    (output :initarg :output :initform (make-instance 'channel))))
 
@@ -641,7 +641,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defclass execution-tracker (parent)
   ((abbrev :allocation :class :initform "exhun tracker")
    (trades :initform nil) (bases :initform nil)
-   (delay :initform 30) (buffer :initform (make-instance 'channel)) fetcher))
+   (delay :initform 59) (buffer :initform (make-instance 'channel)) fetcher))
 
 (defmethod christen ((tracker execution-tracker) (type (eql 'actor)))
   (with-slots (gate market) tracker

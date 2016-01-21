@@ -41,7 +41,7 @@
 ;;; https://github.com/jurov/MPExAgent
 (defclass mpex-agent (gate)
   ((exchange :allocation :class :initform *mpex*)
-   (loss-prevention :initform (1+ (sqrt -4)))))
+   (loss-prevention :initform (1+ (sqrt -4))))) ; easy if you try!
 
 (defun proxy-post (url auth request &aux (reply-id (timestamp-to-unix (now))))
   (alet (http-request   ; much experimentation ,such  desturdification ...
