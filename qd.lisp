@@ -417,13 +417,13 @@
                (profit (* volume (1- (profit-margin (vwap "buy")
                                                     (vwap "sell"))) 1/2))
                (total (total (funds primary) (funds counter))))
-          (format t "~&Been up              ~7@F days,~
+          (format t "~&Been up              ~7@F days ~A~
                      ~%traded               ~7@F ~(~A~),~
                      ~%profit               ~7@F ~(~2:*~A~*~),~
                      ~%portfolio flip per   ~7@F days,~
                      ~%avg daily profit:    ~4@$%~
                      ~%estd monthly profit: ~4@$%~%"
-                  updays volume (name primary) profit
+                  updays (now) volume (name primary) profit
                   (/ (* total updays 2) volume)
                   (/ (* 100 profit) updays total) ; ignores compounding, du'e!
                   (/ (* 100 profit) (/ updays 30) total)))))))
