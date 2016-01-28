@@ -374,11 +374,11 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (format nil "trade tracker ~A" (market tracker)))
 
 (defmethod perform ((tracker trades-tracker) &key)
-  (with-slots (buffer trades market) tracker
+  (with-slots (buffer trades market output) tracker
     (let ((last (car trades)))
       (select
-        ((send buffer last))
-        ((recv buffer next)
+        ((send buffer last)) ((send output trades)) ;D   ^V^   ]:C
+        ((recv buffer next)             ;              batsign
          (if (trades-mergeable? tracker last next)
              (setf (car trades) (merge-trades tracker last next))
              (push next trades)))
