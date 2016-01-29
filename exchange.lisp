@@ -554,14 +554,24 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defclass balance-tracker (actor)
   ((fuzz :initarg :fuzz :initform (random 7))
    (sync :initarg :sync :initform (make-instance 'channel))
-   (balances :initarg :balances :initform nil)
+   (balances :initarg :balances :initform ())
+   (reserved :initarg :reserved :initform ())
    (abbrev :allocation :class :initform "funds")))
 
 (defmethod perform ((tracker balance-tracker) &key)
-  (with-slots (gate sync fuzz balances) tracker
-    (send (recv sync) (when (zerop (random fuzz))
-                        (awhen1 (account-balances gate)
-                          (setf balances it))))))
+  (with-slots (gate sync fuzz balances reserved) tracker
+    (let ((target (recv sync)))         ; back and forth
+      (when (zerop (random fuzz))       ; in the absence of memory...
+        (awhen1 (account-balances gate) ; maybify API failability
+          (setf balances                ; sub-clude the reserved aqs
+                (loop for aq in it for asset = (asset aq) collect
+                     (aif (remove asset reserved ;key #'cxbtc
+                                  :test-not #'eq :key #'asset)
+                          (aq- aq (reduce  ;_; should (zerop (aq+))?
+                                   #'aq+ it ; like maybe patterns!?
+                                   :initial-value (cons-aq asset 0)))
+                          aq)))))
+      (send target balances))))
 
 (defmethod christen ((tracker balance-tracker) (type (eql 'actor)))
   (slot-reduce tracker gate name))
