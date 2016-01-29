@@ -328,17 +328,15 @@
   (force-output))
 
 (defmethod perform ((maker maker) &key)
-  (call-next-method maker :blockp ())
+  (call-next-method maker :blockp ())   ; memento, du musste mori!
   (with-slots (fund-factor resilience-factor targeting-factor skew-factor
                market name ope cut) maker
-    ;; Get our balances
-    (with-slots (sync) (slot-reduce ope supplicant treasurer)
-      (recv (send sync sync)))          ; excellent!
-    (let* ((trades (slot-reduce market trades-tracker trades))
+    (let* ((trades (recv (slot-reduce market trades))) ; nananananana
            ;; TODO: split into primary resilience and counter resilience
            (resilience (* resilience-factor ; FIXME online histomabob
                           (reduce #'max (mapcar #'volume trades))))
-           (balances (slot-reduce ope supplicant treasurer balances))
+           (balances (with-slots (sync) (slot-reduce maker treasurer)
+                       (recv (send sync sync)))) ; excellent!
            (doge/btc (vwap market :depth 50 :type :buy)))
       (flet ((total-of (btc doge) (+ btc (/ doge doge/btc))))
         (let* ((total-btc (asset-funds (primary market) balances))
