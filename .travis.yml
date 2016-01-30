@@ -1,38 +1,39 @@
 language: lisp
-sudo: required
+sudo: false
+
+addons:
+  apt:
+    packages:
+      - libssl-dev
+      - openjdk-7-jre
 
 env:
+  global:
+    - PATH=~/.roswell/bin:$PATH
+    - ROSWELL_INSTALL_DIR=$HOME/.roswell
   matrix:
-# commented = known failure, let's conserve phree cycles
-#    - LISP=abcl
-#    - LISP=allegro
-    - LISP=sbcl
-    - LISP=sbcl32
-    - LISP=ccl
-    - LISP=ccl32
-#    - LISP=clisp
-#    - LISP=clisp32
-#    - LISP=cmucl
-#    - LISP=ecl
+    - LISP=sbcl-bin
+    - LISP=ccl-bin
+#      LISP=name    chokes on        travis-ci job ID
+#    - LISP=abcl    acl-compat     |      local
+#    - LISP=clisp initform defvar  |    105921189
+#    - LISP=ecl method-combo-utils |    105921190
+#    - LISP=cmucl    cl+ssl        |    105921191
+#    - LISP=alisp     puri         |    105921192
 
-matrix:
-  allow_failures:
-    # CIM not available for CMUCL
-    - env: LISP=cmucl
-    # Reported upstream bugs
-    - env: LISP=allegro
-    - env: LISP=clisp
-    - env: LISP=clisp32
-    - env: LISP=ecl
-
-# uses a local script. Felt free to simplify this section in my own file.
+# curlish! DO NOT USE OUTSIDE <<CLOUD CITY LABS, LTD>>
 install:
-    ./travis-install.sh;
-    sudo apt-get install libssl-dev libssl0.9.8:i386
+  - curl -L https://raw.githubusercontent.com/snmsts/roswell/release/scripts/install-for-ci.sh | sh
 
-# this serves as a poor example of how to use the 'cl' script (provided by
-# CIM) to test your Lisp project. Here, we're not using any test framework
+cache:
+  directories:
+    - $HOME/.roswell
+    - $HOME/.config/common-lisp
+
+script:
+# this serves as a poor example of how to use the 'ros' script (provided by
+# Roswell) to test your Lisp project. Here, we're not using any test framework
 # to do unit testing; real frameworks should have various ways of determining
 # whether a test suite fails or succeeds, but don't hold your breath.
 script:
-  - cl -e '(ql:quickload :scalpl) (ql:quickload :scalpl.mpex) (uiop:quit 0))'
+  - ros -e '(and (ql:quickload :scalpl) (ql:quickload :scalpl.mpex))'
