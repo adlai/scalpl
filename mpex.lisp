@@ -264,10 +264,9 @@
         (unless (find (oid maybe) placed :key #'oid)
           (push maybe placed))))))
 
-(defmethod supplicate :around
-    ((supplicant supplicant) (gate mpex-agent) (op t) (args t))
+(defmethod supplicate
+    ((supplicant supplicant) (gate mpex-agent) (op null) (args t))
   (with-slots (cache) gate
     (destructuring-bind (car . cdr) (or (ignore-errors cache) '(()))
       (when (and (equal car '("statjson")) (not (equal car cdr)))
-        (reconcile-book supplicant cdr)))
-    (call-next-method)))
+        (reconcile-book supplicant cdr)))))

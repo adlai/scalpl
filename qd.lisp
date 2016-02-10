@@ -269,7 +269,7 @@
    (targeting-factor :initarg :targeting :initform (random 1.0))
    (skew-factor :initarg :skew-factor :initform 1)
    (cut :initform 0 :initarg :cut) ope (supplicant :initarg :supplicant)
-   (snake :initform (list 21 "ZYXWVUSRQPONMGECA" "zyxwvusrqponmgeca"))
+   (snake :initform (list 30))          ; kept flexibility (discard if unused)
    (abbrev :initform "maker" :allocation :class) (last-report :initform nil)
    (print-args :initform '(:market t :ours t :wait () :count 28)))) ; perfect
 
@@ -280,15 +280,15 @@
   (print-unreadable-object (maker stream :type t :identity nil)
     (write-string (name maker) stream)))
 
-(defun profit-snake (lictor length positive-chars negative-chars
-                     &aux (trades (slot-value lictor 'trades)))
+(defun profit-snake (lictor length &aux (trades (slot-value lictor 'trades)))
   (flet ((depth-profit (depth)
            (flet ((vwap (side) (vwap lictor :type side :depth depth)))
              (* 100 (1- (profit-margin (vwap "buy") (vwap "sell"))))))
          (side-last (side)
            (volume (find side trades :key #'direction :test #'string-equal)))
-         (chr (chrs fraction &aux (length (length chrs)))
-           (char chrs (1- (ceiling (* length fraction))))))
+         (chr (fraction)
+           (funcall (if (plusp fraction) #'identity #'char-downcase)
+                    (digit-char (- 36 (ceiling (* (abs fraction) 26))) 36))))
     (with-output-to-string (out)
       (let* ((min-sum (loop for trade in trades for volume = (net-volume trade)
                          if (string-equal (direction trade) "buy")
@@ -299,12 +299,12 @@
              (dps (loop for i to length collect
                        (depth-profit (/ min-sum (expt scale i)))))
              (highest (apply #'max 0 (remove-if #'minusp dps)))
-             (lowest  (apply #'min 0 (remove-if #'plusp  dps))))
+             (lowest  (apply #'min 0 (remove-if  #'plusp dps))))
         (format out "~4@$" (depth-profit min-sum))
         (dolist (dp dps (format out "~4@$" (first (last dps))))
           (format out "~C" (case (round (signum dp)) (0 #\Space)
-                             (+1 (chr positive-chars (/ dp highest)))
-                             (-1 (chr negative-chars (/ dp lowest))))))))))
+                             (+1 (chr (/ dp highest)))
+                             (-1 (chr (- (/ dp lowest)))))))))))
 
 (defun makereport (maker fund rate btc doge investment risked skew &optional ha)
   (with-slots (name market ope snake last-report) maker
@@ -353,7 +353,7 @@
             (let* ((buyin (dbz-guard (/ total-btc total-fund)))
                    (btc  (* fund-factor total-btc buyin targeting-factor))
                    (doge (* fund-factor total-doge
-                            (max 0 (- 1 (* buyin targeting-factor)))))
+                            (/ (- 1 buyin) targeting-factor)))
                    (skew (log (max 1/100 (/ doge btc doge/btc)))))
               ;; report funding
               (makereport maker total-fund doge/btc total-btc total-doge buyin
