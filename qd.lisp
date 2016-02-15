@@ -269,7 +269,7 @@
    (targeting-factor :initarg :targeting :initform (random 1.0))
    (skew-factor :initarg :skew-factor :initform 1)
    (cut :initform 0 :initarg :cut) ope (supplicant :initarg :supplicant)
-   (snake :initform (list 30))          ; kept flexibility (discard if unused)
+   (snake :initform (list 30))          ; FIXME: snake-args
    (abbrev :initform "maker" :allocation :class) (last-report :initform nil)
    (print-args :initform '(:market t :ours t :wait () :count 28)))) ; perfect
 
@@ -311,8 +311,12 @@
     (unless ha
       (let ((new-report (list btc doge investment risked skew
                               (first (slot-reduce maker lictor trades)))))
-        (if (equal last-report new-report) (return-from makereport)
-            (setf last-report new-report))))
+        (if (equal new-report (if (channelp (first last-report))
+                                  (cdr last-report) last-report))
+            (return-from makereport)
+            (if (channelp (first last-report))
+                (setf (cdr last-report) new-report)
+                (setf last-report new-report)))))
     (labels ((sastr (side amount) ; TODO factor out aqstr
                (format nil "~V,,V$" (decimals (slot-value market side))
                        0 (float amount 0d0))))
