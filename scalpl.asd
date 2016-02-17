@@ -4,24 +4,18 @@
 
 (defsystem #:scalpl
   :license "public domain"
-  :description "Bitcoin exchange API & market maker"
+  :description "market maker + APIs to several Bitcoin exchanges"
   :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
-  :depends-on (#:anaphora #:string-case #:parse-float #:drakma
-               #:method-combination-utilities #:dbi #:cl-json
-               #:cl-base64 #:ironclad #:local-time #:chanl)
+  :depends-on (#:anaphora #:string-case #:parse-float #:cl-irc #:drakma
+               #:method-combination-utilities #:local-time #:rss #:chanl
+               #:split-sequence #:cl-base64 #:ironclad #:cl-json #:dbi)
   :components ((:file "util")
                (:file "actor"    :depends-on ("util"))
                (:file "exchange" :depends-on ("actor"))
                (:file "bitmex"   :depends-on ("exchange"))
-               (:file "kraken"   :depends-on ("exchange")) ; TODO:      :∃MXIꟻ
-               (:file "bitfinex" :depends-on ("exchange")) ; factor these into
-               (:file "btce"     :depends-on ("exchange")) ; sub-systems for
-               (:file "qd"       :depends-on ("exchange")) ; modularitizations
+               (:file "mpex"     :depends-on ("exchange"))
+               (:file "kraken"   :depends-on ("exchange"))
+               (:file "bitfinex" :depends-on ("exchange"))
+               (:file "btce"     :depends-on ("exchange"))
+               (:file "qd"       :depends-on ("exchange"))
                (:file "db"       :depends-on ("exchange"))))
-
-(defsystem #:scalpl.mpex
-  :license "all rights reserved"
-  :description "scalpl mpex api"
-  :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
-  :depends-on (#:scalpl #:split-sequence #:rss #:cl-irc)
-  :components ((:file "mpex")))

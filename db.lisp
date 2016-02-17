@@ -1,5 +1,3 @@
-;;;; db.lisp
-
 (defpackage #:scalpl.db
   (:use #:cl #:anaphora #:local-time #:scalpl.util #:scalpl.actor #:scalpl.exchange))
 

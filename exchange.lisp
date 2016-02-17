@@ -1,5 +1,3 @@
-;;;; exchange.lisp
-
 (defpackage #:scalpl.exchange
   (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util #:scalpl.actor)
   (:export #:http-request
@@ -44,6 +42,8 @@
 ;;; TODO
 ;;; Some method for implemented exchange APIs to "register" the exchange, so
 ;;; we don't have to mess with a different package per exchange.
+;;; How is this not (:method initialize-instance :after (exchange))?
+;;; -> because that does not deal with the package. but who does?
 
 ;;;
 ;;; Exchanges

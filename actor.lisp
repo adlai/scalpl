@@ -1,5 +1,3 @@
-;;;; actor.lisp
-
 (defpackage #:scalpl.actor
   (:use #:cl #:anaphora #:local-time #:scalpl.util #:chanl)
   (:export #:actor #:perform #:halt #:name #:control #:execute #:abbrev #:tasks

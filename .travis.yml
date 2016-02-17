@@ -30,10 +30,8 @@ cache:
     - $HOME/.roswell
     - $HOME/.config/common-lisp
 
+# this serves as a poor example of how to use the 'ros' script: not using any
+# framework to do unit testing; real frameworks should have various ways of
+# measuring code brokenness, but don't hold your breath. Live a little!
 script:
-# this serves as a poor example of how to use the 'ros' script (provided by
-# Roswell) to test your Lisp project. Here, we're not using any test framework
-# to do unit testing; real frameworks should have various ways of determining
-# whether a test suite fails or succeeds, but don't hold your breath.
-script:
-  - ros -e '(and (ql:quickload :scalpl) (ql:quickload :scalpl.mpex))'
+  - ros -e '(ql:quickload :scalpl)'
