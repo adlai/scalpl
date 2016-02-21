@@ -321,12 +321,15 @@
       ;; FIXME: modularize all this decimal point handling
       ;; we need a pprint-style ~/aq/ function, and pass it aq objects!
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (format t "~&~A ~A ~{~A~^~1,2@T~} ~4,6T~2,2$% ~2,2$~2,2@$ ~A~%"
-              name (subseq (princ-to-string (now)) 11 19)
-              (mapcar #'sastr '(primary counter primary counter)
-                      `(,@#1=`(,fund ,(* fund rate)) ,btc ,doge))
-              (* 100 investment) (* 100 risked) (* 100 skew)
-              (apply 'profit-snake (slot-reduce ope supplicant lictor) snake))))
+      (aprog1 (format () "~&~A ~A ~{~A~^~1,2@T~} ~4,6T~2,2$% ~2,2$~2,2@$ ~A~%"
+                      name (subseq (princ-to-string (now)) 11 19)
+                      (mapcar #'sastr '(primary counter primary counter)
+                              `(,@#1=`(,fund ,(* fund rate)) ,btc ,doge))
+                      (* 100 investment) (* 100 risked) (* 100 skew)
+                      (apply 'profit-snake
+                             (slot-reduce ope supplicant lictor) snake))
+        (format t it) (if (channelp (first last-report))
+                          (send (first last-report) it)))))
   (force-output))
 
 (defmethod perform ((maker maker) &key)

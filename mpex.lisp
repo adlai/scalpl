@@ -1,18 +1,17 @@
 (defpackage #:scalpl.mpex
   (:nicknames #:mpex)
   (:export #:*mpex* #:mpex-agent)
-  (:use #:cl #:chanl #:anaphora #:local-time #:cl-json
-        #:split-sequence #:scalpl.util #:scalpl.exchange))
+  (:use #:cl #:chanl #:scalpl.actor #:anaphora #:local-time
+        #:cl-json #:split-sequence #:scalpl.util #:scalpl.exchange))
 
 (in-package #:scalpl.mpex)
 
 ;;; General Parameters
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defparameter +base-stub+ "http://mpex.re/mpex-"))
+(defparameter *base-stub* "http://mpex.re/mpex-")
 
 (defmacro with-request (path form)
   `(multiple-value-bind (stream status) ; FIXME: false factoring
-       (http-request ,(format () "~A~A.php" +base-stub+ path) :want-stream t)
+       (http-request (format () "~A~A.php" *base-stub* ,path) :want-stream t)
      (with-open-stream (it stream)
        (if (= status 200) ,form
            (values () (format () "HTTP Error ~D~%~A" status
@@ -75,6 +74,10 @@
                                       :key #'restart-name))
                       (invoke-restart it)))))
     (call-next-method gate key secret request)))
+
+(defmethod perform :after ((gate mpex-agent) &key)
+  (with-slots (delegates) gate
+    (dolist (sub delegates) (send (slot-reduce sub control) () :blockp ()))))
 
 ;;;
 ;;; Public Data API
