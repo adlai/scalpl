@@ -11,6 +11,9 @@ o=&SSs===#&c======#AA==Aa=-=#LLo====&PPPPPP&##LLo====
             o.............mayhem..`..`............`..
 ```
 
+> "scalpl is a project written by someone who is clearly having a great time"
+[@byrneseyeview](https://twitter.com/byrneseyeview/status/629724444802428928)
+
 # Legal-_ease_
 
 The software is provided devoid of warantee, guarranty, liesense, and noncence:
