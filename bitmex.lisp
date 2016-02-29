@@ -6,8 +6,8 @@
 (in-package #:scalpl.bitmex)
 
 ;;; General Parameters
-(defconstant +base-url+ "https://www.bitmex.com")
-(defconstant +base-path+ "/api/v1/")
+(defparameter *base-url* "https://www.bitmex.com")
+(defparameter *base-path* "/api/v1/")
 
 (defun hmac-sha256 (message secret)
   (let ((hmac (ironclad:make-hmac (string-octets secret) 'ironclad:sha256)))
