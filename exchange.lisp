@@ -11,7 +11,7 @@
            #:volume #:price #:placed #:oid #:consumed-asset
            #:gate #:gate-post #:gate-request #:output #:input #:cache
            #:trade #:cost #:direction #:txid
-           #:trades-tracker #:trades #:trades-since #:vwap
+           #:trades-tracker #:trades #:trades-since #:vwap #:book
            #:book-tracker #:bids #:asks #:get-book #:get-book-keys
            #:balance-tracker #:balances #:sync #:print-book #:asset-funds
            #:placed-offers #:account-balances #:market-fee
@@ -25,8 +25,7 @@
 ;;; Networking... dump it here, later should probably split into net.lisp
 
 (defun http-request (path &rest keys &aux (backoff 0))
-  (loop (handler-case (return (apply #'drakma:http-request path
-                                     :connection-timeout 30 keys))
+  (loop (handler-case (return (apply #'drakma:http-request path keys))
           ((or simple-error drakma::drakma-simple-error
             usocket:deadline-timeout-error usocket:timeout-error
             usocket:timeout-error usocket:ns-host-not-found-error

@@ -7,7 +7,7 @@
 (in-package #:scalpl.mpex)
 
 ;;; General Parameters
-(defparameter *base-stub* "http://mpex.re/mpex-")
+(defvar *base-stub* "http://mpex.re/mpex-")
 
 (defmacro with-request (path form)
   `(multiple-value-bind (stream status) ; FIXME: false factoring
@@ -44,11 +44,11 @@
 
 (defun proxy-post (url auth request &aux (reply-id (timestamp-to-unix (now))))
   (alet (http-request   ; much experimentation ,such  desturdification ...
-         url :basic-authorization auth :method :post :connection-timeout 30
-         :content (encode-json-plist-to-string ;lost :connection-herring :0
-                   (destructuring-bind (method . arguments) request      ;]
-                     `("method" ,method "jsonrpc" "2.0" "id" ,reply-id
-                       "params" ,(apply 'vector arguments)))))
+         url :basic-authorization auth :method :post :content
+	 (encode-json-plist-to-string
+	  (destructuring-bind (method . arguments) request ;]
+	    `("method" ,method "jsonrpc" "2.0" "id" ,reply-id
+              "params" ,(apply 'vector arguments)))))
     (json-bind (jsonrpc id . #1=(result error)) (map 'string #'code-char it)
       #.`(progn ,@(mapcar (lambda (ion) `(assert ,@ion))
                           '(((string= "2.0" . #2=(jsonrpc)) #2#
@@ -74,10 +74,6 @@
                                       :key #'restart-name))
                       (invoke-restart it)))))
     (call-next-method gate key secret request)))
-
-(defmethod perform :after ((gate mpex-agent) &key)
-  (with-slots (delegates) gate
-    (dolist (sub delegates) (send (slot-reduce sub control) () :blockp ()))))
 
 ;;;
 ;;; Public Data API
@@ -269,7 +265,4 @@
 
 (defmethod supplicate
     ((supplicant supplicant) (gate mpex-agent) (op null) (args t))
-  (with-slots (cache) gate
-    (destructuring-bind (car . cdr) (or (ignore-errors cache) '(()))
-      (when (and (equal car '("statjson")) (not (equal car cdr)))
-        (reconcile-book supplicant cdr)))))
+  (reconcile-book supplicant args))

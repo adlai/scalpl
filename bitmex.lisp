@@ -32,18 +32,18 @@
 
 (defun public-request (method parameters)
   (let* ((data (urlencode-params parameters))
-         (path (concatenate 'string +base-path+ method "?" data)))
-    (decode-json (http-request (concatenate 'string +base-url+ path)))))
+         (path (concatenate 'string *base-path* method "?" data)))
+    (decode-json (http-request (concatenate 'string *base-url* path)))))
 
 (defun auth-request (verb method key signer &optional parameters)
   (let* ((data (urlencode-params parameters))
-         (path (apply #'concatenate 'string +base-path+
+         (path (apply #'concatenate 'string *base-path*
                       method (and (not verb) parameters `("?" ,data))))
          (nonce (format () "~D" (+ (timestamp-millisecond (now))
                                    (* 1000 (timestamp-to-unix (now))))))
          (sig (funcall signer (print (concatenate
                                 'string (or verb "GET") path nonce data)))))
-    (decode-json (apply #'http-request (concatenate 'string +base-url+ path)
+    (decode-json (apply #'http-request (concatenate 'string *base-url* path)
                         :method (intern (or verb "GET") :keyword)
                         :additional-headers `(("api-key" . ,key)
                                               ("api-nonce" . ,nonce)
@@ -51,5 +51,5 @@
                         (and verb `(:content ,data))))))
 
 (defun swagger ()                       ; TODO: swagger metaclient!
-  (decode-json (http-request (concatenate 'string +base-url+
+  (decode-json (http-request (concatenate 'string *base-url*
                                           "/api/explorer/swagger.json"))))
