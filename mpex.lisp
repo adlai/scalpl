@@ -221,6 +221,9 @@
     (flet ((value (key) (cdr (assoc key it))))  ; i smell a pattern
       (cond
         ((string= (value :result) "OK")
+	 (let ((new (cdr (assoc :amount (value :order)))))
+	   (unless (= new volume)
+	     (warn "Adjusted amount @~D from ~D to ~D" price volume new)))
          (apply #'values (mapcar #'value '(:order :message :track))))
         ((search "Insufficient funds for this request." (value :message))
          (values () #|(princ `(:unfund ,type ,price ,volume))|#))
