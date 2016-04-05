@@ -9,7 +9,7 @@
   :depends-on (#:anaphora #:string-case #:parse-float #:cl-irc #:drakma
                #:method-combination-utilities #:local-time #:rss #:chanl
                #:split-sequence #:cl-base64 #:ironclad #:cl-json #:dbi)
-  :components ((:file "util")
+  :components ((:file "util") (:file "sasl")
                (:file "actor"    :depends-on ("util"))
                (:file "exchange" :depends-on ("actor"))
                (:file "bitmex"   :depends-on ("exchange"))
