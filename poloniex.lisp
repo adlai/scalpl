@@ -5,25 +5,10 @@
 
 (in-package #:scalpl.poloniex)
 
-;; Please note that there is a default limit of 6 calls per second.
-;; All calls to the trading API are sent via HTTP POST to
-;; https://poloniex.com/tradingApi and must contain the following headers:
-
-;; Key - Your API key.
-;; Sign - The query's POST data signed by your key's "secret" with HMAC-SHA512
-;; Additionally, all queries must include an increasing "nonce" POST parameter.
-
 (defun hmac-sha512 (message secret)
   (let ((hmac (ironclad:make-hmac (string-octets secret) 'ironclad:sha512)))
     (ironclad:update-hmac hmac (string-octets message))
     (ironclad:octets-to-integer (ironclad:hmac-digest hmac))))
-
-;; All responses from the trading API are in JSON format.
-;; In the event of an error, the response will always be of the following format:
-;; {"error":"<error message>"}
-
-;; There are several methods accepted by the trading API,
-;; each of which is specified by the "command" POST parameter:
 
 (defgeneric make-signer (secret)
   (:method ((signer function)) signer)
@@ -60,3 +45,35 @@
     (decode-json
      (http-request +private-path+ :method :post :content data
                    :additional-headers `(("Key" . ,key) ("Sign" . ,sig))))))
+
+(defun get-info (&aux assets)
+  (awhen (public-request "returnTicker")
+    (flet ((ensure-asset (name)
+             (or (find name assets :key #'name :test #'string=)
+                 (aprog1 (make-instance 'asset :name name :decimals 8)
+                   (push it assets)))))
+      (values (mapcar (lambda (data &aux (pair (car data)))
+                        (make-instance
+                         'market :name pair :decimals 8
+                         :primary (ensure-asset (subseq (string pair) 0 3))
+                         :counter (ensure-asset (subseq (string pair) 4))))
+                      (remove "0" it :test-not #'string=
+                              :key (lambda (x) (cdr (assoc :|isFrozen| (cdr x))))))
+              assets))))
+
+(defvar *poloniex* (make-instance 'exchange :name :poloniex :sensitivity 1))
+
+(defmethod fetch-exchange-data ((exchange (eql *poloniex*)))
+  (with-slots (markets assets) exchange
+    (setf (values markets assets) (get-info))))
+
+(defclass poloniex-gate (gate) ((exchange :allocation :class :initform *poloniex*)))
+
+(defmethod shared-initialize ((gate poloniex-gate) names &key pubkey secret)
+  (multiple-value-call #'call-next-method gate names
+                       (mvwrap pubkey make-key) (mvwrap secret make-signer)))
+
+(defmethod gate-post ((gate (eql *poloniex*)) key secret request)
+  (destructuring-bind (command . options) request
+    (awhen (auth-request command key secret options)
+      (if (eq (caar it) :|error|) (list (warn (cdar it)) (cdar it)) (list it)))))
