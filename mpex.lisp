@@ -1,5 +1,5 @@
 (defpackage #:scalpl.mpex
-  (:nicknames #:mpex)
+  (:nicknames #:mpex) (:shadowing-import-from #:scalpl.util #:decode-json)
   (:export #:*mpex* #:mpex-agent)
   (:use #:cl #:chanl #:scalpl.actor #:anaphora #:local-time
         #:cl-json #:split-sequence #:scalpl.util #:scalpl.exchange))
