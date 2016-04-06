@@ -22,6 +22,7 @@
            #:strftime
            ;; json
            #:read-json
+           #:decode-json
            #:getjso
            #:mapjso
            #:mapcar-jso
@@ -190,6 +191,8 @@
     (ctypecase in
       (string (cl-json:decode-json-from-string in))
       (stream (cl-json:decode-json in)))))
+
+(defun decode-json (arg) (read-json (map 'string 'code-char arg)))
 
 (defun getjso (key &optional map)
   (if map (cdr (assoc key map :test #'string=))

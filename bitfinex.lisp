@@ -53,8 +53,6 @@
     (with-open-file (stream path)
       (make-key stream))))
 
-(defun decode-json (arg) (read-json (map 'string 'code-char arg)))
-
 (defun raw-request (path &rest keys)
   (multiple-value-bind (body status)
       (apply #'http-request (concatenate 'string +base-path+ path) keys)

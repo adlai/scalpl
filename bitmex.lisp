@@ -28,8 +28,6 @@
     (with-open-file (stream path)
       (make-key stream))))
 
-(defun decode-json (arg) (read-json (map 'string 'code-char arg)))
-
 (defun public-request (method parameters)
   (let* ((data (urlencode-params parameters))
          (path (concatenate 'string *base-path* method "?" data)))
