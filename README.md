@@ -19,28 +19,29 @@ o=&SSs===#&c======#AA==Aa=-=#LLo====&PPPPPP&##LLo====
 The software is provided devoid of warantee, guarranty, liesense, and noncence:
 "do as thou wilt".
 
-Please be advised that this use of the software renders differing signals to
-varying market participants in a manner that amplifies their pre-existing bias,
-and doing so in a jurisdiction where the potential consequences of such actions
-are punishable offends my religion, and should be considered a capital offense,
-insofar as such are recognized by said soi-dissant jurisdictions and churches.
+Please be advised that this use of the software renders varying signals to
+market participants in a manner that amplifies preëxisting biases. Doing so
+in a jurisdiction where the potential consequences of such actions are
+liable to offend my religion, and should be considered a capital offense,
+insofar as such are punishable by said *soi-dissant* politēs and churchēs.
 
 # Abstract
 
-ScalpL *will be* an engine for expressing arbitrarily intricate policies for
+There *will be* an engine for expressing arbitrarily intricate policies for
 placement and removal of offers in asset exchanges; today, it *is* hardcoded
-as a market maker. We also *endeavor* to extend [Kerckhoffs's
-Principle](https://en.wikipedia.org/wiki/Kerckhoffs%27s_principle) to finance,
-although a full proof may require [un?]countably infinitely many steps.
+as a market maker. We also *endeavor* to provide a constructive extension of
+[Kerckhoffs's Law](https://en.wikipedia.org/wiki/Kerckhoffs%27s_principle)
+to game theory, although it may require [un?]countably infinitely many steps.
 
 # Exchanges
 
 Three Bitcoin exchanges are supported: [Bitfinex](https://www.bitfinex.com),
 [BTC-e](https://www.btc-e.com), and [Kraken](https://www.kraken.com). ScalpL
-also supports [MPExAgent](https://github.com/jurov/MPExAgent), if your luck
-includes a seat at [that table](http://mpex.ws/faq.html).
+also supports [MPExAgent](https://github.com/jurov/MPExAgent), if your hand
+plays cards at [such](http://trilema.com/2016/mpex-smpoe-closing-statement/)
+[tab](http://mpex.co/faq.html#17)[les](http://mpex.co/faq.html#33).
 
-More's ever in the works; contact Adlai for details.
+More's ever in the works; consult an Architect for blueprints.
 
 # Mockumentation
 
@@ -105,3 +106,8 @@ making. One can either wait for the trend to reverse, or rebalance at a loss.
 high compared to current market activity, execution volume suffers; too low, and
 the increased volume is _only_ beneficial when the market moves match the
 targeting feedback cycle (mismatch accelerates the "running-over").
+
+## Past Performance
+
+* Although it's more indicative of others' past shame, than anybody's future luck,
+there were a dozenscore happy days aiming at an APR north of a lucky number seven.
