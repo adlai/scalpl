@@ -55,8 +55,8 @@
       (values (mapcar (lambda (data &aux (pair (car data)))
                         (make-instance
                          'market :name pair :decimals 8
-                         :primary (ensure-asset (subseq (string pair) 0 3))
-                         :counter (ensure-asset (subseq (string pair) 4))))
+                         :primary (ensure-asset (subseq (string pair) 4))
+                         :counter (ensure-asset (subseq (string pair) 0 3))))
                       (remove "0" it :test-not #'string=
                               :key (lambda (x) (cdr (assoc :|isFrozen| (cdr x))))))
               assets))))
@@ -75,5 +75,37 @@
 
 (defmethod gate-post ((gate (eql *poloniex*)) key secret request)
   (destructuring-bind (command . options) request
-    (awhen (auth-request command key secret options)
+    (alet (auth-request command key secret options)
       (if (eq (caar it) :|error|) (list (warn (cdar it)) (cdar it)) (list it)))))
+
+;;; private data API
+(defmethod account-balances ((gate poloniex-gate))
+  (aif (gate-request gate "returnBalances")
+       (mapcan (lambda (pair &aux (asset (find-asset (car pair) :poloniex)))
+		 (let ((amount (parse-float (cdr pair) :type 'number)))
+		   (unless (zerop amount)
+		     `((,asset . ,(cons-aq* asset amount))))))
+	       it)
+       (error "communication breakdown!")))
+
+(defmethod placed-offers ((gate poloniex-gate))
+  (mapcan (lambda (pair)
+	    (let ((market (find-market (car pair) :poloniex)))
+	      (mapcar (lambda (order)
+			(flet ((key (key) (cdr (assoc key order))))
+			  (let ((bidp (string= "buy" (key :|type|)))
+				(rate (* (expt 10 (decimals market))
+					 (parse-float (key :|rate|) :type 'number)))
+				(amount (parse-float (key :|amount|)
+						     :type 'number)))
+			    (make-instance
+			     'placed :market market :volume amount
+			     :given (if bidp (cons-aq (counter market)
+						      (* rate amount))
+					(cons-aq (primary market) amount))
+			     :oid (parse-integer (key :|orderNumber|))
+			     :price (* rate (if bidp -1 1))))))
+		      (cdr pair))))
+	  (remove () (gate-request gate "returnOpenOrders"
+				   '((:|currencyPair| . :all)))	; kludge
+		  :key #'cdr)))

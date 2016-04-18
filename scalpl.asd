@@ -13,6 +13,7 @@
                (:file "actor"    :depends-on ("util"))
                (:file "exchange" :depends-on ("actor"))
                (:file "bitmex"   :depends-on ("exchange"))
+	       (:file "poloniex" :depends-on ("exchange"))
                (:file "mpex"     :depends-on ("exchange"))
                (:file "kraken"   :depends-on ("exchange"))
                (:file "bitfinex" :depends-on ("exchange"))
