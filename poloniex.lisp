@@ -46,6 +46,8 @@
      (http-request +private-path+ :method :post :content data
                    :additional-headers `(("Key" . ,key) ("Sign" . ,sig))))))
 
+(defclass poloniex-market (market) ())
+
 (defun get-info (&aux assets)
   (awhen (public-request "returnTicker")
     (flet ((ensure-asset (name)
@@ -54,7 +56,7 @@
                    (push it assets)))))
       (values (mapcar (lambda (data &aux (pair (car data)))
                         (make-instance
-                         'market :name pair :decimals 8
+                         'poloniex-market :name pair :decimals 8
                          :primary (ensure-asset (subseq (string pair) 4))
                          :counter (ensure-asset (subseq (string pair) 0 3))))
                       (remove "0" it :test-not #'string=
@@ -78,7 +80,45 @@
     (alet (auth-request command key secret options)
       (if (eq (caar it) :|error|) (list (warn (cdar it)) (cdar it)) (list it)))))
 
+;;; public data API
+
+(defmethod get-book ((market poloniex-market) &key (count 200)
+                     &aux (pair (name market)))
+  (let ((decimals (slot-value market 'decimals)))
+    (with-json-slots (bids asks)
+        (public-request "returnOrderBook"
+			`(:|currencyPair| . ,pair)
+			`(:|depth| . ,count))
+      (flet ((parser (class)
+               (lambda (raw-order)
+                 (destructuring-bind (price amount) raw-order
+                   (make-instance
+		    class :market market :volume amount
+		    :price (parse-price price decimals))))))
+        (values (mapcar (parser 'ask) asks)
+                (mapcar (parser 'bid) bids))))))
+
+(defmethod parse-timestamp ((exchange (eql *poloniex*)) (timestring string))
+  (parse-timestring (replace timestring "T" :start1 10)))
+
+(defmethod trades-since ((market poloniex-market) &optional since)
+  (mapcar (lambda (trade)
+            (with-json-slots (rate amount date type total) trade
+              (let ((price  (parse-float rate))
+                    (volume (parse-float amount :type 'rational))
+		    (cost (parse-float total)))
+                (make-instance 'trade :market market :direction type
+                               :timestamp (parse-timestamp *poloniex* date)
+                               :volume volume :price price :cost cost))))
+          (reverse (apply 'public-request
+			  "returnTradeHistory"
+			  `(:|currencyPair| . ,(name market))
+			  (when since
+			    `(("start" . ,(1+ (timestamp-to-unix
+					       (timestamp since))))))))))
+
 ;;; private data API
+
 (defmethod account-balances ((gate poloniex-gate))
   (aif (gate-request gate "returnBalances")
        (mapcan (lambda (pair &aux (asset (find-asset (car pair) :poloniex)))
