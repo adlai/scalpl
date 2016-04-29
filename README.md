@@ -25,6 +25,13 @@ in a jurisdiction where the potential consequences of such actions are
 liable to offend my religion, and should be considered a capital offense,
 insofar as such are punishable by said *soi-dissant* politēs and churchēs.
 
+## URGENT NOTICE AND PROCLAIMER REGARDING DISCONTINUITY
+After much internal debate, and in light of recent developments (by which is
+meant the unguided actions of one competently unpatented and suitable un-
+emotional undividual behaving in a manner consistent with tween-age onset
+schizo-affective disstimulant-modulated cyclothemia, and a dash of porkine-
+onset disorders, stressing the varieties most traumatic), we are on hiatus.
+
 # Abstract
 
 There *will be* an engine for expressing arbitrarily intricate policies for
@@ -39,7 +46,8 @@ Three Bitcoin exchanges are supported: [Bitfinex](https://www.bitfinex.com),
 [BTC-e](https://www.btc-e.com), and [Kraken](https://www.kraken.com). ScalpL
 also supports [MPExAgent](https://github.com/jurov/MPExAgent), if your hand
 plays cards at [such](http://trilema.com/2016/mpex-smpoe-closing-statement/)
-[tab](http://mpex.co/faq.html#17)[les](http://mpex.co/faq.html#33).
+[tab](http://mpex.co/faq.html#17)[les](http://mpex.co/faq.html#33). A fresh
+addition is a client for the [Baloney Exchange](https://www.poloniex.com)!
 
 More's ever in the works; consult an Architect for blueprints.
 
