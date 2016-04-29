@@ -793,3 +793,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
       (init treasurer  balance-tracker)
       (unless (ignore-errors placed)
         (setf placed (placed-offers gate))))))
+
+;;; Casino - todo!
+
+(defclass leverage-gate (gate)
+  ((gate :initarg :gate) (pair :initarg :pair)
+   (leverage :initarg :leverage :initform 1)))

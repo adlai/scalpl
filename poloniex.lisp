@@ -46,7 +46,8 @@
      (http-request +private-path+ :method :post :content data
                    :additional-headers `(("Key" . ,key) ("Sign" . ,sig))))))
 
-(defclass poloniex-market (market) ())
+(defclass poloniex-market (market)
+  ((fee :allocation :class :initform '(0.25 . 0.25))))
 
 (defun get-info (&aux assets)
   (awhen (public-request "returnTicker")
@@ -69,7 +70,8 @@
   (with-slots (markets assets) exchange
     (setf (values markets assets) (get-info))))
 
-(defclass poloniex-gate (gate) ((exchange :allocation :class :initform *poloniex*)))
+(defclass poloniex-gate (gate)
+  ((exchange :allocation :class :initform *poloniex*)))
 
 (defmethod shared-initialize ((gate poloniex-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
@@ -87,14 +89,14 @@
   (let ((decimals (slot-value market 'decimals)))
     (with-json-slots (bids asks)
         (public-request "returnOrderBook"
-			`(:|currencyPair| . ,pair)
-			`(:|depth| . ,count))
+                        `(:|currencyPair| . ,pair)
+                        `(:|depth| . ,count))
       (flet ((parser (class)
                (lambda (raw-order)
                  (destructuring-bind (price amount) raw-order
                    (make-instance
-		    class :market market :volume amount
-		    :price (parse-price price decimals))))))
+                    class :market market :volume amount
+                    :price (parse-price price decimals))))))
         (values (mapcar (parser 'ask) asks)
                 (mapcar (parser 'bid) bids))))))
 
@@ -106,46 +108,111 @@
             (with-json-slots (rate amount date type total) trade
               (let ((price  (parse-float rate))
                     (volume (parse-float amount :type 'rational))
-		    (cost (parse-float total)))
+                    (cost (parse-float total)))
                 (make-instance 'trade :market market :direction type
                                :timestamp (parse-timestamp *poloniex* date)
                                :volume volume :price price :cost cost))))
           (reverse (apply 'public-request
-			  "returnTradeHistory"
-			  `(:|currencyPair| . ,(name market))
-			  (when since
-			    `(("start" . ,(1+ (timestamp-to-unix
-					       (timestamp since))))))))))
+                          "returnTradeHistory"
+                          `(:|currencyPair| . ,(name market))
+                          (when since
+                            `(("start" . ,(1+ (timestamp-to-unix
+                                               (timestamp since))))))))))
 
 ;;; private data API
 
 (defmethod account-balances ((gate poloniex-gate))
-  (aif (gate-request gate "returnBalances")
+  (aif (gate-request gate "returnCompleteBalances")
        (mapcan (lambda (pair &aux (asset (find-asset (car pair) :poloniex)))
-		 (let ((amount (parse-float (cdr pair) :type 'number)))
-		   (unless (zerop amount)
-		     `((,asset . ,(cons-aq* asset amount))))))
-	       it)
+                 (let* ((balances (cdr pair))
+                        (available (parse-float (getjso "available" balances)
+                                                :type 'number))
+                        (on-orders (parse-float (getjso "onOrders" balances)
+                                                :type 'number))
+                        (amount (+ available on-orders)))
+                   (unless (zerop amount)
+                     `(,(cons-aq* asset amount)))))
+               it)
        (error "communication breakdown!")))
 
 (defmethod placed-offers ((gate poloniex-gate))
   (mapcan (lambda (pair)
-	    (let ((market (find-market (car pair) :poloniex)))
-	      (mapcar (lambda (order)
-			(flet ((key (key) (cdr (assoc key order))))
-			  (let ((bidp (string= "buy" (key :|type|)))
-				(rate (* (expt 10 (decimals market))
-					 (parse-float (key :|rate|) :type 'number)))
-				(amount (parse-float (key :|amount|)
-						     :type 'number)))
-			    (make-instance
-			     'placed :market market :volume amount
-			     :given (if bidp (cons-aq (counter market)
-						      (* rate amount))
-					(cons-aq (primary market) amount))
-			     :oid (parse-integer (key :|orderNumber|))
-			     :price (* rate (if bidp -1 1))))))
-		      (cdr pair))))
-	  (remove () (gate-request gate "returnOpenOrders"
-				   '((:|currencyPair| . :all)))	; kludge
-		  :key #'cdr)))
+            (let ((market (find-market (car pair) :poloniex)))
+              (mapcar (lambda (order)
+                        (flet ((key (key) (getjso key order)))
+                          (let ((bidp (string= "buy" (key "type")))
+                                (rate (* (expt 10 (decimals market))
+                                         (parse-float (key "rate")
+                                                      :type 'number)))
+                                (amount (parse-float (key "amount")
+                                                     :type 'number)))
+                            (make-instance
+                             'placed :market market :volume amount
+                             :given (cons-aq (funcall (if bidp #'counter
+                                                          #'primary) market)
+                                             (* rate amount))
+                             :oid (parse-integer (key "orderNumber"))
+                             :price (* rate (if bidp -1 1))))))
+                      (cdr pair))))
+          (remove () (gate-request gate "returnOpenOrders"
+                                   '(("currencyPair" . :all)))  ; kludge
+                  :key #'cdr)))
+
+(defmethod market-fee ((gate poloniex-gate) (market market)) ; kludge!!!!
+  ;; to avoid fireplay, we assume that we always pay the taker fee
+  (* 100 (parse-float (getjso "takerFee" (gate-request gate "returnFeeInfo")))))
+
+(defun execution-parser (market)
+  (lambda (jso)
+    (with-json-slots ((oid "orderNumber") (txid "globalTradeID")
+                      date rate amount total type category fee) jso
+      (assert (string= category "exchange")) ; for now
+      (flet ((parse (float) (parse-float float :type 'number)))
+        (let ((volume (parse amount)) (price (parse rate)) (cost (parse total))
+              (after-fee (- 1 (parse fee)))) ; fees deducted from taken asset
+          (make-instance 'execution :market market :oid (parse oid) :txid txid
+                         :timestamp (parse-timestamp *poloniex* date)
+                         :direction type :volume volume :cost cost :price price
+                         :net-cost (string-case (type)
+                                     ("buy" cost) ("sell" (* cost after-fee)))
+                         :net-volume (string-case (type)
+                                       ("buy" (* volume after-fee))
+                                       ("sell" volume))))))))
+
+(defun raw-executions-since (gate market &key start end)
+  (reverse (gate-request gate "returnTradeHistory"
+                         `(("currencyPair" . ,(name market))
+                           ,@(when start `(("start" . ,(1+ start))))
+                           ,@(when end `(("end" . ,end)))))))
+
+(defmethod execution-since ((gate poloniex-gate) (market market) since)
+  (mapcar (execution-parser market)
+          (remove "exchange"            ; one day, you'll see... that i am gone!
+                  (apply #'raw-executions-since gate market
+                         (when since
+                           `(:start ,(timestamp-to-unix (timestamp since)))))
+                  :test-not #'string= :key (getjso "category"))))
+
+;;; actions
+
+(defmethod cancel-offer ((gate poloniex-gate) (offer placed))
+  (with-json-slots (success error)
+      (gate-request gate "cancelOrder" `(("orderNumber" . ,(oid offer))))
+    (if (not (zerop success)) offer
+        (if (gate-request gate "returnOrderTrades"
+                          `(("orderNumber" . ,(oid offer))))
+            offer (warn error)))))      ; generalized boolean
+
+(defmethod post-offer ((gate poloniex-gate) (offer offer)) ; if only, if only...
+  (with-slots (market volume price) offer
+    (flet ((str (amt) (format () "~8$" (float amt 0d0))))
+      (let ((rate (/ (abs price) (expt 10 8))))
+        (with-json-slots ((oid "orderNumber"))
+            (gate-request
+             gate (if (plusp price) "sell" "buy")
+             `(("currencyPair" . ,(name (market offer)))
+               ("rate" . ,(str rate))
+               ("amount" . ,(str (if (plusp price) volume
+                                     (/ volume rate))))))
+          (if oid (aprog1 offer (change-class it 'placed :oid oid))
+              (values () ())))))))
