@@ -706,13 +706,14 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     ((or division-by-zero arithmetic-error) ())))
 
 (defun update-bases (tracker trade)
-  (with-slots (bases) tracker
-    (with-slots (taken given price market) trade
-      (swhen (getf bases (asset given)) (setf it (bases-without it given)))
-      (setf (getf bases (asset taken))
-            (merge 'list (copy-list (getf bases (asset taken)))
-                   (list (list (aq/ given taken) taken given))
-                   #'> :key (lambda (row) (realpart (first row))))))))
+  (unless (zerop (volume trade))	; thx polo
+    (with-slots (bases) tracker
+      (with-slots (taken given price market) trade
+	(swhen (getf bases (asset given)) (setf it (bases-without it given)))
+	(setf (getf bases (asset taken))
+	      (merge 'list (copy-list (getf bases (asset taken)))
+		     (list (list (aq/ given taken) taken given))
+		     #'> :key (lambda (row) (realpart (first row)))))))))
 
 (defmethod vwap ((tracker execution-tracker) &key type depth)
   (let ((trades (slot-value tracker 'trades)))

@@ -122,18 +122,17 @@
 ;;; private data API
 
 (defmethod account-balances ((gate poloniex-gate))
-  (aif (gate-request gate "returnCompleteBalances")
-       (mapcan (lambda (pair &aux (asset (find-asset (car pair) :poloniex)))
-                 (let* ((balances (cdr pair))
-                        (available (parse-float (getjso "available" balances)
-                                                :type 'number))
-                        (on-orders (parse-float (getjso "onOrders" balances)
-                                                :type 'number))
-                        (amount (+ available on-orders)))
-                   (unless (zerop amount)
-                     `(,(cons-aq* asset amount)))))
-               it)
-       (error "communication breakdown!")))
+  (awhen (gate-request gate "returnCompleteBalances")
+    (mapcan (lambda (pair &aux (asset (find-asset (car pair) :poloniex)))
+              (let* ((balances (cdr pair))
+                     (available (parse-float (getjso "available" balances)
+                                             :type 'number))
+                     (on-orders (parse-float (getjso "onOrders" balances)
+                                             :type 'number))
+                     (amount (+ available on-orders)))
+                (unless (zerop amount)
+                  `(,(cons-aq* asset amount)))))
+            it)))
 
 (defmethod placed-offers ((gate poloniex-gate))
   (mapcan (lambda (pair)
@@ -198,10 +197,12 @@
 (defmethod cancel-offer ((gate poloniex-gate) (offer placed))
   (with-json-slots (success error)
       (gate-request gate "cancelOrder" `(("orderNumber" . ,(oid offer))))
-    (if (not (zerop success)) offer
-        (if (gate-request gate "returnOrderTrades"
-                          `(("orderNumber" . ,(oid offer))))
-            offer (warn error)))))      ; generalized boolean
+    (cond
+      ((not (zerop success)) offer)
+      ((search "you are not the person who placed" error) t)
+      ((gate-request gate "returnOrderTrades" ; generalized boolean
+                     `(("orderNumber" . ,(oid offer)))) offer)
+      (t (warn error)))))
 
 (defmethod post-offer ((gate poloniex-gate) (offer offer)) ; if only, if only...
   (with-slots (market volume price) offer
@@ -214,5 +215,10 @@
                ("rate" . ,(str rate))
                ("amount" . ,(str (if (plusp price) volume
                                      (/ volume rate))))))
-          (if oid (aprog1 offer (change-class it 'placed :oid oid))
+          (if (stringp oid)
+              (aprog1 offer (change-class it 'placed :oid oid))
               (values () ())))))))
+
+(defmethod supplicate
+    ((supplicant supplicant) (gate poloniex-gate) (op null) (args t))
+  (setf (slot-reduce supplicant placed) (placed-offers gate)))
