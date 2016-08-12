@@ -535,9 +535,16 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                           (as (side mask my-asks asks)))
                       (line (or mbid (car bids)) (or mask (car asks)))
                       (or bs (pop bids)) (or as (pop asks))))))
-            (flet ((shit (shinola)      ; so es dreht...
-                     (when shinola (reduce #'aq+ (mapcar #'given shinola)))))
-              (format t "~&Totals:~%") (line (shit bids) (shit asks))))))))
+            (flet ((shit (shy nola)      ; so es dreht...
+                     (when shy
+		       (let ((decimals (decimals (market (first shy)))))
+			 (format () "~A ~C ~V$ "
+				 (reduce #'aq+ (mapcar #'given shy))
+				 nola decimals
+				 (abs (/ (price (first (last shy)))
+					 (expt 10 decimals))))))))
+              (format t "~&Totals:~%")
+	      (line (shit bids #\>) (shit asks #\<))))))))
   (:method ((tracker book-tracker) &rest keys)
     (apply #'print-book (recv (slot-value tracker 'output)) keys))
   (:method ((market tracked-market) &rest keys)
