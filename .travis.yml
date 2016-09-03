@@ -5,7 +5,6 @@ addons:
   apt:
     packages:
       - libssl-dev
-      - openjdk-7-jre
 
 env:
   global:
