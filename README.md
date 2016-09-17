@@ -25,12 +25,17 @@ in a jurisdiction where the potential consequences of such actions are
 liable to offend my religion, and should be considered a capital offense,
 insofar as such are punishable by said *soi-dissant* politēs and churchēs.
 
-## URGENT NOTICE AND PROCLAIMER REGARDING DISCONTINUITY
+## PROCLAIMER REGARDING CONTINUITY
 After much internal debate, and in light of recent developments (by which is
-meant the unguided actions of one competently unpatented and suitable un-
-emotional undividual behaving in a manner consistent with tween-age onset
-schizo-affective disstimulant-modulated cyclothemia, and a dash of porkine-
-onset disorders, stressing the varieties most traumatic), we are on hiatus.
+meant the guided actions of one patently insane and insanely unpatentable
+undividual behaving in a manner consistent with tween-age onset borderline
+schizo-affective disstimulant-modulated cyclothemia, with a dash of bitters
+and three parts simple syrup), we are back grom hiatus and seeking partners.
+
+To celebrate our return, we are officially sponsoring
+[theme](https://www.youtube.com/watch?v=NCIUf8eYPqA)
+[songs](https://www.youtube.com/watch?v=6D6cw8Ob2sk),
+and actively seeking suggestions for more.
 
 # Abstract
 
