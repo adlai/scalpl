@@ -288,21 +288,25 @@
            (funcall (if (plusp fraction) #'identity #'char-downcase)
                     (digit-char (- 36 (ceiling (* (abs fraction) 26))) 36))))
     (with-output-to-string (out)
-      (let* ((min-sum (loop for trade in trades for volume = (net-volume trade)
-                         if (string-equal (direction trade) "buy")
-                         sum volume into buy-sum else sum volume into sell-sum
-                         finally (return (min buy-sum sell-sum))))
-             (min-last (apply 'min (mapcar #'side-last '("buy" "sell"))))
-             (scale (expt (/ min-sum min-last) (/ (1+ length))))
-             (dps (loop for i to length collect
-                       (depth-profit (/ min-sum (expt scale i)))))
-             (highest (apply #'max 0 (remove-if #'minusp dps)))
-             (lowest  (apply #'min 0 (remove-if  #'plusp dps))))
-        (format out "~4@$" (depth-profit min-sum))
-        (dolist (dp dps (format out "~4@$" (first (last dps))))
-          (format out "~C" (case (round (signum dp)) (0 #\Space)
-                             (+1 (chr (/ dp highest)))
-                             (-1 (chr (- (/ dp lowest)))))))))))
+      (when (and (find "buy" trades :key #'direction :test #'string-equal)
+                 (find "sell" trades :key #'direction :test #'string-equal))
+        (let* ((min-sum (loop for trade in trades
+                           for volume = (net-volume trade)
+                           if (string-equal (direction trade) "buy")
+                           sum volume into buy-sum
+                           else sum volume into sell-sum
+                           finally (return (min buy-sum sell-sum))))
+               (min-last (apply 'min (mapcar #'side-last '("buy" "sell"))))
+               (scale (expt (/ min-sum min-last) (/ (1+ length))))
+               (dps (loop for i to length collect
+                         (depth-profit (/ min-sum (expt scale i)))))
+               (highest (apply #'max 0 (remove-if #'minusp dps)))
+               (lowest  (apply #'min 0 (remove-if  #'plusp dps))))
+          (format out "~4@$" (depth-profit min-sum))
+          (dolist (dp dps (format out "~4@$" (first (last dps))))
+            (format out "~C" (case (round (signum dp)) (0 #\Space)
+                                   (+1 (chr (/ dp highest)))
+                                   (-1 (chr (- (/ dp lowest))))))))))))
 
 (defun makereport (maker fund rate btc doge investment risked skew &optional ha)
   (with-slots (name market ope snake last-report) maker
@@ -342,7 +346,7 @@
                           (reduce #'max (mapcar #'volume trades))))
            (balances (with-slots (sync) (slot-reduce maker treasurer)
                        (recv (send sync sync)))) ; excellent!
-           (doge/btc (vwap market :depth 50 :type :buy)))
+           (doge/btc (vwap market :depth 50 :type :sell)))
       (flet ((total-of (btc doge) (+ btc (/ doge doge/btc))))
         (let* ((total-btc (asset-funds (primary market) balances))
                (total-doge (asset-funds (counter market) balances))
@@ -356,18 +360,25 @@
           ;; don't lose the lesson, nor the joke.
           (unless (zerop total-fund)
             (let* ((buyin (dbz-guard (/ total-btc total-fund)))
-                   (btc  (* fund-factor total-btc buyin targeting-factor))
+                   (btc  (* fund-factor total-btc
+                            buyin targeting-factor))
                    (doge (* fund-factor total-doge
                             (/ (- 1 buyin) targeting-factor)))
-                   (skew (log (max 1/100 (/ doge btc doge/btc)))))
+                   (skew (log (if (zerop (* btc doge))
+                                  (max 1/100
+                                       (min 100
+                                            (or (ignore-errors
+                                                  (/ doge btc doge/btc)) 0)))
+                                  (/ doge btc doge/btc)))))
               ;; report funding
               (makereport maker total-fund doge/btc total-btc total-doge buyin
                           (dbz-guard (/ (total-of    btc  doge) total-fund))
                           (dbz-guard (/ (total-of (- btc) doge) total-fund)))
               (flet ((f (g h) `((,g . ,(* cut (max 0 (* skew-factor h)))))))
                 (send (slot-reduce ope input)
-                      (list (f btc skew) (f doge (- skew)) resilience
-                            (expt (exp skew) skew-factor)))
+                      (list (f (min btc (* 2/3 total-btc)) skew)
+                            (f (min doge (* 2/3 total-doge)) (- skew))
+                            resilience (expt (exp skew) skew-factor)))
                 (recv (slot-reduce ope output))))))))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
@@ -395,8 +406,8 @@
 
 (defun trades-profits (trades)
   (flet ((side-sum (side asset)
-           (reduce #'aq+ (mapcar asset (remove side trades :key #'direction
-                                               :test-not #'string-equal)))))
+           (aif (remove side trades :key #'direction :test-not #'string-equal)
+                (reduce #'aq+ (mapcar asset it)) 0)))
     (let ((aq1 (aq- (side-sum "buy"  #'taken) (side-sum "sell" #'given)))
           (aq2 (aq- (side-sum "sell" #'taken) (side-sum "buy"  #'given))))
       (ecase (- (signum (quantity aq1)) (signum (quantity aq2)))
