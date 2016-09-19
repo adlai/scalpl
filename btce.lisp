@@ -115,9 +115,10 @@
        (awhen (post-request command key secret options)
          (with-json-slots (success return error) it
            (cond ((not (zerop success)) (list return))
-                 ((not (search "invalid nonce parameter; on key:"
-                               error :end2 32))
-                  (defparameter +kludge+ (error)))) ; now recalculate n stuff
+                 ;; ((not (search "invalid nonce parameter; on key:"
+                 ;;               error :end2 32))
+                 ;;  (defparameter +kludge+ (error)))
+                 ) ; now recalculate n stuff
            (if (zerop success) (list (warn error) error) (list return)))))))
 
 ;;;

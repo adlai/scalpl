@@ -45,9 +45,9 @@
 (defun proxy-post (url auth request &aux (reply-id (timestamp-to-unix (now))))
   (alet (http-request   ; much experimentation ,such  desturdification ...
          url :basic-authorization auth :method :post :content
-	 (encode-json-plist-to-string
-	  (destructuring-bind (method . arguments) request ;]
-	    `("method" ,method "jsonrpc" "2.0" "id" ,reply-id
+         (encode-json-plist-to-string
+          (destructuring-bind (method . arguments) request ;]
+            `("method" ,method "jsonrpc" "2.0" "id" ,reply-id
               "params" ,(apply 'vector arguments)))))
     (json-bind (jsonrpc id . #1=(result error)) (map 'string #'code-char it)
       #.`(progn ,@(mapcar (lambda (ion) `(assert ,@ion))
@@ -221,9 +221,9 @@
     (flet ((value (key) (cdr (assoc key it))))  ; i smell a pattern
       (cond
         ((string= (value :result) "OK")
-	 (let ((new (cdr (assoc :amount (value :order)))))
-	   (unless (= new volume)
-	     (warn "Adjusted amount @~D from ~D to ~D" price volume new)))
+         (let ((new (cdr (assoc :amount (value :order)))))
+           (unless (= new volume)
+             (warn "Adjusted amount @~D from ~D to ~D" price volume new)))
          (apply #'values (mapcar #'value '(:order :message :track))))
         ((search "Insufficient funds for this request." (value :message))
          (values () #|(princ `(:unfund ,type ,price ,volume))|#))

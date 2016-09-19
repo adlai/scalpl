@@ -55,11 +55,12 @@
              (or (find name assets :key #'name :test #'string=)
                  (aprog1 (make-instance 'asset :name name :decimals 8)
                    (push it assets)))))
-      (values (mapcar (lambda (data &aux (pair (car data)))
-                        (make-instance
-                         'poloniex-market :name pair :decimals 8
-                         :primary (ensure-asset (subseq (string pair) 4))
-                         :counter (ensure-asset (subseq (string pair) 0 3))))
+      (values (mapcar (lambda (data &aux (pair (string (car data))))
+                        (let ((index (position #\_ pair)))
+                          (make-instance
+                           'poloniex-market :name pair :decimals 8
+                           :primary (ensure-asset (subseq pair (1+ index)))
+                           :counter (ensure-asset (subseq pair 0 index)))))
                       (remove "0" it :test-not #'string=
                               :key (lambda (x) (cdr (assoc :|isFrozen| (cdr x))))))
               assets))))
