@@ -119,8 +119,11 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defun pprint-pq (stream pq)
   (with-slots (decimals name) (find-unit (imagpart pq))
-    (format stream "~V$ ~A" decimals
-            (/ (realpart pq) (expt 10 decimals) 1d0) name)))
+    (format stream "~A ~A" (decimals:format-decimal-number
+                            (/ (realpart pq) (expt 10 decimals))
+                            :round-magnitude (- decimals)
+                            :show-trailing-zeros t)
+            name)))
 
 (set-pprint-dispatch 'physical-quantity #'pprint-pq 1 *pqprint-dispatch*)
 
@@ -161,15 +164,21 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (cons-aq asset (* quantity (expt 10 (decimals asset)))))
 
 (defun aq+ (aq1 aq2 &rest aqs)
-  (assert (eq (asset aq1) (asset aq2)))
-  (if aqs (reduce #'aq+ aqs :initial-value (aq+ aq1 aq2))
-      (cons-aq (asset aq1) (+ (quantity aq1) (quantity aq2)))))
+  (cond
+    (aqs (reduce #'aq+ aqs :initial-value (aq+ aq1 aq2)))
+    ((eq (asset aq1) (asset aq2))
+     (cons-aq (asset aq1) (+ (quantity aq1) (quantity aq2))))
+    ((zerop aq1) aq2) ((zerop aq2) aq1)
+    (t (error "assets ~A and ~A don't match" aq1 aq2))))
 
 (defun aq- (aq1 &optional aq2 &rest aqs)
-  (cond (aqs (aq- aq1 (reduce #'aq+ aqs :initial-value aq2)))
-        (aq2 (assert (eq (asset aq1) (asset aq2)))
-             (cons-aq (asset aq1) (- (quantity aq1) (quantity aq2))))
-        (t   (cons-aq (asset aq1) (- (quantity aq1))))))
+  (cond
+    (aqs (aq- aq1 (reduce #'aq+ aqs :initial-value aq2)))
+    ((eq (asset aq1) (asset aq2))
+     (cons-aq (asset aq1) (- (quantity aq1) (quantity aq2))))
+    ((zerop aq1) (cons-aq (asset aq2) (- (quantity aq2))))
+    ((null aq2) (cons-aq (asset aq1) (- (quantity aq1)))) ((zerop aq2) aq1)
+    (t (error "assets ~A and ~A don't match" aq1 aq2))))
 
 ;;;
 ;;; Markets
@@ -267,9 +276,13 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (print-unreadable-object
         (offer stream :type (not (typep offer 'placed)))
     (with-slots (given price market) offer
-      (let ((market-decimals (slot-value market 'decimals)))
-        (format stream "~@[~A ~]~A @ ~V$" (ignore-errors (oid offer)) given
-                market-decimals (/ (abs price) (expt 10 market-decimals)))))))
+      (let ((market-decimals (slot-value market 'decimals))
+            *print-readably* *print-escape* *print-circle*)
+        (format stream "~@[~A ~]~A @ ~A" (ignore-errors (oid offer)) given
+                (decimals:format-decimal-number
+                 (/ (abs price) (expt 10 market-decimals))
+                 :round-magnitude (- market-decimals)
+                 :show-trailing-zeros t))))))
 
 ;;;
 ;;; Rate Gate
@@ -537,14 +550,14 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                       (or bs (pop bids)) (or as (pop asks))))))
             (flet ((shit (shy nola)      ; so es dreht...
                      (when shy
-		       (let ((decimals (decimals (market (first shy)))))
-			 (format () "~A ~C ~V$ "
-				 (reduce #'aq+ (mapcar #'given shy))
-				 nola decimals
-				 (abs (/ (price (first (last shy)))
-					 (expt 10 decimals))))))))
+                       (let ((decimals (decimals (market (first shy)))))
+                         (format () "~A ~C ~V$ "
+                                 (reduce #'aq+ (mapcar #'given shy))
+                                 nola decimals
+                                 (abs (/ (price (first (last shy)))
+                                         (expt 10 decimals))))))))
               (format t "~&Totals:~%")
-	      (line (shit bids #\>) (shit asks #\<))))))))
+              (line (shit bids #\>) (shit asks #\<))))))))
   (:method ((tracker book-tracker) &rest keys)
     (apply #'print-book (recv (slot-value tracker 'output)) keys))
   (:method ((market tracked-market) &rest keys)
@@ -713,14 +726,14 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     ((or division-by-zero arithmetic-error) ())))
 
 (defun update-bases (tracker trade)
-  (unless (zerop (volume trade))	; thx polo
+  (unless (zerop (volume trade))        ; thx polo
     (with-slots (bases) tracker
       (with-slots (taken given price market) trade
-	(swhen (getf bases (asset given)) (setf it (bases-without it given)))
-	(setf (getf bases (asset taken))
-	      (merge 'list (copy-list (getf bases (asset taken)))
-		     (list (list (aq/ given taken) taken given))
-		     #'> :key (lambda (row) (realpart (first row)))))))))
+        (swhen (getf bases (asset given)) (setf it (bases-without it given)))
+        (setf (getf bases (asset taken))
+              (merge 'list (copy-list (getf bases (asset taken)))
+                     (list (list (aq/ given taken) taken given))
+                     #'> :key (lambda (row) (realpart (first row)))))))))
 
 (defmethod vwap ((tracker execution-tracker) &key type depth)
   (let ((trades (slot-value tracker 'trades)))
