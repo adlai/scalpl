@@ -195,7 +195,7 @@
 (defun decode-json (arg) (read-json (map 'string 'code-char arg)))
 
 (defun getjso (key &optional map)
-  (if map (cdr (assoc key map :test #'string=))
+  (if map (cdr (assoc (intern key :keyword) map :test #'string=))
       (lambda (map) (getjso key map))))
 
 (defun mapjso (func map) (loop for (k . v) in map do (funcall func (string k) v)))
