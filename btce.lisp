@@ -200,7 +200,7 @@
 
 ;;; they haven't heard of volume discounts yet...
 ;;; actually, they have! https://btc-e.com/news/216
-(defmethod market-fee ((btce-gate t) market) (fee market))
+(defmethod market-fee ((gate btce-gate) market) (fee market))
 
 (defun parse-execution (txid json)
   (with-json-slots ((oid "order_id") (wtfp "is_your_order")
