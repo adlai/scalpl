@@ -5,8 +5,7 @@
            #:shallow-copy
            #:dbz-guard
            #:slot-reduce #:slot-reducer #:slot-setter #:aslot-setter
-           #:aand1
-           #:awhen1
+           #:aand1 #:awhen1 #:amvp1
            #:parse-price
            #:parse-float
            #:string-octets #:octets
@@ -180,6 +179,9 @@
 (defmacro aand1 (test &rest rest)
   `(anaphora::anaphoric and1 ,test ,@rest))
 
+(defmacro amvp1 (values-form &body body)
+  `(apply #'values (aprog1 (multiple-value-list ,values-form) ,@body)))
+
 (defmacro with-aslots (slots form &body body)
   `(let ((it ,form)) (with-slots ,slots it ,@body)))
 
@@ -195,7 +197,7 @@
 (defun decode-json (arg) (read-json (map 'string 'code-char arg)))
 
 (defun getjso (key &optional map)
-  (if map (cdr (assoc (intern key :keyword) map :test #'string=))
+  (if map (cdr (assoc (intern (string key) :keyword) map :test #'string=))
       (lambda (map) (getjso key map))))
 
 (defun mapjso (func map) (loop for (k . v) in map do (funcall func (string k) v)))

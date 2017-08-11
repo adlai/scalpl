@@ -24,7 +24,7 @@
 
 ;;; Networking... dump it here, later should probably split into net.lisp
 
-(defun http-request (path &rest keys &aux (backoff 0))
+(defun http-request (path &rest keys &aux (backoff 3))
   (loop (handler-case (return (apply #'drakma:http-request path keys))
           ((or simple-error drakma::drakma-simple-error
             usocket:deadline-timeout-error usocket:timeout-error
@@ -278,11 +278,12 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (with-slots (given price market) offer
       (let ((market-decimals (slot-value market 'decimals))
             *print-readably* *print-escape* *print-circle*)
-        (format stream "~@[~A ~]~A @ ~A" (ignore-errors (oid offer)) given
-                (decimals:format-decimal-number
-                 (/ (abs price) (expt 10 market-decimals))
-                 :round-magnitude (- market-decimals)
-                 :show-trailing-zeros t))))))
+        (format stream "~@[~A ~]~A @ ~A"
+                (ignore-errors (subseq (princ-to-string (oid offer)) 0 13))
+                given (decimals:format-decimal-number
+                       (/ (abs price) (expt 10 market-decimals))
+                       :round-magnitude (- market-decimals)
+                       :show-trailing-zeros t))))))
 
 ;;;
 ;;; Rate Gate
@@ -501,8 +502,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                              (setf (slot-value new ',class) it
                                    (slot-value new ',feed)
                                    (slot-value it 'output))))))
-    (with-slots (%market book trades) new
-      (setf %market (shallow-copy prev)) (init book) (init trades))))
+    (with-slots (%market book trades delegates) new
+      (push (setf %market (shallow-copy prev)) delegates)
+      (init book) (init trades))))
 
 ;;; tonight we dine in fail
 (defmethod get-book ((market tracked-market) &key)
@@ -791,6 +793,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (awhen1 (cancel-offer gate id)
       (with-slots (placed) supplicant
         (setf placed (remove (oid id) placed :key #'oid)))))
+  (:method ((supplicant supplicant) (gate gate) (op (eql :sync)) args)
+    (declare (ignore args))
+    (with-slots (placed gate) supplicant (setf placed (placed-offers gate))))
   (:method ((supplicant supplicant) (gate gate) (op (eql :offer)) args)
     (balance-guarded-place supplicant args)))
 

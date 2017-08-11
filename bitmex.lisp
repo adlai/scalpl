@@ -13,7 +13,7 @@
 
 (defclass bitmex-market (market)
   ((exchange :initform *bitmex*) (fee :initarg :fee :reader fee)
-   (fundings :initarg :fundings)))      ; https://www.bitmex.com/app/swapsGuide
+   (metallic :initarg :metallic)))
 
 (defun hmac-sha256 (message secret)
   (let ((hmac (ironclad:make-hmac (string-octets secret) 'ironclad:sha256)))
@@ -34,51 +34,61 @@
     (with-open-file (stream path)
       (make-key stream))))
 
-(defun public-request (method parameters)
-  (let* ((data (net.aserve:uridecode-string (urlencode-params parameters)))
-         (path (concatenate 'string *base-path* method "?" data)))
-    (multiple-value-bind (json status)
-        (http-request (concatenate 'string *base-url* path))
-      (case status (200 (decode-json json))
-            (t (values () (cdr (assoc :|error| (decode-json json)))))))))
+(defun bitmex-request (path &rest args)
+  (multiple-value-bind (json status headers)
+      (apply #'http-request (concatenate 'string *base-url* path) args)
+    (let ((a (parse-integer (getjso :x-ratelimit-remaining headers))))
+      (let ((data (decode-json json)) (b (isqrt a)))
+        (when (and (ironclad:prime-p b) (= a (* b b))) (sleep (isqrt b)))
+        (if (= status 200) (values data 200)
+            (values () status (cdr (assoc :error data))))))))
 
-(defun auth-request (verb method key signer &optional parameters)
-  (let* ((data (urlencode-params parameters))
-         (path (apply #'concatenate 'string *base-path*
-                      method (and (or (not verb) (string= verb "GET"))
-                                  parameters `("?" ,data))))
+(defun bitmex-path (&rest paths)
+  (apply #'concatenate 'string *base-path* paths))
+
+(defun public-request (method parameters)
+  (bitmex-request
+   (apply #'bitmex-path method
+          (and parameters `("?" ,(net.aserve:uridecode-string
+                                  (urlencode-params parameters)))))))
+
+(defun auth-request (verb method key signer &optional params)
+  (let* ((data (urlencode-params params))
+         (path (apply #'bitmex-path method
+                      (and (eq verb :get) params `("?" ,data))))
          (nonce (format () "~D" (+ (timestamp-millisecond (now))
                                    (* 1000 (timestamp-to-unix (now))))))
          (sig (funcall signer
-                       (concatenate 'string verb path nonce
-                                    (unless (string= verb "GET") data)))))
-    (multiple-value-bind (json status)
-        (apply #'http-request (concatenate 'string *base-url* path)
-               :url-encoder (lambda (url format) (declare (ignore format)) url)
-               :method (intern (or (string verb) "GET") :keyword)
-               :additional-headers `(("api-key" . ,key)
-                                     ("api-nonce" . ,nonce)
-                                     ("api-signature" . ,sig))
-               (unless (equal verb "GET") `(:content ,data)))
-      (values (decode-json json) status))))
+                       (concatenate 'string (string verb) path nonce
+                                    (unless (eq verb :get) data)))))
+    (apply #'bitmex-request path
+           :url-encoder (lambda (url format) (declare (ignore format)) url)
+           :additional-headers `(("api-signature" . ,sig)
+                                 ("api-key" . ,key) ("api-nonce" . ,nonce))
+           :method verb (unless (eq verb :get) `(:content ,data)))))
 
 (defun get-info (&aux assets)
+  (declare (optimize debug))
   (awhen (public-request "instrument/active" ())
-    (flet ((ensure-asset (name)
-             (or (find name assets :key #'name :test #'string=)
-                 (aprog1 (make-instance 'asset :name name :decimals 0)
-                   (push it assets)))))
-      (values (mapcar (lambda (pair)
-                        (with-json-slots ((tick "tickSize") (fee "takerFee") symbol
-                                          underlying (counter "quoteCurrency"))
-                            pair
-                          (make-instance
-                           'bitmex-market :name symbol :fee fee
-                           :decimals (round (- (log tick 10)))
-                           :primary (ensure-asset (format () "L~A" symbol))
-                           :counter (ensure-asset (format () "S~A" symbol)))))
-                      it)
-              assets))))
+    (flet ((make-market (instrument)
+             (with-json-slots
+                 ((tick "tickSize") (lot "lotSize") (fee "takerFee")
+                  (name "symbol") (fe "isInverse") (long "rootSymbol")
+                  (short "quoteCurrency") multiplier)
+                 instrument
+               (flet ((asset (fake &optional (decimals 0))
+                        (let ((name (concatenate 'string fake "-" name)))
+                          (or (find name assets :key #'name :test #'string=)
+                              (aprog1 (make-instance 'asset :name name
+                                                     :decimals decimals)
+                                (push it assets)))))
+                      (ilog (i) (round (log (abs i) 10))))
+                 (make-instance
+                  'bitmex-market :name name :fee fee :metallic fe
+                  :decimals (- (ilog tick))
+                  :primary (asset long (ilog (if fe multiplier lot)))
+                  :counter (asset short (ilog (if fe lot multiplier))))))))
+      (values (mapcar #'make-market it) assets))))
 
 (defmethod fetch-exchange-data ((exchange (eql *bitmex*)))
   (with-slots (markets assets) exchange
@@ -111,15 +121,11 @@
   (loop for raw in
        (public-request "orderBook/L2" `(("symbol" . ,pair)
                                         ("depth" . ,(prin1-to-string count))))
-     for type = (string-case ((cdr (assoc :|side| raw)))
-                  ("Sell" 'ask) ("Buy" 'bid))
+     for price = (getjso "price" raw)
+     for type = (string-case ((getjso "side" raw)) ("Sell" 'ask) ("Buy" 'bid))
      for offer = (make-instance type :market market
-                                :price (* (expt 10 (decimals market))
-                                          (cdr (assoc :|price| raw)))
-                                :volume (cdr (assoc :|size| raw)))
-     do (with-slots (given taken) offer
-          (setf given (cons-aq (asset given) (cdr (assoc :|size| raw)))
-                taken (cons-aq (asset taken) (cdr (assoc :|size| raw)))))
+                                :price (* (expt 10 (decimals market)) price)
+                                :volume (/ (getjso "size" raw) price))
      if (eq type 'ask) collect offer into asks
      if (eq type 'bid) collect offer into bids
      finally (return (values (nreverse asks) bids))))
@@ -127,25 +133,24 @@
 (defmethod trades-since ((market bitmex-market) &optional since
                          &aux (pair (name market)))
   (awhen (public-request
-          "trade" `(("symbol" . ,pair) ("count" . "200")
+          "trade" `(("symbol" . ,pair)
                     ("startTime"
                      . ,(format-timestring
-                         () (or (timestamp since) (timestamp- (now) 1 :minute))
-                         :format (butlast +iso-8601-format+ 1)))))
+                         () (or (timestamp since) (timestamp- (now) 1 :hour))
+                         :format (butlast +iso-8601-format+ 3)))))
     (mapcar (lambda (trade)
-              (flet ((val (key) (cdr (assoc key trade))))
-                (make-instance 'trade :market market :direction (val :|side|)
-                               :timestamp (parse-timestring (val :|timestamp|))
-                               :volume (val :|size|) :price (val :|price|)
-                               :cost (* (val :|size|) (val :|price|)))))
-            (butlast it))))             ; startTime is inclusive :(
+              (with-json-slots (side timestamp size price) trade
+                (make-instance 'trade :market market :direction side
+                               :timestamp (parse-timestring timestamp)
+                               :volume (/ size price) :price price :cost size)))
+            (butlast it))))
 
 ;;;
 ;;; Private Data API
 ;;;
 
 (defmethod placed-offers ((gate bitmex-gate))
-  (awhen (gate-request gate '("GET" "order") '(("filter" . "{\"open\": true}")))
+  (awhen (gate-request gate '(:get "order") '(("filter" . "{\"open\": true}")))
     (mapcar (lambda (data)
               (flet ((value (key) (cdr (assoc key data)))) ; that smelly smell!
                 (let ((market (find-market (value :|symbol|) :bitmex))
@@ -161,32 +166,35 @@
                             taken (cons-aq (asset taken) size)))))))
             it)))
 
-(defmethod account-balances ((gate bitmex-gate)) ; ASSUMES offer atomicity!
-  (let ((placed (placed-offers gate))
-        (funds (make-hash-table :size (length (assets *bitmex*)))))
-    (flet ((incf-fund (asset amount) (incf (gethash asset funds 0) amount)))
-      (dolist (offer placed)
-        (if (eq (consumed-asset offer) (primary (market offer)))
-            (incf-fund (consumed-asset offer) (volume offer))
-            (incf-fund (counter (market offer))
-                       (* (volume offer) (- (price offer))
-                          (expt 1/10 (decimals (market offer))))))))
-    (mapcan (lambda (pair)
-              (awhen (find-asset (car pair) *bitmex*)
-                (list (cons-aq* it (+ (cdr pair) (gethash it funds 0))))))
-            (extract-funds (error "todo");; (gate-request gate "getInfo")
-                           ))))
+(defmethod account-balances ((gate bitmex-gate) &aux balances)
+  (declare (optimize debug))
+  ;; tl;dr - transubstantiates position into 'balances' of long + short
+  (let ((deposit (gate-request gate '(:get "user/wallet") ()))
+        (positions (gate-request gate '(:get "position") ()))
+        (instruments (public-request "instrument/active" ())))
+    (dolist (instrument instruments balances)
+      (with-json-slots (symbol (mark "markPrice")) instrument
+        (with-slots (primary counter metallic) (find-market symbol :bitmex)
+          (let* ((delta 0)
+                 (fund (/ (* 10 (getjso "amount" deposit)) (if metallic 1 mark)
+                          (expt 10 (decimals (if metallic primary counter))))))
+            (awhen (find symbol positions :test #'string= :key (getjso "symbol"))
+              (incf delta (/ (getjso "currentQty" it) mark)))
+            (push (cons-aq* primary (+ fund delta)) balances)
+            (push (cons-aq* counter (* (- fund delta) mark))
+                  balances)))))))
 
 (defmethod market-fee ((bitmex-gate t) market) (fee market))
 
 (defun parse-execution (raw)
-  (flet ((value (key) (cdr (assoc key raw)))) ; FIXME
-    (let ((market (find-market (value :|symbol|) :bitmex)))
-      (make-instance 'execution :direction (value :|side|)
-                     :oid (value :|orderID|) :txid (value :|execID|)
-                     :price (* (value :|price|) (expt 10 (decimals market)))
-                     :cost (error "fixme") :volume (value :|orderQty|)
-                     :timestamp (parse-timestamp *bitmex* (value :|timestamp|))
+  (with-json-slots
+      ((oid "orderID") (txid "execID") (amt "orderQty")
+       symbol side price timestamp) raw
+    (let ((market (find-market symbol :bitmex)))
+      (make-instance 'execution :direction side :oid oid :txid txid
+                     :price (* price (expt 10 (decimals market)))
+                     :cost (error "fixme") :volume (getjso "orderQty" raw)
+                     :timestamp (parse-timestamp *bitmex* (getjso "timestamp" raw))
                      :net-volume (error "fixme") :net-cost (error "metoo")))))
 
 (defun raw-executions (gate &key pair from end count)
@@ -194,7 +202,7 @@
                `(append ,@(loop for (val key exp) in body
                              collect `(when ,val `((,,key . ,,exp))))
                         '(("reverse" . "true"))))) ; most recent first
-    (gate-request gate '("GET" "execution/tradeHistory")
+    (gate-request gate '(:get "execution/tradeHistory")
                   (params (pair "symbol" pair) (count "count" count)
                           (from "startTime" (subseq (princ-to-string from) 0 19))
                           (end "endTime" (subseq (princ-to-string end) 0 19))))))
@@ -216,7 +224,7 @@
       (remove txid (mapcar-jso #'parse-execution it) :key #'txid))))
 
 (defun post-raw-limit (gate buyp market price size)
-  (gate-request gate '("POST" "order")
+  (gate-request gate '(:post "order")
                 `(("symbol" . ,market) ("price" . ,(princ-to-string price))
                   ("orderQty" . ,(princ-to-string (* (if buyp 1 -1) size)))
                   ("execInst" . "ParticipateDoNotInitiate"))))
@@ -236,6 +244,6 @@
 (defmethod cancel-offer ((gate bitmex-gate) (offer placed))
   ;; (format t "~&cancel ~A~%" offer)
   (multiple-value-bind (ret err)
-      (gate-request gate '("DELETE" "order") `(("orderID" . ,(oid offer))))
+      (gate-request gate '(:delete "order") `(("orderID" . ,(oid offer))))
     (or (string= (cdr (assoc :|ordStatus| (car ret))) "Canceled")
         (string= (cdr (assoc :|message| err)) "Not Found"))))
