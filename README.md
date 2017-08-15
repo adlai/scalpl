@@ -20,17 +20,18 @@ The software is provided devoid of warantee, guarranty, liesense, and noncence:
 "do as thou wilt".
 
 Please be advised that this use of the software renders varying signals to
-market participants in a manner that amplifies preëxisting biases. Doing so
-in a jurisdiction where the potential consequences of such actions are
-liable to offend my religion, and should be considered a capital offense,
-insofar as such are punishable by said *soi-dissant* politēs and churchēs.
+market participants in a manner that amplifies preëxisting biases. Performing
+such acts in jurisdictia where the potential consequences of such actions are
+punishable is liable to offend my religion, and should be considered a capital
+offense, insofar as such are punishable by said *soi-dissant* politēs and
+churchēs.
 
 ## PROCLAIMER REGARDING CONTINUITY
 After much internal debate, and in light of recent developments (by which is
 meant the guided actions of one patently insane and insanely unpatentable
 undividual behaving in a manner consistent with tween-age onset borderline
 schizo-affective disstimulant-modulated cyclothemia, with a dash of bitters
-and three parts simple syrup), we are back grom hiatus and seeking partners.
+and three parts simple syrup), we are back from hiatus and *seeking partners*!
 
 To celebrate our return, we are officially sponsoring
 [theme](https://www.youtube.com/watch?v=NCIUf8eYPqA)
@@ -47,12 +48,14 @@ to game theory, although it may require [un?]countably infinitely many steps.
 
 # Exchanges
 
-Three Bitcoin exchanges are supported: [Bitfinex](https://www.bitfinex.com),
+Several Bitcoin exchanges are supported: [Bitfinex](https://www.bitfinex.com),
 [BTC-e](https://www.btc-e.com), and [Kraken](https://www.kraken.com). ScalpL
 also supports [MPExAgent](https://github.com/jurov/MPExAgent), if your hand
 plays cards at [such](http://trilema.com/2016/mpex-smpoe-closing-statement/)
-[tab](http://mpex.co/faq.html#17)[les](http://mpex.co/faq.html#33). A fresh
-addition is a client for the [Baloney Exchange](https://www.poloniex.com)!
+[tab](http://mpex.co/faq.html#17)[les](http://mpex.co/faq.html#33). Fresh
+additions are clients for the [Baloney Exchange](https://www.poloniex.com),
+and experimental support for the best-named casino in the Seychelles, the
+[Bitcoin Mercantile Exchange](https://bitmex.com/).
 
 More's ever in the works; consult an Architect for blueprints.
 

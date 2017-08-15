@@ -125,7 +125,7 @@
                       epsilon          ; scalar•asset size of smallest order
                       max-orders       ; target amount of offers
                       magic            ; if you have to ask, you'll never know
-                      &aux (acc 0) (share 0) (others (copy-list foreigners))
+                      &aux (acc 0.0) (share 0) (others (copy-list foreigners))
                         (asset (consumed-asset (first others))))
   (do* ((remaining-offers others (rest remaining-offers))
         (processed-tally    0    (1+   processed-tally)))
@@ -183,23 +183,24 @@
             ;; what appears to be the officer, problem?
             ;; (bases-without bases (given top)) fails, because bids are `viqc'
             (bases-without bases (cons-aq* (consumed-asset car) (volume car)))
-          (flet ((profit (o)
-                   (funcall punk (1- (price o)) (price vwab) (cdar funds))))
-            (when vwab
-              (signal "~4,2@$ ~A ~D ~V$ ~V$" (profit car) car (length bases)
-                      (decimals (market vwab)) (scaled-price vwab)
-                      (decimals (asset cost)) (scaled-quantity cost))
-              (setf book (rest (member 0 book :test #'< :key #'profit))))
-            (if (and vwab (plusp (profit car)))
-                `(,car .,(ope-sprinner
-                          cdr (destructuring-bind ((caar . cdar) . cdr) funds
-                                (aprog1 `((,(- caar (volume car)) .,cdar) .,cdr)
-                                  (signal "~S" it)))
-                          (1- count) magic bases punk dunk book))
-                (ope-sprinner (funcall dunk book funds count magic) funds
-                              count magic (and vwab `((,vwab ,(aq* vwab cost)
-                                                             ,cost) ,@bases))
-                              punk dunk book)))))))
+          (if (or (null bases) (zerop count) (null offers)) offers  ; again!
+              (flet ((profit (o)
+                       (funcall punk (1- (price o)) (price vwab) (cdar funds))))
+                (when vwab
+                  (signal "~4,2@$ ~A ~D ~V$ ~V$" (profit car) car (length bases)
+                          (decimals (market vwab)) (scaled-price vwab)
+                          (decimals (asset cost)) (scaled-quantity cost))
+                  (setf book (rest (member 0 book :test #'< :key #'profit))))
+                (if (and vwab (plusp (profit car)))
+                    `(,car .,(ope-sprinner
+                              cdr (destructuring-bind ((caar . cdar) . cdr) funds
+                                    (aprog1 `((,(- caar (volume car)) .,cdar) .,cdr)
+                                      (signal "~S" it)))
+                              (1- count) magic bases punk dunk book))
+                    (ope-sprinner (funcall dunk book funds count magic) funds
+                                  count magic (and vwab `((,vwab ,(aq* vwab cost)
+                                                                 ,cost) ,@bases))
+                                  punk dunk book))))))))
 
 (defun ope-logger (ope)
   (lambda (log)
@@ -370,6 +371,8 @@
                                             (or (ignore-errors
                                                   (/ doge btc doge/btc)) 0)))
                                   (/ doge btc doge/btc)))))
+              ;; (print (mapcar #'float (list btc doge skew)
+              ;;                (make-list 3 :initial-element 0d0)))
               ;; report funding
               (makereport maker total-fund doge/btc total-btc total-doge buyin
                           (dbz-guard (/ (total-of    btc  doge) total-fund))
@@ -381,7 +384,7 @@
                             resilience (expt (exp skew) skew-factor)))
                 (recv (slot-reduce ope output))
                 (with-slots (control response) supplicant
-                  (send control :sync) (recv response))))))))))
+                  (send control '(:sync)) (recv response))))))))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
   (with-slots (supplicant ope delegates) maker
