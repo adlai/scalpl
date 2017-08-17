@@ -227,7 +227,7 @@
 (defmethod post-offer ((gate bitmex-gate) offer)
   (with-slots (market volume price) offer
     (let ((factor (expt 10 (decimals market))))
-      (with-json-slots ((oid "orderID") (status "ordStatus"))
+      (with-json-slots ((oid "orderID") (status "ordStatus") text)
           (post-raw-limit gate (not (plusp price)) (name market)
                           (multiple-value-bind (int dec)
                               (floor (abs price) factor)
@@ -235,11 +235,13 @@
                                     int (decimals market) dec))
                           (floor (* volume (if (minusp price) 1
                                                (/ price factor)))))
-        (when (string= status "New") (change-class offer 'placed :oid oid))))))
+        (if (string= status "New") (change-class offer 'placed :oid oid)
+            (unless (search "ParticipateDoNotInitiate" text)
+              (warn "Failed placing: ~S~%~A" offer text)))))))
 
 (defmethod cancel-offer ((gate bitmex-gate) (offer placed))
   (multiple-value-bind (ret err)
       (gate-request gate '(:delete "order") `(("orderID" . ,(oid offer))))
-    (or (member (getjso "ordStatus" (car ret)) '("Canceled" "Filled")
-                :test #'string=)
+    (or (member (getjso "ordStatus" (car ret))
+                '("Canceled" "Filled") :test #'string=)
         (string= (getjso "message" err) "Not Found"))))
