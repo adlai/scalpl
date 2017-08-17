@@ -42,7 +42,7 @@
           (data (decode-json json)))
       (sleep (/ 10 remain))
       (if (= status 200) (values data 200)
-          (values () status (cdr (assoc :error data)))))))
+          (values () status (getjso "error" data))))))
 
 (defun bitmex-path (&rest paths)
   (apply #'concatenate 'string *base-path* paths))
@@ -103,11 +103,10 @@
 
 (defmethod gate-post ((gate (eql *bitmex*)) key secret request)
   (destructuring-bind ((verb method) . parameters) request
-    (multiple-value-bind (ret status)
+    (multiple-value-bind (ret status error)
         (auth-request verb method key secret parameters)
       (case status (200 (list ret ()))
-            (t (list (warn (cdr (assoc :|message| (cdr (assoc :|error| ret)))))
-                     (cdr (assoc :|error| ret))))))))
+            (t (list (warn (getjso "message" error)) error))))))
 
 (defmethod shared-initialize ((gate bitmex-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
@@ -226,21 +225,21 @@
                   ("execInst" . "ParticipateDoNotInitiate"))))
 
 (defmethod post-offer ((gate bitmex-gate) offer)
-  ;; (format t "~&place  ~A~%" offer)
   (with-slots (market volume price) offer
     (let ((factor (expt 10 (decimals market))))
-      (awhen (post-raw-limit gate (not (plusp price)) (name market)
-                             (multiple-value-bind (int dec)
-                                 (floor (abs price) factor)
-                               (format nil "~D.~V,'0D"
-                                       int (decimals market) dec))
-                             (floor (* volume (if (minusp price) 1
-                                                  (/ price factor)))))
-        (change-class offer 'placed :oid (getjso "orderID" it))))))
+      (with-json-slots ((oid "orderID") (status "ordStatus"))
+          (post-raw-limit gate (not (plusp price)) (name market)
+                          (multiple-value-bind (int dec)
+                              (floor (abs price) factor)
+                            (format nil "~D.~V,'0D"
+                                    int (decimals market) dec))
+                          (floor (* volume (if (minusp price) 1
+                                               (/ price factor)))))
+        (when (string= status "New") (change-class offer 'placed :oid oid))))))
 
 (defmethod cancel-offer ((gate bitmex-gate) (offer placed))
-  ;; (format t "~&cancel ~A~%" offer)
   (multiple-value-bind (ret err)
       (gate-request gate '(:delete "order") `(("orderID" . ,(oid offer))))
-    (or (string= (cdr (assoc :|ordStatus| (car ret))) "Canceled")
-        (string= (cdr (assoc :|message| err)) "Not Found"))))
+    (or (member (getjso "ordStatus" (car ret)) '("Canceled" "Filled")
+                :test #'string=)
+        (string= (getjso "message" err) "Not Found"))))
