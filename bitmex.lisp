@@ -38,9 +38,9 @@
 (defun bitmex-request (path &rest args)
   (multiple-value-bind (json status headers)
       (apply #'http-request (concatenate 'string *base-url* path) args)
-    (let ((remain (parse-integer (getjso :x-ratelimit-remaining headers)))
-          (data (decode-json json)))
-      (sleep (/ 10 remain))
+    (let ((data (decode-json json)))
+      (awhen (getjso :x-ratelimit-remaining headers)
+        (sleep (/ 10 (parse-integer it))))
       (if (= status 200) (values data 200)
           (values () status (getjso "error" data))))))
 
@@ -235,7 +235,7 @@
                                     int (decimals market) dec))
                           (floor (* volume (if (minusp price) 1
                                                (/ price factor)))))
-        (if (string= status "New") (change-class offer 'placed :oid oid)
+        (if (equal status "New") (change-class offer 'placed :oid oid)
             (unless (search "ParticipateDoNotInitiate" text)
               (warn "Failed placing: ~S~%~A" offer text)))))))
 
@@ -243,5 +243,5 @@
   (multiple-value-bind (ret err)
       (gate-request gate '(:delete "order") `(("orderID" . ,(oid offer))))
     (or (member (getjso "ordStatus" (car ret))
-                '("Canceled" "Filled") :test #'string=)
-        (string= (getjso "message" err) "Not Found"))))
+                '("Canceled" "Filled") :test #'equal)
+        (equal (getjso "message" err) "Not Found"))))
