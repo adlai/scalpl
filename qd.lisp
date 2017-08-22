@@ -26,7 +26,7 @@
     (send control (cons :cancel offer)) (recv response)))
 
 (defclass filter (actor)
-  ((abbrev :allocation :class :initform "filter")
+  ((abbrev :allocation :class :initform "filter") (cut :initarg :cut)
    (bids :initform ()) (asks :initform ()) (book-cache :initform nil)
    (supplicant :initarg :supplicant :initform (error "must link supplicant"))
    (frequency  :initarg :frequency  :initform 17))) ; FIXME: s/ll/sh/!?
@@ -52,7 +52,7 @@
 ;;; 3) profit vs recent cost basis - done, shittily - TODO parametrize depth
 
 (defmethod perform ((filter filter) &key)
-  (with-slots (market book-cache bids asks frequency supplicant) filter
+  (with-slots (market book-cache bids asks frequency supplicant cut) filter
     (let ((book (recv (slot-reduce market book-tracker output))))
       (unless (eq book book-cache)
         (with-slots (placed fee) supplicant
@@ -65,9 +65,10 @@
                 (setf book-cache book (values bids asks)
                       (ignore-both      ; TODO: targeting-aware lopsidedness
                        (1- (loop for i from 0 count t until
-                                (plusp (1- (profit-margin
-                                            (cache i car) (cache i cdr)
-                                            bid ask)))))))))))))
+                                (< (/ cut 100)
+                                   (1- (profit-margin
+                                        (cache i car) (cache i cdr)
+                                        bid ask)))))))))))))
     (sleep frequency)))
 
 (defclass prioritizer (actor)
@@ -212,7 +213,7 @@
   (flet ((dunk (book funds count magic &optional (start epsilon))
            (and book (dumbot-offers book resilience (caar funds)
                                     start count magic))))
-    (with-slots (supplicant magic cut) ope
+    (with-slots (supplicant magic) ope
       (with-slots (order-slots) supplicant
         (awhen (dunk book funds (/ order-slots 2) magic)
           (ope-sprinner it funds (/ order-slots 2) magic
@@ -249,14 +250,14 @@
           (do-side primary asks next-asks (* epsilon (max (/ ratio) 1))))))
     (send output (sleep frequency))))
 
-(defmethod initialize-instance :after ((ope ope-scalper) &key)
+(defmethod initialize-instance :after ((ope ope-scalper) &key cut)
   (with-slots (filter prioritizer supplicant) ope
-    (macrolet ((init (slot)
+    (macrolet ((init (slot &rest args)
                  `(setf ,slot (make-instance ',slot :supplicant supplicant
-                                             :delegates (list supplicant))))
+                                             :delegates `(,supplicant) ,@args)))
                (children (&rest slots)
                  `(progn ,@(mapcar (lambda (slot) `(adopt ope ,slot)) slots))))
-      (children (init prioritizer) (init filter)))))
+      (children (init prioritizer) (init filter :cut cut)))))
 
 ;;;
 ;;; ACCOUNT TRACKING
@@ -348,7 +349,7 @@
            (balances (with-slots (sync) (slot-reduce maker treasurer)
                        (recv (send sync sync)))) ; excellent!
            (doge/btc (vwap market :depth 50 :type :sell)))
-      (flet ((total-of (btc doge) (+ btc (/ doge doge/btc))))
+      (flet ((total-of (btc doge) (float (+ btc (/ doge doge/btc)))))
         (let* ((total-btc (asset-funds (primary market) balances))
                (total-doge (asset-funds (counter market) balances))
                (total-fund (total-of total-btc total-doge)))
@@ -387,9 +388,9 @@
                   (send control '(:sync)) (recv response))))))))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
-  (with-slots (supplicant ope delegates) maker
+  (with-slots (supplicant ope delegates cut) maker
     (adopt maker supplicant) (push supplicant delegates)
-    (adopt maker (setf ope (make-instance 'ope-scalper
+    (adopt maker (setf ope (make-instance 'ope-scalper :cut cut
                                           :supplicant supplicant)))))
 
 (defun reset-the-net (maker &key (revive t) (delay 5))
