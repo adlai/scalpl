@@ -39,8 +39,8 @@
   (multiple-value-bind (json status headers)
       (apply #'http-request (concatenate 'string *base-url* path) args)
     (let ((data (decode-json json)))
-      (awhen (getjso :x-ratelimit-remaining headers)
-        (sleep (/ 10 (parse-integer it))))
+      (sleep (aif (getjso :x-ratelimit-remaining headers)
+                  (/ 42 (parse-integer it)) 1))
       (if (= status 200) (values data 200)
           (values () status (getjso "error" data))))))
 
@@ -212,7 +212,7 @@
 (defmethod execution-since ((gate bitmex-gate) market since)
   (awhen (raw-executions gate :pair (name market)
                          :from (if since (timestamp since)
-                                   (timestamp- (now) 1 :day)))
+                                   (timestamp- (now) 1 :hour)))
     (mapcan #'parse-execution
             (if (null since) it
                 (subseq it (1+ (position (txid since) it
