@@ -671,7 +671,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defclass execution-tracker (parent)
   ((abbrev :allocation :class :initform "exhun tracker")
-   (trades :initform nil) (bases :initform nil)
+   (trades :initform nil :initarg :trades) (bases :initform nil)
    (delay :initform 59) (buffer :initform (make-instance 'channel)) fetcher))
 
 (defmethod christen ((tracker execution-tracker) (type (eql 'actor)))
@@ -694,6 +694,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (adopt tracker
          (setf (slot-value tracker 'fetcher)
                (make-instance 'execution-fetcher :delegates `(,tracker)))))
+
+(defmethod shared-initialize :after
+    ((tracker execution-tracker) (names t) &key) (execute tracker :rebase))
 
 (defgeneric execution-since (gate market since))
 
@@ -784,9 +787,10 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
            (mapreduc (reduce #'aq+ (mapcar #'given spending)
                              :initial-value (given offer)))
            (ourfunds (asset-funds asset (slot-reduce treasurer balances))))
-      (when (and (>= ourfunds (scaled-quantity mapreduc))
-                 (> order-slots (length placed)))
-        (awhen1 (post-offer gate offer) (push it placed))))))
+      (if (and (>= ourfunds (scaled-quantity mapreduc))
+               (> order-slots (length placed)))
+          (awhen1 (post-offer gate offer) (push it placed))
+          (warn "fund failure")))))
 
 (defgeneric supplicate (supplicant gate op args)
   (:method ((supplicant supplicant) (gate gate) (op (eql :cancel)) id)
