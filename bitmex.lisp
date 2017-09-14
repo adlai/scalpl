@@ -172,7 +172,7 @@
       (with-json-slots (symbol (mark "markPrice")) instrument
         (with-slots (primary counter metallic) (find-market symbol :bitmex)
           (let* ((delta 0)
-                 (fund (/ (* 50 (getjso "amount" deposit)) (if metallic 1 mark)
+                 (fund (/ (* 11 (getjso "amount" deposit)) (if metallic 1 mark)
                           (expt 10 (decimals (if metallic primary counter))))))
             (awhen (find symbol positions :test #'string= :key (getjso "symbol"))
               (incf delta (/ (getjso "currentQty" it) mark)))
