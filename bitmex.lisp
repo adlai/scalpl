@@ -41,7 +41,7 @@
     (sleep (aif (getjso :x-ratelimit-remaining headers)
                 (/ 42 (parse-integer it)) 1))
     (if (= status 200) (values (decode-json json) 200)
-        (values () status (unless (= 502 status)
+        (values () status (unless (member status '(502 504))
                             (getjso "error" (decode-json json)))))))
 
 (defun bitmex-path (&rest paths)
@@ -136,7 +136,8 @@
           "trade" `(("symbol" . ,pair)
                     ("startTime"
                      . ,(format-timestring
-                         () (or (timestamp since) (timestamp- (now) 1 :hour))
+                         () (if since (timestamp+ (timestamp since) 1 :sec)
+                                (timestamp- (now) 1 :hour))
                          :format (butlast +iso-8601-format+ 3)))))
     (mapcar (lambda (trade)
               (with-json-slots (side timestamp size price) trade
