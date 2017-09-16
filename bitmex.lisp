@@ -163,6 +163,20 @@
                                            (expt 10 (decimals market)))))))
             it)))
 
+(defmethod account-positions ((gate bitmex-gate))
+  (mapcar (lambda (position)
+            (with-json-slots ((defcon "deleveragePercentile")
+                              symbol (entry "avgEntryPrice")
+                              ;; (birthstamp "openingTimestamp")
+                              (size "currentQty") (cost "posCost"))
+                position
+              (with-aslots (primary counter) (find-market symbol :bitmex)
+                (list it (cons-mp* it (* entry (- (signum size))))
+                      ;; TODO: this currently assumes the position is in
+                      ;; the perpetual inverse swap aka XBTUSD
+                      (cons-aq primary cost) (cons-aq counter size) defcon))))
+          (gate-request gate '(:get "position") ())))
+
 (defmethod account-balances ((gate bitmex-gate) &aux balances)
   (declare (optimize debug))
   ;; tl;dr - transubstantiates position into 'balances' of long + short
