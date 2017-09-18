@@ -175,7 +175,8 @@
                       ;; TODO: this currently assumes the position is in
                       ;; the perpetual inverse swap aka XBTUSD
                       (cons-aq primary cost) (cons-aq counter size) defcon))))
-          (gate-request gate '(:get "position") ())))
+          (remove-if-not (getjso "isOpen")
+                         (gate-request gate '(:get "position") ()))))
 
 (defmethod account-balances ((gate bitmex-gate) &aux balances)
   ;; tl;dr - transubstantiates position into 'balances' of long + short
