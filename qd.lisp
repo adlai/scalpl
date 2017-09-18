@@ -236,9 +236,7 @@
       (with-slots (next-bids next-asks response) prioritizer
         (macrolet ((do-side (amount side chan epsilon)
                      `(let ((,side (copy-list (slot-value filter ',side))))
-                        (unless (or (actypecase ,amount (number (zerop it))
-                                                (cons (zerop (caar it))))
-                                    (null ,side))
+                        (unless (or (zerop (caar ,amount)) (null ,side))
                           (send ,chan (handler-bind
                                           ((simple-condition (ope-logger ope)))
                                         (ope-spreader ,side resilience ,amount
