@@ -217,8 +217,7 @@
       (with-slots (order-slots) supplicant
         (awhen (dunk book funds (/ order-slots 2) magic)
           (ope-sprinner it funds (/ order-slots 2) magic
-                        (getf (slot-reduce ope supplicant lictor bases)
-                              (asset (given (first it))))
+                        (bases-for supplicant (asset (given (first it))))
                         (destructuring-bind (bid . ask)
                             (recv (slot-reduce ope supplicant fee output))
                           (macrolet ((punk (&rest args)

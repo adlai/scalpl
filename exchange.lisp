@@ -18,7 +18,7 @@
            #:execution #:fee #:net-cost #:net-volume #:fee-tracker
            #:execution-tracker #:execution-since #:bases #:bases-without
            #:post-offer #:cancel-offer #:supplicant #:lictor #:treasurer
-           #:order-slots #:response #:supplicate))
+           #:order-slots #:response #:supplicate #:bases-for))
 
 (in-package #:scalpl.exchange)
 
@@ -823,6 +823,15 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
       (init treasurer  balance-tracker)
       (unless (ignore-errors placed)
         (setf placed (placed-offers gate))))))
+
+(defgeneric bases-for (supplicant asset)
+  (:method ((supplicant supplicant) (market market))
+    (values (getf (slot-reduce supplicant lictor bases) (primary market))
+            (getf (slot-reduce supplicant lictor bases) (counter market))))
+  (:method ((supplicant supplicant) (asset asset))
+    (with-aslots (primary counter) (market supplicant)
+      (cond ((eq asset primary) (bases-for supplicant it))
+            ((eq asset counter) (nth-value 1 (bases-for supplicant it)))))))
 
 ;;; Casino - todo!
 
