@@ -36,13 +36,13 @@
       (make-key stream))))
 
 (defun bitmex-request (path &rest args)
-  (multiple-value-bind (json status headers)
+  (multiple-value-bind (body status headers)
       (apply #'http-request (concatenate 'string *base-url* path) args)
     (sleep (aif (getjso :x-ratelimit-remaining headers)
                 (/ 42 (parse-integer it)) 1))
-    (if (= status 200) (values (decode-json json) 200)
-        (values () status (unless (member status '(502 504))
-                            (getjso "error" (decode-json json)))))))
+    (if (= status 200) (values (decode-json body) 200)
+        (values () status (if (member status '(502 504)) body
+                              (getjso "error" (decode-json body)))))))
 
 (defun bitmex-path (&rest paths)
   (apply #'concatenate 'string *base-path* paths))
@@ -105,7 +105,7 @@
   (destructuring-bind ((verb method) . parameters) request
     (multiple-value-bind (ret status error)
         (auth-request verb method key secret parameters)
-      (case status (200 (list ret ()))
+      (case status (200 (list ret ())) ((502 504) (list (warn error) error))
             (t (list (warn (getjso "message" error)) error))))))
 
 (defmethod shared-initialize ((gate bitmex-gate) names &key pubkey secret)
