@@ -241,11 +241,11 @@
                                         (ope-spreader ,side resilience ,amount
                                                       ,epsilon ',side ope)))
                           (recv response)))))
-          (let ((epsilon (/ epsilon (max 1/28 (abs (log ratio))))))
+          (let ((e (/ epsilon (+ 0.13 (abs (log (1+ (abs (log ratio)))))))))
             (do-side counter bids next-bids
-                     (* epsilon (abs (price (first bids))) (max ratio 1)
+                     (* e (abs (price (first bids))) (max ratio 1)
                         (expt 10 (- (decimals (market (first bids)))))))
-            (do-side primary asks next-asks (* epsilon (max (/ ratio) 1)))))))
+            (do-side primary asks next-asks (* e (max (/ ratio) 1)))))))
     (send output (sleep frequency))))
 
 (defmethod initialize-instance :after ((ope ope-scalper) &key cut)
