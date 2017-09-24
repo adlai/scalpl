@@ -91,7 +91,7 @@
                  `(let* ((n (max (length ,add) (length ,pop)))
                          (m (- n (ceiling (log (1+ (random (1- (exp n)))))))))
                     (macrolet ((wrap (a . b) `(awhen (nth m ,a) (,@b it))))
-                      (wrap ,pop ope-cancel ope) (wrap ,add place)))))
+                      (and (wrap ,add place) (wrap ,pop ope-cancel ope))))))
       (aif (dolist (new target (sort to-add #'< :key #'price))
              (aif (find (price new) excess :key #'price :test #'=)
                   (setf excess (remove it excess)) (push new to-add)))
