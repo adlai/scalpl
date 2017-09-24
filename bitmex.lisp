@@ -165,16 +165,14 @@
 
 (defmethod account-positions ((gate bitmex-gate))
   (mapcar (lambda (position)
-            (with-json-slots ((defcon "deleveragePercentile")
-                              symbol (entry "avgEntryPrice")
-                              ;; (birthstamp "openingTimestamp")
+            (with-json-slots ((entry "avgEntryPrice") symbol
                               (size "currentQty") (cost "posCost"))
                 position
               (with-aslots (primary counter) (find-market symbol :bitmex)
                 (list it (cons-mp* it (* entry (- (signum size))))
                       ;; TODO: this currently assumes the position is in
                       ;; the perpetual inverse swap aka XBTUSD
-                      (cons-aq primary cost) (cons-aq counter size) defcon))))
+                      (cons-aq primary (- cost)) (cons-aq counter (- size))))))
           (remove-if-not (getjso "isOpen")
                          (gate-request gate '(:get "position") ()))))
 
@@ -191,8 +189,8 @@
                              (* mark (expt 10 (decimals counter)))))))
             (flet ((collect (a b) (push a balances) (push b balances)))
               (aif (find it positions :key #'car)
-                   (collect (aq- (cons-aq* primary fund) (third it))
-                     (aq- (cons-aq* counter (* fund mark)) (fourth it)))
+                   (collect (aq+ (cons-aq* primary fund) (third it))
+                     (aq+ (cons-aq* counter (* fund mark)) (fourth it)))
                    (collect (cons-aq* primary fund)
                      (cons-aq* counter (* fund mark)))))))))))
 
@@ -260,3 +258,18 @@
       (gate-request gate '(:delete "order") `(("orderID" . ,(oid offer))))
     (string-case ((getjso "ordStatus" (car ret))) ("Canceled") ("Filled")
                  (t (equal err "Not Found")))))
+
+;;;
+;;; Comte Monte Carte
+;;;
+
+(defmethod bases-for ((supplicant supplicant) (market bitmex-market))
+  (with-slots (gate) supplicant         ; FIXME: XBTUSD-specific
+    (awhen (assoc (name market) (account-positions gate)
+                  :test #'string= :key #'name)
+      (let ((entry (realpart (second it))) (size (abs (quantity (fourth it)))))
+        (flet ((foolish (basis &aux (price (realpart (car basis))))
+                 (and (= (signum price) (signum entry)) (> price entry))))
+          (multiple-value-bind (primary counter) (call-next-method)
+            (values (remove-if #'foolish primary)
+                    (remove-if #'foolish counter))))))))

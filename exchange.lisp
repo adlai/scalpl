@@ -829,9 +829,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (values (getf (slot-reduce supplicant lictor bases) (primary market))
             (getf (slot-reduce supplicant lictor bases) (counter market))))
   (:method ((supplicant supplicant) (asset asset))
-    (with-aslots (primary counter) (market supplicant)
-      (cond ((eq asset primary) (bases-for supplicant it))
-            ((eq asset counter) (nth-value 1 (bases-for supplicant it)))))))
+    (with-slots (primary counter %market) (market supplicant)
+      (cond ((eq asset counter) (nth-value 1 (bases-for supplicant %market)))
+            ((eq asset primary) (bases-for supplicant %market))))))
 
 ;;; Casino - todo!
 
