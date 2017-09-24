@@ -105,8 +105,8 @@
   (destructuring-bind ((verb method) . parameters) request
     (multiple-value-bind (ret status error)
         (auth-request verb method key secret parameters)
-      (case status (200 (list ret ())) ((502 504) (list (warn error) error))
-            (t (list (warn (getjso "message" error)) error))))))
+      `(,ret ,(aprog1 (if (/= 502 504 status) (getjso "message" error) error)
+                (when it (warn it)))))))
 
 (defmethod shared-initialize ((gate bitmex-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
@@ -258,6 +258,5 @@
 (defmethod cancel-offer ((gate bitmex-gate) (offer placed))
   (multiple-value-bind (ret err)
       (gate-request gate '(:delete "order") `(("orderID" . ,(oid offer))))
-    (or (member (getjso "ordStatus" (car ret))
-                '("Canceled" "Filled") :test #'equal)
-        (equal (getjso "message" err) "Not Found"))))
+    (string-case ((getjso "ordStatus" (car ret))) ("Canceled") ("Filled")
+                 (t (equal err "Not Found")))))
