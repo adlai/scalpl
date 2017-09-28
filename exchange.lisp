@@ -787,10 +787,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
            (mapreduc (reduce #'aq+ (mapcar #'given spending)
                              :initial-value (given offer)))
            (ourfunds (asset-funds asset (slot-reduce treasurer balances))))
-      (if (and (>= ourfunds (scaled-quantity mapreduc))
-               (> order-slots (length placed)))
-          (awhen1 (post-offer gate offer) (push it placed))
-          (warn "fund failure")))))
+      (and (>= ourfunds (scaled-quantity mapreduc))
+           (> order-slots (length placed))
+           (awhen1 (post-offer gate offer) (push it placed))))))
 
 (defmethod placed-offers ((supplicant supplicant))
   (with-slots (gate placed market) supplicant
