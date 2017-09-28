@@ -792,20 +792,18 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
           (awhen1 (post-offer gate offer) (push it placed))
           (warn "fund failure")))))
 
-(defgeneric supplicate (supplicant gate op args)
-  (:method ((supplicant supplicant) (gate gate) (op (eql :cancel)) id)
-    (awhen1 (cancel-offer gate id)
-      (with-slots (placed) supplicant
-        (setf placed (remove (oid id) placed :key #'oid)))))
-  (:method ((supplicant supplicant) (gate gate) (op (eql :sync)) args)
-    (declare (ignore args))
-    (with-slots (placed gate) supplicant (setf placed (placed-offers gate))))
-  (:method ((supplicant supplicant) (gate gate) (op (eql :offer)) args)
-    (balance-guarded-place supplicant args)))
+(defmethod placed-offers ((supplicant supplicant))
+  (with-slots (gate placed market) supplicant
+    (remove market (placed-offers gate) :test-not #'eq :key #'market)))
 
-(defmethod execute ((supplicant supplicant) (command cons))
-  (with-slots (gate response) supplicant
-    (send response (supplicate supplicant gate (car command) (cdr command)))))
+(defmethod execute ((supplicant supplicant) (cons cons) &aux (arg (cdr cons)))
+  (with-slots (gate response placed) supplicant
+    (send response
+          (case (car cons)
+            (:cancel (awhen1 (cancel-offer gate arg)
+                       (setf placed (remove (oid arg) placed :key #'oid))))
+            (:offer (balance-guarded-place supplicant arg))
+            (:sync (setf placed (placed-offers supplicant)))))))
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
   (with-aslots (gate market) supplicant
