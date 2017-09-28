@@ -10,7 +10,7 @@
 (defparameter *base-path* "/api/v1/")
 (setf cl+ssl:*make-ssl-client-stream-verify-default* ())
 
-(defvar *bitmex* (make-instance 'exchange :name :bitmex))
+(defvar *bitmex* (make-instance 'exchange :name :bitmex :sensitivity 1))
 
 (defclass bitmex-market (market)
   ((exchange :initform *bitmex*) (fee :initarg :fee :reader fee)
@@ -133,7 +133,7 @@
 (defmethod trades-since ((market bitmex-market) &optional since
                          &aux (pair (name market)))
   (awhen (public-request
-          "trade" `(("symbol" . ,pair)
+          "trade" `(("symbol" . ,pair) ("count" . 200)
                     ("startTime"
                      . ,(format-timestring
                          () (if since (timestamp+ (timestamp since) 1 :sec)
@@ -269,7 +269,9 @@
                   :test #'string= :key #'name)
       (let ((entry (realpart (second it))) (size (abs (quantity (fourth it)))))
         (flet ((foolish (basis &aux (price (realpart (car basis))))
-                 (and (= (signum price) (signum entry)) (> price entry))))
+                 (if (= (signum price) (signum entry)) (> price entry)
+                     (and (< (isqrt size) (quantity (second basis)))
+                          (< (isqrt size) (quantity (third basis)))))))
           (multiple-value-bind (primary counter) (call-next-method)
             (values (remove-if #'foolish primary)
                     (remove-if #'foolish counter))))))))
