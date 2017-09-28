@@ -91,7 +91,7 @@
                  `(let* ((n (max (length ,add) (length ,pop)))
                          (m (- n (ceiling (log (1+ (random (1- (exp n)))))))))
                     (macrolet ((wrap (a . b) `(awhen (nth m ,a) (,@b it))))
-                      (and (wrap ,add place) (wrap ,pop ope-cancel ope))))))
+                      (wrap ,pop ope-cancel ope) (wrap ,add place)))))
       (aif (dolist (new target (sort to-add #'< :key #'price))
              (aif (find (price new) excess :key #'price :test #'=)
                   (setf excess (remove it excess)) (push new to-add)))
@@ -241,11 +241,11 @@
                                         (ope-spreader ,side resilience ,amount
                                                       ,epsilon ',side ope)))
                           (recv response)))))
-          (let ((e (/ epsilon (+ 0.13 (abs (log (1+ (abs (log ratio)))))))))
+          (let ((e (/ epsilon (+ 1/19 (abs (log (1+ (abs (log ratio)))))))))
             (do-side counter bids next-bids
-                     (* e (abs (price (first bids))) (max ratio 1)
+                     (* (max e epsilon) (abs (price (first bids))) (max ratio 1)
                         (expt 10 (- (decimals (market (first bids)))))))
-            (do-side primary asks next-asks (* e (max (/ ratio) 1)))))))
+            (do-side primary asks next-asks (* (max e epsilon) (max (/ ratio) 1)))))))
     (send output (sleep frequency))))
 
 (defmethod initialize-instance :after ((ope ope-scalper) &key cut)
