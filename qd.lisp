@@ -212,7 +212,7 @@
 (defun ope-spreader (book resilience funds epsilon side ope)
   (flet ((dunk (book funds count magic &optional (start epsilon))
            (and book (dumbot-offers book resilience (caar funds)
-                                    start count magic))))
+                                    start (floor count) magic))))
     (with-slots (supplicant magic) ope
       (with-slots (order-slots) supplicant
         (awhen (dunk book funds (/ order-slots 2) magic)
