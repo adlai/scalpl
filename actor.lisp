@@ -66,6 +66,9 @@
       (setf tasks (remove :terminated tasks :key #'task-status))))
   (:method ((actor actor) &key (blockp t))
     (awhen (recv (control actor) :blockp blockp) (execute actor it)))
+  (:method :around ((actor actor) &key)
+    (restart-case (call-next-method)
+      (abort () :report "Abort request, restart actor")))
   (:method :after ((actor actor) &key)
     (push (enqueue actor) (slot-value actor 'tasks))))
 

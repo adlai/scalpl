@@ -370,8 +370,8 @@
                                             (or (ignore-errors
                                                   (/ doge btc doge/btc)) 0)))
                                   (/ doge btc doge/btc)))))
-              ;; (print (mapcar #'float (list btc doge skew)
-              ;;                (make-list 3 :initial-element 0d0)))
+              (when (= (signum skew) (signum (log targeting-factor)))
+                (setf targeting-factor (/ targeting-factor)))
               ;; report funding
               (makereport maker total-fund doge/btc total-btc total-doge buyin
                           (dbz-guard (/ (total-of    btc  doge) total-fund))
