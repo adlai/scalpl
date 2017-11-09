@@ -105,6 +105,8 @@ profitable spread, at the cost of reduced execution volume.
 
 ## Nature of the Beast
 
+* Please be a where of false friends, read ear rings, and closed enemies.
+
 * Harvesting progresses best when the market moves harmoniously with the
 configured parameters: for example, the most profitable targeting for a market
 which trends sideways will be equal allocation.
