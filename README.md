@@ -75,7 +75,7 @@ of automated market making (ie, real world Congolese Window Trading);
 
 * Peter Seibel's [introduction](http://www.gigamonkeys.com/book/introduction-why-lisp.html) to the excellent
 [_Practical Common Lisp_](http://www.gigamonkeys.com/book/) lays out the
-factors behind the unconventional [yet unavoidable](http://notes.esthlos.com/files/2017-12-11-all-programming-is-intelligence-programming.txt) language choice; the book itself lights the
+factors behind the unconventional [yet unavoidable](http://notes.esthlos.com/files/2017-11-16-lisp-enlightenment.txt) language choice; the book itself lights the
 larval lisper's quest; and
 
 * Timothy B Lee's [cards](http://www.vox.com/cards/bitcoin/what-is-bitcoin)
