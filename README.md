@@ -52,7 +52,7 @@ Several Bitcoin exchanges are supported: [Bitfinex](https://www.bitfinex.com),
 [BTC-e](https://www.btc-e.com), and [Kraken](https://www.kraken.com). ScalpL
 also supports [MPExAgent](https://github.com/jurov/MPExAgent), if your hand
 plays cards at [such](http://trilema.com/2016/mpex-smpoe-closing-statement/)
-[tab](http://mpex.co/faq.html#17)[les](http://mpex.co/faq.html#33). Fresh
+[tab](http://mpex.xyz/faq.html#17)[les](http://mpex.xyz/faq.html#33). Fresh
 additions are clients for the [Baloney Exchange](https://www.poloniex.com),
 and experimental support for the best-named casino in the Seychelles, the
 [Bitcoin Mercantile Exchange](https://bitmex.com/).
