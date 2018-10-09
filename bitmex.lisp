@@ -131,19 +131,18 @@
 
 (defmethod trades-since ((market bitmex-market) &optional since
                          &aux (pair (name market)))
-  (awhen (public-request
-          "trade" `(("symbol" . ,pair) ("count" . 200)
-                    ("startTime"
-                     . ,(format-timestring
-                         () (if since (timestamp+ (timestamp since) 1 :sec)
-                                (timestamp- (now) 1 :hour))
-                         :format (butlast +iso-8601-format+ 3)))))
-    (mapcar (lambda (trade)
-              (with-json-slots (side timestamp size price) trade
-                (make-instance 'trade :market market :direction side
-                               :timestamp (parse-timestring timestamp)
-                               :volume (/ size price) :price price :cost size)))
-            (butlast it))))
+  (flet ((parse (trade)
+           (with-json-slots (side timestamp size price) trade
+             (make-instance 'trade :market market :direction side
+                            :timestamp (parse-timestring timestamp)
+                            :volume (/ size price) :price price :cost size))))
+    (alet (mapcar #'parse
+                  (public-request
+                   "trade" `(("symbol" . ,pair) ("count" . 200)
+                             .,(when since
+                                 `(("startTime" . ,(timestamp since)))))))
+      (if (not since) it (remove (timestamp since) it
+                                 :test #'timestamp>= :key #'timestamp)))))
 
 ;;;
 ;;; Private Data API
@@ -216,7 +215,7 @@
                              collect `(when ,val `((,,key . ,,exp)))))))
     (gate-request gate '(:get "execution/tradeHistory")
                   (params (pair "symbol" pair) (count "count" count)
-                          (from "startTime" (subseq (princ-to-string from) 0 19))
+                          (from "startTime" from)
                           (end "endTime" (subseq (princ-to-string end) 0 19))))))
 
 (defmethod parse-timestamp ((exchange (eql *bitmex*)) (timestamp string))
@@ -234,7 +233,8 @@
 (defun post-raw-limit (gate buyp market price size)
   (gate-request gate '(:post "order")
                 `(("symbol" . ,market) ("price" . ,(princ-to-string price))
-                  ("orderQty" . ,(princ-to-string (* (if buyp 1 -1) size)))
+                  ("orderQty" . ,(princ-to-string
+                                  (* (if buyp 1 -1) (floor size))))
                   ("execInst" . "ParticipateDoNotInitiate"))))
 
 (defmethod post-offer ((gate bitmex-gate) offer)
@@ -243,9 +243,9 @@
       (with-json-slots ((oid "orderID") (status "ordStatus") text)
           (post-raw-limit gate (not (plusp price)) (name market)
                           (multiple-value-bind (int dec)
-                              (floor (abs price) factor)
+                              (floor (abs (/ (floor price 1/2) 2)) factor)
                             (format nil "~D.~V,'0D"
-                                    int (decimals market) dec))
+                                    int (max 1 (decimals market)) (* 10 dec)))
                           (floor (* volume (if (minusp price) 1
                                                (/ price factor)))))
         (if (equal status "New") (change-class offer 'placed :oid oid)
