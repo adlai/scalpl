@@ -580,15 +580,16 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
    (abbrev :allocation :class :initform "funds")))
 
 (defmethod perform ((tracker balance-tracker) &key)
-  (with-slots (gate sync fuzz balances reserved) tracker
+  (with-slots (sync fuzz balances reserved) tracker
     (let ((target (recv sync)))         ; back and forth
       (when (zerop (random fuzz))       ; in the absence of memory...
-        (awhen1 (account-balances gate) ; maybify API failability
-          (setf balances                ; sub-clude the reserved aqs
+        (awhen1 (with-slots (gate) (car (slot-reduce tracker delegates))
+                  (account-balances gate)) ; maybify API failability
+          (setf balances                   ; sub-clude the reserved aqs
                 (loop for aq in it for asset = (asset aq) collect
                      (aif (remove asset reserved ;key #'cxbtc
                                   :test-not #'eq :key #'asset)
-                          (aq- aq (reduce  ;_; should (zerop (aq+))?
+                          (aq- aq (reduce   ;_; should (zerop (aq+))?
                                    #'aq+ it ; like maybe patterns!?
                                    :initial-value (cons-aq asset 0)))
                           aq)))))

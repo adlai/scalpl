@@ -343,7 +343,8 @@
     (let* ((trades (recv (slot-reduce market trades))) ; nananananana
            ;; TODO: split into primary resilience and counter resilience
            (resilience (* resilience-factor ; FIXME online histomabob
-                          (reduce #'max (mapcar #'volume trades))))
+                          (reduce #'max (mapcar #'volume trades)
+                                  :initial-value 0)))
            (balances (with-slots (sync) (slot-reduce maker treasurer)
                        (recv (send sync sync)))) ; excellent!
            (doge/btc (vwap market :depth 50 :type :sell)))

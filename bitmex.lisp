@@ -69,7 +69,6 @@
            :method verb (unless (eq verb :get) `(:content ,data)))))
 
 (defun get-info (&aux assets)
-  (declare (optimize debug))
   (awhen (public-request "instrument/active" ())
     (flet ((make-market (instrument)
              (with-json-slots
@@ -184,7 +183,7 @@
     (dolist (instrument instruments balances)
       (with-json-slots (symbol (mark "markPrice")) instrument
         (with-aslots (primary counter metallic) (find-market symbol :bitmex)
-          (let ((fund (/ (* 13 (getjso "amount" deposit))
+          (let ((fund (/ (* 10 (getjso "amount" deposit)) ; ick
                          (if metallic (expt 10 (decimals primary))
                              (* mark (expt 10 (decimals counter)))))))
             (flet ((collect (a b) (push a balances) (push b balances)))
