@@ -82,7 +82,7 @@
                               (aprog1 (make-instance 'asset :name name
                                                      :decimals decimals)
                                 (push it assets)))))
-                      (ilog (i) (round (log (abs i) 10))))
+                      (ilog (i) (floor (log (abs i) 10))))
                  (make-instance
                   'bitmex-market :name name :fee fee :metallic fe
                   :decimals (- (ilog tick))
