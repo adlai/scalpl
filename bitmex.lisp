@@ -129,7 +129,8 @@
      if (eq type 'bid) collect offer into bids
      finally (return (values (nreverse asks) bids))))
 
-(defmethod trades-since ((market bitmex-market) &optional since
+(defmethod trades-since ((market bitmex-market)
+                         &optional (since (timestamp- (now) 1 :minute))
                          &aux (pair (name market)))
   (flet ((parse (trade)
            (with-json-slots (side timestamp size price) trade
@@ -138,9 +139,10 @@
                             :volume (/ size price) :price price :cost size))))
     (alet (mapcar #'parse
                   (public-request
-                   "trade" `(("symbol" . ,pair) ("count" . 200)
-                             .,(when since
-                                 `(("startTime" . ,(timestamp since)))))))
+                   "trade" `(("symbol" . ,pair) ("count" . 100)
+                             ("startTime" .,(format-timestring
+                                             () (timestamp since)
+                                             :timezone +utc-zone+)))))
       (if (not since) it (remove (timestamp since) it
                                  :test #'timestamp>= :key #'timestamp)))))
 

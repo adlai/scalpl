@@ -372,8 +372,11 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defmethod perform ((fetcher trades-fetcher) &key)
   (with-slots (market buffer delay)
-      (first (slot-value fetcher 'delegates)) ; FIXME MUCH BAD SUCH HATE
-    (dolist (trade (trades-since market (recv buffer))) (send buffer trade))
+      (first (slot-value fetcher 'delegates)) ; TODO : proper delegate
+    (dolist (trade (aif (recv buffer) (trades-since market it)
+                        (trades-since market)))
+      ;; this unoptimization is starting to stink of prematurity ... .
+      (send buffer trade))
     (sleep delay)))
 
 (defclass trades-tracker (parent)
@@ -451,6 +454,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                      :direction (direction prev)))))
 
 (defmethod timestamp ((object null)))   ; such lazy
+(defmethod timestamp ((timestamp timestamp)) timestamp)
 
 ;;;
 ;;; ORDER BOOK
