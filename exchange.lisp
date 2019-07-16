@@ -755,16 +755,18 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (/ (reduce '+ (mapcar #'net-cost trades))
        (reduce '+ (mapcar #'net-volume trades)))))
 
+(defun basis-offer (basis)
+  (destructuring-bind (price taken given) basis
+    (make-instance 'offer :price price :market (market price)
+                   :taken taken :given given)))
+
 (defmethod print-book ((lictor execution-tracker) &rest keys)
   (with-slots (bases market) lictor
-    (flet ((basis-offer (basis)
-             (make-instance 'offer :price (first basis) :market market
-                            :taken (second basis) :given (third basis))))
-      (with-slots (primary counter) market
-        (apply #'print-book
-               (cons (mapcar #'basis-offer (getf bases counter))
-                     (mapcar #'basis-offer (getf bases primary)))
-               keys)))))
+    (with-slots (primary counter) market
+      (apply #'print-book
+             (cons (mapcar #'basis-offer (getf bases counter))
+                   (mapcar #'basis-offer (getf bases primary)))
+             keys))))
 
 ;;;
 ;;; Action API
@@ -835,8 +837,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
       (cond ((eq asset counter) (nth-value 1 (bases-for supplicant %market)))
             ((eq asset primary) (bases-for supplicant %market))))))
 
-;;; Casino - todo!
-
-(defclass leverage-gate (gate)
-  ((gate :initarg :gate) (pair :initarg :pair)
-   (leverage :initarg :leverage :initform 1)))
+(defmethod print-book ((supplicant supplicant) &rest keys)
+  (with-slots (counter primary) (market supplicant)
+    (apply #'print-book
+           (acons (mapcar #'basis-offer (bases-for supplicant counter))
+                  (mapcar #'basis-offer (bases-for supplicant primary))
+                  keys))))
