@@ -194,7 +194,10 @@
                    (collect (cons-aq* primary fund)
                      (cons-aq* counter (* fund mark)))))))))))
 
-(defmethod market-fee ((gate bitmex-gate) market) (fee market))
+;;; This horror can be avoided via the actor-delegate mechanism.
+(defmethod market-fee ((gate bitmex-gate) (market bitmex-market)) (fee market))
+(defmethod market-fee ((gate bitmex-gate) market)
+  (fee (slot-reduce market scalpl.exchange::%market)))
 
 (defun parse-execution (raw)
   (with-json-slots ((oid "orderID") (txid "execID") (amt "lastQty")
