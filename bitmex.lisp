@@ -178,21 +178,22 @@
 
 (defmethod account-balances ((gate bitmex-gate) &aux balances)
   ;; tl;dr - transubstantiates position into 'balances' of long + short
-  (let ((positions (account-positions gate))
-        (deposit (gate-request gate '(:get "user/wallet") ()))
-        (instruments (public-request "instrument/active" ())))
-    (dolist (instrument instruments balances)
-      (with-json-slots (symbol (mark "markPrice")) instrument
-        (with-aslots (primary counter metallic) (find-market symbol :bitmex)
-          (let ((fund (/ (* 10 (getjso "amount" deposit)) ; ick
-                         (if metallic (expt 10 (decimals primary))
-                             (* mark (expt 10 (decimals counter)))))))
-            (flet ((collect (a b) (push a balances) (push b balances)))
-              (aif (find it positions :key #'car)
-                   (collect (aq+ (cons-aq* primary fund) (third it))
-                     (aq+ (cons-aq* counter (* fund mark)) (fourth it)))
-                   (collect (cons-aq* primary fund)
-                     (cons-aq* counter (* fund mark)))))))))))
+  (flet ((collect (a b) (push a balances) (push b balances)))
+    (let ((positions (account-positions gate))
+          (instruments (public-request "instrument/active" ()))
+          (deposit (gate-request gate '(:get "user/wallet") ())))
+      (when deposit
+        (dolist (instrument instruments balances)
+          (with-json-slots (symbol (mark "markPrice")) instrument
+            (with-aslots (primary counter metallic) (find-market symbol :bitmex)
+              (let ((fund (/ (* 10 (getjso "amount" deposit)) ; ick
+                             (if metallic (expt 10 (decimals primary))
+                                 (* mark (expt 10 (decimals counter)))))))
+                (aif (find it positions :key #'car)
+                     (collect (aq+ (cons-aq* primary fund) (third it))
+                       (aq+ (cons-aq* counter (* fund mark)) (fourth it)))
+                     (collect (cons-aq* primary fund)
+                       (cons-aq* counter (* fund mark))))))))))))
 
 ;;; This horror can be avoided via the actor-delegate mechanism.
 (defmethod market-fee ((gate bitmex-gate) (market bitmex-market)) (fee market))
