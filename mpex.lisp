@@ -19,7 +19,7 @@
 
 (defvar *mpex* (make-instance 'exchange :name :mpex))
 
-(defclass mpex-market (market) ((exchange :initform *mpex*)))  ; FIXME is-a → has-a
+(defclass mpex-market (market) ((exchange :initform *mpex*)))  ; FIXME is-a
 
 (defun get-info ()
   (flet ((make-asset (name &optional (d 0))
