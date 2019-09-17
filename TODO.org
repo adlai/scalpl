@@ -19,9 +19,10 @@ tool for evaluating statistical queries on market events, past and present
 decentralized multimodal swarm optimization of the above guidelines
 * Overview of Current Capabilities
 ** what it is / how it acts
-*** acts upon an exchange account (no leverage)
-*** configurable parameters
-*** maintains limit offer distribution according to constraints:
+*** acts upon an exchange account
+**** loss-aversion implemented for spot exchanges
+**** rudimentary loss-aversion for leveraged trading
+*** configurable parameters for offer distribution:
 **** resilience - how deep into the orderbook to place offers
 **** targeting - what allocation is targeted by the relative buy/sell sizes
 **** fund - what proportion of assets is placed on the order book at once
@@ -29,33 +30,19 @@ decentralized multimodal swarm optimization of the above guidelines
 ** what it should be
 *** forget about machine optimization
 *** strive for Augmented Interaction
-* DONE Book Filter
+* Book Filter
+** TODO replace pull system with pushed depth updates
+** TODO experiment with clustering
+there are at least three (3) reasons for this, consisting of only one (1!) bad
+reason, and two good reasons (2!)
+1. it's more fun to write algorithms rather than refactoring the plumbing
+2. clustering the market functions as rudimentary reduction of offer noise
+3. noise reduction before numerical weightlifting is not premature optimization
 ** DONE Pulls order book updates from a book-tracker
 Currently these are simply entire books, but depth updates would be best.
 ** DONE Pulls offer status updates from a supplicant
 Offer placement and offer cancellation
 ** DONE Support multiple filters on a single book
-* DONE port existing code to use MVP
-*** DONE gate
-**** DONE kraken
-**** DONE bitfinex
-**** DONE btce
-*** DONE trades-tracker
-*** DONE book-tracker
-*** DONE execution-tracker
-*** DONE balance-tracker
-*** DONE fee-tracker
-*** DONE account-tracker - he ded
-*** DONE tracked-market
-does anything need to be done for this? -> yes
-**** DONE s/(ensure-)tracking/$1running/
-*** DONE ope
-**** DONE supplicant
-**** DONE filter
-**** DONE prioritizer
-**** DONE scalper
-*** DONE maker
-this should be trivial once after all the above ← lol!
 * TODO refactor scalar value representations, to include units
 bitfinex and btce give volume in primary, always; kraken can do either
 ** DONE taken,given - asset×quantity
@@ -63,8 +50,16 @@ bitfinex and btce give volume in primary, always; kraken can do either
 *** differentiate buy vs sell via sign bit - works with current price scalars
 *** no need for a separate registry if assets and markets count together
 ** TODO create give/take directly in each exchange API
+** TODO consider imod*exp(jarg) instead of ix+jy
+this can still be precise for gaussian integers of sufficiently low entropy.
 * TODO Basis Tracking
 bastard child from the unholy marriage of balance and execution tracking
+** TODO recursive cost basis:
+link the cost basis which was traded away for acquiring the asset. memory
+requirement becomes linear wrt execution (is currently sub-linear, if not
+constant), although the constant factor is minor compared to other memory hogs
+** TODO leverage basis
+generalize the current system, which is hardcoded for a specific exchange
 ** DONE account for exchange fees
 use net-cost/volume / given/taken-asset/amount rather than the raw
 exchange-reported cost/volume/price
@@ -81,9 +76,8 @@ aq2 is just (aq* mp aq1)
 **** currently, we use LIFO: most recent cost basis gets consumed
 **** CIFO - cheapest-in first-out: consume the least profitable
 so we have more flexibility against future swings
-** TODO print-book pair-basis
-** TODO recursive cost basis:
-link the cost basis which was traded away for acquiring the asset
+** DONE print-book pair-basis
+a method exists! although, it could use improvement.
 * TODO evolve spreader
 ** DONE spread candidate target offers by profit from bases
 *** currently, profitability is checked/attempted:
@@ -104,13 +98,19 @@ for full control of float parsing, rather than ST-JSON's default to #'READ
 all price manipulation must be done on integer values! this should already
 be the case, but do a line-by-line audit just to be 100% certain
 *** TODO actor.lisp
+how did this file even end up in this list!?
 *** TODO exchange.lisp
-*** TODO bitfinex.lisp
+*** TODO individual exchanges
+**** TODO bit2c.lisp
+**** TODO bitfinex.lisp
+**** TODO bitmex.lisp
+**** TODO btce.lisp
+**** TODO kraken.lisp
+**** TODO mpex.lisp
 *** TODO db.lisp
+for all practical purposes, this file does not yet exist, nor should it.
 *** TODO qd.lisp
 *** TODO util.lisp
-*** TODO btce.lisp
-*** TODO kraken.lisp
 ** TODO Replace scalars with asset-quantity where appropriate
 a bit of an endeavor, but will be worthwhile. required for proper level2 depth!
 ** TODO Eradicate floats from EVERY SINGLE calculation
@@ -131,12 +131,33 @@ any method with "raw" in its name, such as post-raw-limit:
 *** TODO registered (symbol?) vs unregistered (string?) names
 * TODO Actor Abstraction
 CSP×FSM
+** philosophy of crash-only design
+it should be possible to kill an actor's thread at any time, and spawning the
+actor's run-function again in the proper manner should resume the actor's functioning
+*** initialization
+**** customization of initialization
+initialization specs for actors should be defined as methods on one or more of
+initialize-instance, reinitialize-instance, or shared-initialize
+**** default initialization
+***** channels
+creation of all channels necessary for the actor's functioning
+ - input channels
+ - broadcast channels
+ - control channels - is this just a subtype of input?
+right now let's create channels as early as possible, ie, :initform
+***** execution
+of the actor's state machine must be insured, possibly by
+ - spawning a new thread for this purpose, or
+ - adding a task to an execution pool
+***** registration with watchdog
+the new actor provides the watchdog a death predicate, and a check frequency.
 ** DONE MVP
 ** DONE factor out parent pattern
 *** initialize based on appropriate parent initargs
 *** supervise during parent operation
 *** reinitialize
 ** TODO support symbols as slot names for delegates and children
+elaborate on this, since it appears to already exist...
 ** TODO fetcher pattern
 *** TODO should not use #'sleep
 *** TODO needs separate actor, or can fetcher be just a task?
@@ -144,7 +165,14 @@ CSP×FSM
 - https://github.com/adlai/scalpl/blob/8c9f905/qd.lisp#L271-272
 - https://github.com/adlai/scalpl/blob/8c9f905/qd.lisp#L302
 ** TODO protocols
+*** TODO kill
+*** TODO init
+*** TODO reinit
 ** TODO method-combination chanl:select
+an implementation already exists!
+*** TODO build tests for prototype implementation
+*** TODO specification, similarly to that of the select macro
+*** TODO conforming implementation
 ** TODO initializaton race
 ** TODO compare memento-mori to actor.lisp https://github.com/zkat/memento-mori
 *** TODO (set-difference actor memento-mori)
@@ -171,27 +199,7 @@ i.e. how to 'control' this actor, alter its state machine, etc
 ** timing
 should timing (ie, "update the order book every 8 seconds") be expressed in actors, or
 is that something better left to abstract out as a separate service sending timed messages?
-** crash-only design
-it should be possible to kill an actor's thread at any time, and spawning the
-actor's run-function again in the proper manner should resume the actor's functioning
-*** initialization
-**** customization of initialization
-initialization specs for actors should be defined as methods on one or more of
-initialize-instance, reinitialize-instance, or shared-initialize
-**** default initialization
-***** channels
-creation of all channels necessary for the actor's functioning
- - input channels
- - broadcast channels
- - control channels - is this just a subtype of input?
-right now let's create channels as early as possible, ie, :initform
-***** execution
-of the actor's state machine must be insured, possibly by
- - spawning a new thread for this purpose, or
- - adding a task to an execution pool
-***** registration with watchdog
-the new actor provides the watchdog a death predicate, and a check frequency.
-*** TODO devtools
+** TODO devtools
 we'll need a cross-actor debugger / condition handler, and repl-like functionality
 **** condition system
 make the condition system and debugger function across threads, see cond.js
