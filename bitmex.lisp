@@ -282,3 +282,12 @@
           (multiple-value-bind (primary counter) (call-next-method)
             (values (remove-if #'foolish primary)
                     (remove-if #'foolish counter))))))))
+
+;;;
+;;; Rate Limiting
+;;;
+
+(defun quote-fill-ratio (gate)
+  (mapcar 'float
+          (mapcar (getjso "quoteFillRatioMavg7")
+                  (gate-request gate '(:get "user/quoteFillRatio") ()))))
