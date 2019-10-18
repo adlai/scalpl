@@ -336,8 +336,7 @@
                           (send (first last-report) it)))))
   (force-output))
 
-(defmethod perform ((maker maker))
-  (call-next-method maker :blockp ())   ; memento, du musste mori!
+(defmethod perform ((maker maker) &key)
   (with-slots (fund-factor resilience-factor targeting-factor skew-factor
                market name ope cut supplicant) maker
     (let* ((trades (recv (slot-reduce market trades))) ; nananananana
@@ -371,8 +370,9 @@
                                             (or (ignore-errors
                                                   (/ doge btc doge/btc)) 0)))
                                   (/ doge btc doge/btc)))))
-              (when (= (signum skew) (signum (log targeting-factor)))
-                (setf targeting-factor (/ targeting-factor)))
+              ;; "Yeah, science!" - King of the Universe, Right Here
+              ;; (when (= (signum skew) (signum (log targeting-factor)))
+              ;;   (setf targeting-factor (/ targeting-factor)))
               ;; report funding
               (makereport maker total-fund doge/btc total-btc total-doge buyin
                           (dbz-guard (/ (total-of    btc  doge) total-fund))

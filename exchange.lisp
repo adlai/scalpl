@@ -293,6 +293,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   ((exchange :initarg :exchange :initform (error "EI4NI") :reader exchange)
    (pubkey :initarg :pubkey :initform (error "gate requires API pubkey"))
    (secret :initarg :secret :initform (error "gate requires API secret"))
+   (radix  :initarg :radix  :initform 8)
    (input  :initarg :input  :initform (make-instance 'channel))
    (output :initarg :output :initform (make-instance 'channel))
    (cache  :initform nil)))
@@ -308,10 +309,11 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
               (abort () :report "Abort request, keep gate" '(() :aborted))))))
 
 (defmethod perform ((gate gate))
-  (call-next-method gate :blockp ())
-  (with-slots (input output . #1=(exchange pubkey secret cache)) gate ;¡ has-a !
-    (when (send-blocks-p output) (setf cache (recv input)))
-    (send (slot-value gate 'output) (gate-post . #1#))))
+  (let ((*print-base* (slot-reduce gate radix)))
+    (call-next-method gate :blockp ())
+    (with-slots (input output . #1=(exchange pubkey secret cache)) gate ;¡ has-a !
+      (when (send-blocks-p output) (setf cache (recv input)))
+      (send (slot-value gate 'output) (gate-post . #1#)))))
 
 (defmethod halt :before ((gate gate))
   (pexec (:name "gate kill helper")
@@ -474,7 +476,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defclass book-tracker (parent)
   ((market :initarg :market :reader market :initform (error "required"))
    (get-book-keys :initform nil :initarg :get-book-keys)
-   (delay :initarg :delay :initform 41) (book :initform ())
+   (delay :initarg :delay :initform 13) (book :initform ())
    (buffer :initform (make-instance 'channel)) fetcher
    (output :initform (make-instance 'channel))))
 
@@ -483,7 +485,9 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defmethod perform ((tracker book-tracker))
   (with-slots (buffer book output) tracker
-    (select ((recv buffer next) (setf book (cons (cdr next) (car next))))
+    (select ((recv buffer next)
+             (unless (or (null (car next)) (null (cdr next)))
+               (setf book (cons (cdr next) (car next)))))
             ((send output book)) (t (sleep 0.2)))))
 
 (defmethod initialize-instance :after ((tracker book-tracker) &key)
