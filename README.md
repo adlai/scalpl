@@ -121,7 +121,15 @@ high compared to current market activity, execution volume suffers; too low, and
 the increased volume is _only_ beneficial when the market moves match the
 targeting feedback cycle (mismatch accelerates the "running-over").
 
+* The specific version of Murphy's Law applicable here is that if you ever look
+back at the screen after your account was profitable, you will find that it has
+managed to enter a losing position while your attention was elsewhere.
+
 ## Past Performance
 
 * Although it's more indicative of others' past shame, than anybody's future luck,
 there were a dozenscore happy days aiming at an APR north of a lucky number seven.
+
+* There is no cause for suspicion of bucket shop shenanigans below sustained alpha
+extrapolating to quarterly doublings. Although _daily_ alpha can easily cross this
+level due to the misfortunes of others, a weekly sustain has yet to be witnessed.
