@@ -141,10 +141,10 @@
                   (public-request
                    "trade" `(("symbol" . ,pair) ("count" . 100)
                              ("startTime" .,(format-timestring
-                                             () (timestamp since)
+                                             () (timestamp- (now) 1 :minute)
                                              :timezone +utc-zone+)))))
       (if (not since) it (remove (timestamp since) it
-                                 :test #'timestamp>= :key #'timestamp)))))
+                                 :test #'timestamp> :key #'timestamp)))))
 
 ;;;
 ;;; Private Data API
@@ -185,15 +185,17 @@
       (when deposit
         (dolist (instrument instruments balances)
           (with-json-slots (symbol (mark "markPrice")) instrument
-            (with-aslots (primary counter metallic) (find-market symbol :bitmex)
-              (let ((fund (/ (* 10 (getjso "amount" deposit)) ; ick
-                             (if metallic (expt 10 (decimals primary))
-                                 (* mark (expt 10 (decimals counter)))))))
-                (aif (find it positions :key #'car)
-                     (collect (aq+ (cons-aq* primary fund) (third it))
-                       (aq+ (cons-aq* counter (* fund mark)) (fourth it)))
-                     (collect (cons-aq* primary fund)
-                       (cons-aq* counter (* fund mark))))))))))))
+            (unless (find #\_ symbol)   ; ignore binaries (UP and DOWN)
+              (with-aslots (primary counter metallic)
+                  (find-market symbol :bitmex)
+                (let ((fund (/ (* 10 (getjso "amount" deposit)) ; ick
+                               (if metallic (expt 10 (decimals primary))
+                                   (* mark (expt 10 (decimals counter)))))))
+                  (aif (find it positions :key #'car)
+                       (collect (aq+ (cons-aq* primary fund) (third it))
+                         (aq+ (cons-aq* counter (* fund mark)) (fourth it)))
+                       (collect (cons-aq* primary fund)
+                         (cons-aq* counter (* fund mark)))))))))))))
 
 ;;; This horror can be avoided via the actor-delegate mechanism.
 (defmethod market-fee ((gate bitmex-gate) (market bitmex-market)) (fee market))
