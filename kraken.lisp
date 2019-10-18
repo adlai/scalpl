@@ -120,13 +120,13 @@
 (defclass token-minter (actor)
   ((abbrev :allocation :class :initform "token minter")))
 
-(defmethod perform ((minter token-minter) &key)
+(defmethod perform ((minter token-minter))
   (with-slots (mint delay) minter (send mint 1) (sleep delay)))
 
 (defclass token-handler (actor)
   ((count :initform 0) (abbrev :allocation :class :initform "token handler")))
 
-(defmethod perform ((handler token-handler) &key)
+(defmethod perform ((handler token-handler))
   (with-slots (mint count tokens) handler
     (cond ((<= 5 count) (decf count (recv mint)))
           ((>= 0 count) (send tokens (incf count)))

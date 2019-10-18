@@ -59,17 +59,17 @@
             :initial-bindings '((*read-default-float-format* double-float)))
       (catch :halt (perform actor)))))
 
-(defgeneric perform (actor &key)
+(defgeneric perform (actor)
   (:documentation "Implement actor's behavior, executing commands by default")
-  (:method :before ((actor actor) &key)
+  (:method :before ((actor actor))
     (with-slots (tasks) actor
       (setf tasks (remove :terminated tasks :key #'task-status))))
-  (:method ((actor actor) &key (blockp t))
-    (awhen (recv (control actor) :blockp blockp) (execute actor it)))
-  (:method :around ((actor actor) &key)
+  (:method ((actor actor))
+    (awhen (recv (control actor)) (execute actor it)))
+  (:method :around ((actor actor))
     (restart-case (call-next-method)
       (abort () :report "Abort request, restart actor")))
-  (:method :after ((actor actor) &key)
+  (:method :after ((actor actor))
     (push (enqueue actor) (slot-value actor 'tasks))))
 
 (defgeneric ensure-running (actor)
