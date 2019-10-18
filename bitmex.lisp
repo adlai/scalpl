@@ -97,6 +97,7 @@
 (defun swagger ()                       ; TODO: swagger metaclient!
   (decode-json (http-request (concatenate 'string *base-url*
                                           "/api/explorer/swagger.json"))))
+(export 'swagger)                       ; are you consing, nyet!?
 
 (defclass bitmex-gate (gate) ((exchange :initform *bitmex*)))
 
