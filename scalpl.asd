@@ -6,22 +6,16 @@
   :license "public domain"
   :description "market maker + APIs to several Bitcoin exchanges"
   :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
-  :maintainer "you, you blithering idiot <patches@www.el.com>"
-  :depends-on (#:anaphora
-               #:string-case
-               #:parse-float
-               #:cl-irc
-               #:drakma
-               #:method-combination-utilities
-               #:local-time
-               #:rss
-               #:chanl
-               #:split-sequence
-               #:cl-base64
-               #:ironclad
-               #:cl-json
-               #:dbi
-               #:decimals)
+  :depends-on (#:anaphora #:string-case #:parse-float #:decimals #:ironclad
+               #:chanl #:cl-json #:cl-base64 #:split-sequence #:local-time
+               #:method-combination-utilities #:drakma
+
+               ;; these are only needed for certain exchanges
+               #:aserve #:rss
+
+               ;; these were used for experiments in the past
+               ;; #:cl-irc #:dbi
+               )
   :components ((:file "util")
                (:file "actor"    :depends-on ("util"))
                (:file "exchange" :depends-on ("actor"))
