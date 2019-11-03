@@ -51,7 +51,7 @@
 ;;; 2) profitable spread - already does (via ecase spaghetti)
 ;;; 3) profit vs recent cost basis - done, shittily - TODO parametrize depth
 
-(defmethod perform ((filter filter))
+(defmethod perform ((filter filter) &key)
   (with-slots (market book-cache bids asks frequency supplicant cut) filter
     (let ((book (recv (slot-reduce market book-tracker output))))
       (unless (eq book book-cache)
@@ -106,7 +106,7 @@
 ;;; receives target bids and asks in the next-bids and next-asks channels
 ;;; sends commands in the control channel through #'ope-place
 ;;; sends completion acknowledgement to response channel
-(defmethod perform ((prioritizer prioritizer))
+(defmethod perform ((prioritizer prioritizer) &key)
   (with-slots (next-bids next-asks response frequency) prioritizer
     (multiple-value-bind (next source)
         (recv (list next-bids next-asks) :blockp nil)
@@ -170,9 +170,9 @@
    (abbrev :allocation :class :initform "ope")
    (frequency :initform (random 1e1) :initarg :frequency) ; lel = l0l0
    (supplicant :initarg :supplicant) filter prioritizer
-   (epsilon :initform 0.0028 :initarg :epsilon)
+   (epsilon :initform 0.001 :initarg :epsilon)
    (magic :initform 3 :initarg :magic-count)
-   (spam :initform nil :initarg :spam))) ; to do bis ect this please!
+   (spam :initform nil :initarg :spam)))
 
 (defmethod christen ((ope ope-scalper) (type (eql 'actor)))
   (name (slot-value ope 'supplicant)))
@@ -229,7 +229,7 @@
                               (asks (punk vwab  price 0 ask)))))
                         #'dunk book))))))
 
-(defmethod perform ((ope ope-scalper))
+(defmethod perform ((ope ope-scalper) &key)
   (with-slots (input output filter prioritizer epsilon frequency) ope
     (destructuring-bind (primary counter resilience ratio) (recv input)
       (with-slots (next-bids next-asks response) prioritizer
@@ -337,6 +337,7 @@
   (force-output))
 
 (defmethod perform ((maker maker) &key)
+  (call-next-method maker :blockp ())   ; memento, du musste mori!
   (with-slots (fund-factor resilience-factor targeting-factor skew-factor
                market name ope cut supplicant) maker
     (let* ((trades (recv (slot-reduce market trades))) ; nananananana
@@ -475,7 +476,7 @@
     (format () "memory supervisor ~A"
             (first (last (slot-value supervisor 'to-halt)))))
 
-  (defmethod perform ((supervisor memory-supervisor))
+  (defmethod perform ((supervisor memory-supervisor) &key)
     (with-slots (to-halt frequency trigger leave-alive tasks) supervisor
       (sleep frequency)
       (flet ((threads (all)
