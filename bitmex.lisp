@@ -264,8 +264,9 @@
 (defmethod cancel-offer ((gate bitmex-gate) (offer placed))
   (multiple-value-bind (ret err)
       (gate-request gate '(:delete "order") `(("orderID" . ,(oid offer))))
-    (string-case ((getjso "ordStatus" (car ret))) ("Canceled") ("Filled")
-                 (t (equal err "Not Found")))))
+    (unless (string= err "Not Found")
+      (string-case ((getjso "ordStatus" (car ret))) ("Canceled") ("Filled")
+                   (t (warn err))))))
 
 ;;;
 ;;; Comte Monte Carte
@@ -290,5 +291,6 @@
 
 (defun quote-fill-ratio (gate)
   (mapcar 'float
-          (mapcar (getjso "quoteFillRatioMavg7")
-                  (gate-request gate '(:get "user/quoteFillRatio") ()))))
+          (remove '() (mapcar (getjso "quoteFillRatioMavg7")
+                              (gate-request
+                               gate '(:get "user/quoteFillRatio") ())))))
