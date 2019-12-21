@@ -36,6 +36,18 @@
                ;; (:file "kraken"   :depends-on ("exchange"))
                ;; (:file "bitfinex" :depends-on ("exchange"))
                ;; (:file "btce"     :depends-on ("exchange"))
-               ;; (:file "db"       :depends-on ("exchange"))
-               ;; (:file "sasl")
                ))
+
+(defsystem #:scalpl.dbi
+  :license "public domain"
+  :description "database interaction"
+  :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
+  :depends-on (#:scalpl #:dbi)
+  :components ((:file "db")))
+
+(defsystem #:scalpl.irc
+  :license "public domain"
+  :description "sasl authentication module"
+  :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
+  :depends-on (#:scalpl #:cl-irc)
+  :components ((:file "sasl")))
