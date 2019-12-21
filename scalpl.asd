@@ -8,42 +8,49 @@
   :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
   :depends-on (#:anaphora #:string-case #:parse-float #:decimals #:ironclad
                #:chanl #:cl-json #:cl-base64 #:split-sequence #:local-time
-               #:method-combination-utilities #:drakma
-
-               ;; these are only needed for certain exchanges
-               #:aserve #:rss
-
-               ;; these were used for experiments in the past
-               ;; #:cl-irc #:dbi
-               )
+               #:method-combination-utilities #:drakma)
   :components ((:file "util")
                (:file "actor"    :depends-on ("util"))
                (:file "exchange" :depends-on ("actor"))
-               (:file "qd"       :depends-on ("exchange"))
+               (:file "qd"       :depends-on ("exchange"))))
 
-               ;; A poor apprentice once asked:
-               ;;   "Signor Michaelangelo, how do we cope
-               ;;    with the blasphemy in the workshop?"
-               ;;
-               ;; Without checking outside his Google Plus
-               ;;   Circles, Archimedes answered:
-               ;;     "First, mute everybody; then, unmute
-               ;;      anything that sounds like a whale."
-
-               ;; (:file "bitmex"   :depends-on ("exchange"))
-               ;; (:file "poloniex" :depends-on ("exchange"))
-               ;; (:file "mpex"     :depends-on ("exchange"))
-               ;; (:file "kraken"   :depends-on ("exchange"))
-               ;; (:file "bitfinex" :depends-on ("exchange"))
-               ))
+(defsystem #:scalpl.bitmex
+  :license "public domain"
+  :description "api client for bitmex"
+  :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
+  :depends-on (#:scalpl #:aserve)
+  :components ((:file "bitmex")))
+(defsystem #:scalpl.poloniex
+  :license "public domain"
+  :description "api client for poloniex"
+  :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
+  :depends-on (#:scalpl)
+  :components ((:file "poloniex")))
+(defsystem #:scalpl.mpex
+  :license "public domain"
+  :description "api client for mpex"
+  :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
+  :depends-on (#:scalpl #:rss)
+  :components ((:file "mpex")))
+(defsystem #:scalpl.kraken
+  :license "public domain"
+  :description "api client for kraken"
+  :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
+  :depends-on (#:scalpl)
+  :components ((:file "kraken")))
+(defsystem #:scalpl.bitfinex
+  :license "public domain"
+  :description "api client for bitfinex"
+  :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
+  :depends-on (#:scalpl)
+  :components ((:file "bitfinex")))
 
 (defsystem #:scalpl.dbi
   :license "public domain"
-  :description "database interaction"
+  :description "database interactions"
   :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
   :depends-on (#:scalpl #:dbi)
   :components ((:file "db")))
-
 (defsystem #:scalpl.irc
   :license "public domain"
   :description "sasl authentication module"
