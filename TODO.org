@@ -44,7 +44,7 @@ Currently these are simply entire books, but depth updates would be best.
 Offer placement and offer cancellation
 ** DONE Support multiple filters on a single book
 * TODO refactor scalar value representations, to include units
-bitfinex and btce give volume in primary, always; kraken can do either
+bitfinex gives volume in primary, always; kraken can do either
 ** DONE taken,given - asset×quantity
 ** DONE add markets to asset registry, so we can represent prices?
 *** differentiate buy vs sell via sign bit - works with current price scalars
@@ -104,7 +104,6 @@ how did this file even end up in this list!?
 **** TODO bit2c.lisp
 **** TODO bitfinex.lisp
 **** TODO bitmex.lisp
-**** TODO btce.lisp
 **** TODO kraken.lisp
 **** TODO mpex.lisp
 *** TODO db.lisp
@@ -224,7 +223,6 @@ this should perhaps be scrapped / merged into the swarm
 **** at what precision
 (decimals market)
 **** TODO default fee structure
-implicit in btce, make this explicit everywhere
 *** TODO tracking a market
 **** book tracker, current market depth
 **** trades tracker, past market movements
@@ -313,7 +311,4 @@ simpler, doesn't require inflection points
 **** adjust offer price, and that of subsequent ones
 best performed in relation to order book inflection points
 * TODO de-brittlify nonces
-** btce's nonce code will crap out on 2015-04-09
-well, at least your date calculation was correct!
-the better approach here would be tracking nonces per-key in gates, and incfing.
 ** bitfinex's is likely at some point to overflow and break hidden offers

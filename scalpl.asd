@@ -35,7 +35,6 @@
                ;; (:file "mpex"     :depends-on ("exchange"))
                ;; (:file "kraken"   :depends-on ("exchange"))
                ;; (:file "bitfinex" :depends-on ("exchange"))
-               ;; (:file "btce"     :depends-on ("exchange"))
                ))
 
 (defsystem #:scalpl.dbi
