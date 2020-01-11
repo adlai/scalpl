@@ -14,44 +14,44 @@
                (:file "exchange" :depends-on ("actor"))
                (:file "qd"       :depends-on ("exchange"))))
 
-(defsystem #:scalpl.bitmex
+(defsystem #:scalpl/bitmex
   :license "public domain"
   :description "api client for bitmex"
   :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
   :depends-on (#:scalpl #:aserve)
   :components ((:file "bitmex")))
-(defsystem #:scalpl.poloniex
+(defsystem #:scalpl/poloniex
   :license "public domain"
   :description "api client for poloniex"
   :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
   :depends-on (#:scalpl)
   :components ((:file "poloniex")))
-(defsystem #:scalpl.mpex
+(defsystem #:scalpl/mpex
   :license "public domain"
   :description "api client for mpex"
   :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
   :depends-on (#:scalpl #:rss)
   :components ((:file "mpex")))
-(defsystem #:scalpl.kraken
+(defsystem #:scalpl/kraken
   :license "public domain"
   :description "api client for kraken"
   :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
   :depends-on (#:scalpl)
   :components ((:file "kraken")))
-(defsystem #:scalpl.bitfinex
+(defsystem #:scalpl/bitfinex
   :license "public domain"
   :description "api client for bitfinex"
   :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
   :depends-on (#:scalpl)
   :components ((:file "bitfinex")))
 
-(defsystem #:scalpl.dbi
+(defsystem #:scalpl/dbi
   :license "public domain"
   :description "database interactions"
   :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
   :depends-on (#:scalpl #:dbi)
   :components ((:file "db")))
-(defsystem #:scalpl.irc
+(defsystem #:scalpl/irc
   :license "public domain"
   :description "sasl authentication module"
   :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
