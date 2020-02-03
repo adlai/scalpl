@@ -269,8 +269,9 @@
   (multiple-value-bind (ret err)
       (gate-request gate '(:delete "order") `(("orderID" . ,(oid offer))))
     (unless (string= err "Not Found")
-      (string-case ((getjso "ordStatus" (car ret))) ("Canceled") ("Filled")
-                   (t (warn err))))))
+      (string-case ((if ret (getjso "ordStatus" (car ret)) ""))
+        ("Canceled") ("Filled")
+        (t (warn err))))))
 
 ;;;
 ;;; Comte Monte Carte
