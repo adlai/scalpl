@@ -1,5 +1,5 @@
 (defpackage #:scalpl.bitmex
-  (:nicknames #:bitmex) (:export #:*bitmex* #:bitmex-gate)
+  (:nicknames #:bitmex) (:export #:*bitmex* #:bitmex-gate #:swagger)
   (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
         #:scalpl.actor #:scalpl.exchange))
 
@@ -97,7 +97,6 @@
 (defun swagger ()                       ; TODO: swagger metaclient!
   (decode-json (http-request (concatenate 'string *base-url*
                                           "/api/explorer/swagger.json"))))
-(export 'swagger)                       ; are you consing, nyet!?
 
 (defclass bitmex-gate (gate) ((exchange :initform *bitmex*)))
 
