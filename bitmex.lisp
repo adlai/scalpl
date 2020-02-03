@@ -245,7 +245,7 @@
 
 (defun post-raw-limit (gate buyp market price size)
   (gate-request gate '(:post "order")
-                `(("symbol" . ,market) ("price" . ,(princ-to-string price))
+                `(("symbol" . ,market) ("price" . ,price)
                   ("orderQty" . ,(princ-to-string
                                   (* (if buyp 1 -1) (floor size))))
                   ("execInst" . "ParticipateDoNotInitiate"))))
