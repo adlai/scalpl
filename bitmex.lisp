@@ -294,3 +294,56 @@
           (remove '() (mapcar (getjso "quoteFillRatioMavg7")
                               (gate-request
                                gate '(:get "user/quoteFillRatio") ())))))
+
+;;;
+;;; Websocket
+;;;
+
+(defparameter *websocket-url* "wss://www.bitmex.com/realtime")
+
+(defun make-orderbook-socket (&optional (topic "orderBookL2:XBTUSD"))
+  (let ((next-expected :info)
+        (book (make-hash-table :test #'eq))
+        (client (wsd:make-client (format () "~A?subscribe=~A"
+                                         *websocket-url* topic))))
+    (flet ((handle-message (raw &aux (message (read-json raw)))
+             (case next-expected
+               (:info
+                (if (string= (getjso "info" message)
+                             "Welcome to the BitMEX Realtime API.")
+                    (setf next-expected :subscribe)
+                    (wsd:close-connection client)))
+               (:subscribe
+                (if (and (getjso "success" message)
+                         (string= (getjso "subscribe" message) topic))
+                    (setf next-expected :table)
+                    (wsd:close-connection client)))
+               (:table
+                (with-json-slots (table action data) message
+                  (cond
+                    ((string/= table "orderBookL2")
+                     (wsd:close-connection client))
+                    ((zerop (hash-table-count book))
+                     (when (string= action "partial")
+                       (dolist (row data)
+                         (with-json-slots (id side size price) row
+                           (setf (gethash id book) (list side size price))))))
+                    (t (string-case (action)
+                         ("update"
+                          (dolist (row data)
+                            (with-json-slots (id side size) row
+                              (let ((list (gethash id book)))
+                                (setf (car list) side (cadr list) size)))))
+                         ("insert"
+                          (dolist (row data)
+                            (with-json-slots (id side size price) row
+                              (setf (gethash id book) (list side size price)))))
+                         ("delete"
+                          (dolist (row data)
+                            (remhash (getjso "id" row) book)))
+                         (t (wsd:close-connection client)
+                            (error "unknown orderbook action: ~s" action))))))))))
+      (wsd:start-connection client)
+      (wsd:on :message client #'handle-message)
+      (values book client))))
+
