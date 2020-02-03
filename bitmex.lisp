@@ -165,22 +165,26 @@
             it)))
 
 (defmethod account-positions ((gate bitmex-gate))
-  (mapcar (lambda (position)
-            (with-json-slots ((entry "avgEntryPrice") symbol
-                              (size "currentQty") (cost "posCost"))
-                position
-              (with-aslots (primary counter) (find-market symbol :bitmex)
-                (list it (cons-mp* it (* entry (- (signum size))))
-                      ;; TODO: this currently assumes the position is in
-                      ;; the perpetual inverse swap aka XBTUSD
-                      (cons-aq primary (- cost)) (cons-aq counter (- size))))))
-          (remove-if-not (getjso "isOpen")
-                         (gate-request gate '(:get "position") ()))))
+  (awhen (remove-if-not (getjso "isOpen")
+                        (gate-request gate '(:get "position") ()))
+    (destructuring-bind (position . others) it
+      (when others (warn "take two: contango, you bloody Back-tard"))
+      ;; (when others (play "take five: forget everything you've ever learned"))
+      (with-json-slots ((entry "avgEntryPrice") symbol
+                        (size "currentQty") (cost "posCost"))
+          position
+        (with-aslots (primary counter) (find-market symbol :bitmex)
+          (values (list it (cons-mp* it (* entry (- (signum size))))
+                        ;; TODO: this currently assumes the position
+                        ;; is in the perpetual inverse swap aka XBTUSD
+                        (cons-aq primary (- cost))
+                        (cons-aq counter (- size)))
+                  position))))))
 
 (defmethod account-balances ((gate bitmex-gate) &aux balances)
   ;; tl;dr - transubstantiates position into 'balances' of long + short
   (flet ((collect (a b) (push a balances) (push b balances)))
-    (let ((positions (account-positions gate))
+    (let ((positions `(,(account-positions gate)))
           (instruments (public-request "instrument/active" ()))
           (deposit (gate-request gate '(:get "user/wallet") ())))
       (when deposit
@@ -274,7 +278,7 @@
 
 (defmethod bases-for ((supplicant supplicant) (market bitmex-market))
   (with-slots (gate) supplicant         ; FIXME: XBTUSD-specific
-    (awhen (assoc (name market) (account-positions gate)
+    (awhen (assoc (name market) `(,(account-positions gate))
                   :test #'string= :key #'name)
       (let ((entry (realpart (second it))) (size (abs (quantity (fourth it)))))
         (flet ((foolish (basis &aux (price (realpart (car basis))))
