@@ -53,7 +53,7 @@
 
 (defmethod perform ((filter filter) &key)
   (with-slots (market book-cache bids asks frequency supplicant cut) filter
-    (let ((book (recv (slot-reduce market book-tracker output))))
+    (let ((book (recv (slot-reduce market book))))
       (unless (eq book book-cache)
         (with-slots (placed fee) supplicant
           (destructuring-bind (bid . ask) (recv (slot-reduce fee output))
