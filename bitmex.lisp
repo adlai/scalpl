@@ -357,3 +357,16 @@
       (wsd:on :message client #'handle-message)
       (values book client))))
 
+(defclass streaming-market (bitmex-market) (socket book-table))
+(defmethod shared-initialize :after ((market streaming-market) slot-names &key)
+  (with-slots (socket book-table) market
+    (setf (values book-table socket) (make-orderbook-socket market))))
+
+(defmethod get-book ((market streaming-market) &key)
+  (with-slots (book-table) market
+    (loop for (price . offer) being each hash-value of book-table
+       if (eq (type-of offer) 'ask) collect offer into asks
+       if (eq (type-of offer) 'bid) collect offer into bids
+       finally (return (values (sort asks #'< :key #'price)
+                               (sort bids #'< :key #'price))))))
+
