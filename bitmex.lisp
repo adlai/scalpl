@@ -38,11 +38,13 @@
 (defun bitmex-request (path &rest args)
   (multiple-value-bind (body status headers)
       (apply #'http-request (concatenate 'string *base-url* path) args)
-    (if (member status '(500 502 504)) (values () status body)
-        (progn (sleep (/ (1- (parse-integer
-                              (getjso :x-ratelimit-remaining headers)))))
-          (if (= status 200) (values (decode-json body) 200)
-              (values () status (getjso "error" (decode-json body))))))))
+    (case status
+      ((500 502 504) (values () status body))
+      (t (sleep (1+ (dbz-guard
+                     (/ (1- (parse-integer
+                             (getjso :x-ratelimit-remaining headers)))))))
+         (if (= status 200) (values (decode-json body) 200)
+             (values () status (getjso "error" (decode-json body))))))))
 
 (defun bitmex-path (&rest paths)
   (apply #'concatenate 'string *base-path* paths))
