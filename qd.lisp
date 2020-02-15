@@ -367,7 +367,7 @@
                                             (or (ignore-errors
                                                   (/ doge btc doge/btc)) 0)))
                                   (/ doge btc doge/btc)))))
-              ;; "Yeah, science!" - King of the Universe, Right Here
+              ;; ;; "Yeah, science!" - King of the Universe, Right Here
               ;; (when (= (signum skew) (signum (log targeting-factor)))
               ;;   (setf targeting-factor (/ targeting-factor)))
               ;; report funding
