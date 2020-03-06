@@ -11,20 +11,20 @@ o=&SSs===#&c======#AA==Aa=-=#LLo====&PPPPPP&##LLo====
             o.............mayhem..`..`............`..
 ```
 
-> "scalpl is a project written by someone who is clearly having a great time"
-[@byrneseyeview](https://twitter.com/byrneseyeview/status/629724444802428928)
+> "scalpl is a project written by someone
+>      who is clearly having a great time"
+>                        - @byrneseyeview
 
 # Legal-_ease_
 
-The software is provided devoid of warantee, guarranty, liesense, and noncence:
-"do as thou wilt".
+The software is provided devoid of warantee, guarranty,
+liesense, and noncence: "do as thou wilt".
 
 Please be advised that this use of the software renders varying signals to
-market participants in a manner that amplifies preëxisting biases. Performing
+market participants in a manner that amplifies pre-existing biases. Performing
 such acts in jurisdictia where the potential consequences of such actions are
 punishable is liable to offend my religion, and should be considered a capital
-offense, insofar as such are punishable by said *soi-dissant* politēs and
-churchēs.
+offense, insofar as such are punishable by and large small etc etc etc.
 
 ## PROCLAIMER REGARDING CONTINUITY
 After much internal debate, and in light of recent developments (by which is
@@ -48,22 +48,19 @@ to game theory, although it may require [un?]countably infinitely many steps.
 
 # Exchanges
 
-Several Bitcoin exchanges are supported: [Bitfinex](https://www.bitfinex.com),
+Several exchanges were supported: [Bitfinex](https://www.bitfinex.com),
 [BTC-e](https://www.btc-e.com), and [Kraken](https://www.kraken.com). ScalpL
-also supports [MPExAgent](https://github.com/jurov/MPExAgent), if your hand
-plays cards at [such](http://trilema.com/2016/mpex-smpoe-closing-statement/)
-[tab](http://mpex.xyz/faq.html#17)[les](http://mpex.xyz/faq.html#33). Fresh
-additions are clients for the [Baloney Exchange](https://www.poloniex.com),
-and experimental support for the best-named casino in the Seychelles, the
+also supported [MPExAgent](https://github.com/jurov/MPExAgent), and if your
+hand still plays [such](http://trilema.com/2016/mpex-smpoe-closing-statement/)
+[tab](http://mpex.xyz/faq.html#17)[les](http://mpex.xyz/faq.html#33), there is
+no conceivably indubitable reason for such bits to have rot; fresh additions
+are clients for the [Baloney Exchange](https://www.poloniex.com), and
+experimental support for the best-named casino in the Seychelles, the
 [Bitcoin Mercantile Exchange](https://bitmex.com/).
-
-More's ever in the works; consult an Architect for blueprints.
 
 # Mockumentation
 
-Documentation currently takes the form of [penne bolognese](http://georgik.sinusgear.com/2011/03/07/spaghetti-lasagna-and-raviolli-code/);
-translating this to natural language is a slow process, second in
-priority to refactoring the dish and evolving its phenotype.
+There isn't much; if you are X3J13-illiterate, please find someone who isn't.
 
 # Excuses and Explanations
 
