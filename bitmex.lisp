@@ -6,8 +6,8 @@
 (in-package #:scalpl.bitmex)
 
 ;;; General Parameters
-(defparameter *base-url* "https://www.bitmex.com")
-(defparameter *base-path* "/api/v1/")
+(defparameter *base-domain* "www.bitmex.com")
+(defparameter *base-url* (format () "https://~A" *base-domain*))
 (setf cl+ssl:*make-ssl-client-stream-verify-default* ())
 
 (defvar *bitmex* (make-instance 'exchange :name :bitmex :sensitivity 1))
@@ -40,24 +40,25 @@
       (apply #'http-request (concatenate 'string *base-url* path) args)
     (case status
       ((500 502 504) (values () status body))
-      (t (sleep (1+ (dbz-guard
-                     (/ (1- (parse-integer
-                             (getjso :x-ratelimit-remaining headers)))))))
+      (t (awhen (getjso :x-ratelimit-remaining headers)
+           (sleep (1+ (dbz-guard (/ (1- (parse-integer it)))))))
          (if (= status 200) (values (decode-json body) 200)
              (values () status (getjso "error" (decode-json body))))))))
 
-(defun bitmex-path (&rest paths)
-  (apply #'concatenate 'string *base-path* paths))
+(defun bitmex-path (&rest paths) (format () "/api/~{~A~}" paths))
+
+(defun swagger ()                       ; TODO: swagger metaclient!
+  (bitmex-request (bitmex-path "explorer/swagger.json")))
 
 (defun public-request (method parameters)
   (bitmex-request
-   (apply #'bitmex-path method
+   (apply #'bitmex-path "v1/" method
           (and parameters `("?" ,(net.aserve:uridecode-string
                                   (urlencode-params parameters)))))))
 
 (defun auth-request (verb method key signer &optional params)
   (let* ((data (urlencode-params params))
-         (path (apply #'bitmex-path method
+         (path (apply #'bitmex-path "v1/" method
                       (and (eq verb :get) params `("?" ,data))))
          (nonce (format () "~D" (+ (timestamp-millisecond (now))
                                    (* 1000 (timestamp-to-unix (now))))))
@@ -95,10 +96,6 @@
 (defmethod fetch-exchange-data ((exchange (eql *bitmex*)))
   (with-slots (markets assets) exchange
     (setf (values markets assets) (get-info))))
-
-(defun swagger ()                       ; TODO: swagger metaclient!
-  (decode-json (http-request (concatenate 'string *base-url*
-                                          "/api/explorer/swagger.json"))))
 
 (defclass bitmex-gate (gate) ((exchange :initform *bitmex*)))
 
@@ -305,7 +302,7 @@
 ;;; Websocket
 ;;;
 
-(defparameter *websocket-url* "wss://www.bitmex.com/realtime")
+(defparameter *websocket-url* (format () "wss://~A/realtime" *base-domain*))
 
 (defun make-orderbook-socket (market)
   (let* ((next-expected :info) (book (make-hash-table :test #'eq))
