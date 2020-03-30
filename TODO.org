@@ -35,7 +35,7 @@ decentralized multimodal swarm optimization of the above guidelines
 this only makes sense once depth updates stream
 *** TODO stabilize bitmex websocket connector
 **** TODO reconnect when dropped
-**** TODO handle unexpected partial
+**** DONE handle unexpected partial
 **** TODO refactor book-tracker and book-fetcher accordingly
 ** TODO experiment with clustering
 there are at least three (3) reasons for this, consisting of only one (1!) bad

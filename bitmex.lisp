@@ -14,7 +14,7 @@
 
 (defclass bitmex-market (market)
   ((exchange :initform *bitmex*) (fee :initarg :fee :reader fee)
-   (metallic :initarg :metallic) (symbol-index :initarg :index)))
+   (symbol-index :initarg :index)))
 
 (defun hmac-sha256 (message secret)
   (let ((hmac (ironclad:make-hmac (string-octets secret) 'ironclad:sha256)))
@@ -41,13 +41,14 @@
     (case status
       ((500 502 504) (values () status body))
       (t (awhen (getjso :x-ratelimit-remaining headers)
-           (sleep (1+ (dbz-guard (/ (1- (parse-integer it)))))))
+           (sleep (+ 1 (random 1.0) (dbz-guard (/ (1- (parse-integer it)))))))
          (if (= status 200) (values (decode-json body) 200)
              (values () status (getjso "error" (decode-json body))))))))
 
 (defun bitmex-path (&rest paths) (format () "/api/~{~A~}" paths))
 
-(defun swagger () (bitmex-request (bitmex-path "explorer/swagger.json")))
+(defun swagger (&key) (bitmex-request (bitmex-path "explorer/swagger.json")))
+(defparameter *swagger* (swagger))
 
 (defun public-request (method parameters)
   (bitmex-request
@@ -75,8 +76,8 @@
     (flet ((make-market (instrument index)
              (with-json-slots
                  ((tick "tickSize") (lot "lotSize") (fee "takerFee")
-                  (name "symbol") (fe "isInverse") (long "rootSymbol")
-                  (short "quoteCurrency") multiplier state)
+                  (name "symbol") (long "rootSymbol") (short "quoteCurrency")
+                  multiplier state)
                  instrument
                (flet ((asset (fake &optional (decimals 0))
                         (let ((name (concatenate 'string fake "-" name)))
@@ -87,10 +88,10 @@
                       (ilog (i) (floor (log (abs i) 10))))
                  (when (string= state "Open")
                    (make-instance
-                    'bitmex-market :name name :fee fee :metallic fe
+                    'bitmex-market :name name :fee fee
                     :decimals (- (ilog tick)) :index index
-                    :primary (asset long (ilog (if fe multiplier lot)))
-                    :counter (asset short (ilog (if fe lot multiplier)))))))))
+                    :primary (asset long (ilog multiplier))
+                    :counter (asset short (ilog lot))))))))
       (values (loop for definition in it and index from 0
                  for market = (make-market definition index)
                  when market collect it)
@@ -165,38 +166,33 @@
                                            (expt 10 (decimals market)))))))
             it)))
 
-(defmethod account-positions ((gate bitmex-gate))
+(defmethod account-positions ((gate bitmex-gate) &aux positions)
   (awhen (remove-if-not (getjso "isOpen")
                         (gate-request gate '(:get "position") ()))
-    (destructuring-bind (position . others) it
-      (when others (warn "take two: contango, you bloody Back-tard"))
-      ;; (when others (play "take five: forget everything you've ever learned"))
+    (dolist (position it (values positions it))
       (with-json-slots ((entry "avgEntryPrice") symbol
                         (size "currentQty") (cost "posCost"))
           position
         (with-aslots (primary counter) (find-market symbol :bitmex)
-          (values (list it (cons-mp* it (* entry (- (signum size))))
-                        ;; TODO: this currently assumes the position
-                        ;; is in the perpetual inverse swap aka XBTUSD
-                        (cons-aq primary (- cost))
-                        (cons-aq counter (- size)))
-                  position))))))
+          (push (list it (cons-mp* it (* entry (- (signum size))))
+                      (cons-aq primary (- cost))
+                      (cons-aq counter (- size)))
+                positions))))))
 
 (defmethod account-balances ((gate bitmex-gate) &aux balances)
   ;; tl;dr - transubstantiates position into 'balances' of long + short
   (flet ((collect (a b) (push a balances) (push b balances)))
-    (let ((positions `(,(account-positions gate)))
+    (let ((positions (account-positions gate))
           (instruments (public-request "instrument/active" ()))
           (deposit (gate-request gate '(:get "user/wallet") ())))
       (when deposit
         (dolist (instrument instruments balances)
           (with-json-slots (symbol (mark "markPrice")) instrument
             (unless (find #\_ symbol)   ; ignore binaries (UP and DOWN)
-              (with-aslots (primary counter metallic)
+              (with-aslots (primary counter)
                   (find-market symbol :bitmex)
                 (let ((fund (/ (* 10 (getjso "amount" deposit)) ; ick
-                               (if metallic (expt 10 (decimals primary))
-                                   (* mark (expt 10 (decimals counter)))))))
+                               (expt 10 (decimals primary)))))
                   (aif (find it positions :key #'car)
                        (collect (aq+ (cons-aq* primary fund) (third it))
                          (aq+ (cons-aq* counter (* fund mark)) (fourth it)))
@@ -272,7 +268,7 @@
     (unless (string= err "Not Found")
       (string-case ((if ret (getjso "ordStatus" (car ret)) ""))
         ("Canceled") ("Filled")
-        (t (warn err))))))
+        (t (warn "~A ~A" offer err))))))
 
 ;;;
 ;;; Comte Monte Carte
@@ -280,7 +276,7 @@
 
 (defmethod bases-for ((supplicant supplicant) (market bitmex-market))
   (with-slots (gate) supplicant         ; FIXME: XBTUSD-specific
-    (awhen (assoc (name market) `(,(account-positions gate))
+    (awhen (assoc (name market) (account-positions gate)
                   :test #'string= :key #'name)
       (let ((entry (realpart (second it))) (size (abs (quantity (fourth it)))))
         (flet ((foolish (basis &aux (price (realpart (car basis))))
@@ -290,16 +286,6 @@
           (multiple-value-bind (primary counter) (call-next-method)
             (values (remove-if #'foolish primary)
                     (remove-if #'foolish counter))))))))
-
-;;;
-;;; Rate Limiting
-;;;
-
-(defun quote-fill-ratio (gate)
-  (mapcar 'float
-          (remove '() (mapcar (getjso "quoteFillRatioMavg7")
-                              (gate-request
-                               gate '(:get "user/quoteFillRatio") ())))))
 
 ;;;
 ;;; Websocket
@@ -335,26 +321,28 @@
                     (macrolet ((do-data ((&rest slots) &body body)
                                  `(dolist (row data)
                                     (with-json-slots ,slots row ,@body))))
-                      (cond
-                        ((string/= table "orderBookL2")
-                         (wsd:close-connection client))
-                        ((zerop (hash-table-count book))
-                         (when (string= action "partial")
-                           (do-data (id side size price)
-                             (setf (gethash id book)
-                                   (cons price (offer side size price))))))
-                        (t (string-case (action)
-                             ("update"
-                              (do-data (id side size)
-                                (let ((cons (gethash id book)))
-                                  (rplacd cons (offer side size (car cons))))))
-                             ("insert"
-                              (do-data (id side size price)
-                                (setf (gethash id book)
-                                      (cons price (offer side size price)))))
-                             ("delete" (do-data (id) (remhash id book)))
-                             (t (wsd:close-connection client)
-                                (error "unknown orderbook action: ~s" action))))))))))))
+                      (flet ((build ()
+                               (do-data (id side size price)
+                                 (setf (gethash id book)
+                                       (cons price (offer side size price))))))
+                        (cond
+                          ((string/= table "orderBookL2")
+                           (wsd:close-connection client))
+                          ((zerop (hash-table-count book))
+                           (when (string= action "partial") (build)))
+                          (t (string-case (action)
+                               ("update"
+                                (do-data (id side size)
+                                  (let ((cons (gethash id book)))
+                                    (rplacd cons (offer side size (car cons))))))
+                               ("insert"
+                                (do-data (id side size price)
+                                  (setf (gethash id book)
+                                        (cons price (offer side size price)))))
+                               ("delete" (do-data (id) (remhash id book)))
+                               ("partial" (clrhash book) (build))
+                               (t (wsd:close-connection client)
+                                  (error "unknown orderbook action: ~s" action)))))))))))))
       (wsd:start-connection client)
       (wsd:on :message client #'handle-message)
       (values book client))))
@@ -372,3 +360,66 @@
        finally (return (values (sort asks #'< :key #'price)
                                (sort bids #'< :key #'price))))))
 
+;;;
+;;; Bulk Placement and Cancellation
+;;;
+
+(defun offer-alist (offer)
+  (with-slots (market price given taken) offer
+    (let ((buyp (minusp price)) (factor (expt 10 (decimals market))))
+      (multiple-value-bind (int dec)
+          (floor (abs (/ (floor price 1/2) 2)) factor)
+        `(("symbol" . ,(name market))
+          ("price" . ,(format () "~D.~V,'0D" int
+                              (max 1 (decimals market)) dec))
+          ("orderQty" . ,(princ-to-string
+                          (* (- (signum price))
+                             (scaled-quantity (if buyp given taken)))))
+          ("execInst" . "ParticipateDoNotInitiate"))))))
+
+(defun post-bulk (gate &rest offers)
+  (let ((orders (format () "[~{~A~^,~}]"
+                        (reduce 'mapcar '(json:encode-json-alist-to-string
+                                          offer-alist)
+                                :from-end t :initial-value offers))))
+    (awhen (gate-request gate '(:post "order/bulk") `(("orders" . ,orders)))
+      (loop for data in it for status = (getjso "ordStatus" data)
+         when (equal status "New") collect
+           (with-json-slots
+               (symbol side price (oid "orderID") (size "orderQty")) data
+             (let ((market (find-market symbol :bitmex))
+                   (aksp (string-equal side "Sell")))
+               (make-instance 'placed :oid oid :market market
+                              :volume (/ size price)
+                              :price (* price (if aksp 1 -1)
+                                        (expt 10 (decimals market))))))))))
+
+(defun cancel-bulk (gate &rest offers)
+  (gate-request gate '(:delete "order")
+                `(("orderID" . ,(mapcar #'oid offers)))))
+
+;;;
+;;; Rate Limiting
+;;;
+
+(defun quote-fill-ratio (gate)
+  (mapcar 'float
+          (remove '() (mapcar (getjso "quoteFillRatioMavg7")
+                              (gate-request
+                               gate '(:get "user/quoteFillRatio") ())))))
+
+;;;
+;;; Introspection
+;;;
+
+(defun annualize-current-day (gate active-symbol &aux (condom 5) (solar 365.25))
+    (awhen (gate-request gate '(:get "user/walletHistory")
+                         `(("count" . ,condom) ("reverse" . t)))
+      (assert (= (length it) condom))
+      (with-json-slots ((balance "walletBalance")
+                        (symbol "address")
+                        (profit "amount"))
+          (find "RealisedPNL" it :test #'string= :key (getjso "transactType"))
+        (assert (string= symbol active-symbol))
+        (aprog1 (expt (1+ (/ profit balance)) solar)
+          (format t "~&~5,2@F%~%" it)))))
