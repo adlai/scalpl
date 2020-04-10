@@ -154,11 +154,10 @@
         ,(let (,@(loop for n in names for g in gensyms collect `(,n ,g)))
            ,@body)))))
 
-(defun urlencode-params (params)
+(defun urlencode-params (params &optional (format :utf8))
   (with-output-to-string (out)
     (labels ((urlencode (thing)
-               (drakma:url-encode (princ-to-string thing)
-                                  drakma::*drakma-default-external-format*))
+               (drakma:url-encode (princ-to-string thing) format))
              (write-param (param)
                (destructuring-bind (name . value) param
                  (format out "~A=~A" (urlencode name) (urlencode value)))))

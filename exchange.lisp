@@ -27,6 +27,7 @@
 (defun http-request (path &rest keys &aux (backoff 3))
   (loop (handler-case (return (apply #'drakma:http-request path keys))
           ((or simple-error drakma::drakma-simple-error
+            usocket:ns-try-again-condition
             usocket:deadline-timeout-error usocket:timeout-error
             usocket:timeout-error usocket:ns-host-not-found-error
             end-of-file chunga::input-chunking-unexpected-end-of-file
@@ -371,8 +372,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (format nil "trade fetcher ~A" (market fetcher)))
 
 (defmethod perform ((fetcher trades-fetcher) &key)
-  (with-slots (market buffer delay)
-      (first (slot-value fetcher 'delegates)) ; TODO : proper delegate
+  (with-slots (market buffer delay) fetcher
     (dolist (trade (aif (recv buffer) (trades-since market it)
                         (trades-since market)))
       ;; this unoptimization is starting to stink of prematurity ... .
@@ -798,15 +798,18 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (remove asset (slot-value ope 'placed)
           :key #'consumed-asset :test-not #'eq))
 
-(defun balance-guarded-place (ope offer &aux (asset (consumed-asset offer)))
+(defun balance-guarded-place (ope &rest offers)
   (with-slots (gate placed order-slots treasurer) ope
-    (let* ((spending (offers-spending ope asset))
-           (mapreduc (reduce #'aq+ (mapcar #'given spending)
-                             :initial-value (given offer)))
+    (let* ((asset (consumed-asset (first offers)))
+           (spending (offers-spending ope asset))
+           (mapreduc (destructuring-bind (first &rest rest) offers
+                       (reduce #'aq+ (mapcar #'given (append spending rest))
+                               :initial-value (given first))))
            (ourfunds (asset-funds asset (slot-reduce treasurer balances))))
+
       (and (>= ourfunds (scaled-quantity mapreduc))
-           (> order-slots (length placed))
-           (awhen1 (post-offer gate offer) (push it placed))))))
+           (>= order-slots (+ (length placed) (length offers)))
+           (awhen1 (post-offer gate (first offers)) (push it placed))))))
 
 (defmethod placed-offers ((supplicant supplicant))
   (with-slots (gate placed market) supplicant
@@ -818,7 +821,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
           (case (car cons)
             (:cancel (awhen1 (cancel-offer gate arg)
                        (setf placed (remove (oid arg) placed :key #'oid))))
-            (:offer (balance-guarded-place supplicant arg))
+            (:offer (apply #'balance-guarded-place supplicant arg))
             (:sync (setf placed (placed-offers supplicant)))))))
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))

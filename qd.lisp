@@ -18,7 +18,7 @@
 ;;; response: placed offer if successful, nil if not
 (defun ope-place (ope offer)
   (with-slots (control response) ope
-    (send control (cons :offer offer)) (recv response)))
+    (send control `(:offer ,offer)) (recv response)))
 
 ;;; response: trueish = offer no longer placed, nil = unknown badness
 (defun ope-cancel (ope offer)
@@ -89,9 +89,9 @@
   (flet ((place (new) (ope-place (slot-value ope 'supplicant) new)))
     (macrolet ((frob (add pop)
                  `(let* ((n (max (length ,add) (length ,pop)))
-                         (m (- n (ceiling (log (1+ (random (1- (exp n)))))))))
-                    (macrolet ((wrap (a . b) `(awhen (nth m ,a) (,@b it))))
-                      (wrap ,pop ope-cancel ope) (wrap ,add place)))))
+                         (log (log (1+ (random (1- (exp n)))))))
+                    (awhen (nth (floor log) ,pop) (ope-cancel ope it))
+                    (awhen (nth (- n (ceiling log)) ,add) (place it)))))
       (aif (dolist (new target (sort to-add #'< :key #'price))
              (aif (find (price new) excess :key #'price :test #'=)
                   (setf excess (remove it excess)) (push new to-add)))
