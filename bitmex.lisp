@@ -293,59 +293,63 @@
 
 (defparameter *websocket-url* (format () "wss://~A/realtime" *base-domain*))
 
+(defun make-websocket-handler (client topic market book
+                               &aux (next-expected :info)
+                                 (price-factor (expt 10 (decimals market))))
+  (lambda (raw &aux (message (read-json raw)))
+    (case next-expected
+      (:info
+       (if (string= (getjso "info" message)
+                    "Welcome to the BitMEX Realtime API.")
+           (setf next-expected :subscribe)
+           (wsd:close-connection client)))
+      (:subscribe
+       (if (and (getjso "success" message)
+                (string= (getjso "subscribe" message) topic))
+           (setf next-expected :table)
+           (wsd:close-connection client)))
+      (:table
+       (flet ((offer (side size price &aux (mp (* price price-factor)))
+                (make-instance (string-case (side) ("Sell" 'ask) ("Buy" 'bid))
+                               :market market :price mp
+                               :volume (/ size price))))
+         (with-json-slots (table action data) message
+           (macrolet ((do-data ((&rest slots) &body body)
+                        `(dolist (row data)
+                           (with-json-slots ,slots row ,@body))))
+             (flet ((build ()
+                      (do-data (id side size price)
+                        (setf (gethash id book)
+                              (cons price (offer side size price))))))
+               (cond
+                 ((string/= table "orderBookL2")
+                  (wsd:close-connection client))
+                 ((zerop (hash-table-count book))
+                  (when (string= action "partial") (build)))
+                 (t (string-case (action)
+                      ("update"
+                       (do-data (id side size)
+                         (let ((cons (gethash id book)))
+                           (rplacd cons (offer side size (car cons))))))
+                      ("insert"
+                       (do-data (id side size price)
+                         (setf (gethash id book)
+                               (cons price (offer side size price)))))
+                      ("delete" (do-data (id) (remhash id book)))
+                      ("partial" (clrhash book) (build))
+                      (t (wsd:close-connection client)
+                         (error "unknown orderbook action: ~s" action)))))))))))))
+
+(defun connect-websocket-client (topic)
+  (wsd:start-connection
+   (wsd:make-client (format () "~A?subscribe=~A" *websocket-url* topic))))
+
 (defun make-orderbook-socket (market)
-  (let* ((next-expected :info) (book (make-hash-table :test #'eq))
-         (mult (expt 10 (decimals market)))
+  (let* ((book (make-hash-table :test #'eq))
          (topic (format () "orderBookL2:~A" (name market)))
-         (client (wsd:make-client
-                  (format () "~A?subscribe=~A" *websocket-url* topic))))
-    (flet ((handle-message (raw &aux (message (read-json raw)))
-             (case next-expected
-               (:info
-                (if (string= (getjso "info" message)
-                             "Welcome to the BitMEX Realtime API.")
-                    (setf next-expected :subscribe)
-                    (wsd:close-connection client)))
-               (:subscribe
-                (if (and (getjso "success" message)
-                         (string= (getjso "subscribe" message) topic))
-                    (setf next-expected :table)
-                    (wsd:close-connection client)))
-               (:table
-                (flet ((offer (side size price &aux (mp (* mult price))
-                                    (type (string-case (side)
-                                            ("Sell" 'ask) ("Buy" 'bid))))
-                         (make-instance type :market market :price mp
-                                        :volume (/ size price))))
-                  (with-json-slots (table action data) message
-                    (macrolet ((do-data ((&rest slots) &body body)
-                                 `(dolist (row data)
-                                    (with-json-slots ,slots row ,@body))))
-                      (flet ((build ()
-                               (do-data (id side size price)
-                                 (setf (gethash id book)
-                                       (cons price (offer side size price))))))
-                        (cond
-                          ((string/= table "orderBookL2")
-                           (wsd:close-connection client))
-                          ((zerop (hash-table-count book))
-                           (when (string= action "partial") (build)))
-                          (t (string-case (action)
-                               ("update"
-                                (do-data (id side size)
-                                  (let ((cons (gethash id book)))
-                                    (rplacd cons (offer side size (car cons))))))
-                               ("insert"
-                                (do-data (id side size price)
-                                  (setf (gethash id book)
-                                        (cons price (offer side size price)))))
-                               ("delete" (do-data (id) (remhash id book)))
-                               ("partial" (clrhash book) (build))
-                               (t (wsd:close-connection client)
-                                  (error "unknown orderbook action: ~s" action)))))))))))))
-      (wsd:start-connection client)
-      (wsd:on :message client #'handle-message)
-      (values book client))))
+         (client (connect-websocket-client topic)))
+    (wsd:on :message client (make-websocket-handler client topic market book))
+    (values book client)))
 
 (defclass streaming-market (bitmex-market) (socket book-table))
 (defmethod shared-initialize :after ((market streaming-market) slot-names &key)
