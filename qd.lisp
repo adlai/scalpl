@@ -463,35 +463,3 @@
     (apply #'print-book maker print-args) (performance-overview maker)
     (multiple-value-call 'format stream "~@{~A~#[~:; ~]~}" name
                          (trades-profits (slot-reduce lictor trades)))))
-
-#+clozure
-(progn
-  (defclass memory-supervisor (actor)
-    ((to-halt :initarg :to-halt) (trigger :initarg :trigger)
-     (frequency :initarg :frequency :initform 15)
-     (leave-alive :initarg :leave-alive :initform 2)))
-
-  (defmethod christen ((supervisor memory-supervisor) (type (eql 'actor)))
-    (format () "memory supervisor ~A"
-            (first (last (slot-value supervisor 'to-halt)))))
-
-  (defmethod perform ((supervisor memory-supervisor) &key)
-    (with-slots (to-halt frequency trigger leave-alive tasks) supervisor
-      (sleep frequency)
-      (flet ((threads (all)
-               (remove () (mapcar #'task-thread (set-difference all tasks)))))
-        (when (or (> (memory-usage) trigger)
-                  (< (+ frequency leave-alive)
-                     (count-if #'thread-alive-p (threads (pooled-tasks)))))
-          (format t "~&(memory-usage) = ~D, cycling~%" (memory-usage))
-          (etypecase leave-alive
-            (integer
-             (mapc #'halt (reverse to-halt)) (sleep frequency)
-             (loop for them = (threads (butlast (pooled-tasks) leave-alive))
-                while them do (mapc 'kill them))
-             (sleep frequency)            ; "this is just cr*p" - Linus
-             (loop until (< (memory-usage) (/ trigger 2)) do
-                  (ccl:gc) (sleep frequency))
-             (dolist (actor to-halt)
-               (reinitialize-instance actor) (sleep frequency)))  ; races :(
-            (function (error "TODO"))))))))
