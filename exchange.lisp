@@ -1,6 +1,6 @@
 (defpackage #:scalpl.exchange
   (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util #:scalpl.actor)
-  (:export #:http-request
+  (:export #:http-request #:enable-pretty-printer-abuse
            #:exchange #:name #:assets #:markets #:parse-timestamp
            #:*exchanges* #:find-exchange #:fetch-exchange-data
            #:asset #:find-asset #:asset-quantity
@@ -116,9 +116,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (deftype physical-quantity () '(satisfies physical-quantity-p))
 
-(defvar *pqprint-dispatch* (copy-pprint-dispatch))
-
-(defun pprint-pq (stream pq)
+(defun pprint-physical-quantity (stream pq)
   (with-slots (decimals name) (find-unit (imagpart pq))
     (format stream "~A ~A" (decimals:format-decimal-number
                             (/ (realpart pq) (expt 10 decimals))
@@ -126,7 +124,13 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                             :show-trailing-zeros t)
             name)))
 
-(set-pprint-dispatch 'physical-quantity #'pprint-pq 1 *pqprint-dispatch*)
+(defvar *physical-quantity-pprint-dispatch*
+  (aprog1 (copy-pprint-dispatch ())
+    (set-pprint-dispatch 'physical-quantity #'pprint-physical-quantity 1 it)))
+
+(defun enable-pretty-printer-abuse (&optional (right-margin 88))
+  (setf *print-pretty* t *print-right-margin* right-margin
+        *print-pprint-dispatch* *physical-quantity-pprint-dispatch*))
 
 ;;;
 ;;; Assets
