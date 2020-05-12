@@ -171,8 +171,7 @@
    (frequency :initform (random 1e1) :initarg :frequency) ; lel = l0l0
    (supplicant :initarg :supplicant) filter prioritizer
    (epsilon :initform 0.001 :initarg :epsilon)
-   (magic :initform 3 :initarg :magic-count)
-   (spam :initform nil :initarg :spam)))
+   (magic :initform 3 :initarg :magic-count)))
 
 (defmethod christen ((ope ope-scalper) (type (eql 'actor)))
   (name (slot-value ope 'supplicant)))
@@ -188,9 +187,6 @@
               (flet ((profit (o)
                        (funcall punk (1- (price o)) (price vwab) (cdar funds))))
                 (when vwab
-                  (signal "~4,2@$ ~A ~D ~V$ ~V$" (profit car) car (length bases)
-                          (decimals (market vwab)) (scaled-price vwab)
-                          (decimals (asset cost)) (scaled-quantity cost))
                   (setf book (rest (member 0 book :test #'< :key #'profit))))
                 (if (and vwab (plusp (profit car)))
                     `(,car .,(ope-sprinner
@@ -202,12 +198,6 @@
                                   count magic (and vwab `((,vwab ,(aq* vwab cost)
                                                                  ,cost) ,@bases))
                                   punk dunk book))))))))
-
-(defun ope-logger (ope)
-  (lambda (log)
-    (awhen (slot-value ope 'spam)
-      (format t "~:[~*~;~&~A~] ~A~@*~:[~%~;~]"
-              (cdr (simple-condition-format-arguments log)) it log))))
 
 (defun ope-spreader (book resilience funds epsilon side ope)
   (flet ((dunk (book funds count magic &optional (start epsilon))
@@ -236,10 +226,8 @@
         (macrolet ((do-side (amount side chan epsilon)
                      `(let ((,side (copy-list (slot-value filter ',side))))
                         (unless (or (zerop (caar ,amount)) (null ,side))
-                          (send ,chan (handler-bind
-                                          ((simple-condition (ope-logger ope)))
-                                        (ope-spreader ,side resilience ,amount
-                                                      ,epsilon ',side ope)))
+                          (send ,chan (ope-spreader ,side resilience ,amount
+                                                      ,epsilon ',side ope))
                           (recv response)))))
           (let ((e (/ epsilon (+ 1/19 (abs (log (1+ (abs (log ratio)))))))))
             (do-side counter bids next-bids
