@@ -191,7 +191,7 @@
             (unless (find #\_ symbol)   ; ignore binaries (UP and DOWN)
               (with-aslots (primary counter)
                   (find-market symbol :bitmex)
-                (let ((fund (/ (* 10 (getjso "amount" deposit)) ; ick
+                (let ((fund (/ (getjso "amount" deposit) 1/11 ; ick
                                (expt 10 (decimals primary)))))
                   (aif (find it positions :key #'car)
                        (collect (aq+ (cons-aq* primary fund) (third it))
@@ -286,6 +286,38 @@
           (multiple-value-bind (primary counter) (call-next-method)
             (values (remove-if #'foolish primary)
                     (remove-if #'foolish counter))))))))
+
+(defmethod stub ((supplicant supplicant) (market bitmex-market))
+  "\"Do not go gentle into that good night,
+Old age should burn and rave at close of day;
+Rage, rage against the dying of the light.
+
+Though wise men at their end know dark is right,
+Because their words had forked no lightning they
+Do not go gentle into that good night.
+
+Good men, the last wave by, crying how bright
+Their frail deeds might have danced in a green bay,
+Rage, rage against the dying of the light.
+
+Wild men who caught and sang the sun in flight,
+And learn, too late, they grieved it on its way,
+Do not go gentle into that good night.
+
+Grave men, near death, who see with blinding sight
+Blind eyes could blaze like meteors and be gay,
+Rage, rage against the dying of the light.
+
+And you, my father, there on the sad height,
+Curse, bless, me now with your fierce tears, I pray.
+Do not go gentle into that good night.
+Rage, rage against the dying of the light.\"
+
+;; from Poems of Dylan Thomas, as published by New Directions Press
+;; Dylan Marlais Thomas, born 1914-10-27 in South Wales, and died a
+;; few decades hence on the streets of New York City.
+"
+  (cerror "Market orders should be confirmed manually!" ()))
 
 ;;;
 ;;; Websocket
