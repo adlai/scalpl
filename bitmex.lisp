@@ -234,7 +234,7 @@
 (defmethod execution-since ((gate bitmex-gate) market since)
   (awhen (raw-executions gate :pair (name market)
                          :from (if since (timestamp since)
-                                   (timestamp- (now) 11 :hour)))
+                                   (timestamp- (now) 11 :day)))
     (mapcan #'parse-execution
             (if (null since) it
                 (subseq it (1+ (position (txid since) it

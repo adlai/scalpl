@@ -121,9 +121,9 @@
               (* bid (+ 1 (/ bid-fee 100)))))))
 
 (defun dumbot-offers (foreigners       ; w/filter to avoid feedback
-                      resilience       ; scalar•asset target offer depth to fill
-                      funds            ; scalar•asset target total offer volume
-                      epsilon          ; scalar•asset size of smallest order
+                      resilience       ; pq target offer depth to fill
+                      funds            ; pq target total offer volume
+                      epsilon          ; pq size of smallest order
                       max-orders       ; target amount of offers
                       magic            ; if you have to ask, you'll never know
                       &aux (acc 0.0) (share 0) (others (copy-list foreigners))
@@ -170,7 +170,7 @@
    (abbrev :allocation :class :initform "ope")
    (frequency :initform (random 1e1) :initarg :frequency) ; lel = l0l0
    (supplicant :initarg :supplicant) filter prioritizer
-   (epsilon :initform 0.001 :initarg :epsilon)
+   (epsilon :initform (expt 0.14 3) :initarg :epsilon)
    (magic :initform 3 :initarg :magic-count)))
 
 (defmethod christen ((ope ope-scalper) (type (eql 'actor)))
@@ -229,7 +229,7 @@
                           (send ,chan (ope-spreader ,side resilience ,amount
                                                       ,epsilon ',side ope))
                           (recv response)))))
-          (let ((e (/ epsilon (+ 1/19 (abs (log (1+ (abs (log ratio)))))))))
+          (let ((e (/ epsilon (+ 1/17 (abs (log (1+ (abs (log ratio)))))))))
             (do-side counter bids next-bids
                      (* (max e epsilon) (abs (price (first bids))) (max ratio 1)
                         (expt 10 (- (decimals (market (first bids)))))))

@@ -314,7 +314,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defmethod perform ((gate gate) &key)
   (call-next-method gate :blockp ())
-  (with-slots (input output . #1=(exchange pubkey secret cache)) gate ;¡ has-a !
+  (with-slots (input output . #1=(exchange pubkey secret cache)) gate ; has-a
     (when (send-blocks-p output) (setf cache (recv input)))
     (send (slot-value gate 'output) (gate-post . #1#))))
 
@@ -337,7 +337,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 ;;; should trade direction be represented as:
 ;;; a boolean slot?
-;;; slots for (consumed|earned)×(volume|asset)?
+;;; slots for (consumed|earned)*(volume|asset)?
 ;;; distinct buy and sell mixin classes/objects?
 
 (defclass trade ()
@@ -504,7 +504,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   ((%market :initarg :market) (book :reader book) (trades :reader trades)
    book-tracker trades-tracker))        ; unleash the cspaken!
 
-;;; shameful? ☑ disgusting? ☑ preserves dispatch? ☑
+;;; shameful? yes disgusting? yes preserves dispatch? yes
 (defmethod update-instance-for-different-class :after
     ((prev market) (new tracked-market) &key)
   (macrolet ((init (feed &aux (class (intern (format nil "~A-TRACKER" feed))))

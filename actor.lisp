@@ -74,7 +74,7 @@
 
 (defgeneric ensure-running (actor)
   (:method ((actor actor) &aux (cache (slot-value actor 'tasks)))
-    (with-slots (tasks) actor           ; this cache business, blech… scheduler?
+    (with-slots (tasks) actor           ; this cache business... scheduler?
       (aif (and (find :alive cache :key #'task-status) (eq tasks cache))
            it (aprog1 (enqueue actor) (push it tasks))))))
 
@@ -93,7 +93,7 @@
 
 (define-delegated-slot-operation slot-boundp t)
 
-(defun map-children (parent function)   ; ... i'm not sure what i expected
+(defun map-children (parent function)   ; n.b.: children vs delegates
   (mapcar function (slot-value parent 'children)))
 
 (defmethod ensure-running :after ((parent parent))

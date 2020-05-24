@@ -225,7 +225,7 @@
 (defmethod account-balances ((gate kraken-gate))
   (remove-if #'zerop
              ;; TODO: this signals !(typep () 'jso) on communication failure
-             ;; signaling is a Good Thing™, but let's be more helpful
+             ;; signaling is a Good Thing, but let's be more helpful
              (mapcar-jso (lambda (currency amount)
                            (cons-aq* (find-asset currency *kraken*)
                                      (parse-float amount :type 'rational)))

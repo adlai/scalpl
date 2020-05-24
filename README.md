@@ -58,22 +58,32 @@ are clients for the [Baloney Exchange](https://www.poloniex.com), and
 experimental support for the best-named casino in the Seychelles, the
 [Bitcoin Mercantile Exchange](https://bitmex.com/).
 
-# Mockumentation
+# Requirements
 
-There isn't much; if you are X3J13-illiterate, please find someone who isn't.
+Currently, this program only runs on [SBCL](http://www.sbcl.org), although it
+can be run on [Embeddable Common Lisp](https://common-lisp.net/project/ecl/),
+[Clozure CL](http://ccl.clozure.com), after a few rather trivial modifications
+required by ANSI compliance issues. Please let me know if you are able to run
+the program unmodified on either ECL or CCL, or have news about the others.
 
 # Excuses and Explanations
 
-* Kevin Simler's [thoughts on wealth](http://www.meltingasphalt.com/wealth-the-toxic-byproduct/), specifically parts
-Ⅱ-Ⅳ (the "Congolese Trading Window"), outline the ideological basis for ScalpL;
+* Kevin Simler's
+[thoughts on wealth](http://www.meltingasphalt.com/wealth-the-toxic-byproduct/),
+specifically parts II-IV (the "Congolese Trading Window"), outline the
+ideological basis;
 
-* Christ Stucchio's [HFT Apology](http://www.chrisstucchio.com/blog/2012/hft_apology.html) outlines the mechanics
-of automated market making (ie, real world Congolese Window Trading);
+* Christ Stucchio's
+[HFT Apology](http://www.chrisstucchio.com/blog/2012/hft_apology.html) outlines
+the mechanics of automated market making (ie, real world Congolese Window
+Trading);
 
-* Peter Seibel's [introduction](http://www.gigamonkeys.com/book/introduction-why-lisp.html) to the excellent
-[_Practical Common Lisp_](http://www.gigamonkeys.com/book/) lays out the
-factors behind the unconventional [yet unavoidable](http://notes.esthlos.com/files/2017-11-16-lisp-enlightenment.txt) language choice; the book itself lights the
-larval lisper's quest; and
+* Peter Seibel's
+[introduction](http://www.gigamonkeys.com/book/introduction-why-lisp.html) to
+the excellent [_Practical Common Lisp_](http://www.gigamonkeys.com/book/) lays
+out the factors behind the unconventional
+[yet unavoidable](http://notes.esthlos.com/files/2017-11-16-lisp-enlightenment.txt)
+language choice; the book itself lights the larval lisper's quest; and
 
 * Timothy B Lee's [cards](http://www.vox.com/cards/bitcoin/what-is-bitcoin)
 summarize the Bitcoin phenomenon for the unfamiliar, purely as enrichment;
