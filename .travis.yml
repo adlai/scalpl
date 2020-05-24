@@ -5,6 +5,8 @@ addons:
   apt:
     packages:
       - libssl-dev
+# this serves as a poor example of how to implement TLS... but as the old
+# saw goes, "life is too long to roll other people's crypto"
 
 env:
   global:
@@ -12,9 +14,9 @@ env:
     - ROSWELL_INSTALL_DIR=$HOME/.roswell
   matrix:
     - LISP=sbcl-bin
-    - LISP=ccl-bin
 #      LISP=name    chokes on        travis-ci job ID
 #    - LISP=abcl    acl-compat     |      local
+#    - LISP=ccl-bin CLOS cache     |  see failures/
 #    - LISP=clisp initform defvar  |    105921189
 #    - LISP=ecl method-combo-utils |    105921190
 #    - LISP=cmucl    cl+ssl        |    105921191
