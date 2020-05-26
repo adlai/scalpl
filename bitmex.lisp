@@ -42,7 +42,7 @@
       ((500 502 504) (values () status body))
       (t (awhen (getjso :x-ratelimit-remaining headers)
            (sleep (+ 1 (random 1.0) (dbz-guard (/ (1- (parse-integer it)))))))
-         (if (= status 200) (values (decode-json body) 200)
+         (if (= status 200) (values (decode-json body) 200 ())
              (values () status (getjso "error" (decode-json body))))))))
 
 (defun bitmex-path (&rest paths) (format () "/api/~{~A~}" paths))
