@@ -191,7 +191,7 @@
             (unless (find #\_ symbol)   ; ignore binaries (UP and DOWN)
               (with-aslots (primary counter)
                   (find-market symbol :bitmex)
-                (let ((fund (/ (getjso "amount" deposit) 1/11 ; ick
+                (let ((fund (/ (getjso "amount" deposit) 1/7 ; idk
                                (expt 10 (decimals primary)))))
                   (aif (find it positions :key #'car)
                        (collect (aq+ (cons-aq* primary fund) (third it))
@@ -328,23 +328,23 @@ Rage, rage against the dying of the light.\"
 (defun make-websocket-handler (client topic market book
                                &aux (next-expected :info)
                                  (price-factor (expt 10 (decimals market))))
-  (lambda (raw &aux (message (read-json raw)))
-    (case next-expected
-      (:info
-       (if (string= (getjso "info" message)
-                    "Welcome to the BitMEX Realtime API.")
-           (setf next-expected :subscribe)
-           (wsd:close-connection client)))
-      (:subscribe
-       (if (and (getjso "success" message)
-                (string= (getjso "subscribe" message) topic))
-           (setf next-expected :table)
-           (wsd:close-connection client)))
-      (:table
-       (flet ((offer (side size price &aux (mp (* price price-factor)))
+  (flet ((offer (side size price &aux (mp (* price price-factor)))
                 (make-instance (string-case (side) ("Sell" 'ask) ("Buy" 'bid))
                                :market market :price mp
                                :volume (/ size price))))
+    (lambda (raw &aux (message (read-json raw)))
+      (case next-expected
+        (:info
+         (if (string= (getjso "info" message)
+                      "Welcome to the BitMEX Realtime API.")
+             (setf next-expected :subscribe)
+             (wsd:close-connection client)))
+        (:subscribe
+         (if (and (getjso "success" message)
+                  (string= (getjso "subscribe" message) topic))
+             (setf next-expected :table)
+             (wsd:close-connection client)))
+        (:table
          (with-json-slots (table action data) message
            (macrolet ((do-data ((&rest slots) &body body)
                         `(dolist (row data)
