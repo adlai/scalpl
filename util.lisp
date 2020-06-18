@@ -199,7 +199,7 @@
   (let ((cl-json:*real-handler*
          (lambda (string)
            (or (ignore-errors (parse-decimal-number string))
-               (warn "CL:IGNORE-ERRORS CONSIDERED HARMFUL")
+               ;; (warn "CL:IGNORE-ERRORS CONSIDERED HARMFUL")
                (parse-float string :type 'rational))))
         (cl-json:*json-identifier-name-to-lisp* 'identity))
     (ctypecase in
