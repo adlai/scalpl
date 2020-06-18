@@ -352,24 +352,24 @@ Rage, rage against the dying of the light.\"
                       (do-data (id side size price)
                         (setf (gethash id book)
                               (cons price (offer side size price))))))
-               (cond
-                 ((string/= table "orderBookL2")
-                  (wsd:close-connection client))
-                 ((zerop (hash-table-count book))
-                  (when (string= action "partial") (build)))
-                 (t (string-case (action)
-                      ("update"
-                       (do-data (id side size)
-                         (let ((cons (gethash id book)))
-                           (rplacd cons (offer side size (car cons))))))
-                      ("insert"
-                       (do-data (id side size price)
-                         (setf (gethash id book)
-                               (cons price (offer side size price)))))
-                      ("delete" (do-data (id) (remhash id book)))
-                      ("partial" (clrhash book) (build))
-                      (t (wsd:close-connection client)
-                         (error "unknown orderbook action: ~s" action)))))))))))))
+               (string-case (table)
+                 ("orderBookL2"
+                  (if (zerop (hash-table-count book))
+                      (when (string= action "partial") (build))
+                      (string-case (action)
+                        ("update"
+                         (do-data (id side size)
+                           (let ((cons (gethash id book)))
+                             (rplacd cons (offer side size (car cons))))))
+                        ("insert"
+                         (do-data (id side size price)
+                           (setf (gethash id book)
+                                 (cons price (offer side size price)))))
+                        ("delete" (do-data (id) (remhash id book)))
+                        ("partial" (clrhash book) (build))
+                        (t (wsd:close-connection client)
+                           (error "unknown orderbook action: ~s" action)))))
+                 (t (wsd:close-connection client)))))))))))
 
 (defun connect-websocket-client (topic)
   (wsd:start-connection

@@ -131,8 +131,9 @@
   (do* ((remaining-offers others (rest remaining-offers))
         (processed-tally    0    (1+   processed-tally)))
        ((or (null remaining-offers)  ; EITHER: processed entire order book
+            ()                       ;  TODO : passed over enough liquidity
             (and (> acc resilience)  ;     OR:   BOTH: processed past resilience
-                 (> processed-tally max-orders))) ; AND: processed enough orders
+                 (> processed-tally max-orders))) ; AND: at maximal order count
         (flet ((pick (count offers)
                  (sort (subseq* (sort (or (subseq offers 0 (1- processed-tally))
                                           (warn "~&FIXME: GO DEEPER!~%") offers)
@@ -170,7 +171,7 @@
    (abbrev :allocation :class :initform "ope")
    (frequency :initform 1/7 :initarg :frequency)
    (supplicant :initarg :supplicant) filter prioritizer
-   (epsilon :initform (expt 0.14 3) :initarg :epsilon)
+   (epsilon :initform (* 4 (expt 0.14 3)) :initarg :epsilon)
    (magic :initform 3 :initarg :magic-count)))
 
 (defmethod christen ((ope ope-scalper) (type (eql 'actor)))
