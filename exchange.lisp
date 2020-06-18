@@ -477,8 +477,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 
 (defclass book-tracker (parent)
   ((market :initarg :market :reader market :initform (error "required"))
-   (get-book-keys :initform nil :initarg :get-book-keys)
-   (delay :initarg :delay :initform 13) (book :initform ())
+   (get-book-keys :initform '(:count 555) :initarg :get-book-keys)
+   (delay :initarg :delay :initform 1) (book :initform ())
    (buffer :initform (make-instance 'channel)) fetcher
    (output :initform (make-instance 'channel))))
 
@@ -583,7 +583,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defgeneric account-balances (gate))
 
 (defclass balance-tracker (actor)
-  ((fuzz :initarg :fuzz :initform (random 7))
+  ((fuzz :initarg :fuzz :initform 2)
    (sync :initarg :sync :initform (make-instance 'channel))
    (balances :initarg :balances :initform ())
    (reserved :initarg :reserved :initform ())
@@ -683,7 +683,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defclass execution-tracker (parent)
   ((abbrev :allocation :class :initform "exhun tracker")
    (trades :initform nil :initarg :trades) (bases :initform nil)
-   (delay :initform 59) (buffer :initform (make-instance 'channel)) fetcher))
+   (delay :initform 11) (buffer :initform (make-instance 'channel)) fetcher))
 
 (defmethod christen ((tracker execution-tracker) (type (eql 'actor)))
   (with-slots (gate market) tracker

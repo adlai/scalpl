@@ -187,10 +187,9 @@
           (deposit (gate-request gate '(:get "user/wallet") ())))
       (when deposit
         (dolist (instrument instruments balances)
-          (with-json-slots (symbol (mark "markPrice")) instrument
-            (unless (find #\_ symbol)   ; ignore binaries (UP and DOWN)
-              (with-aslots (primary counter)
-                  (find-market symbol :bitmex)
+          (with-json-slots (symbol (mark "markPrice") state) instrument
+            (unless (string= state "Unlisted")
+              (with-aslots (primary counter) (find-market symbol :bitmex)
                 (let ((fund (/ (getjso "amount" deposit) 1/7 ; idk
                                (expt 10 (decimals primary)))))
                   (aif (find it positions :key #'car)
@@ -234,7 +233,7 @@
 (defmethod execution-since ((gate bitmex-gate) market since)
   (awhen (raw-executions gate :pair (name market)
                          :from (if since (timestamp since)
-                                   (timestamp- (now) 11 :day)))
+                                   (timestamp- (now) 5 :day)))
     (mapcan #'parse-execution
             (if (null since) it
                 (subseq it (1+ (position (txid since) it

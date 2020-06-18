@@ -29,7 +29,7 @@
   ((abbrev :allocation :class :initform "filter") (cut :initarg :cut)
    (bids :initform ()) (asks :initform ()) (book-cache :initform nil)
    (supplicant :initarg :supplicant :initform (error "must link supplicant"))
-   (frequency  :initarg :frequency  :initform 17))) ; FIXME: s/ll/sh/!?
+   (frequency  :initarg :frequency  :initform 1/7))) ; FIXME: s/ll/sh/!?
 
 (defmethod christen ((filter filter) (type (eql 'actor)))
   (slot-reduce filter supplicant name))
@@ -144,7 +144,7 @@
                      (with-slots (market price) (cdr order)
                        (make-instance 'offer ; FIXME: :given (ring a bell?)
                                       :given (cons-aq* asset vol) :volume vol
-                                      :market market :price (1- price)))))))
+                                      :market market :price (- price 5)))))))
           (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni! wut?
                                     max-orders processed-tally))
                  (chosen-stairs         ; the (shares . foreign-offer)s to fight
@@ -168,7 +168,7 @@
   ((input :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
    (abbrev :allocation :class :initform "ope")
-   (frequency :initform (random 1e1) :initarg :frequency) ; lel = l0l0
+   (frequency :initform 1/7 :initarg :frequency)
    (supplicant :initarg :supplicant) filter prioritizer
    (epsilon :initform (expt 0.14 3) :initarg :epsilon)
    (magic :initform 3 :initarg :magic-count)))
