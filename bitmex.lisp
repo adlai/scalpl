@@ -399,54 +399,17 @@ Rage, rage against the dying of the light.\"
 ;;; Trollbox
 ;;;
 
-(defun chats-since (channel &optional (since (timestamp- (now) 1 :minute)))
-  (flet ((parse (chat)
-           (with-json-slots (date id user message) chat
-             (list (parse-timestamp *bitmex* date) id user message))))
-    (alet (mapcar #'parse
-                  (public-request
-                   "chat" `(("channel" . ,channel) ("count" . 499)
-                            ("startTime" .,(format-timestring
-                                            () (timestamp- (now) 1 :minute)
-                                            :timezone +utc-zone+)))))
-      (if (not since) it
-          (remove since it :test #'timestamp> :key #'car)))))
+(defun raw-chats (channel &optional count start (reverse t))
+  (public-request "chat" `(("channelID" . ,channel)
+                           ,@(when start `(("start" . ,start)))
+                           ,@(when count `(("count" . ,count)))
+                           ("reverse" . ,(if reverse 1 0)))))
 
-(defclass chats-fetcher (actor) ())
-
-(defmethod christen ((fetcher chats-fetcher) (type (eql 'actor)))
-  (format nil "cheat fetcher ~A" (channel fetcher)))
-
-(defmethod perform ((fetcher chats-fetcher) &key)
-  (with-slots (buffer delay channel)
-      (first (slot-value fetcher 'delegates)) ; TODO : proper delegate
-    (dolist (trade (aif (recv buffer) (chats-since channel it)
-                        (chats-since channel)))
-      ;; this unoptimization is starting to stink of prematurity ... .
-      (send buffer trade))
-    (sleep delay)))
-
-(defclass chats-tracker (parent)
-  ((channel :initarg :channel :reader channel)
-   (delay  :initarg :delay  :initform 17)
-   (buffer :initform (make-instance 'channel))
-   (output :initform (make-instance 'channel))
-   (chats :initform nil) fetcher))
-
-(defmethod christen ((tracker chats-tracker) (type (eql 'actor)))
-  (format nil "cheat tracker ~A" (channel tracker)))
-
-(defmethod perform ((tracker chats-tracker) &key)
-  (with-slots (buffer chats output delay) tracker
-    (let ((last (car chats)))
-      (select
-        ((send buffer last)) ((send output chats))
-        ((recv buffer next) (push next chats))
-        (t (sleep delay))))))
-
-(defmethod initialize-instance :after ((tracker chats-tracker) &key)
-  (adopt tracker (setf (slot-value tracker 'fetcher)
-                       (make-instance 'chats-fetcher :delegates `(,tracker)))))
+(defun dump-recent-chats (&optional (channel 1) (count 20))
+  (assert (<= 0 count 500) (count) "Count must be within [0,500]")
+  (dolist (chat (nreverse (raw-chats channel count)))
+    (with-json-slots (id date user message) chat
+      (format t "~&~8D ~24A ~20A~%~<   ~@;~A~:>~%" id date user (list message)))))
 
 ;;;
 ;;; Bulk Placement and Cancellation
