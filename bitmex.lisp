@@ -400,16 +400,17 @@ Rage, rage against the dying of the light.\"
 ;;;
 
 (defun raw-chats (channel &optional count start (reverse t))
-  (public-request "chat" `(("channelID" . ,channel)
+  (public-request "chat" `(,@(when channel `(("channelID" . ,channel)))
                            ,@(when start `(("start" . ,start)))
                            ,@(when count `(("count" . ,count)))
                            ("reverse" . ,(if reverse 1 0)))))
 
-(defun dump-recent-chats (&optional (channel 1) (count 20))
+(defun dump-recent-chats (&optional (count 20) channel)
   (assert (<= 0 count 500) (count) "Count must be within [0,500]")
   (dolist (chat (nreverse (raw-chats channel count)))
-    (with-json-slots (id date user message) chat
-      (format t "~&~8D ~24A ~20A~%~<   ~@;~A~:>~%" id date user (list message)))))
+    (with-json-slots (id date user message (lang "channelID")) chat
+      (format t "~&~20A ~24A ~8D~:[ ~D~;~*~]~%~<   ~@;~A~:>~%"
+              user date id channel lang (list message)))))
 
 ;;;
 ;;; Bulk Placement and Cancellation

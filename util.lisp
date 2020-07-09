@@ -193,7 +193,8 @@
       (string (cl-json:decode-json-from-string in))
       (stream (cl-json:decode-json in)))))
 
-(defun decode-json (arg) (read-json (map 'string 'code-char arg)))
+(defun decode-json (arg)
+  (read-json (flexi-streams:octets-to-string arg :external-format :utf8)))
 
 (defun getjso (key &optional (map () map-p))
   (if (not map-p) (lambda (map) (getjso key map))
