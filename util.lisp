@@ -28,28 +28,10 @@
            #:jso-keys
            #:with-json-slots
            #:mapjso*
-           #:short-month-index
-           #:parse-rfc1123-timestring
            #+clozure #:memory-usage
            ))
 
 (in-package #:scalpl.util)
-
-;;; Actually useful
-
-(defun short-month-index (short-name)
-  (string-case (short-name)
-    ("Jan" 1) ("Feb" 2) ("Mar" 3) ("Apr" 4) ("May" 5) ("Jun" 6)
-    ("Jul" 7) ("Aug" 8) ("Sep" 9) ("Oct" 10) ("Nov" 11) ("Dec" 12)))
-
-;;; TODO: row, row, row, your boat, gently up the stream...
-(defun parse-rfc1123-timestring (timestring &key) ; TODO: fail-on-error etc
-  (destructuring-bind (dd mmm yyyy hhmmss zone)
-      (cdr (split-sequence #\Space timestring))
-    (let ((temp (format nil "~A-~2,'0D-~AT~A~A"
-                        yyyy (short-month-index mmm) dd hhmmss zone)))
-      (declare (dynamic-extent temp))
-      (parse-rfc3339-timestring temp))))
 
 (defun strftime (&optional datep &aux bits)
   (let ((data (multiple-value-list      ; my kingdom for a stack!

@@ -6,6 +6,19 @@
 
 (in-package #:scalpl.mpex)
 
+;;; RFC 1123 Timestrings
+
+(defun parse-rfc1123-timestring (timestring &key) ; TODO: fail-on-error etc
+  (flet ((short-month-index (short-name)
+           (string-case (short-name)
+             ("Jan" 1) ("Feb" 2) ("Mar" 3) ("Apr" 4) ("May" 5) ("Jun" 6)
+             ("Jul" 7) ("Aug" 8) ("Sep" 9) ("Oct" 10) ("Nov" 11) ("Dec" 12))))
+    (destructuring-bind (dd mmm yyyy hhmmss zone)
+        (cdr (split-sequence #\Space timestring))
+      (parse-rfc3339-timestring
+       (format nil "~A-~2,'0D-~AT~A~A"
+               yyyy (short-month-index mmm) dd hhmmss zone)))))
+
 ;;; General Parameters
 (defvar *base-stub* "http://mpex.re/mpex-")
 
