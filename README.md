@@ -26,6 +26,10 @@ such acts in jurisdictia where the potential consequences of such actions are
 punishable is liable to offend my religion, and should be considered a capital
 offense, insofar as such are punishable by and large small etc etc etc.
 
+The concurrancy mechanisms employed by the procurrency silencer have been
+empirically demonstrated to contain faults, and it is thus a great way to
+have a bad time if you rely on the source code without reading it, aloud!
+
 ## PROCLAIMER REGARDING CONTINUITY
 After much internal debate, and in light of recent developments (by which is
 meant the guided actions of one patently insane and insanely unpatentable
