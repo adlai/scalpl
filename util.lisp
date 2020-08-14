@@ -1,7 +1,8 @@
 (defpackage #:scalpl.util
   (:use #:c2cl #:anaphora #:parse-float
         #:string-case #:local-time #:split-sequence)
-  (:export #:once-only
+  (:export #:shorten-uid
+           #:once-only
            #:shallow-copy
            #:dbz-guard
            #:slot-reduce #:slot-reducer #:slot-setter #:aslot-setter
@@ -33,8 +34,27 @@
 
 (in-package #:scalpl.util)
 
+;;; naming problems is the only liability
+;;; 'projugate' evokes 'congress opposes progress'
+;;; 'complement' evokes the angular interpretation
+;;; 'supplement' is perhaps the correct appelation
+(defun projugate (complex) (- (conjugate complex)))
+
+;;; hyphens within alphanumeric identifiers frequently denote
+;;; semantic divisions, in a manner similar to how null bytes
+;;; and colons within addresses designators notated according
+;;; to the sixth version of the internet protocol, frequently
+;;; denote physical discontinuity.
+(defun shorten-uid (uid &optional (separator #\-) (field 0))
+  (check-type uid string "Identifiers must be strings")
+  ;; (ctypecase uid (string) (null (setf uid "")))
+  (check-type separator character "Strings must contain characters")
+  (check-type field (signed-byte 8) "I've got a one-track mind that leads nowhere")
+  (if (zerop field) (subseq uid 0 (position separator uid))
+      (or (cerror "Do not shorten the UID" "Unimplemented"))))
+
 (defun strftime (&optional datep &aux bits)
-  (let ((data (multiple-value-list      ; my kingdom for a stack!
+  (let ((data (multiple-value-list  ; my kingdom for a stack!
                (decode-universal-time (get-universal-time)))))
     (symbol-macrolet ((next (princ-to-string (pop data))))
       (macrolet ((collect (&rest xs)

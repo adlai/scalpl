@@ -256,6 +256,14 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
    (volume :initarg :volume :accessor volume)
    (price  :initarg :price  :reader price)))
 
+;;; Originally, this TLA stood for "Offer ID", and designated
+;;; the identifier given an offer by the exchange after entry
+;;; to the live order book; however, this function must apply
+;;; both to offers 1) published by exchanges aggregating from
+;;; multiple other participants, and 2) that have no exchange
+;;; -given identifier, whether due to rejection, xor locality
+(defgeneric oid (offer) (:method ((offer offer)) ""))
+
 (defclass placed (offer)
   ((oid    :initarg :oid    :reader oid)))
 
@@ -283,8 +291,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (with-slots (given price market) offer
       (let ((market-decimals (slot-value market 'decimals))
             *print-readably* *print-escape* *print-circle*)
-        (format stream "~@[~A ~]~A @ ~A"
-                (ignore-errors (subseq (princ-to-string (oid offer)) 0 13))
+        (format stream "~@[~A ~]~A @ ~A" (shorten-uid (oid offer))
                 given (decimals:format-decimal-number
                        (/ (abs price) (expt 10 market-decimals))
                        :round-magnitude (- market-decimals)
