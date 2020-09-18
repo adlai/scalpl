@@ -83,7 +83,7 @@
   (slot-reduce prioritizer supplicant name)) ; this is starting to rhyme
 
 (defun sufficiently-different? (new old) ; someday dispatch on market
-  (< 0.03 (abs (log (/ (quantity (given new)) (quantity (given old)))))))
+  (< 0.04 (abs (log (/ (quantity (given new)) (quantity (given old)))))))
 
 (defun prioriteaze (ope target placed &aux to-add (excess placed))
   (flet ((place (new) (ope-place (slot-value ope 'supplicant) new)))
@@ -163,7 +163,7 @@
                       chosen-stairs)))))
     ;; TODO - use a callback for liquidity distribution control
     (with-slots (volume) (first remaining-offers)
-      (push (incf share (* 4/3 (incf acc volume))) (first remaining-offers)))))
+      (push (incf share (* 7/4 (incf acc volume))) (first remaining-offers)))))
 
 (defclass ope-scalper (parent)
   ((input :initform (make-instance 'channel))

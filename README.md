@@ -31,16 +31,11 @@ empirically demonstrated to contain faults, and it is thus a great way to
 have a bad time if you rely on the source code without reading it, aloud!
 
 ## PROCLAIMER REGARDING CONTINUITY
-After much internal debate, and in light of recent developments (by which is
-meant the guided actions of one patently insane and insanely unpatentable
-undividual behaving in a manner consistent with tween-age onset borderline
-schizo-affective disstimulant-modulated cyclothemia, with a dash of bitters
-and three parts simple syrup), we are back from hiatus and *seeking partners*!
-
-To celebrate our return, we are officially sponsoring
-[theme](https://www.youtube.com/watch?v=NCIUf8eYPqA)
-[songs](https://www.youtube.com/watch?v=6D6cw8Ob2sk),
-and actively seeking suggestions for more.
+Reports of roughness and density have been greatly adjagitated; thus, if you
+have suggestions for [theme](https://www.youtube.com/watch?v=NCIUf8eYPqA)
+[songs](https://www.youtube.com/watch?v=6D6cw8Ob2sk), please speak, although
+you are encouraged to consider whether music is merely a part of nature, xor
+the imposition from without of order upon chaos.
 
 # Abstract
 
@@ -59,8 +54,8 @@ hand still plays [such](http://trilema.com/2016/mpex-smpoe-closing-statement/)
 [tab](http://mpex.xyz/faq.html#17)[les](http://mpex.xyz/faq.html#33), there is
 no conceivably indubitable reason for such bits to have rot; fresh additions
 are clients for the [Baloney Exchange](https://www.poloniex.com), and
-experimental support for the best-named casino in the Seychelles, the
-[Bitcoin Mercantile Exchange](https://bitmex.com/).
+hazardous support for casinos such as [bitmexicom](https://bitmex.com/), and
+someday, maybe, also, ones that do not require selfies, residences, etc.
 
 # Requirements
 

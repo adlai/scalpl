@@ -128,7 +128,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (aprog1 (copy-pprint-dispatch ())
     (set-pprint-dispatch 'physical-quantity #'pprint-physical-quantity 1 it)))
 
-(defun enable-pretty-printer-abuse (&optional (right-margin 88))
+(defun enable-pretty-printer-abuse (&optional (right-margin 77))
   (setf *print-pretty* t *print-right-margin* right-margin
         *print-pprint-dispatch* *physical-quantity-pprint-dispatch*))
 
