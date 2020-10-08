@@ -14,6 +14,13 @@
                (:file "exchange" :depends-on ("actor"))
                (:file "qd"       :depends-on ("exchange"))))
 
+(defsystem #:scalpl/bybit
+  :license "public domain"
+  :description "api client for bybit"
+  :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com"
+  :depends-on (#:scalpl #:websocket-driver-client)
+  :components ((:file "bybit"))
+  :perform (load-op (no book) (cerror "bucketp" 'parse-error)))
 (defsystem #:scalpl/bitmex
   :license "public domain"
   :description "api client for bitmex"

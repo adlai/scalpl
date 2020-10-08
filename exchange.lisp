@@ -555,8 +555,10 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
                          (and (numberp count) (= -1 (decf count)))))
                   (line (first bids) (first asks)))
                 (macrolet ((side (stash mine book)
-                             `(and ,mine (>= (price (car ,book))
-                                             (price (car ,mine)))
+                             ;; more fenceposts masquerading as
+                             ;; off-by-null errors! ad matai AI
+                             `(and ,mine ,book (>= (price (car ,book))
+                                                   (price (car ,mine)))
                                    (> (volume (car ,book))
                                       (volume (setf ,stash (pop ,mine)))))))
                   (do ((my-bids (car ours)) (my-asks (cdr ours))
