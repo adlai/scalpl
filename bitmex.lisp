@@ -190,7 +190,7 @@
           (with-json-slots (symbol (mark "markPrice") state) instrument
             (unless (string= state "Unlisted")
               (with-aslots (primary counter) (find-market symbol :bitmex)
-                (let ((fund (/ (getjso "amount" deposit) 1/7 ; idk
+                (let ((fund (/ (getjso "amount" deposit) 1/5 ; idk
                                (expt 10 (decimals primary)))))
                   (aif (find it positions :key #'car)
                        (collect (aq+ (cons-aq* primary fund) (third it))
@@ -451,7 +451,7 @@ Rage, rage against the dying of the light.\"
                 `(("orderID" . ,(mapcar #'oid offers)))))
 
 ;;;
-;;; Rate Limiting
+;;; Rate Limiting, Naval Grazing, and other unsorted mercantilities
 ;;;
 
 (defun quote-fill-ratio (gate)
@@ -460,8 +460,14 @@ Rage, rage against the dying of the light.\"
                               (gate-request
                                gate '(:get "user/quoteFillRatio") ())))))
 
+(defun quote-value-ratio (gate)
+  (mapcar 'float
+          (remove '() (mapcar (getjso "quoteFillRatioMavg7")
+                              (gate-request
+                               gate '(:get "user/quoteValueRatio") ())))))
+
 ;;;
-;;; Introspection
+;;; LION TAMER
 ;;;
 
 (defun annualize-current-day (gate active-symbol &aux (condom 5) (solar 365.25))
