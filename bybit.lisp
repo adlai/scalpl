@@ -11,6 +11,14 @@
 
 (defvar *bybit* (make-instance 'exchange :name :bybit :sensitivity 1))
 
+;;; HALT THOU
+;;;
+;;; ... oops, too late, defvar is some sorta rewritable run-oncely
+;;;
+;;; You may also want to consult a
+;;; github.com/bybit-exchange/api-connectors/blob/?#,swagger.json
+;;; thanks to @dexter-2 for the pointer from their Issues flytrap
+
 (defclass bybit-market (market)
   ((exchange :initform *bybit*) (fee :initarg :fee :reader fee)))
 
