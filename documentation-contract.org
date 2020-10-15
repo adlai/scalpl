@@ -1,0 +1,91 @@
+* PARTICIPANTS
+
+This document details the terms of an exclusive contract to investigate the
+current state of a program. The contract is between Adlai, the author of the
+program and the commissioner of this contract, identified by PGP fingerprint
+
+     881B D406 8628 D739 CF7E 5F35 D258 F57B C24B 4DAD
+
+and verisimilitude, identified by PGP fingerprint
+
+     9E4B BC83 BE16 BC92 8638 D2D0 C0E5 AA22 56C2 126B
+
+* PROGRAM
+** LOCATION
+An archived copy of the program is available at the URL:
+
+   http://adlai.uncommon-lisp.org:7421/scalpl_310b539.tar.gz
+
+** HASHES
+The program in question is a snapshot of the ScalpL automated trading
+system. Since this program is under continual development, the files
+relevant to this contract have their hashes fixed at:
+
+~/path/to/scalpl/ $ sha1sum *.lisp
+c85a0d7e3279e0097348c12a9f9556497ccc7d1e  util.lisp
+a343de9e6a8675596b380df582acdf504348f5a3  actor.lisp
+ec13b9ee667525555fd80c8f3586b2216470672e  exchange.lisp
+85fab420a5c89916737627028e598f618cf14402  qd.lisp
+b7040fec5d7f16acef62bad2b1cc67cbe228d04f  bitfinex.lisp
+26cc394a8d5c64d2a5e5aca54ae777dfd10583cf  bitmex.lisp
+d512dddcb077dfedfd7cf437ed92abcaa114100e  kraken.lisp
+3da46bfc8ab4c1fc499904324d200194ee658ef3  mpex.lisp
+ae1d2f38f8e781bab9e1f88d984966db39592e14  poloniex.lisp
+
+The first file in the above list is not covered by the contract. It is only
+provided in the archive because the code depends on the utilities within.
+
+* COMMISSION
+** COMMENTS
+The commission is for writing toplevel comment blocks, preceeding the toplevel
+definitions in relevant files, highlighting and explaining noteworthy aspects of
+the immediately following form's behavior; specifically, hardcoded parameters
+beg an explanation of their effect and the effective domain from which to choose
+their values. Suggestions of changes are welcome, although not required.
+** SOFTWARE
+The commission does not require writing, nor running, any software, although
+verisimilitude may include software changes in the patches delivered.
+** DELIVERY
+The comments should be made available as patches to the above files, along with
+a PGP-signed statement including the hash of the patch file, and designating an
+address for payment. It is permissable to request a separate payment for work
+done on a single file, or groups of files. The files should be available for
+public download, and accessible to access by website archival services; and the
+signed statements should be notarized by deedbot.
+** DEADLINE
+The offer is valid until the end of 2020-11-08 UTC
+
+* PAYMENT
+** DESTINATION
+The payments for each unit of delivered work will be sent to Bitcoin addresses
+designated in the signed statements. The addresses do not have to be identical.
+** ALLOCATION
+One Bitcent (0.01000000 Bitcoin) is offered as upfront payment, with further
+payment after delivery of patches to the various files. The initial payment, if
+requested, will be deducted from the payment after the first delivery.
+
+The precise amount of each payment varies according to Adlai's judgement, and
+depends objectively upon the proportion of each file covered, and subjectively
+upon the quality of the comments themselves; the allocation for each file is
+according to a combination of its size, and relative overall importance:
+
+Filename   Allocation   Emphasis
+--------------------------------------------------------------------------------
+util       0.00000000   provided solely for reference purposes
+--------------------------------------------------------------------------------
+actor      0.01081081   sketches for a multiprocessing primitive, originally
+                        conceived before reading the Ada specification, although
+                        intended eventually to mimic Ada's task structure;
+                        arguably, this should be a standalone library.
+--------------------------------------------------------------------------------
+exchange   0.02594595   interface to be provided for each specific exchange, and
+                        a bit of the trading program's logic; much of this needs
+                        reworking, as it all grew in layers from a prototype.
+--------------------------------------------------------------------------------
+qd         0.04324324   the main labyrinth
+--------------------------------------------------------------------------------
+bitfinex   0.00600000   interface to an exchange
+bitmex     0.00857143   interface to an exchange, and websocket client
+kraken     0.00600000   interface to an exchange
+mpex       0.00342857   interface to an exchange
+poloniex   0.00600000   interface to an exchange

@@ -215,7 +215,7 @@
                                        `(lambda (price vwab inner-cut)
                                           (- (* 100 (1- (profit-margin ,@args)))
                                              inner-cut))))
-                            (ccase side ; give ☮ a chance!
+                            (ccase side ; give (sem #\N #\D) a chance!
                               (bids (punk price vwab bid))
                               (asks (punk vwab  price 0 ask)))))
                         #'dunk book))))))
@@ -341,7 +341,7 @@
           ;; this test originated in a harried attempt at bugfixing an instance
           ;; of Maybe, where the treasurer reports zero balances when the http
           ;; request (checking for balance changes) fails; due to use of aprog1
-          ;; when the Right Thing™ is awhen1. now that the bug's killed better,
+          ;; when the Right Thing's anaphoric. now that the bug's killed better,
           ;; Maybe thru recognition, the test remains; for when you lose the bug
           ;; don't lose the lesson, nor the joke.
           (unless (zerop total-fund)
