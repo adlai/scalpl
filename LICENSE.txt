@@ -12,7 +12,7 @@
 
 ;;;; The purpose due to which the LAG Public License exists:
 ;;;;
-;;;;
+;;;;   Reduce minimum net worth requirements for investors.
 ;;;;
 ;;;; END PURPOSE
 
