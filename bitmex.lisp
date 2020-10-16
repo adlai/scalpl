@@ -456,6 +456,9 @@ Rage, rage against the dying of the light.\"
 ;;; Rate Limiting, Naval Grazing, and other unsorted mercantilities
 ;;;
 
+;;; macros for patterns occuring strictly fewer than thrice
+;;; are considered premature optimization
+
 (defun quote-fill-ratio (gate)
   (mapcar 'float
           (remove '() (mapcar (getjso "quoteFillRatioMavg7")
