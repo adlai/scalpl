@@ -465,11 +465,19 @@ Rage, rage against the dying of the light.\"
                               (gate-request
                                gate '(:get "user/quoteFillRatio") ())))))
 
-(defun quote-value-ratio (gate)
-  (mapcar 'float
-          (remove '() (mapcar (getjso "quoteFillRatioMavg7")
-                              (gate-request
-                               gate '(:get "user/quoteValueRatio") ())))))
+(defun quote-value-ratio (gate &key symbols &aux piss dung)
+  ;; #.(reduce 'getjso '("summary" :|get| "/user/quoteValueRatio" "paths")
+  ;;           :from-end t :initial-value *swagger*) ; nice short docstring :)
+  "Please read the exchange's official documentation for these statistics:
+
+https://www.bitmex.com/app/tradingRules#Quote-Value-Ratio-Threshold"
+  (awhen (gate-request gate '(:get "user/quoteValueRatio") ())
+    (dolist (hourly-frame it (values piss dung))
+      (with-json-slots ((ratio "QVR") (weight "volumeXBT") symbol
+                        (count "quoteCount") account timestamp) hourly-frame
+        (if dung (assert (= (car dung) account)) (push account dung))
+        (push (list timestamp weight count ratio) piss)
+        (when symbols (pushnew (find-market symbol :bitmex) (cdr dung)))))))
 
 ;;;
 ;;; LION TAMER
