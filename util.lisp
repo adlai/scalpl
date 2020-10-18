@@ -13,6 +13,7 @@
            #:rehome-symbol
            #:rehome-class
            #:string-case
+           #:concatenate-url-parameters
            #:urlencode-params
            #:break-errors
            #:kw #:mvwrap
@@ -156,15 +157,19 @@
         ,(let (,@(loop for n in names for g in gensyms collect `(,n ,g)))
            ,@body)))))
 
-(defun urlencode-params (params &optional (format :utf8))
-  (with-output-to-string (out)
-    (labels ((urlencode (thing)
-               (drakma:url-encode (princ-to-string thing) format))
-             (write-param (param)
-               (destructuring-bind (name . value) param
-                 (format out "~A=~A" (urlencode name) (urlencode value)))))
-      (awhen (first params) (write-param it))
-      (dolist (param (rest params)) (write-char #\& out) (write-param param)))))
+(defun concatenate-url-parameters (alist)
+  (with-output-to-string (out) ;_; this code smells like an office building
+    (flet ((write-parameter (cons) (format out "~A=~A" (car cons) (cdr cons))))
+      (awhen (first alist) (write-parameter it))
+      (dolist (cons (rest alist)) (write-char #\& out) (write-parameter cons)))))
+
+(defun urlencode-params (alist &optional (format :utf8))
+  (flet ((urlencode (thing)             ;_; and this function
+           (drakma:url-encode (princ-to-string thing) format)))
+    (concatenate-url-parameters         ;   looks like a life
+     (mapcar (lambda (cons)             ;   filled with regrets
+               (cons (urlencode (car cons)) (urlencode (cdr cons))))
+             alist))))                  ;   and hateful squalor
 
 ;;; anaphora!
 

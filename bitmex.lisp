@@ -53,8 +53,7 @@
 (defun public-request (method parameters)
   (bitmex-request
    (apply #'bitmex-path "v1/" method
-          (and parameters `("?" ,(net.aserve:uridecode-string
-                                  (urlencode-params parameters)))))))
+          (and parameters `("?" ,(concatenate-url-parameters parameters))))))
 
 (defun auth-request (verb method key signer &optional params)
   (let* ((data (urlencode-params params))
