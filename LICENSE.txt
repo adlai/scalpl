@@ -4,19 +4,20 @@
 ;;;;; ;;;      ;;; ;; ;;;  ;;;    ;;;    ;;;;; ;     ;;;     ;;
 ;;;;; ;;;;;;;  ;;;    ;;;    ;;;;;;;     ;;;         ;;;;;;;;;
 
-;;;; The completed text of the software license must be executable
+;;;; The completed text of the software licence must be executable
 ;;;; as a Common Lisp program, as standardized by ANSI X3J13, with
 ;;;; preference given to subsequent standards that require signals
 ;;;; of the CL:SIMPLE-WARNING type to be raised both when the code
-;;;; references deprecated symbols, for any purpose whatsoever, ..
+;;;; references deprecated symbols for any purpose whatsoever, ...
 
-;;;; The purpose due to which the LAG Public License exists:
+;;;; The purpose for which LAGP must expose this licence is:
 ;;;;
-;;;;   Reduce minimum net worth requirements for investors.
+;;;;   Reduce the net worth floor for Accredited Investors.
 ;;;;
 ;;;; END PURPOSE
 
 ;;;; If you are concerned about the legal uncertainty imposed by
 ;;;; the contents of this file, please ask your lawyer to recom-
-;;;; -mend both a medication, and a licensed psychiatrist.
+;;;; -mend both a medication, and both a licenced psychiatrist,
+;;;; and a dealer in generic pharmaceuticals, such as hwisky.
 
