@@ -25,7 +25,7 @@
   :license "public domain"
   :description "api client for bitmex"
   :author "Adlai Chandrasekhar <adlai.chandrasekhar@gmail.com>"
-  :depends-on (#:scalpl #:aserve #:websocket-driver-client)
+  :depends-on (#:scalpl #:websocket-driver-client)
   :components ((:file "bitmex")))
 (defsystem #:scalpl/poloniex
   :license "public domain"
