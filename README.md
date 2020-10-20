@@ -59,11 +59,16 @@ someday, maybe, also, ones that do not require selfies, residences, etc.
 
 # Requirements
 
-Currently, this program only runs on [SBCL](http://www.sbcl.org), although it
-can be run on [Embeddable Common Lisp](https://common-lisp.net/project/ecl/),
-[Clozure CL](http://ccl.clozure.com), after a few rather trivial modifications
-required by ANSI compliance issues. Please let me know if you are able to run
-the program unmodified on either ECL or CCL, or have news about the others.
+The following Common Lisp compilers are tested regularly:
+
+* [SBCL](http://www.sbcl.org)
+* [Clozure CL](http://ccl.clozure.com)
+
+The following almost suffice, although not quite:
+
+* [Embeddable Common Lisp](https://common-lisp.net/project/ecl/)
+
+Please let me know if you use this program with other compilers.
 
 # Excuses and Explanations
 
@@ -90,24 +95,8 @@ though catalyzed by cryptocurrency, ScalpL itself is agn-_asset_-ic.
 
 # Current Status [![Build Status](https://travis-ci.org/adlai/scalpl.svg?branch=master)](https://travis-ci.org/adlai/scalpl)
 
-## Taming the Beast
-
-The hardcoded volatility harvesting algorithm obeys several parameters:
-
-* _fund-factor_ indicates the largest total fraction of the account funds (from
-either asset) which should ever be offered for trade.
-
-* _resilience-factor_ affects how deeply offers penetrate into the order book;
-the factor is multiplied by the recent maximal trade volume.
-
-* _targeting-factor_ is part of a negative feedback loop used to maintain a
-desired balance between the traded assets, although it is not a hard limit;
-persistent markets can elude this factor's rebalancing effect indefinitely.
-
-* _skew-factor_ controls the *non*linearity of the feedback loop.
-
-* _cut_ controls the tightness of placed offers; raising it yields a more
-profitable spread, at the cost of reduced execution volume.
+This program is a work in progress, built by a "Lone Wolf" madman. You should
+thus expect rudeness and flippancy, unless you pay for a consultation.
 
 ## Nature of the Beast
 

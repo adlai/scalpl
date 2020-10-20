@@ -261,11 +261,25 @@
       (string= (oid offer) (getjso "order_id" ret)))))
 
 ;;;
+;;; Liquidity Contribution Metrics
+;;;
+
+(defun liquidity-contribution-score (gate &optional (symbol "BTCUSD"))
+  (awhen (gate-request gate '(:get "/v2/private/account/lcp")
+                       `(("symbol" .,symbol)))
+    (mapcar (lambda (daily-metrics)
+              (with-json-slots ((theirs "platform_ratio") date
+                                (ours       "self_ratio") score)
+                  daily-metrics
+                (list (parse-timestring date) score ours theirs)))
+            (getjso "lcp_list" it))))
+
+;;;
 ;;; Comte Monte Carte
 ;;;
 
 (defmethod bases-for ((supplicant supplicant) (market bybit-market))
-  (with-slots (gate) supplicant         ; FIXME: XBTUSD-specific
+  (with-slots (gate) supplicant         ; FIXME: bitmex copypasta
     (awhen (account-position gate market)
       (let ((entry (realpart (first it))) (size (abs (quantity (third it)))))
         (flet ((foolish (basis &aux (price (realpart (car basis))))
@@ -276,9 +290,9 @@
             (values (remove-if #'foolish primary)
                     (remove-if #'foolish counter))))))))
 
-;; ;;;
-;; ;;; Websocket
-;; ;;;
+;;;
+;;; Websocket
+;;;
 
 (defparameter *websocket-url* "wss://stream.bybit.com/realtime")
 
