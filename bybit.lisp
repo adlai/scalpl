@@ -151,10 +151,10 @@
                               :price (* price (if aksp 1 -1)
                                         (expt 10 (decimals market))))))))
     (loop
-       (with-json-slots ((current "current_page") (count "last_page") data)
-           (fetch-page)
-         (dolist (json data) (push (parse-offer json) offers))
-         (if (= current count) (return offers) (incf page))))))
+       (awhen (fetch-page)
+         (with-json-slots ((current "current_page") (count "last_page") data) it
+           (dolist (json data) (push (parse-offer json) offers))
+           (if (= current count) (return offers) (incf page)))))))
 
 (defun account-position (gate market)
   (awhen (gate-request gate '(:get "/v2/private/position/list")
@@ -169,21 +169,20 @@
                                    (if (string= side "Buy") 1 -1)))
               (cons-aq counter (* size (if (string= side "Buy") -1 1))))))))
 
-(defmethod account-balances ((gate bybit-gate))
-  ;; tl;dr - transubstantiates position into 'balances' of long + short
-  (with-aslots (primary counter) (find-market "BTCUSD" :bybit)
-    (with-json-slots ((deposit "BTC"))
-        (gate-request gate '(:get "/v2/private/wallet/balance"))
-      (with-json-slots ((mark "mark_price"))
-          (car (public-request "tickers" `(("symbol" . ,(name it)))))
-        (let ((fund (* 5 (getjso "equity" deposit))))
-          (aif (account-position gate it)
-               (list (aq+ (cons-aq* primary fund)
-                          (second it))
-                     (aq+ (cons-aq* counter (* fund (parse-float mark)))
-                          (third it)))
-               (list (cons-aq* primary fund)
-                     (cons-aq* counter (* fund (parse-float  mark))))))))))
+(defmethod account-balances ((gate bybit-gate) ; FIXME: BTCUSD-specific
+                             &aux (market (find-market "BTCUSD" :bybit)))
+  (with-aslots (primary counter) market
+    (awhen (gate-request gate '(:get "/v2/private/wallet/balance"))
+      (with-json-slots ((deposit "BTC")) it
+        (with-json-slots ((mark "mark_price"))
+            (car (public-request "tickers" `(("symbol" . "BTCUSD"))))
+          (let ((fund (* 5 (getjso "equity" deposit))))
+            (aif (account-position gate market)
+                 (list (aq+ (cons-aq* primary fund) (second it))
+                       (aq+ (cons-aq* counter (* fund (parse-float mark)))
+                            (third it)))
+                 (list (cons-aq* primary fund)
+                       (cons-aq* counter (* fund (parse-float  mark)))))))))))
 
 ;;; This horror can be avoided via the actor-delegate mechanism.
 (defmethod market-fee ((gate bybit-gate) (market bybit-market)) (fee market))
