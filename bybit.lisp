@@ -135,13 +135,18 @@
 ;;; Private Data API
 ;;;
 
-(defmethod placed-offers ((gate bybit-gate) &aux offers (page 1))
+(defun fetch-pages (gate request options &optional count &aux (number 1))
   (flet ((fetch-page ()
-           (gate-request gate '(:get "/open-api/order/list")
-                         `(("order_status" . "New")
-                           ("limit" . "50")
-                           ("page" .,(format () "~D" page)))))
-         (parse-offer (json)
+           (gate-request gate request
+                         (acons "page" (format () "~D" number) options))))
+    (loop for page = (fetch-page) when page append (getjso "data" page)
+       and if (aif (getjso "last_page" page)
+                   (< (getjso "current_page" page) it)
+                   (when count (< number count)))
+       do (incf number) else do (loop-finish))))
+
+(defmethod placed-offers ((gate bybit-gate))
+  (flet ((parse-offer (json)
            (with-json-slots
                (symbol side price (oid "order_id") qty) json
              (let ((market (find-market symbol :bybit))
@@ -150,11 +155,8 @@
                               :volume (/ qty price)
                               :price (* price (if aksp 1 -1)
                                         (expt 10 (decimals market))))))))
-    (loop
-       (awhen (fetch-page)
-         (with-json-slots ((current "current_page") (count "last_page") data) it
-           (dolist (json data) (push (parse-offer json) offers))
-           (if (= current count) (return offers) (incf page)))))))
+    (mapcar #'parse-offer (fetch-pages gate '(:get "/open-api/order/list")
+                                       '(("order_status" . "New"))))))
 
 (defun account-position (gate market)
   (awhen (gate-request gate '(:get "/v2/private/position/list")
@@ -237,7 +239,7 @@
                   ("qty" . ,(princ-to-string (floor size)))
                   ("time_in_force" . "PostOnly"))))
 
-(defmethod post-offer ((gate bybit-gate) offer)
+(defmethod post-offer ((gate bybit-gate) (offer offer))
   (with-slots (market volume price) offer
     (let ((factor (expt 10 (decimals market))))
       (with-json-slots ((oid "order_id") (status "order_status") text)
@@ -260,8 +262,31 @@
       (string= (oid offer) (getjso "order_id" ret)))))
 
 ;;;
-;;; Liquidity Contribution Metrics
+;;; General Introspection
 ;;;
+
+(defun daily-returns (gate &optional count)
+  (awhen (gate-request gate '(:get "/open-api/wallet/fund/records")
+                       (when count `(("limit" . ,(princ-to-string count)))))
+    (mapcar (lambda (json)
+              (with-json-slots
+                  ((balance "wallet_balance") (date "exec_time") amount) json
+                (list (parse-timestring date) balance amount)))
+            (remove "Realized P&L" (getjso "data" it)
+                    :test-not #'string= :key (getjso "type")))))
+
+(defun recent-closes (gate &optional count &aux (sum 0))
+  (awhen (fetch-pages gate '(:get "/v2/private/trade/closed-pnl/list")
+                      `(("symbol" . "BTCUSD") ("limit" . "50"))
+                      (when count (ceiling count 50)))
+    (values (mapcar (lambda (json)
+                      (with-json-slots
+                          ((price "order_price") side qty
+                           (unix "created_at") (pnl "closed_pnl")) json
+                        (incf sum pnl)
+                        (list (unix-to-timestamp unix) side qty price pnl)))
+                    it)
+            sum)))
 
 (defun liquidity-contribution-score (gate &optional (symbol "BTCUSD"))
   (awhen (gate-request gate '(:get "/v2/private/account/lcp")
