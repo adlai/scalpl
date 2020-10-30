@@ -1,7 +1,7 @@
 (defpackage #:scalpl.bitmex
   (:nicknames #:bitmex) (:export #:*bitmex* #:bitmex-gate #:swagger)
   (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
-        #:scalpl.actor #:scalpl.exchange))
+        #:scalpl.actor #:scalpl.exchange #:scalpl.qd))
 
 (in-package #:scalpl.bitmex)
 
@@ -245,7 +245,7 @@
                                   (* (if buyp 1 -1) (floor size))))
                   ("execInst" . "ParticipateDoNotInitiate"))))
 
-(defmethod post-offer ((gate bitmex-gate) offer)
+(defmethod post-offer ((gate bitmex-gate) (offer offer))
   (with-slots (market volume price) offer
     (let ((factor (expt 10 (decimals market))))
       (with-json-slots ((oid "orderID") (status "ordStatus") text)
@@ -385,7 +385,7 @@
 ;;; Bulk Placement and Cancellation
 ;;;
 
-(defun offer-alist (offer)
+(defmethod offer-alist ((offer offer))
   (with-slots (market price given taken) offer
     (let ((buyp (minusp price)) (factor (expt 10 (decimals market))))
       (multiple-value-bind (int dec)
@@ -400,9 +400,8 @@
 
 (defun post-bulk (gate &rest offers)
   (let ((orders (format () "[~{~A~^,~}]"
-                        (reduce 'mapcar '(json:encode-json-alist-to-string
-                                          offer-alist)
-                                :from-end t :initial-value offers))))
+                        (mapcar #'json:encode-json-alist-to-string
+                                (mapcar #'offer-alist offers)))))
     (awhen (gate-request gate '(:post "order/bulk") `(("orders" . ,orders)))
       (loop for data in it for status = (getjso "ordStatus" data)
          when (equal status "New") collect
@@ -414,10 +413,15 @@
                               :volume (/ size price)
                               :price (* price (if aksp 1 -1)
                                         (expt 10 (decimals market))))))))))
+(defmethod post-offer ((gate bitmex-gate) (offers list))
+  (apply #'post-bulk gate offers))
 
 (defun cancel-bulk (gate &rest offers)
   (gate-request gate '(:delete "order")
-                `(("orderID" . ,(mapcar #'oid offers)))))
+                `(("orderID" . ,(json:encode-json-to-string
+                                 (mapcar #'oid offers))))))
+(defmethod cancel-offer ((gate bitmex-gate) (offers list))
+  (apply #'cancel-bulk gate offers))
 
 ;;;
 ;;; Rate Limiting, Naval Grazing, and other unsorted mercantilities

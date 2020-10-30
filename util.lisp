@@ -1,5 +1,5 @@
 (defpackage #:scalpl.util
-  (:use #:c2cl #:anaphora #:parse-float
+  (:use #:c2cl #:anaphora #:parse-float #:decimals
         #:string-case #:local-time #:split-sequence)
   (:export #:shorten-uid
            #:once-only
@@ -194,7 +194,11 @@
 ;;; json
 
 (defun read-json (in)
-  (let ((cl-json:*real-handler* (lambda (x) (parse-float x :type 'rational)))
+  (let ((cl-json:*real-handler*
+         (lambda (string)
+           (or (ignore-errors (parse-decimal-number string))
+               (warn "CL:IGNORE-ERRORS CONSIDERED HARMFUL")
+               (parse-float string :type 'rational))))
         (cl-json:*json-identifier-name-to-lisp* 'identity))
     (ctypecase in
       (string (cl-json:decode-json-from-string in))

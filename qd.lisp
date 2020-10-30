@@ -1,6 +1,9 @@
 (defpackage #:scalpl.qd
   (:use #:cl #:chanl #:anaphora #:local-time
-        #:scalpl.util #:scalpl.exchange #:scalpl.actor))
+        #:scalpl.util #:scalpl.exchange #:scalpl.actor)
+  (:export #:ope-placed #:ope-place #:ope-cancel
+           #:prioritizer #:prioriteaze
+           #:next-bids #:next-asks #:sufficiently-different?))
 
 (in-package #:scalpl.qd)
 
@@ -17,13 +20,13 @@
 
 ;;; response: placed offer if successful, nil if not
 (defun ope-place (ope offer)
-  (with-slots (control response) ope
-    (send control `(:offer ,offer)) (recv response)))
+  (with-slots (control response) (slot-value ope 'supplicant)
+    (send control (list :offer offer)) (recv response)))
 
 ;;; response: trueish = offer no longer placed, nil = unknown badness
 (defun ope-cancel (ope offer)
   (with-slots (control response) (slot-value ope 'supplicant)
-    (send control (cons :cancel offer)) (recv response)))
+    (send control (list :cancel offer)) (recv response)))
 
 (defclass filter (actor)
   ((abbrev :allocation :class :initform "filter") (cut :initarg :cut)
@@ -85,13 +88,13 @@
 (defun sufficiently-different? (new old) ; someday dispatch on market
   (< 0.04 (abs (log (/ (quantity (given new)) (quantity (given old)))))))
 
-(defun prioriteaze (ope target placed &aux to-add (excess placed))
-  (flet ((place (new) (ope-place (slot-value ope 'supplicant) new)))
+(defgeneric prioriteaze (ope target placed)
+  (:method ((ope prioritizer) target placed &aux to-add (excess placed))
     (macrolet ((frob (add pop)
                  `(let* ((n (max (length ,add) (length ,pop)))
                          (log (log (1+ (random (1- (exp n)))))))
                     (awhen (nth (floor log) ,pop) (ope-cancel ope it))
-                    (awhen (nth (- n (ceiling log)) ,add) (place it)))))
+                    (awhen (nth (- n (ceiling log)) ,add) (ope-place ope it)))))
       (aif (dolist (new target (sort to-add #'< :key #'price))
              (aif (find (price new) excess :key #'price :test #'=)
                   (setf excess (remove it excess)) (push new to-add)))

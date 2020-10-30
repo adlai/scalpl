@@ -795,10 +795,14 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 ;;; Action API
 ;;;
 
-(defgeneric post-offer (gate offer))
+(defgeneric post-offer (gate offer)
+  (:method ((gate gate) (offers list))
+    (mapcar (lambda (offer) (post-offer gate offer)) offers)))
 (defgeneric cancel-offer (gate offer)
   (:method ((gate gate) (offer offer))
-    (warn "Tried cancelling unplaced offer ~A" offer)))
+    (warn "Tried cancelling unplaced offer ~A" offer))
+  (:method ((gate gate) (offers list))
+    (mapcar (lambda (offer) (cancel-offer gate offer)) offers)))
 
 (defclass supplicant (parent)
   ((gate :initarg :gate) (market :initarg :market :reader market) placed
@@ -812,17 +816,18 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
           :key #'consumed-asset :test-not #'eq))
 
 (defun balance-guarded-place (ope &rest offers)
-  (with-slots (gate placed order-slots treasurer) ope
-    (let* ((asset (consumed-asset (first offers)))
-           (spending (offers-spending ope asset))
-           (mapreduc (destructuring-bind (first &rest rest) offers
-                       (reduce #'aq+ (mapcar #'given (append spending rest))
-                               :initial-value (given first))))
-           (ourfunds (asset-funds asset (slot-reduce treasurer balances))))
+  (flet ((map-reduce (map reduce list) (reduce reduce (mapcar map list))))
+    (with-slots (gate placed order-slots treasurer) ope
+      (let* ((asset (consumed-asset (first offers)))
+             (spending (offers-spending ope asset))
+             (mapreduc (map-reduce #'given #'aq+ (append spending offers)))
+             (ourfunds (asset-funds asset (slot-reduce treasurer balances))))
 
-      (and (>= ourfunds (scaled-quantity mapreduc))
-           (>= order-slots (+ (length placed) (length offers)))
-           (awhen1 (post-offer gate (first offers)) (push it placed))))))
+        (and (>= ourfunds (scaled-quantity mapreduc))
+             (>= order-slots (+ (length placed) (length offers)))
+             (atypecase (post-offer gate offers)
+               (placed (push it placed))
+               (list (dolist (offer it) (push offer placed)))))))))
 
 (defmethod placed-offers ((supplicant supplicant))
   (with-slots (gate placed market) supplicant
@@ -833,7 +838,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
     (send response
           (case (car cons)
             (:cancel (awhen1 (cancel-offer gate arg)
-                       (setf placed (remove (oid arg) placed :key #'oid))))
+                       (setf placed (set-difference placed arg :key #'oid
+                                                    :test #'string=))))
             (:offer (apply #'balance-guarded-place supplicant arg))
             (:sync (setf placed (placed-offers supplicant)))))))
 
