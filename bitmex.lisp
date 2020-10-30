@@ -423,6 +423,49 @@
 (defmethod cancel-offer ((gate bitmex-gate) (offers list))
   (apply #'cancel-bulk gate offers))
 
+(defun amend-bulk (gate offers)
+  (let ((orders (format () "[~{~A~^,~}]"
+                        (mapcar #'json:encode-json-alist-to-string
+                                (loop for (old . new) in offers collect
+                                     (acons "orderID" (oid old)
+                                            (offer-alist new)))))))
+    (awhen (gate-request gate '(:put "order/bulk") `(("orders" . ,orders)))
+      (dolist (amended it)
+        (with-json-slots ((status "ordStatus") (new-price "price")
+                          (oid "orderID") (new-size "orderQty"))
+            amended
+          (when (string= status "New")
+            (let ((old (find oid (mapcar #'car offers)
+                             :key #'oid :test #'string=)))
+              (with-slots (price volume market) old
+                (reinitialize-instance
+                 old :volume (/ new-size new-price)
+                 :price (* new-price (signum price)
+                           (expt 10 (decimals market))))))))))))
+
+(defclass bitmex-prioritizer (prioritizer) ())
+
+(defmethod prioriteaze ((ope bitmex-prioritizer) target placed
+                        &aux to-add (excess placed))
+  (flet ((frob (add pop &aux (delta (- (length add) (length pop))))
+           (flet ((amend (add pop)
+                    (amend-bulk (slot-reduce ope supplicant gate)
+                                (mapcar #'cons pop add))))
+             (when (and add pop) (amend add pop))
+             (case (signum delta)
+               (+1 (ope-place ope (last add delta)))
+               (-1 (ope-cancel ope (last pop (- delta))))))))
+    (aif (dolist (new target (sort to-add #'< :key #'price))
+           (aif (find (price new) excess :key #'price :test #'=)
+                (setf excess (remove it excess)) (push new to-add)))
+         (frob it (reverse excess))   ; which of these is worst?
+         (if excess (frob () excess)  ; choose the lesser weevil
+             (and target placed (= (length target) (length placed))
+                  (loop for new in target and old in placed
+                     when (sufficiently-different? new old)
+                     collect new into news and collect old into olds
+                     finally (when news (frob news olds))))))))
+
 ;;;
 ;;; Rate Limiting, Naval Grazing, and other unsorted mercantilities
 ;;;
@@ -447,7 +490,7 @@ https://www.bitmex.com/app/tradingRules#Quote-Value-Ratio-Threshold"
       (with-json-slots ((ratio "QVR") (weight "volumeXBT") symbol
                         (count "quoteCount") account timestamp) hourly-frame
         (if dung (assert (= (car dung) account)) (push account dung))
-        (push (list timestamp weight count ratio) piss)
+        (push (list timestamp (float weight) count (float ratio)) piss)
         (when symbols (pushnew (find-market symbol :bitmex) (cdr dung)))))))
 
 ;;;

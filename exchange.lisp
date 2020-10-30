@@ -322,8 +322,8 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 (defmethod perform ((gate gate) &key)
   (call-next-method gate :blockp ())
   (with-slots (input output . #1=(exchange pubkey secret cache)) gate ; has-a
-    (when (send-blocks-p output) (setf cache (recv input)))
-    (send (slot-value gate 'output) (gate-post . #1#))))
+    (when (send-blocks-p output) (setf cache (recv input)) (gate-post . #1#))
+    (send output cache)))
 
 (defmethod halt :before ((gate gate))
   (pexec (:name "gate kill helper")

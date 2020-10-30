@@ -146,17 +146,17 @@
        do (incf number) else do (loop-finish))))
 
 (defmethod placed-offers ((gate bybit-gate))
-  (flet ((parse-offer (json)
-           (with-json-slots
-               (symbol side price (oid "order_id") qty) json
-             (let ((market (find-market symbol :bybit))
-                   (aksp (string-equal side "Sell")))
-               (make-instance 'placed :oid oid :market market
-                              :volume (/ qty price)
-                              :price (* price (if aksp 1 -1)
-                                        (expt 10 (decimals market))))))))
-    (mapcar #'parse-offer (fetch-pages gate '(:get "/open-api/order/list")
-                                       '(("order_status" . "New"))))))
+  (mapcar (lambda (json)
+            (with-json-slots
+                (symbol side price (oid "order_id") qty) json
+              (let ((market (find-market symbol :bybit))
+                    (aksp (string-equal side "Sell")))
+                (make-instance 'placed :oid oid :market market
+                               :volume (/ qty price)
+                               :price (* price (if aksp 1 -1)
+                                         (expt 10 (decimals market)))))))
+          (fetch-pages gate '(:get "/open-api/order/list")
+                       '(("order_status" . "New")))))
 
 (defun account-position (gate market)
   (awhen (gate-request gate '(:get "/v2/private/position/list")
@@ -277,7 +277,8 @@
 
 (defun recent-closes (gate &optional count &aux (sum 0))
   (awhen (fetch-pages gate '(:get "/v2/private/trade/closed-pnl/list")
-                      `(("symbol" . "BTCUSD") ("limit" . "50"))
+                      `(("symbol" . "BTCUSD") .
+                        ,(when count `(("limit" . "50"))))
                       (when count (ceiling count 50)))
     (values (mapcar (lambda (json)
                       (with-json-slots
