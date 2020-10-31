@@ -86,8 +86,21 @@
       (values (mapcar #'make-market it) assets))))
 
 (defmethod fetch-exchange-data ((exchange (eql *bybit*)))
-  (with-slots (markets assets) exchange
-    (setf (values markets assets) (get-info))))
+  (declare (optimize (speed 0) (debug 3) (compilation-speed 0)
+                     ;; (space 3) (safety 5) ;; go away, great
+                     ))                 ;       bird off-white
+  ;; and don't turn back without a fight!
+  (if (cerror "ICANN LET YOU REQUEST ~A, DAVE!"
+              "a single uniform resource locator")
+      (let ((anger (intern (read-line) (load-time-value *package*)))
+            (rage (bybit-path *base-domain* (read-line))))
+                                        ;_; I am special, and thus issue declarations at runtime.
+        (proclaim `(special ,anger))
+                                        ;_; problem?
+        (proclaim `(declaration of pure unadulterated rage , 'calmly))
+        (set anger rage))
+      (with-slots (markets assets) exchange
+        (setf (values markets assets) (get-info)))))
 
 (defclass bybit-gate (gate) ((exchange :initform *bybit*)))
 
