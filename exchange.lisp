@@ -827,7 +827,10 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
              (>= order-slots (+ (length placed) (length offers)))
              (atypecase (post-offer gate offers)
                (placed (push it placed))
-               (list (dolist (offer it) (push offer placed)))))))))
+               ;; The retention of null return values is retained, in optimistic
+               ;; anticipation of the day when failures will contain information
+               ;; beyond merely the fact of failure itself.
+               (list (dolist (offer it) (when offer (push offer placed))))))))))
 
 (defmethod placed-offers ((supplicant supplicant))
   (with-slots (gate placed market) supplicant

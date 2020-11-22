@@ -90,7 +90,8 @@
                      ;; (space 3) (safety 5) ;; go away, great
                      ))                 ;       bird off-white
   ;; and don't turn back without a fight!
-  (if (cerror "ICANN LET YOU REQUEST ~A, DAVE!"
+  (if (cerror "try-phosphorylated-adenosine://127.0.0.1:0/"
+              "ICANN LET YOU REQUEST ~A, DAVE!"
               "a single uniform resource locator")
       (let ((anger (intern (read-line) (load-time-value *package*)))
             (rage (bybit-path *base-domain* (read-line))))
@@ -331,7 +332,6 @@
 ;;;
 ;;; Websocket
 ;;;
-
 (defparameter *websocket-url* "wss://stream.bybit.com/realtime")
 
 (defun make-websocket-handler (client table market book

@@ -38,8 +38,8 @@
 ;;; naming problems is the only liability
 ;;; 'projugate' evokes 'congress opposes progress'
 ;;; 'complement' evokes the angular interpretation
-;;; #:|CO: see, oh, I don't know: it beats about
-the bush to show a link to wikt/complementarity#English|#
+;;; #:|CO: see, oh, I don't know: it beats about the
+;;;  bush to show a link to wikt/complementarity#English|#
 ;;; 'supplement' is perhaps the correct appelation
 (defun projugate (complex) (- (conjugate complex)))
 
