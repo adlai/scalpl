@@ -7,7 +7,13 @@
 
 ;;; General Parameters
 (defparameter *base-url* "https://www.bit2c.co.il/")
-(setf cl+ssl:*make-ssl-client-stream-verify-default* ())
+
+(setf cl+ssl:*make-ssl-client-stream-verify-default*
+      (and (yes-or-no-p "Did you personally verify their certificate?")
+           (yes-or-no-p "Are you using this exchange as a bank?")
+           (and (not (yes-or-no-p "... do you ever read source code?"))
+                (cerror "Continue, having traded warranty for sympathy."
+                        "A terrible habit, indeed! More lies than files."))))
 
 (defvar *bit2c* (make-instance 'exchange :name :bit2c :sensitivity 1))
 
