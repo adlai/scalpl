@@ -155,15 +155,31 @@
 ;;; Private Data API
 ;;;
 
-(defun fetch-pages (gate request options &optional count &aux (number 1))
+(defun fetch-pages (gate request options &optional count
+                    (data-key "data") &aux (number 1))
   (flet ((fetch-page ()
            (gate-request gate request
                          (acons "page" (format () "~D" number) options))))
-    (loop for page = (fetch-page) when page append (getjso "data" page)
+    (loop for page = (fetch-page) when page append (getjso data-key page)
        and if (aif (getjso "last_page" page)
                    (< (getjso "current_page" page) it)
                    (when count (< number count)))
        do (incf number) else do (loop-finish))))
+
+;; (defmethod placed-offers ((gate bybit-gate) ; FIXME: BTCUSD-specific
+;;                           &aux (market (find-market "BTCUSD" :bybit)))
+;;   (mapcar (lambda (json)
+;;             (with-json-slots
+;;                 (symbol side price (oid "order_id") qty) json
+;;               (let ((market (find-market symbol :bybit))
+;;                     (aksp (string-equal side "Sell")))
+;;                 (make-instance 'placed :oid oid :market market
+;;                                :volume (/ qty price)
+;;                                :price (* price (if aksp 1 -1)
+;;                                          (expt 10 (decimals market)))))))
+;;           (fetch-pages gate '(:get "/v2/private/order/list")
+;;                        `(("order_status" . "New")
+;;                          ("symbol" . ,(name market))))))
 
 (defmethod placed-offers ((gate bybit-gate))
   (mapcar (lambda (json)
