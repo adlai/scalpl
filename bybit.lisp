@@ -1,5 +1,5 @@
 (defpackage #:scalpl.bybit
-  (:nicknames #:bybit) (:export #:*bybit* #:bybit-gate #:swagger)
+  (:nicknames #:bybit) (:export #:*bybit* #:bybit-gate #:*swagger*)
   (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
         #:scalpl.actor #:scalpl.exchange))
 
@@ -18,6 +18,12 @@
 ;;; You may also want to consult a
 ;;; github.com/bybit-exchange/api-connectors/blob/?#,swagger.json
 ;;; thanks to @dexter-2 for the pointer from their Issues flytrap
+
+(defun load-swagger-specification (path)
+  (with-open-file (file path) (read-json file)))
+
+(defparameter *swagger*
+  (load-swagger-specification "swaggres/bybit/api-connectors/swagger.json"))
 
 (defclass bybit-market (market)
   ((exchange :initform *bybit*) (fee :initarg :fee :reader fee)))

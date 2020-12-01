@@ -92,7 +92,7 @@
   (:method ((ope prioritizer) target placed &aux to-add (excess placed))
     (macrolet ((frob (add pop)
                  `(let* ((n (max (length ,add) (length ,pop)))
-                         (log (log (1+ (random (1- (exp n)))))))
+                         (log (log (1+ (random (1- (exp (float n 0d0))))))))
                     (awhen (nth (floor log) ,pop) (ope-cancel ope it))
                     (awhen (nth (- n (ceiling log)) ,add) (ope-place ope it)))))
       (aif (dolist (new target (sort to-add #'< :key #'price))
