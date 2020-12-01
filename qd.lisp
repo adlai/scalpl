@@ -111,12 +111,12 @@
 ;;; sends completion acknowledgement to response channel
 (defmethod perform ((prioritizer prioritizer) &key)
   (with-slots (next-bids next-asks response frequency) prioritizer
-    (multiple-value-bind (next source)
-        (recv (list next-bids next-asks) :blockp nil)
-      (multiple-value-bind (placed-bids placed-asks) (ope-placed prioritizer)
-        (if (null source) (sleep frequency)
-            ((lambda (side) (send response (prioriteaze prioritizer next side)))
-             (if (eq source next-bids) placed-bids placed-asks)))))))
+    (multiple-value-bind (placed-bids placed-asks) (ope-placed prioritizer)
+      (select ((recv next-bids next)
+               (send response (prioriteaze prioritizer next placed-bids)))
+              ((recv next-asks next)
+               (send response (prioriteaze prioritizer next placed-asks)))
+              (t (sleep frequency))))))
 
 (defun profit-margin (bid ask &optional (bid-fee 0) (ask-fee 0))
   (abs (if (= bid-fee ask-fee 0) (/ ask bid)
