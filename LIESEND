@@ -10,14 +10,15 @@
 ;;;; of the CL:SIMPLE-WARNING type to be raised both when the code
 ;;;; references deprecated symbols for any purpose whatsoever, ...
 
-;;;; The purpose for which LAGP must expose this licence is:
+;;;; THE PURPOSE for which LAGP must expose this licence is:
 ;;;;
-;;;;   Reduce the net worth floor for Accredited Investors.
+;;;;   Reduce the net worth floor for Accredited Investors,
+;;;;   preferably without compromising upon LAGP's PURPOSE.
 ;;;;
 ;;;; END PURPOSE
 
 ;;;; If you are concerned about the legal uncertainty imposed by
 ;;;; the contents of this file, please ask your lawyer to recom-
 ;;;; -mend both a medication, and both a licenced psychiatrist,
-;;;; and a dealer in generic pharmaceuticals, such as hwisky.
-
+;;;; and a dealer in generic pharmaceuticals, such as ethanol,
+;;;; nitrous oxide, diethyl ether, and ocean waves cresting.
