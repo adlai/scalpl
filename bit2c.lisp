@@ -51,8 +51,7 @@
 (defun public-request (method parameters)
   (bit2c-request (if (null parameters) method
                      (concatenate 'string method "?"
-                                  (net.aserve:uridecode-string
-                                   (urlencode-params parameters))))))
+                                  (concatenate-url-parameters parameters)))))
 
 (defun auth-request (method key signer &optional params)
   (let* ((path (concatenate 'string *base-url* method))
