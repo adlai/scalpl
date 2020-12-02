@@ -339,8 +339,12 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 ;;; Public Data API
 ;;;
 
-(defgeneric trades-since (market &optional since))
-(defgeneric get-book (market &key))
+(defgeneric trades-since (market &optional since)
+  ;; (:method :after ((market untrusted) &key) (when check wreck)) ;
+  (:documentation "returns this market's recent public executions"))
+(defgeneric get-book (market &key)
+  ;; (:method :around ((market untrusted) &key) go on, make m'day) ;
+  (:documentation "returns this market's open public limit offers"))
 
 ;;; should trade direction be represented as:
 ;;; a boolean slot?
