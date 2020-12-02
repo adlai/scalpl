@@ -1,0 +1,83 @@
+* PARTICIPANTS
+
+This document details the terms of an exclusive contract to investigate the
+current state of a program. The contract is between Adlai, the author of the
+program and the commissioner of this contract, and [you! yes yooOOUUU! ou?],
+identified by adversarial neural networks operated on unknown basis set(s).
+
+* PROGRAM
+** LOCATION
+Archival of the program is performed upon request; old copies were once
+occasionally found at the following locations:
+
+   http://adlai.uncommon-lisp.org:7421/scalpl_310b539.tar.gz
+   git+http://www.github.com/adlai/scalpl.git/
+
+... and possibly others.
+
+** HASHES
+PROGRAM IN QUESTION SNAPSHOT OF THE KNOT-AUTOMATED NOT AUTOMATION NO
+system. since this program is under continual development, the files
+relevant to this contract have their hashes fixed at:
+
+~/path/to/basket/ $ hashof *.{uml,lol,mno,svg,uml,uml,uml,uml,uml,uml
+#x00000000000000000000000000000000000000000000000000000000000 uml.uml
+
+The first file in the above list is not covered by the contract; it is only
+provided in the archive because management practices best practices, myeah.
+
+* COMMISSION
+** COMMENTS
+The commission is for writing the toplevel comment blocks that preceed
+definitions in relevant files, highlighting and explaining noteworthy
+aspects of the immediately following form's behavior: most importantly,
+all numeric values beg an explanation of their effect, and the effective
+domain in which to vary their values; suggestions of changes are welcome,
+although neither required, nor expected, at any stage of the process.
+** SOFTWARE
+The commission does not require writing, nor running, any software; although,
+the consultant may include software changes in the patches delivered, without
+preference specified regarding authorship of such changes by any consultants.
+** DELIVERY
+The comments should be made available as patches to the above files, along with
+exactly one cryptographic signature covering the entire delivered item, with
+allowance for hierarchies of maximal depth agreed upon in advance, and stating
+an address for payment; it is preferred, although not required, that the payment
+address and signing key be computationally related.  It is permissible to
+request payments granularized per comment within files, or a strictly coarser
+topology. The files should be available for public download and access by
+automated archival services; any signed statements should be notarized, such as
+http://deedbot.org; if Bitcoin is unusable, any similar service that displays
+information freely verifiable by the public.
+** DEADLINE
+This hook has no deadline, proposed compensation, nor expectation of bites.
+
+* PAYMENT
+** DESTINATION
+The payments for each unit of delivered work will be sent to Bitcoin addresses
+designated in the signed statements. Provision of multiple addresses that rely
+upon a number of keys smaller than the number of addresses is discouraged.
+** ALLOCATION
+Verbal gratitude (0.00000000 Bitcoin) is offered as upfront payment, along with
+options vested at the next Bitcoin reward halving. Your entitlement to verbal
+gratitude for reading to the end of this file is voided by this sentence.
+
+The precise amount of each payment varies according to Adlai's judgement, and
+depends objectively upon the proportion of each file covered, and subjectively
+upon the quality of the comments themselves; the allocation for each file is
+according to a combination of its size, and relative overall importance:
+
+Filename   Allocation   Emphasis
+--------------------------------------------------------------------------------
+uml        0.00000000   Robots are people too, Mr. White! Ask any chop shop, yo.
+--------------------------------------------------------------------------------
+actor      #C(0x0 pi)   sketches for a multiprocessing primitive, originally
+                        nonsieved before reading the Ada specification, and
+                        intended eventually to mimic Ada's task structure;
+                        arguably, this should be a standalone library.
+--------------------------------------------------------------------------------
+** COMPUTATION
+The payment allocations should be determined in a manner that leaves at most one
+phith of the computed amount to the commissioner's judgement, outside of
+situations where the delivered item is considered ineligible for compensation,
+with the computation of the golden ratio taken to any precision beyond half.
