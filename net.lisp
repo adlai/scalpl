@@ -2,9 +2,33 @@
   (:use #:cl #:chanl #:scalpl.actor
         #:anaphora #:local-time #:scalpl.util
         #:websocket-driver-client)
-  (:export #:http-request))
+  (:export #:pprint-json #:http-request))
 
 (in-package #:scalpl.net)
+
+;;; poached out of cjhunt; useful for debugging the sewage flooded by exchanges
+;;; it only works for the alist representation, because that is least ambiguous
+
+(defun pprint-json (*standard-output* json)
+  (typecase json ; see cl-json's source, or at least util.lisp, for the format
+    (complex (error "Congratulations, you are wasting your own time."))
+    (real (format t "~A" json))  ; TODO: error instead of exceeding JS precision
+    (list (pprint-logical-block (*standard-output* json :prefix "{" :suffix "}")
+            (loop for (key . value) = (pop json) while key do
+                 (pprint-logical-block (*standard-output* ())
+                   (format t "\"~(~A~)\": ~@_" key)
+                   (pprint-json *standard-output* value))
+                 (when json (format t ", ") (pprint-newline :fill)))))
+    (string (format t "~S" json))
+    (vector (pprint-logical-block (nil nil :prefix "[" :suffix "]")
+              (let ((end (length json)) (i 0))
+                (when (plusp end)
+                  (loop
+                     (pprint-json *standard-output* (aref json i))
+                     (if (= (incf i) end) (return nil))
+                     (format t ", ")
+                     (pprint-newline :fill))))))
+    (t (format t "~(~A~)" json))))
 
 ;;; HTTP (mostly a wrapper around Drakma)
 
@@ -19,3 +43,7 @@
               (error) (describe error) (sleep (incf backoff backoff))))))
 
 ;;; Websocket
+
+;;; there's a good chance that the sane priority is to leave the
+;;; implementation of generic websocket functions until improving
+;;; the hierarchical process control, sketched out in actor.lisp
