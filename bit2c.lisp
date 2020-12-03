@@ -6,7 +6,7 @@
 (in-package #:scalpl.bit2c)
 
 ;;; General Parameters
-(defparameter *base-url* "https://www.bit2c.co.il/")
+(defparameter *base-url* "https://Bit2C.co.il/")
 
 (setf cl+ssl:*make-ssl-client-stream-verify-default*
       (and (yes-or-no-p "Did you personally verify their certificate?")
@@ -15,7 +15,7 @@
                 (cerror "Continue, having traded warranty for sympathy."
                         "A terrible habit, indeed! More lies than files."))))
 
-(defvar *bit2c* (make-instance 'exchange :name :bit2c :sensitivity 1))
+(defvar *bit2c* (make-instance 'exchange :name :bit2c))
 
 (defclass bit2c-market (market)
   ((exchange :initform *bit2c*) (fee :initarg :fee :reader fee)))
@@ -42,16 +42,13 @@
 (defun bit2c-request (path &rest args)
   (multiple-value-bind (body status headers)
       (apply #'http-request (concatenate 'string *base-url* path) args)
-    ;; (sleep (aif (getjso :x-ratelimit-remaining headers)
-    ;;             (/ 42 (parse-integer it)) 1))
     (if (= status 200) (values (decode-json body) 200)
         (values () status (if (member status '(502 504)) body
                               (getjso "error" (decode-json body)))))))
 
-(defun public-request (method parameters)
-  (bit2c-request (if (null parameters) method
-                     (concatenate 'string method "?"
-                                  (concatenate-url-parameters parameters)))))
+(defun public-request (method &optional parameters)
+  (bit2c-request (format () "Exchanges/~A~:[~;?~A~]" method
+                         parameters (concatenate-url-parameters parameters))))
 
 (defun auth-request (method key signer &optional params)
   (let* ((path (concatenate 'string *base-url* method))
@@ -65,15 +62,18 @@
                                           . "application/x-www-form-urlencoded")))))
 
 (defun get-info (&aux assets)
+  ;; ideally, this info should be read out of the <script>
+  ;; tag at the end of https://www.bit2c.co.il/trade ,
+  ;; although that footer includes delisted coins!
   (flet ((asset (name decimals)
            (or (find name assets :key #'name :test #'string=)
                (aprog1 (make-instance 'asset :name name :decimals decimals)
                  (push it assets)))))
     (flet ((make-market (primary)
              (make-instance 'bit2c-market
-                            :name (format () "~AIls" primary) :fee 0.5 :decimals 2
-                            :primary (asset primary 8) :counter (asset "Ils" 2))))
-      (values (mapcar #'make-market '("Btc" "Ltc" "Bch" "Btg")) assets))))
+                            :name (format () "~ANis" primary) :fee 0.5 :decimals 2
+                            :primary (asset primary 8) :counter (asset "Nis" 2))))
+      (values (mapcar #'make-market '("Btc" "Eth" "Bch" "Grin")) assets))))
 
 (defmethod fetch-exchange-data ((exchange (eql *bit2c*)))
   (with-slots (markets assets) exchange
@@ -96,7 +96,13 @@
 ;;; Public Data API
 ;;;
 
-(defmethod get-book ((market bit2c-market) &key (count 200)))
+(defmethod get-book ((market bit2c-market) &key count)
+  (assert (null count) count
+          "The exchange only provides a complete order book!
+For bucket shops, please request referral links from
+the good folks at your local Gambler's Anonymous.")
+  (awhen (public-request (name market))
+    ()))
 
 ;;; bit2c hack: btcnis tid from 406500
 (defmethod trades-since ((market bit2c-market) &optional since))

@@ -59,7 +59,9 @@
   ((name    :initarg :name    :reader name)
    (assets  :initarg :assets  :reader assets)
    (markets :initarg :markets :reader markets)
-   ;; FIXME: broken af
+   ;; FIXME: broken af; only necessary for exchanges that
+   ;; have trouble publishing unambiguous ordering during
+   ;; interesting times in noisy markets
    (market-timestamp-sensitivity :initarg :sensitivity)))
 
 (defmethod initialize-instance :after ((exchange exchange) &key)
