@@ -50,14 +50,14 @@
   (bit2c-request (format () "Exchanges/~A~:[~;?~A~]" method
                          parameters (concatenate-url-parameters parameters))))
 
-(defun auth-request (method key signer &optional params)
-  (let* ((path (concatenate 'string *base-url* method))
-         (nonce (format () "~D" (+ (timestamp-millisecond (now))
+(defun auth-request (verb method key signer &optional params)
+  (let* ((nonce (format () "~D" (+ (timestamp-millisecond (now))
                                    (* 1000 (timestamp-to-unix (now))))))
          (data (urlencode-params (acons "nonce" nonce params)))
          (sig (funcall signer data)))
-    (bit2c-request path :method :post :content data
+    (bit2c-request method :method verb :content data
                    :additional-headers `(("Sign" . ,sig) ("Key" . ,key)
+                                         ("nonce" . ,nonce)
                                          ("Content-Type"
                                           . "application/x-www-form-urlencoded")))))
 
@@ -82,9 +82,9 @@
 (defclass bit2c-gate (gate) ((exchange :initform *bit2c*)))
 
 (defmethod gate-post ((gate (eql *bit2c*)) key secret request)
-  (destructuring-bind (method . parameters) request
+  (destructuring-bind ((verb method) . parameters) request
     (multiple-value-bind (ret status error)
-        (auth-request method key secret parameters)
+        (auth-request verb method key secret parameters)
       `(,ret ,(aprog1 (if (/= 502 504 status) (getjso "message" error) error)
                 (when it (warn it)))))))
 
@@ -130,9 +130,13 @@ the good folks at your local Gambler's Anonymous.")
 
 (defmethod placed-offers ((gate bit2c-gate)))
 
-(defmethod account-positions ((gate bit2c-gate)))
-
-(defmethod account-balances ((gate bit2c-gate)))
+(defmethod account-balances ((gate bit2c-gate))
+  (awhen (gate-request gate '(:get "Account/Balance") ())
+    ;; although the AVAILABLE_ and LOCKED_ amounts could be convenient
+    ;; in future code, currently only keep the most relevant amounts
+    (loop for (name . amount) in it until (string= name "Fees")
+       for asset = (find-asset name :bit2c)
+       when asset collect (cons-aq asset amount))))
 
 (defmethod market-fee ((gate bit2c-gate) market) (fee market))
 
