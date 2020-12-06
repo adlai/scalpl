@@ -97,15 +97,32 @@
 ;;;
 
 (defmethod get-book ((market bit2c-market) &key count)
-  (assert (null count) count
+  (assert (null count) (count)
           "The exchange only provides a complete order book!
 For bucket shops, please request referral links from
 the good folks at your local Gambler's Anonymous.")
-  (awhen (public-request (name market))
-    ()))
+  (flet ((offer-maker (kind)
+           (lambda (row)
+             (destructuring-bind (price volume) row
+               (make-instance kind :market market
+                              :price (* 100 price) :volume volume)))))
+    (awhen (public-request (format () "~A/orderbook.json" (name market)))
+      (with-json-slots (asks bids) it
+        (values (mapcar (offer-maker 'ask) asks)
+                (mapcar (offer-maker 'bid) bids))))))
 
-;;; bit2c hack: btcnis tid from 406500
-(defmethod trades-since ((market bit2c-market) &optional since))
+(defmethod trades-since ((market bit2c-market) &optional since)
+  (awhen (public-request (format () "~A/trades.json" (name market))
+                         ;; currently refers to trade ID numbers
+                         ;; NB: the parameter is an inclusive bound!
+                         (when since `(("since" . ,since))))
+    (mapcar (lambda (json)
+              (with-json-slots (date price amount tid (bid "isBid")) json
+                (make-instance 'trade :direction (if bid "buy" "sell")
+                               :price (* 100 price) :volume amount
+                               :market market :txid tid :timestamp
+                               (unix-to-timestamp date))))
+            it)))
 
 ;;;
 ;;; Private Data API
