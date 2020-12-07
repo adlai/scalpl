@@ -801,9 +801,16 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
 ;;; Action API
 ;;;
 
+;;; calls change-class to return a PLACED object
 (defgeneric post-offer (gate offer)
   (:method ((gate gate) (offers list))
-    (mapcar (lambda (offer) (post-offer gate offer)) offers)))
+    (mapcar (lambda (offer) (post-offer gate offer)) offers))
+  (:method ((gate gate) (offer placed))
+    (warn "Tried placing an offer that is already placed: ~A" offer)))
+
+;;; returns nil, unless the offer is definitely no longer active!
+;;; could someday return different non-nil values if the offer
+;;; was executed, partially or fully, before cancellation
 (defgeneric cancel-offer (gate offer)
   (:method ((gate gate) (offer offer))
     (warn "Tried cancelling unplaced offer ~A" offer))
@@ -846,7 +853,7 @@ need-to-use basis, rather than upon initial loading of the exchange API.")
   (with-slots (gate response placed) supplicant
     (send response
           (case (car cons)
-            (:cancel (awhen1 (cancel-offer gate arg)
+            (:cancel (when (cancel-offer gate arg)
                        (setf placed (set-difference placed arg :key #'oid
                                                     :test #'string=))))
             (:offer (apply #'balance-guarded-place supplicant arg))
