@@ -412,7 +412,7 @@
     (values book client)))
 
 (defclass streaming-market (bybit-market) (socket book-table))
-(defmethod shared-initialize :after ((market streaming-market) slot-names &key)
+(defmethod shared-initialize :after ((market streaming-market) (names t) &key)
   (with-slots (socket book-table) market
     (setf (values book-table socket) (make-orderbook-socket market))))
 
