@@ -357,30 +357,28 @@
 (defparameter *websocket-url* "wss://stream.bybit.com/realtime")
 
 (defun make-websocket-handler (client table market book
-                               &aux (next-expected :subscribe)
-                                 (price-factor (expt 10 (decimals market))))
+                               &aux (price-factor (expt 10 (decimals market))))
   (flet ((offer (side size price &aux (mp (* price price-factor)))
            (make-instance (string-case (side) ("Sell" 'ask) ("Buy" 'bid))
                           :market market :price mp :volume (/ size price))))
     (lambda (raw &aux (message (read-json raw)))
-      (case next-expected
-        (:subscribe
+      (case (caar message)
+        (:|success|
          (with-json-slots (success request) message
-           (if (with-json-slots (op args) request
-                 (and success (string= op "subscribe")
-                      (string= (first args) table)))
-               (setf next-expected :table)
-               (wsd:close-connection client))))
-        (:table
+           (unless (with-json-slots (op args) request
+                     (and success (string= op "subscribe")
+                          (string= (first args) table)))
+             (wsd:close-connection client))))
+        (:|topic|
          (with-json-slots (topic type data) message
            (macrolet ((do-data ((&rest slots) data &body body)
                         `(dolist (item ,data)
                            (with-json-slots ,slots item ,@body))))
              (flet ((build ()
                       (do-data (id side size price) data
-                               (let ((price (parse-float price)))
-                                 (setf (gethash id book)
-                                       (cons price (offer side size price)))))))
+                        (let ((price (parse-float price)))
+                          (setf (gethash id book)
+                                (cons price (offer side size price)))))))
                (if (string= table topic)
                    (string-case (type)
                      ("delta"
