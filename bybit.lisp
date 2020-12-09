@@ -66,7 +66,7 @@
                                   (* 1000 (timestamp-to-unix (now))))))
          (sorted (sort `(("api_key" . ,key) ,@params ("timestamp" . ,time))
                        #'string< :key #'car))
-         (sig (funcall signer (urlencode-params sorted)))
+         (sig (funcall signer (concatenate-url-parameters sorted)))
          (parameters `(,@sorted ("sign" . ,sig))))
     (bybit-request path :method verb :parameters parameters)))
 
@@ -166,33 +166,25 @@
                    (when count (< number count)))
        do (incf number) else do (loop-finish))))
 
-;; (defmethod placed-offers ((gate bybit-gate) ; FIXME: BTCUSD-specific
-;;                           &aux (market (find-market "BTCUSD" :bybit)))
-;;   (mapcar (lambda (json)
-;;             (with-json-slots
-;;                 (symbol side price (oid "order_id") qty) json
-;;               (let ((market (find-market symbol :bybit))
-;;                     (aksp (string-equal side "Sell")))
-;;                 (make-instance 'placed :oid oid :market market
-;;                                :volume (/ qty price)
-;;                                :price (* price (if aksp 1 -1)
-;;                                          (expt 10 (decimals market)))))))
-;;           (fetch-pages gate '(:get "/v2/private/order/list")
-;;                        `(("order_status" . "New")
-;;                          ("symbol" . ,(name market))))))
-
-(defmethod placed-offers ((gate bybit-gate))
-  (mapcar (lambda (json)
-            (with-json-slots
-                (symbol side price (oid "order_id") qty) json
-              (let ((market (find-market symbol :bybit))
-                    (aksp (string-equal side "Sell")))
-                (make-instance 'placed :oid oid :market market
-                               :volume (/ qty price)
-                               :price (* price (if aksp 1 -1)
-                                         (expt 10 (decimals market)))))))
-          (fetch-pages gate '(:get "/open-api/order/list")
-                       '(("order_status" . "New")))))
+(defmethod placed-offers ((gate bybit-gate) ; FIXME: BTCUSD-specific
+                          &aux (market (find-market "BTCUSD" :bybit)))
+  (labels ((parse-offer (json)
+             (with-json-slots (side price (oid "order_id") qty) json
+               (make-instance 'placed :oid oid :market market
+                              :volume (/ (parse-integer qty)
+                                         (parse-float price))
+                              :price (* (parse-float price)
+                                        (if (string= side "Sell") 1 -1)
+                                        (expt 10 (decimals market))))))
+           (rec (cursor acc)
+             (aif (gate-request gate '(:get "/v2/private/order/list")
+                                `(("order_status" . "New") ("limit" . "50")
+                                  ("symbol" . ,(name market)) .
+                                  ,(when cursor `(("cursor" . ,cursor)))))
+                  (with-json-slots (data cursor) it
+                    (aif data (rec cursor (nconc data acc)) acc))
+                  acc)))
+    (mapcar #'parse-offer (rec () ()))))
 
 (defun account-position (gate market)
   (awhen (gate-request gate '(:get "/v2/private/position/list")
