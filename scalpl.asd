@@ -20,6 +20,14 @@
 ;;; CLtL4 committee; for although I can't predict what
 ;;; will be standardized by CLtL3...
 
+
+(defsystem #:scalpl/phemex
+  :license "public domain"
+  :description "api client for phemex"
+  :author "Adlai Chandrasekhar"
+  :depends-on (#:scalpl #:websocket-driver-client)
+  :components ((:file "phemex"))
+  :perform (load-op (no book) (cerror "bucketp" 'parse-error)))
 (defsystem #:scalpl/bit2c
   :license "public domain"
   :description "api client for bit2c"
