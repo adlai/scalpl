@@ -286,8 +286,8 @@
       (gate-request gate '(:post "/v2/private/order/cancel")
                     `(("symbol" . ,(name (market offer)))
                       ("order_id" . ,(oid offer))))
-    (when (or (null err) (string= err "Order already cancelled"))
-      (string= (oid offer) (getjso "order_id" ret)))))
+    (or (and (null err) (string= (oid offer) (getjso "order_id" ret)))
+        (string= err "Order already cancelled"))))
 
 ;;;
 ;;; General Introspection
@@ -413,41 +413,3 @@
        if (eq (type-of offer) 'bid) collect offer into bids
        finally (return (values (sort asks #'< :key #'price)
                                (sort bids #'< :key #'price))))))
-
-;; ;;;
-;; ;;; Bulk Placement and Cancellation
-;; ;;;
-
-;; (defun offer-alist (offer)
-;;   (with-slots (market price given taken) offer
-;;     (let ((buyp (minusp price)) (factor (expt 10 (decimals market))))
-;;       (multiple-value-bind (int dec)
-;;           (floor (abs (/ (floor price 1/2) 2)) factor)
-;;         `(("symbol" . ,(name market))
-;;           ("price" . ,(format () "~D.~V,'0D" int
-;;                               (max 1 (decimals market)) dec))
-;;           ("orderQty" . ,(princ-to-string
-;;                           (* (- (signum price))
-;;                              (scaled-quantity (if buyp given taken)))))
-;;           ("execInst" . "ParticipateDoNotInitiate"))))))
-
-;; (defun post-bulk (gate &rest offers)
-;;   (let ((orders (format () "[~{~A~^,~}]"
-;;                         (reduce 'mapcar '(json:encode-json-alist-to-string
-;;                                           offer-alist)
-;;                                 :from-end t :initial-value offers))))
-;;     (awhen (gate-request gate '(:post "order/bulk") `(("orders" . ,orders)))
-;;       (loop for data in it for status = (getjso "ordStatus" data)
-;;          when (equal status "New") collect
-;;            (with-json-slots
-;;                (symbol side price (oid "orderID") (size "orderQty")) data
-;;              (let ((market (find-market symbol :bybit))
-;;                    (aksp (string-equal side "Sell")))
-;;                (make-instance 'placed :oid oid :market market
-;;                               :volume (/ size price)
-;;                               :price (* price (if aksp 1 -1)
-;;                                         (expt 10 (decimals market))))))))))
-
-;; (defun cancel-bulk (gate &rest offers)
-;;   (gate-request gate '(:delete "order")
-;;                 `(("orderID" . ,(mapcar #'oid offers)))))
