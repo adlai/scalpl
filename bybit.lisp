@@ -353,43 +353,37 @@
   (flet ((offer (side size price &aux (mp (* price price-factor)))
            (make-instance (string-case (side) ("Sell" 'ask) ("Buy" 'bid))
                           :market market :price mp :volume (/ size price))))
-    (lambda (raw &aux (message (read-json raw)))
-      (case (caar message)
-        (:|success|
-         (with-json-slots (success request) message
-           (unless (with-json-slots (op args) request
-                     (and success (string= op "subscribe")
-                          (string= (first args) table)))
-             (wsd:close-connection client))))
-        (:|topic|
-         (with-json-slots (topic type data) message
-           (macrolet ((do-data ((&rest slots) data &body body)
-                        `(dolist (item ,data)
-                           (with-json-slots ,slots item ,@body))))
-             (flet ((build ()
-                      (do-data (id side size price) data
-                        (let ((price (parse-float price)))
-                          (setf (gethash id book)
-                                (cons price (offer side size price)))))))
-               (if (string= table topic)
-                   (string-case (type)
-                     ("delta"
-                      (with-json-slots (delete update insert) data
-                        (do-data (id side size) update
-                           (let ((price (/ id 10000)))
-                             (aif (gethash id book)
-                                  (rplacd it (offer side size price))
-                                  (setf (gethash id book)
-                                        (cons price (offer side size price))))))
-                        (do-data (id side size price) insert
-                           (let ((price (parse-float price)))
-                             (setf (gethash id book)
-                                   (cons price (offer side size price)))))
-                        (do-data (id) delete (remhash id book))))
-                     ("snapshot" (clrhash book) (build))
-                     (t (wsd:close-connection client)
-                        (error "unknown orderbook action: ~s" type)))
-                   (wsd:close-connection client))))))))))
+    (macrolet ((do-data ((data &optional price) &body body)
+                 `(dolist (item ,data)
+                    (with-json-slots (id . #1=(side size price)) item
+                      (let ,(when price `((price ,price))),@body))))
+               (store-offer ()
+                 `(setf (gethash id book) `(price . ,(offer . #1#)))))
+      (lambda (raw &aux (message (read-json raw)))
+        (case (caar message)
+          (:|success|
+            (with-json-slots (success request) message
+              (unless (with-json-slots (op args) request
+                        (and success (string= op "subscribe")
+                             (string= (first args) table)))
+                (wsd:close-connection client))))
+          (:|topic|
+            (with-json-slots (topic type data) message
+              (if (string= table topic)
+                  (string-case (type)
+                    ("delta"
+                     (with-json-slots (delete update insert) data
+                       (do-data (update (/ id 10000))
+                         (aif (gethash id book)
+                              (rplacd it (offer . #1#)) (store-offer)))
+                       (do-data (insert (parse-float price)) (store-offer))
+                       (do-data (delete) (remhash id book))))
+                    ("snapshot"
+                     (clrhash book)
+                     (do-data (data (parse-float price)) (store-offer)))
+                    (t (wsd:close-connection client)
+                       (error "unknown orderbook action: ~s" type)))
+                  (wsd:close-connection client)))))))))
 
 (defun make-orderbook-socket (market &optional (depth 200) (frequency 100))
   (let* ((book (make-hash-table :test #'eq))
