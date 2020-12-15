@@ -201,18 +201,32 @@
 
 (defmethod account-balances ((gate bybit-gate) ; FIXME: BTCUSD-specific
                              &aux (market (find-market "BTCUSD" :bybit)))
-  (with-aslots (primary counter) market
-    (awhen (gate-request gate '(:get "/v2/private/wallet/balance"))
-      (with-json-slots ((deposit "BTC")) it
-        (with-json-slots ((mark "mark_price"))
+  (with-aslots (primary counter) market ; if your code's quotient topology
+    (awhen (gate-request gate '(:get "/v2/private/wallet/balance")) ; over
+      (with-json-slots ((deposit "BTC")) it ; the comment space is denser
+        (with-json-slots ((mark "mark_price")) ; than the conversal, you
             (car (public-request "tickers" `(("symbol" . "BTCUSD"))))
-          (let ((fund (* 5 (getjso "equity" deposit))))
-            (aif (account-position gate market)
-                 (list (aq+ (cons-aq* primary fund) (second it))
-                       (aq+ (cons-aq* counter (* fund (parse-float mark)))
-                            (third it)))
-                 (list (cons-aq* primary fund)
-                       (cons-aq* counter (* fund (parse-float  mark)))))))))))
+          (with-json-slots (equity) deposit ; are gonna die, someday
+            (let ((fund (* equity
+                           #.(if (yes-or-no-p "Will Op require hopium?")
+                                 (prog ((unit 1))
+                                  :more (incf unit unit) ; ...... wait up
+                                  :less (if (yes-or-no-p "Fun?")    ; you
+                                            (decf unit (/ unit 3)) ; guys
+                                            (go :away)) ; [and gal(le)*s]
+                                  (check-type unit rational) ; are gettin
+                                  (if (y-or-n-p "More than ~2,2F?" unit)
+                                      (go :more) (go :less)) ; paid... ...
+                                  :away (if (yes-or-no-p "Again?") ; ...
+                                            (go :more) (return unit)))
+                                 (progn (print "[1,9)") (read))))))
+#| ... |# #1="..." #1# #1# #1# ; in what now!? paid in work!?
+              (aif (account-position gate market) ; you work to earn work!?
+                   (list (aq+ (cons-aq* primary fund) (second it)) ; more!?
+                         (aq+ (cons-aq* counter (* fund (parse-float mark)))
+                              (third it))) ; and more and more work? what kind
+                   (list (cons-aq* primary fund) ; of flyover honeytrap casino
+                         (cons-aq* counter (* fund (parse-float mark))))))))))))
 
 ;;; This horror can be avoided via the actor-delegate mechanism.
 (defmethod market-fee ((gate bybit-gate) (market bybit-market)) (fee market))
