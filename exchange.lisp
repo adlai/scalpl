@@ -35,19 +35,21 @@
               (error) (describe error) (sleep (incf backoff backoff))))))
 
 ;;; TODO
-;;; This file should lay out the interface that each exchange client needs to
-;;; implement. Each exchange client should instantiate the exchange class and
-;;; specialize methods on generic functions, which should be defined here.
-
-;;; TODO
-;;; Some method for implemented exchange APIs to "register" the exchange, so
-;;; we don't have to mess with a different package per exchange.
-;;; How is this not (:method initialize-instance :after (exchange))?
-;;; -> because that does not deal with the package. but who does?
+;;; This file MUST build the interface that each exchange client needs to
+;;; implement. Each client file then instantiates an exchange class, and
+;;; specializes methods on generic functions that SHOULD be defined here.
 
 ;;;
 ;;; Exchanges
 ;;;
+
+;;; TODO
+;;; Consider whether overloading the exchange registry into the one that
+;;; already exists for the units and markets; for extra overachievement,
+;;; hook into the package mechanism for isolating each exchange's code.
+;;; The compile- and load-time magic must, in such a situation, occur in
+;;; a (:method initialize-instance :after (exchange)) near the beginning
+;;; of each exchange's file.
 
 (defvar *exchanges* (make-hash-table))
 
@@ -69,9 +71,9 @@
     (setf (gethash name *exchanges*) exchange)))
 
 (defgeneric fetch-exchange-data (exchange)
-  (:documentation "Fetch metadata about assets and markets on this exchange.
-Since fetching this information requires network access, it's performed on a
-need-to-use basis, rather than upon initial loading of the exchange API.")
+  (:documentation "fetch info about an exchange's assets and markets")
+  ;; Since these methods require network access, they are ideally only
+  ;; invoked at load-time, rather than upon initial compilation.
   (:method :after (exchange)
     (with-slots (assets markets) exchange
       (dolist (thing (append assets markets))
