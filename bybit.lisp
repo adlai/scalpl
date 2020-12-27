@@ -22,8 +22,9 @@
 (defun load-swagger-specification (path)
   (with-open-file (file path) (read-json file)))
 
-(defparameter *swagger*
-  (load-swagger-specification "swaggres/bybit/api-connectors/swagger.json"))
+;; (defparameter *swagger* ; TODO: use correct UIOP incantation here
+;;   (load-swagger-specification
+;;    #P"./swaggres/bybit/api-connectors/swagger.json"))
 
 (defclass bybit-market (market)
   ((exchange :initform *bybit*) (fee :initarg :fee :reader fee)))
@@ -100,10 +101,9 @@
               "ICANN LET YOU REQUEST ~A, DAVE!"
               "a single uniform resource locator")
       (let ((anger (intern (read-line) (load-time-value *package*)))
-            (rage (bybit-path *base-domain* (read-line))))
-                                        ;_; I am special, and thus issue declarations at runtime.
-        (proclaim `(special ,anger))
-                                        ;_; problem?
+            (rage (bybit-path *base-domain* (read-line)))) #|  _,.-'
+        I am special, and thus issue declarations at runtime! |#
+        (proclaim `(special ,anger))    ;_; PROBLEM?
         (proclaim `(declaration of pure unadulterated rage , 'calmly))
         (set anger rage))
       (with-slots (markets assets) exchange
@@ -115,7 +115,8 @@
   (destructuring-bind ((verb method) . parameters) request
     (multiple-value-bind (ret code status)
         (auth-request verb method key secret parameters)
-      `(,ret ,(aprog1 (unless (zerop code) status) (when it (warn it)))))))
+      `(,ret ,(awhen1 (unless (zerop code) status)
+                (warn (format () "#~D ~A" code it)))))))
 
 (defmethod shared-initialize ((gate bybit-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
@@ -284,16 +285,18 @@
 (defmethod post-offer ((gate bybit-gate) (offer offer))
   (with-slots (market volume price) offer
     (let ((factor (expt 10 (decimals market))))
-      (with-json-slots ((oid "order_id") (status "order_status") text)
+      (multiple-value-bind (json complaint)
           (post-raw-limit gate (not (plusp price)) (name market)
-                          (multiple-value-bind (int dec)
-                              (floor (abs (/ (floor price 1/2) 2)) factor)
-                            (format nil "~D.~V,'0D"
-                                    int (max 1 (decimals market)) (* 10 dec)))
-                          (floor (* volume (if (minusp price) 1
-                                               (/ price factor)))))
-        (if (equal status "Created") (change-class offer 'placed :oid oid)
-            (warn "Failed placing: ~S~%~A" offer text))))))
+                        (multiple-value-bind (int dec)
+                            (floor (abs (/ (floor price 1/2) 2)) factor)
+                          (format nil "~D.~V,'0D"
+                                  int (max 1 (decimals market)) (* 10 dec)))
+                        (floor (* volume (if (minusp price) 1
+                                             (/ price factor)))))
+        (with-json-slots ((oid "order_id") (status "order_status")) json
+          (if (and json (equal status "Created"))
+              (change-class offer 'placed :oid oid)
+              (warn "Failed placing: ~S~%~A" offer complaint)))))))
 
 (defmethod cancel-offer ((gate bybit-gate) (offer placed))
   (multiple-value-bind (ret err)
