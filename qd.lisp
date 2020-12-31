@@ -450,8 +450,14 @@
           (when source (send source next)))))
     (when market (path maker market book-tracker))))
 
+;;; General Introspection, Major Mayhem, and of course SFC Property
+
 (defmethod describe-object ((maker maker) (stream t))
   (with-slots (name print-args lictor) maker
     (apply #'print-book maker print-args) (performance-overview maker)
     (multiple-value-call 'format stream "~@{~A~#[~:; ~]~}" name
                          (trades-profits (slot-reduce lictor trades)))))
+
+(defmethod describe-object :after ((maker maker) (stream t))
+  (with-aslots (market) (slot-reduce maker supplicant)
+    (describe-account it (exchange market) stream)))

@@ -18,7 +18,8 @@
            #:execution #:fee #:net-cost #:net-volume #:fee-tracker
            #:execution-tracker #:execution-since #:bases #:bases-without
            #:post-offer #:cancel-offer #:supplicant #:lictor #:treasurer
-           #:order-slots #:response #:supplicate #:bases-for))
+           #:order-slots #:response #:supplicate #:bases-for
+           #:describe-account))
 
 (in-package #:scalpl.exchange)
 
@@ -893,3 +894,13 @@
            (acons (mapcar #'basis-offer (bases-for supplicant counter))
                   (mapcar #'basis-offer (bases-for supplicant primary))
                   keys))))
+
+;;;
+;;; Who's fault is it that default puns are considered funny by default?
+;;;
+
+(defgeneric describe-account (supplicant exchange stream)
+  (:method ((supplicant t) (exchange t) (stream t)) (cerror "YODO" "YLED?"))
+  (:method ((supplicant t) (exchange exchange) (stream t))
+    (error "I can't even tame lions, how do you expect me to balance books?"))
+  (:documentation "summarize how things are going, profit-wise"))

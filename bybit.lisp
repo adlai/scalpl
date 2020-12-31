@@ -344,6 +344,26 @@
                 (list (parse-timestring date) score ours theirs)))
             (getjso "lcp_list" it))))
 
+(defmethod describe-account
+    ((supplicant t) (exchange (eql *bybit*)) (*standard-output* t))
+ (with-slots (gate) supplicant
+    ;;; there's a pattern here, and it belongs in the fucking symbol-plists:
+   (format t "~&~%@#$%& Dump Of Recent Closes &%$#@~%")
+   (multiple-value-bind (rhos total) (recent-closes gate #|2000|#)
+     (dolist (row rhos (values total (log (1+ total))))
+       (destructuring-bind #1=(second action comment quanta tide) row
+                           (format t "~&~10A ~4A ~5D ~1,6$ ~8$~%" . #1#))))
+   (format t "~&~%@#$%& Dump Of Recent Daily Earnings &%$#@~%")
+   (dolist (row (daily-returns gate))
+     (destructuring-bind #2=(day coins flux) row
+       (format t "~&~10A ~A ~11@A~%" . #2#)))
+   (format t "~&~%@#$%& Dump Of Recent Liquidity Scores &%$#@~%")
+   (dolist (day (liquidity-contribution-score gate))
+     (format t "~&~{~D ~F ~F ~F~}~%" day))
+    ;; can you smell that pattern? ... symbol-plists are THE WORST THING EVER!
+    ))
+
+
 ;;;
 ;;; Comte Monte Carte
 ;;;
