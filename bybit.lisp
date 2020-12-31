@@ -24,7 +24,7 @@
 
 ;; (defparameter *swagger* ; TODO: use correct UIOP incantation here
 ;;   (load-swagger-specification
-;;    #P"./swaggres/bybit/api-connectors/swagger.json"))
+;;    #P"./promises/bybit/api-connectors/swagger.json"))
 
 (defclass bybit-market (market)
   ((exchange :initform *bybit*) (fee :initarg :fee :reader fee)))
@@ -115,7 +115,13 @@
   (destructuring-bind ((verb method) . parameters) request
     (multiple-value-bind (ret code status)
         (auth-request verb method key secret parameters)
-      `(,ret ,(awhen1 (unless (zerop code) status)
+      `(,ret ,(awhen1 (case code
+                        ((0             ; C-style, no error
+                          30032         ; filled before cancellation
+                          ;; 30037         ; this one is suspicious!
+                          ))            ; TODO: lots of DEFINE-CONDITION
+                        ;; bybit-exchange.github.io/docs/inverse/#t-errors
+                        (t status))     ; by default, echo the error text
                 (warn (format () "#~D ~A" code it)))))))
 
 (defmethod shared-initialize ((gate bybit-gate) names &key pubkey secret)

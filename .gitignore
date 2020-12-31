@@ -1,7 +1,5 @@
-#*gggggggggggggGGggggggggggNo Free Sieve#|\|ow, put this in your pipe and smoke it:
-5.6M>.git/objects
-____
-6.0M>.git
-____
-16M>swaggres/bybit/api-connectors/swagger-gen
-#\|\\owowowowoooooooooooooPost'sCryptum
+# these files are rarely self-explanatory
+secrets/
+
+# these files are worth their weight in heroin
+promises/
