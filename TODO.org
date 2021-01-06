@@ -262,16 +262,18 @@ this should perhaps be scrapped / merged into the swarm
 ***** emvwap, duplex and directional
 ***** order flow optimization
 ***** update offer handler
-* Trades-Tracker
+* Offer-Tracker
 ** Level 2 order book!
 Think later of ways to do this efficiently, right now we're just interested in
 the high-level so we can express statistical arbitrage rules
+* Trade-Tracker
 ** Trade Direction
 *** Some exchanges provide this information in the trades data
 *** For exchanges that don't, we use a classifier:
 **** continually tracks best few offers on the book
 **** Was the last trade >= the lowest ask? -> buyer initiative
 **** Was the last trade <= the highest bid? -> seller initiative
+** Placement rationale invalidation
 * Dumbot
 ** Resilience
 *** Definition
