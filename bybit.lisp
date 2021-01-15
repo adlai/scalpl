@@ -317,13 +317,13 @@
 ;;;
 
 (defun daily-returns (gate &optional count)
-  (awhen (gate-request gate '(:get "/open-api/wallet/fund/records")
+  (awhen (gate-request gate '(:get "/v2/private/wallet/fund/records")
                        (when count `(("limit" . ,(princ-to-string count)))))
     (mapcar (lambda (json)
               (with-json-slots
                   ((balance "wallet_balance") (date "exec_time") amount) json
-                (list (parse-timestring date) balance amount)))
-            (remove "Realized P&L" (getjso "data" it)
+                (list (parse-timestring date) balance amount))) ; NOONE KNOWS
+            (remove "RealisedPNL" (getjso "data" it) ; FOR WTF STANDS THE 'N'
                     :test-not #'string= :key (getjso "type")))))
 
 (defun recent-closes (gate &optional count &aux (sum 0))

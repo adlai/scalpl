@@ -31,6 +31,8 @@
     (t (format t "~(~A~)" json))))
 
 ;;; HTTP (mostly a wrapper around Drakma)
+;;; TODO wrap Drakma in a bunch of abstractions that implement:
+;;;   ordering, logging, rate limits, caching, and... spiders?
 
 (defun http-request (path &rest keys &aux (backoff 3))
   (loop (handler-case (return (apply #'drakma:http-request path keys))
@@ -47,3 +49,7 @@
 ;;; there's a good chance that the sane priority is to leave the
 ;;; implementation of generic websocket functions until improving
 ;;; the hierarchical process control, sketched out in actor.lisp
+
+;;; the alternative, where progress is made despite the Babylon
+;;; of blocking bugs, unwritten specifications, and open sores,
+;;; is to use this opportunity as a case study for the spec.
