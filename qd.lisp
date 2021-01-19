@@ -174,7 +174,7 @@
    (abbrev :allocation :class :initform "ope")
    (frequency :initform 1/7 :initarg :frequency)
    (supplicant :initarg :supplicant) filter prioritizer
-   (epsilon :initform (expt 0.14 4) :initarg :epsilon)
+   (epsilon :initform (expt 0.14 5) :initarg :epsilon)
    (magic :initform 3 :initarg :magic-count)))
 
 (defmethod christen ((ope ope-scalper) (type (eql 'actor)))

@@ -426,7 +426,7 @@
 
 (defgeneric vwap (tracker &key &allow-other-keys)
   (:method :around ((tracker t) &key)
-    (handler-case (call-next-method) (division-by-zero () 0)))
+    (handler-case (float (call-next-method) 0s0) (division-by-zero () 0)))
   (:method ((tracker trades-tracker) &key since depth type)
     (let ((trades (slot-value tracker 'trades)))
       (when since (setf trades (remove since trades
@@ -894,6 +894,13 @@
            (acons (mapcar #'basis-offer (bases-for supplicant counter))
                   (mapcar #'basis-offer (bases-for supplicant primary))
                   keys))))
+
+;;;
+;;; Here should begin the CLI directory, full of curses, horrors,
+;;; and worst of all, commented curses at the curses horrors within.
+;;;
+
+(defgeneric describe-book ((book book) cook whither))
 
 ;;;
 ;;; Who's fault is it that default puns are considered funny by default?
