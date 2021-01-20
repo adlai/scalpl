@@ -223,22 +223,34 @@
                               (asks (punk vwab  price 0 ask)))))
                         #'dunk book))))))
 
+;;; C-h k C-x ]
 (defmethod perform ((ope ope-scalper) &key)
+  ;; before you read any further, remember:
+  ;; abstracting patterns with strictly fewer than THREE [ie (1+ 2!)]
+  ;; instances is not only all integral roots of premature noptimals,
+  ;; it also just makes you sound like a lad, a cad, and never a chad
   (with-slots (input output filter prioritizer epsilon frequency) ope
     (destructuring-bind (primary counter resilience ratio) (recv input)
       (with-slots (next-bids next-asks response) prioritizer
         (macrolet ((do-side (amount side chan epsilon)
+                     #+ () "can't I write documentation for local macros?"
                      `(let ((,side (copy-list (slot-value filter ',side))))
                         (unless (or (zerop (caar ,amount)) (null ,side))
                           (send ,chan (ope-spreader ,side resilience ,amount
-                                                      ,epsilon ',side ope))
+                                                    ,epsilon ',side ope))
+                          ;; M-x viper SPACE          ; why'dit haffter
                           (recv response)))))
           (let ((e (/ epsilon (+ 1/17 (abs (log (1+ (abs (log ratio)))))))))
             (do-side counter bids next-bids
                      (* (max e epsilon) (abs (price (first bids))) (max ratio 1)
                         (expt 10 (- (decimals (market (first bids)))))))
-            (do-side primary asks next-asks (* (max e epsilon) (max (/ ratio) 1)))))))
+            (do-side primary asks next-asks (* (max e epsilon) (max (/ ratio) 1)))
+            ;; no, you may not write CL:DOCUMENTATION for macrolets,
+            ;; you fine-source-reusing literati scum-bucket investor;
+            ;; and keep those widths in check unless you want an "and mate"!
+            )))) ; this line is fine though, plenty of sideband, and green, too!
     (send output (sleep frequency))))
+;;; C-h k C-x [
 
 (defmethod initialize-instance :after ((ope ope-scalper) &key cut)
   (with-slots (filter prioritizer supplicant) ope
