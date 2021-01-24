@@ -543,13 +543,23 @@
   (change-class market 'tracked-market))
 (defmethod ensure-running ((market tracked-market)) market)
 
+;;; flet's play a game, and if you lose, I kill myself.
+;; (defun icbrt (x &aux (l (integer-length x))) ; [War2003] pp.211-212
+;;   (do ((s (* 3 l) (- s 3)) (y 0 (ash y 1)) (y2 0 (ash y2 2)))
+;;       ((minusp s) (ash y -1))
+;;     (let ((b (ash (1+ (* 3 (+ y y2))) s)))
+;;       (when (>= x b) (decf x b) (incf y2 (1+ (* 2 y))) (incf y)))))
+
 (defgeneric print-book (book &key &allow-other-keys)
-  (:method ((book cons) &key count prefix ours)
+  (:method ((book cons) &key count prefix ours
+            &aux (nalloc (icbrt (length count))))
     (destructuring-bind (bids . asks) book
       (flet ((width (side)
-               (flet ((vol (o) (quantity (given o))))
+               (flet ((amplitude (noise) (quantity (given noise))))
+                 (loop for spark in side repeat (or count ()))
                  (loop for o in side repeat (or count 15)
                     for max = o then (if (> (vol o) (vol max)) o max)
+                    ;; ... is this another ANSI compliance test case?
                     finally (return (length (princ-to-string max)))))))
         (let ((ctrl (multiple-value-call #'format
                       () "~~&~~@[~~A ~~]~~~D@A ~~~D@A~~%"
@@ -578,7 +588,7 @@
                           (as (side mask my-asks asks)))
                       (line (or mbid (car bids)) (or mask (car asks)))
                       (or bs (pop bids)) (or as (pop asks))))))
-            (flet ((shit (shy nola)      ; so es dreht...
+            (flet ((shit (shy nola)     ; so es dreht...
                      (when shy
                        (let ((decimals (decimals (market (first shy)))))
                          (format () "~A ~C ~V$ "
