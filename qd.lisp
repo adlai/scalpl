@@ -21,12 +21,12 @@
 ;;; response: placed offer if successful, nil if not
 (defun ope-place (ope offer)
   (with-slots (control response) (slot-value ope 'supplicant)
-    (send control (list :offer offer)) (recv response)))
+    (send control (list :offer offer))))
 
 ;;; response: trueish = offer no longer placed, nil = unknown badness
 (defun ope-cancel (ope offer)
   (with-slots (control response) (slot-value ope 'supplicant)
-    (send control (list :cancel offer)) (recv response)))
+    (send control (list :cancel offer))))
 
 (defclass filter (actor)
   ((abbrev :allocation :class :initform "filter") (cut :initarg :cut)
@@ -394,9 +394,7 @@
                                (reduce #'max (mapcar #'volume trades)
                                        :initial-value 0))
                             (expt (exp skew) skew-factor)))
-                (recv (slot-reduce ope output))
-                (with-slots (control response) supplicant
-                  (send control '(:sync)) (recv response))))))))))
+                (recv (slot-reduce ope output))))))))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
   (with-slots (supplicant ope delegates cut) maker

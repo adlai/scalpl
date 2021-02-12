@@ -723,9 +723,9 @@
                        (update-bases tracker next))))
 
 (defmethod perform ((tracker execution-tracker) &key)
-  (with-slots (buffer trades bases control) tracker
-    (select ((recv buffer next)
-             (update-bases tracker next) (push next trades))
+  (with-slots (buffer trades bases control delegates) tracker
+    (select ((recv buffer next) (update-bases tracker next) (push next trades)
+             (send (slot-reduce (car delegates) control) (list (oid next))))
             ((recv control command) (execute tracker command))
             ((send buffer (first trades))) (t (sleep 0.2)))))
 
@@ -864,13 +864,13 @@
 
 (defmethod execute ((supplicant supplicant) (cons cons) &aux (arg (cdr cons)))
   (with-slots (gate response placed) supplicant
-    (send response
-          (case (car cons)
-            (:cancel (when (cancel-offer gate arg)
-                       (setf placed (set-difference placed arg :key #'oid
-                                                    :test #'string=))))
-            (:offer (apply #'balance-guarded-place supplicant arg))
-            (:sync (setf placed (placed-offers supplicant)))))))
+    (acase (car cons)
+      (:cancel (when (cancel-offer gate arg)
+                 (setf placed (set-difference placed arg :key #'oid
+                                              :test #'string=))))
+      (:offer (apply #'balance-guarded-place supplicant arg))
+      (:sync (send response (setf placed (placed-offers supplicant))))
+      (t (setf placed (remove it placed :test #'string= :key #'oid))))))
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
   (with-aslots (gate market) supplicant
