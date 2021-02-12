@@ -90,11 +90,11 @@
 
 (defgeneric prioriteaze (ope target placed)
   (:method ((ope prioritizer) target placed &aux to-add (excess placed))
-    (macrolet ((frob (add pop)
-                 `(let* ((n (max (length ,add) (length ,pop)))
-                         (log (log (1+ (random (1- (exp (float n 0d0))))))))
-                    (awhen (nth (floor log) ,pop) (ope-cancel ope it))
-                    (awhen (nth (- n (ceiling log)) ,add) (ope-place ope it)))))
+    (flet ((frob (add pop)
+             (let* ((n (max (length add) (length pop)))
+                    (log (log (1+ (random (1- (exp (float n 0d0))))))))
+               (awhen (nth (floor log) pop) (ope-cancel ope it))
+               (awhen (nth (- n (ceiling log)) add) (ope-place ope it)))))
       (aif (dolist (new target (sort to-add #'< :key #'price))
              (aif (find (price new) excess :key #'price :test #'=)
                   (setf excess (remove it excess)) (push new to-add)))
@@ -329,7 +329,7 @@
       ;; FIXME: modularize all this decimal point handling
       ;; we need a pprint-style ~/aq/ function, and pass it aq objects!
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (aprog1 (format () "~&~A~A ~{~A~^ ~}~%~5,4,,VF~4,4F~4,4@F ~A"
+      (aprog1 (format () "~&~A~A ~{~A~^ ~}~%~5,4,,VF~4,4F~4,4@F~A"
                       name (format-timestring ; a naggy mess and lispy, too!
                             () (now) :format '((:hour 2) (:min 2) (:sec 2)))
                       (mapcar #'sastr '(primary counter primary counter)

@@ -1,37 +1,41 @@
 (defpackage #:scalpl.util
   (:use #:c2cl #:anaphora #:parse-float #:decimals
         #:string-case #:local-time #:split-sequence)
-  (:export #:shorten-uid
-           #:once-only
-           #:shallow-copy
-           #:dbz-guard
-           #:slot-reduce #:slot-reducer #:slot-setter #:aslot-setter
-           #:aand1 #:awhen1 #:amvp1
-           #:parse-price
-           #:parse-float
-           #:string-octets #:octets
-           #:rehome-symbol
-           #:rehome-class
-           #:string-case
-           #:concatenate-url-parameters
-           #:urlencode-params
-           #:break-errors
-           #:kw #:mvwrap
-           #:subseq*
-           #:with-aslots
-           #:lazy-do-instances
-           #:strftime
-           ;; json
-           #:read-json
-           #:decode-json
-           #:getjso
-           #:mapjso
-           #:mapcar-jso
-           #:jso-keys
-           #:with-json-slots
-           #:mapjso*
-           #+clozure #:memory-usage
-           ))
+  (:export ; if these are complex enough that their documentation
+          ;; string overflows into the format restandardizatation
+   ;; debate, then they may belong in someone else's utility lib.
+   #:icbrt
+   #:shorten-uid
+   #:once-only
+   #:shallow-copy
+   #:dbz-guard
+   #:slot-reduce #:slot-reducer #:slot-setter #:aslot-setter
+   #:aand1 #:awhen1 #:amvp1
+   #:parse-price
+   #:parse-float
+   #:string-octets #:octets
+   #:rehome-symbol
+   #:rehome-class
+   #:string-case
+   #:concatenate-url-parameters
+   #:urlencode-params
+   #:break-errors
+   #:kw #:mvwrap
+   #:subseq*
+   #:with-aslots
+   #:lazy-do-instances
+   #:strftime
+   ;; json
+   #:read-json
+   #:decode-json
+   #:getjso
+   #:mapjso
+   #:mapcar-jso
+   #:jso-keys
+   #:with-json-slots
+   #:mapjso*
+   #+clozure #:memory-usage
+   ))
 
 (in-package #:scalpl.util)
 
@@ -42,6 +46,12 @@
 ;;;  bush to show a link to wikt/complementarity#English|#
 ;;; 'supplement' is perhaps the correct appelation
 (defun projugate (complex) (- (conjugate complex)))
+
+(defun icbrt (x &aux (l (integer-length x))) ; [War2003] pp.211-212
+  (do ((s (* 3 l) (- s 3)) (y 0 (ash y 1)) (y2 0 (ash y2 2)))
+      ((minusp s) (ash y -1))
+    (let ((b (ash (1+ (* 3 (+ y y2))) s)))
+      (when (>= x b) (decf x b) (incf y2 (1+ (* 2 y))) (incf y)))))
 
 ;;; hyphens within alphanumeric identifiers frequently denote
 ;;; semantic divisions, in a manner similar to how null bytes

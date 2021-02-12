@@ -24,51 +24,43 @@
 (defsystem #:scalpl/phemex
   :license "public domain"
   :description "api client for phemex"
-  :author "Adlai Chandrasekhar"
   :depends-on (#:scalpl #:websocket-driver-client)
   :components ((:file "phemex"))
   :perform (load-op (no book) (cerror "bucketp" 'parse-error)))
 (defsystem #:scalpl/bit2c
   :license "public domain"
   :description "api client for bit2c"
-  :author "Adlai Chandrasekhar"
   :depends-on (#:scalpl #:websocket-driver-client)
   :components ((:file "bit2c")))
 (defsystem #:scalpl/bybit
   :license "public domain"
   :description "api client for bybit"
-  :author "Adlai Chandrasekhar"
   :depends-on (#:scalpl #:websocket-driver-client)
   :components ((:file "bybit"))
   :perform (load-op (no book) (cerror "bucketp" 'parse-error)))
 (defsystem #:scalpl/bitmex
   :license "public domain"
   :description "api client for bitmex"
-  :author "Adlai Chandrasekhar"
   :depends-on (#:scalpl #:websocket-driver-client)
   :components ((:file "bitmex")))
 (defsystem #:scalpl/mpex
   :license "public domain"
   :description "api client for mpex"
-  :author "Adlai Chandrasekhar"
   :depends-on (#:scalpl #:rss)
   :components ((:file "mpex")))
 (defsystem #:scalpl/kraken
   :license "public domain"
   :description "api client for kraken"
-  :author "Adlai Chandrasekhar"
   :depends-on (#:scalpl)
   :components ((:file "kraken")))
 (defsystem #:scalpl/bitfinex
   :license "public domain"
   :description "api client for bitfinex"
-  :author "Adlai Chandrasekhar"
   :depends-on (#:scalpl)
   :components ((:file "bitfinex")))
 (defsystem #:scalpl/poloniex
   :license "public domain"
   :description "api client for poloniex"
-  :author "Adlai Chandrasekhar"
   :depends-on (#:scalpl)
   :components ((:file "poloniex")))
 
@@ -82,12 +74,10 @@
 (defsystem #:scalpl/dbi
   :license "public domain"
   :description "database interactions"
-  :author "Adlai Chandrasekhar"
   :depends-on (#:scalpl #:dbi)
   :components ((:file "db")))
 (defsystem #:scalpl/irc
   :license "public domain"
   :description "sasl authentication module"
-  :author "Adlai Chandrasekhar"
   :depends-on (#:scalpl #:cl-irc)
   :components ((:file "sasl")))
