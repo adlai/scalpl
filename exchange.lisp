@@ -60,6 +60,7 @@
 
 (defclass exchange ()
   ((name    :initarg :name    :reader name)
+   (stream  :initarg :stream  :reader stream)
    (assets  :initarg :assets  :reader assets)
    (markets :initarg :markets :reader markets)
    ;; FIXME: broken af; only necessary for exchanges that
