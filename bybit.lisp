@@ -189,7 +189,7 @@
                           &aux (market (find-market "BTCUSD" :bybit)))
   (labels ((parse-offer (json)
              (with-json-slots (side price (oid "order_id") qty) json
-               (make-instance 'placed :oid oid :market market
+               (make-instance 'offered :oid oid :market market
                               :volume (/ (parse-integer qty)
                                          (parse-float price))
                               :price (* (parse-float price)
@@ -300,6 +300,8 @@
                   ("qty" . ,(princ-to-string (floor size)))
                   ("time_in_force" . "PostOnly"))))
 
+(defclass placed (offered) ((unique-request-identifier :initarg :urid)))
+
 (defmethod post-offer ((gate bybit-gate) (offer offer))
   (with-slots (market volume price) offer
     (let ((factor (expt 10 (decimals market))))
@@ -313,10 +315,13 @@
                                              (/ price factor)))))
         (with-json-slots ((oid "order_id") (status "order_status")) json
           (if (and json (equal status "Created"))
-              (change-class offer 'placed :oid oid)
+              (change-class offer 'offered :oid oid
+                            ;; :urid (reduce #'getjso '("o_req_num" "ext_fields")
+                            ;;               :from-end t :initial-value json)
+                            )
               (warn "Failed placing: ~S~%~A" offer complaint)))))))
 
-(defmethod cancel-offer ((gate bybit-gate) (offer placed))
+(defmethod cancel-offer ((gate bybit-gate) (offer offered))
   (multiple-value-bind (ret err)
       (gate-request gate '(:post "/v2/private/order/cancel")
                     `(("symbol" . ,(name (market offer)))
@@ -393,12 +398,12 @@
 
 
 ;;;
-;;; Comte Monte Carte
+;;; What's this one whore's Morty doing in a three-card shinachop?
 ;;;
 
 (defmethod bases-for ((supplicant supplicant) (market bybit-market))
-  (with-slots (gate) supplicant         ; FIXME: bitmex copypasta
-    (awhen (account-position gate market)
+  (with-slots (gate) supplicant           ; FIXME: only worked in BitMEX 'cuz
+    (awhen (account-position gate market) ; they usually did things correctly
       (let ((entry (realpart (first it))) (size (abs (quantity (third it)))))
         (flet ((foolish (basis &aux (price (realpart (car basis))))
                  (if (= (signum price) (signum entry)) (> price entry)
@@ -407,6 +412,28 @@
           (multiple-value-bind (primary counter) (call-next-method)
             (values (remove-if #'foolish primary)
                     (remove-if #'foolish counter))))))))
+
+;;; This one belongs in the Ten Decades' Hayt
+(defun ditch-unplaced-offereds (maker &optional (stream *standard-output*))
+  (flet ((query (stale)
+           (gate-request *gate*
+                         '(:get "/v2/private/order")
+                         `(("order_id" . ,(oid stale))
+                           ("symbol" . "BTCUSD"))))
+         (compare (old new)
+           (set-difference old new :key #'oid :test #'string=)))
+    (with-slots (offered control response order-slots)
+        (slot-reduce maker supplicant)
+      (let ((stale (copy-list offered))
+            (fresh (progn (send control '(:sync)) (recv response))))
+        (mapc #'identity (compare fresh stale)) ; TODO (push :net #P".asd")
+        (mapc (lambda (json) (fresh-line stream) (pprint-json stream json))
+              (remove "EC_PostOnlyWillTakeLiquidity" ; don't think too much
+                      (mapcar #'query (compare stale fresh)) ; about names!
+                      :key (getjso "reject_reason") :test-not #'string=))
+        (apply #'complex
+               (mapcar #'- (make-list 2 :initial-element order-slots)
+                       (list (length stale) (length fresh))))))))
 
 ;;;
 ;;; Websocket

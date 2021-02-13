@@ -166,7 +166,7 @@
                      (decimals (slot-value market 'decimals))
                      (price-int (parse-price price decimals))
                      (volume (parse-float remaining_amount :type 'rational)))
-                (make-instance 'placed :oid id :market market :volume volume
+                (make-instance 'offered :oid id :market market :volume volume
                                :price (if (string= side "buy") (- price-int) price-int)))))
           (open-orders gate)))
 
@@ -288,7 +288,7 @@
              (awhen (post-limit gate type (name market) (abs price) volume
                                 (slot-value market 'decimals))
                (with-json-slots (order_id) it
-                 (change-class offer 'placed :oid order_id)))))
+                 (change-class offer 'offered :oid order_id)))))
       (post (if (< price 0) "buy" "sell")))))
 
 ;;; the order object returned will (always?) indicate that the order hasn't yet
@@ -301,7 +301,7 @@
     ;; if any cancellation fails, notany #'null ensures that we'll try again
     (list (notany #'null (mapcar (lambda (id) (cancel-order gate id)) oid)))))
 
-(defmethod cancel-offer ((gate bitfinex-gate) (offer placed))
+(defmethod cancel-offer ((gate bitfinex-gate) (offer offered))
   ;; (format t "~&cancel ~A~%" offer)
   (multiple-value-bind (ret err) (cancel-order gate (oid offer))
     (or ret (string= "Order could not be cancelled." (getjso "message" err)))))

@@ -161,7 +161,7 @@
               (let ((aksp (string-equal (value :+bs+) "S"))
                     (market (find-market (value :+mpsic+) *mpex*))
                     (volume (value :*quantity)) (price (value :*price)))
-                (make-instance 'placed :oid oid :volume volume :market market
+                (make-instance 'offered :oid oid :volume volume :market market
                                :given (if aksp (cons-aq (primary market) volume)
                                           (cons-aq (counter market)
                                                    (* price volume)))
@@ -258,11 +258,11 @@
                                        (and (= (volume placed) amount)
                                             (= (price  placed) price)))
                                      (set-difference (placed-offers gate) old))
-                       (return (change-class offer 'placed :volume amount :oid
+                       (return (change-class offer 'offered :volume amount :oid
                                              (oid it) :given (given it))))))))))
       (post (< price 0)))))
 
-(defmethod cancel-offer ((gate mpex-agent) (offer placed)
+(defmethod cancel-offer ((gate mpex-agent) (offer offered)
                          &aux (oid (oid offer)))
   (awhen (gate-request gate "cancel" (list oid))
     (flet ((value (key) (cdr (assoc key it))))  ; i smell a pattern
@@ -272,12 +272,12 @@
 
 (defun reconcile-book (supplicant statjson)
   (awhen (parse-placed statjson)        ; sometimes proxies return empty data
-    (with-slots (placed) supplicant
+    (with-slots (offered) supplicant
       (flet ((sdko (a b) (set-difference a b :key #'oid)))
-        (setf placed (sdko placed (sdko placed it))))
+        (setf offered (sdko offered (sdko offered it))))
       (dolist (maybe it)
-        (unless (find (oid maybe) placed :key #'oid)
-          (push maybe placed))))))
+        (unless (find (oid maybe) offered :key #'oid)
+          (push maybe offered))))))
 
 (defmethod supplicate
     ((supplicant supplicant) (gate mpex-agent) (op null) (args t))

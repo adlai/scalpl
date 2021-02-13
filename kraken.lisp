@@ -214,7 +214,7 @@
                              (decimals (slot-value market 'decimals))
                              (price-int (parse-price price decimals))
                              (volume (parse-float vol :type 'rational)))
-                        (make-instance 'placed :oid id :market market
+                        (make-instance 'offered :oid id :market market
                                        :price (if (string= type "buy")
                                                   (- price-int) price-int)
                                        ;; kissumes viqc
@@ -323,13 +323,13 @@
     (flet ((post (type)
              (awhen (post-limit gate type market (abs price) volume
                                 (slot-value market 'decimals))
-               (change-class offer 'placed :oid it))))
+               (change-class offer 'offered :oid it))))
       (if (< price 0) (post "buy") (post "sell")))))
 
 (defun cancel-order (gate oid)
   (gate-request gate "CancelOrder" `(("txid" . ,oid))))
 
-(defmethod cancel-offer ((gate kraken-gate) (offer placed))
+(defmethod cancel-offer ((gate kraken-gate) (offer offered))
   ;; (format t "~&cancel ~A~%" offer)
   (multiple-value-bind (ret err) (cancel-order gate (oid offer))
     (or ret (search "Unknown order" (car err)))))

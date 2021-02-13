@@ -138,7 +138,7 @@
                     (with-json-slots
                         (side price (oid "orderID") (size "orderQty")) data
                       (let ((aksp (string-equal side "Sell")))
-                        (make-instance 'placed :oid oid :market market
+                        (make-instance 'offered :oid oid :market market
                                        :volume (/ size price)
                                        :price (* price (if aksp 1 -1)
                                                  (expt 10 (decimals market)))))))
@@ -243,11 +243,11 @@
           (if (zerop code)
               (with-json-slots ((oid "orderID") (status "ordStatus")) data
                 (if (string= status "Created")
-                    (change-class offer 'placed :oid oid)
+                    (change-class offer 'offered :oid oid)
                     (warn "Failed placing: ~S~%~A" offer status)))
               (warn "Failed placing: ~S~%~A" offer msg)))))))
 
-(defmethod cancel-offer ((gate phemex-gate) (offer placed))
+(defmethod cancel-offer ((gate phemex-gate) (offer offered))
   (with-json-slots (code msg)
       (gate-request gate '(:delete "/orders/cancel")
                     `(("orderID" . ,(oid offer))

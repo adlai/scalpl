@@ -144,4 +144,4 @@ the good folks at your local Gambler's Anonymous.")
 
 (defmethod post-offer ((gate bit2c-gate) offer))
 
-(defmethod cancel-offer ((gate bit2c-gate) (offer placed)))
+(defmethod cancel-offer ((gate bit2c-gate) (offer offered)))

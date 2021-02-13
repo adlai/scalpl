@@ -159,7 +159,7 @@
                   (symbol side price (oid "orderID") (size "orderQty")) data
                 (let ((market (find-market symbol :bitmex))
                       (aksp (string-equal side "Sell")))
-                  (make-instance 'placed :oid oid :market market
+                  (make-instance 'offered :oid oid :market market
                                  :volume (/ size price)
                                  :price (* price (if aksp 1 -1)
                                            (expt 10 (decimals market)))))))
@@ -256,11 +256,11 @@
                                     int (max 1 (decimals market)) (* 10 dec)))
                           (floor (* volume (if (minusp price) 1
                                                (/ price factor)))))
-        (if (equal status "New") (change-class offer 'placed :oid oid)
+        (if (equal status "New") (change-class offer 'offered :oid oid)
             (unless (search "ParticipateDoNotInitiate" text)
               (warn "Failed placing: ~S~%~A" offer text)))))))
 
-(defmethod cancel-offer ((gate bitmex-gate) (offer placed))
+(defmethod cancel-offer ((gate bitmex-gate) (offer offered))
   (multiple-value-bind (ret err)
       (gate-request gate '(:delete "order") `(("orderID" . ,(oid offer))))
     (unless (string= err "Not Found")
@@ -409,7 +409,7 @@
                (symbol side price (oid "orderID") (size "orderQty")) data
              (let ((market (find-market symbol :bitmex))
                    (aksp (string-equal side "Sell")))
-               (make-instance 'placed :oid oid :market market
+               (make-instance 'offered :oid oid :market market
                               :volume (/ size price)
                               :price (* price (if aksp 1 -1)
                                         (expt 10 (decimals market))))))))))

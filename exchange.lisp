@@ -7,7 +7,7 @@
            #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
            #:market #:decimals #:primary #:counter #:find-market
            #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/ #:aq*
-           #:offer #:bid #:ask #:placed #:taken #:given
+           #:offer #:bid #:ask #:offered #:taken #:given
            #:volume #:price #:placed #:oid #:consumed-asset
            #:gate #:gate-post #:gate-request #:output #:input #:cache
            #:trade #:cost #:direction #:txid
@@ -107,7 +107,7 @@
 
 ;;; https://en.wikipedia.org/wiki/Scalar_(physics)#Physical_quantity
 
-(defvar *unit-registry* '(()))
+(defvar *unit-registry* '(()))          ; Mathematicians HATE him!
 
 (defclass registered-unit ()
   ((index :initform (length *unit-registry*) :reader index)))
@@ -117,21 +117,21 @@
 
 (defun find-unit (index) (cdr (assoc index *unit-registry*)))
 
-(defun physical-quantity-p (thing)
-  (and (complexp thing) (find-unit (imagpart thing))))
+(defun physical-quantity-p (thing)      ; Find out why, from that
+  (and (complexp thing) (find-unit (imagpart thing)))) ; ... ...
 
 (deftype physical-quantity () '(satisfies physical-quantity-p))
 
-(defun pprint-physical-quantity (stream pq)
+(defun pprint-physical-quantity (stream pq) ; one ! deft ! prick.
   (with-slots (decimals name) (find-unit (imagpart pq))
     (format stream "~A ~A" (decimals:format-decimal-number
                             (/ (realpart pq) (expt 10 decimals))
                             :round-magnitude (- decimals)
                             :show-trailing-zeros t)
-            name)))
+            name)))                     ; PRETTYNESS IS STRENGTH
 
-(defvar *physical-quantity-pprint-dispatch*
-  (aprog1 (copy-pprint-dispatch ())
+(defvar *physical-quantity-pprint-dispatch* ; CARS EAT PEOPLE
+  (aprog1 (copy-pprint-dispatch ())     ; and 1985 actually is a howto manual!
     (set-pprint-dispatch 'physical-quantity #'pprint-physical-quantity 1 it)))
 
 (defun enable-pretty-printer-abuse (&optional (right-margin 77))
@@ -270,7 +270,7 @@
 ;;; -given identifier, whether due to rejection, xor locality
 (defgeneric oid (offer) (:method ((offer offer)) ""))
 
-(defclass placed (offer)
+(defclass offered (offer)
   ((oid    :initarg :oid    :reader oid)))
 
 (defclass bid (offer) ()) (defclass ask (offer) ())
@@ -293,7 +293,7 @@
 
 (defmethod print-object ((offer offer) stream)
   (print-unreadable-object
-        (offer stream :type (not (typep offer 'placed)))
+        (offer stream :type (not (typep offer 'offered)))
     (with-slots (given price market) offer
       (let ((market-decimals (slot-value market 'decimals))
             *print-readably* *print-escape* *print-circle*)
@@ -808,63 +808,63 @@
 ;;; Action API
 ;;;
 
-;;; calls change-class to return a PLACED object
+;;; oughtta #'change-class to 'offered in :around
 (defgeneric post-offer (gate offer)
   (:method ((gate gate) (offers list))
     (mapcar (lambda (offer) (post-offer gate offer)) offers))
-  (:method ((gate gate) (offer placed))
+  (:method ((gate gate) (offer offered))
+    ;; TODO: choose [k]not to kill yourself; THEN, rephrase thisstring
     (warn "Tried placing an offer that is already placed: ~A" offer)))
 
 ;;; returns nil, unless the offer is definitely no longer active!
 ;;; could someday return different non-nil values if the offer
 ;;; was executed, partially or fully, before cancellation
-(defgeneric cancel-offer (gate offer)
-  (:method ((gate gate) (offer offer))
-    (warn "Tried cancelling unplaced offer ~A" offer))
-  (:method ((gate gate) (offers list))
+(defgeneric cancel-offer (gate offer)   ; cladographers always wonder...
+  (:method ((gate gate) (offer offer))  ; what kind of sadistic dastardly
+    (warn "Tried cancelling unplaced offer ~A" offer)) ; pun-laced tripe
+  (:method ((gate gate) (offers list))                 ; ] was that ?
     (mapcar (lambda (offer) (cancel-offer gate offer)) offers)))
 
 (defclass supplicant (parent)
-  ((gate :initarg :gate) (market :initarg :market :reader market) placed
+  ((gate :initarg :gate) (market :initarg :market :reader market) offered
    (response :initform (make-instance 'channel))
    (abbrev :allocation :class :initform "supplicant")
    (treasurer :initarg :treasurer) (lictor :initarg :lictor) (fee :initarg :fee)
    (order-slots :initform 40 :initarg :order-slots)))
 
 (defun offers-spending (ope asset)
-  (remove asset (slot-value ope 'placed)
+  (remove asset (slot-value ope 'offered)
           :key #'consumed-asset :test-not #'eq))
 
 (defun balance-guarded-place (ope &rest offers)
-  (flet ((map-reduce (map reduce list) (reduce reduce (mapcar map list))))
-    (with-slots (gate placed order-slots treasurer) ope
-      (let* ((asset (consumed-asset (first offers)))
-             (spending (offers-spending ope asset))
-             (mapreduc (map-reduce #'given #'aq+ (append spending offers)))
-             (ourfunds (asset-funds asset (slot-reduce treasurer balances))))
+  (with-slots (gate offered order-slots treasurer) ope
+    (let* ((asset (consumed-asset (first offers)))
+           (spending (offers-spending ope asset))
+           (mapreduc (reduce #'aq+ (mapcar #'given (append spending offers))))
+           (ourfunds (asset-funds asset (slot-reduce treasurer balances))))
+      (and (>= ourfunds (scaled-quantity mapreduc))
+           (>= order-slots (+ (length offered) (length offers)))
+           (atypecase (post-offer gate offers)
+             (offered (push it offered))
+             ;; The retention of null return values is retained, in optimistic
+             ;; anticipation of the day when failures will contain information
+             ;; beyond merely the fact of failure itself.
+             (list (dolist (offer it) (when offer (push offer offered)))))))))
 
-        (and (>= ourfunds (scaled-quantity mapreduc))
-             (>= order-slots (+ (length placed) (length offers)))
-             (atypecase (post-offer gate offers)
-               (placed (push it placed))
-               ;; The retention of null return values is retained, in optimistic
-               ;; anticipation of the day when failures will contain information
-               ;; beyond merely the fact of failure itself.
-               (list (dolist (offer it) (when offer (push offer placed))))))))))
-
+;;; FIXME: disambiguate placement from offerage, and redichotomise the book
 (defmethod placed-offers ((supplicant supplicant))
-  (with-slots (gate placed market) supplicant
+  (with-slots (gate market) supplicant
     (remove market (placed-offers gate) :test-not #'eq :key #'market)))
 
 (defmethod execute ((supplicant supplicant) (cons cons) &aux (arg (cdr cons)))
-  (with-slots (gate response placed) supplicant
+  (with-slots (gate response offered) supplicant
     (acase (car cons)
       (:cancel (when (cancel-offer gate arg)
-                 (setf placed (set-difference placed arg :key #'oid
+                 (setf offered (set-difference offered arg :key #'oid
                                               :test #'string=))))
       (:offer (apply #'balance-guarded-place supplicant arg))
-      (:sync (send response (setf placed (placed-offers supplicant))))
-      (t (setf placed (remove it placed :test #'string= :key #'oid))))))
+      (:sync (send response (setf offered (placed-offers supplicant))))
+      (t (setf offered (remove it offered :test #'string= :key #'oid))))))
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
   (with-aslots (gate market) supplicant
@@ -875,13 +875,13 @@
                `(unless (ignore-errors ,slot)
                   (adopt supp (setf ,slot (make-instance
                                            ',class :delegates `(,supp)))))))
-    (with-slots (fee lictor treasurer placed market gate) supp
+    (with-slots (fee lictor treasurer offered market gate) supp
       (adopt supp (ensure-running market)) (adopt supp gate)
       (init   fee          fee-tracker)
       (init  lictor  execution-tracker)
       (init treasurer  balance-tracker)
-      (unless (ignore-errors placed)
-        (setf placed (placed-offers gate))))))
+      (unless (ignore-errors offered)
+        (setf offered (placed-offers gate))))))
 
 (defgeneric bases-for (supplicant asset)
   (:method ((supplicant supplicant) (market market))

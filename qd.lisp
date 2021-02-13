@@ -12,8 +12,8 @@
 ;;;
 
 (defun ope-placed (ope)
-  (with-slots (placed) (slot-value ope 'supplicant)
-    (let ((all (sort (copy-list placed) #'< :key #'price)))
+  (with-slots (offered) (slot-value ope 'supplicant)
+    (let ((all (sort (copy-list offered) #'< :key #'price)))
       (flet ((split (test) (remove-if test all :key #'price)))
         ;;               bids             asks
         (values (split #'plusp) (split #'minusp))))))
@@ -58,10 +58,10 @@
   (with-slots (market book-cache bids asks frequency supplicant cut) filter
     (let ((book (recv (slot-reduce market book))))
       (unless (eq book book-cache)
-        (with-slots (placed fee) supplicant
+        (with-slots (offered fee) supplicant
           (destructuring-bind (bid . ask) (recv (slot-reduce fee output))
             (macrolet ((ignore (side)
-                         `(ignore-offers (nthcdr ,side (,side book)) placed))
+                         `(ignore-offers (nthcdr ,side (,side book)) offered))
                        (cache (n side) `(price (nth ,n (,side book-cache)))))
               (flet ((ignore-both (car &aux (cdr car))
                        (values (ignore car) (ignore cdr))))

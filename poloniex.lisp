@@ -147,7 +147,7 @@
                                 (amount (parse-float (key "amount")
                                                      :type 'number)))
                             (make-instance
-                             'placed :market market :volume amount
+                             'offered :market market :volume amount
                              :given (cons-aq (funcall (if bidp #'counter
                                                           #'primary) market)
                                              (* rate amount))
@@ -195,7 +195,7 @@
 
 ;;; actions
 
-(defmethod cancel-offer ((gate poloniex-gate) (offer placed))
+(defmethod cancel-offer ((gate poloniex-gate) (offer offered))
   (with-json-slots (success error)
       (gate-request gate "cancelOrder" `(("orderNumber" . ,(oid offer))))
     (cond
@@ -217,9 +217,9 @@
                ("amount" . ,(str (if (plusp price) volume
                                      (/ volume rate))))))
           (if (stringp oid)
-              (aprog1 offer (change-class it 'placed :oid oid))
+              (aprog1 offer (change-class it 'offered :oid oid))
               (values () ())))))))
 
 (defmethod supplicate
     ((supplicant supplicant) (gate poloniex-gate) (op null) (args t))
-  (setf (slot-reduce supplicant placed) (placed-offers gate)))
+  (setf (slot-reduce supplicant offered) (placed-offers gate)))
