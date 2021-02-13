@@ -93,7 +93,23 @@ a method exists! although, it could use improvement.
 *** cumulative comparison of
 - candidate targets and
 - executed bases
-** TODO epsilon flexibility based on target skew
+** TODO factor flexibility
+Document the various magic computations and vestigial parameters,
+with the aim of refactoring the code, rather than producing text.
+*** TODO epsilon
+Currently, `slot-reduce ope epsilon` configures several limits:
+- the actual minimal possible amount for a single offer; and
+- smallest amount[s] to actually offer, on each side.
+Document the computations, and split the configurations apart.
+*** TODO skew
+Currently, `slot-reduce maker skew-factor` does two things:
+- adjusts the relative sizes of the minimal bid and ask; and
+- adjusts the trader's velocity of money, i.e. how much larger
+  than the minimal possible amount should the bid and ask be.
+*** TODO target
+Currently, `slot-reduce maker targeting-factor` works in two
+different ways: static mode, and hysteresis; the former should
+be computed from a configuration; the latter, relocatable.
 ** TODO consume multiple fundcuts
 * TODO Cleanup TODO.org
 because no meeter is complete without its stfu
