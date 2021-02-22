@@ -78,7 +78,7 @@
   ((next-bids :initform (make-instance 'channel))
    (next-asks :initform (make-instance 'channel))
    (response :initform (make-instance 'channel))
-   (supplicant :initarg :supplicant)
+   (supplicant :initarg :supplicant) (expt :initform (exp 1))
    (abbrev :allocation :class :initform "prioritizer")
    (frequency :initarg :frequency :initform 1/7))) ; FIXME: s/ll/sh/
 
@@ -90,11 +90,11 @@
 
 (defgeneric prioriteaze (ope target placed)
   (:method ((ope prioritizer) target placed &aux to-add (excess placed))
-    (flet ((frob (add pop)
-             (let* ((n (max (length add) (length pop)))
-                    (log (log (1+ (random (1- (exp (float n 0d0))))))))
-               (awhen (nth (floor log) pop) (ope-cancel ope it))
-               (awhen (nth (- n (ceiling log)) add) (ope-place ope it)))))
+    (flet ((frob (add pop &aux (max (max (length add) (length pop))))
+             (with-slots (expt) ope
+               (let ((n (expt (random (expt max (/ expt))) expt)))
+                 (awhen (nth (floor n) pop) (ope-cancel ope it))
+                 (awhen (nth (- max (ceiling n)) add) (ope-place ope it))))))
       (aif (dolist (new target (sort to-add #'< :key #'price))
              (aif (find (price new) excess :key #'price :test #'=)
                   (setf excess (remove it excess)) (push new to-add)))
