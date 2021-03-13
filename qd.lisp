@@ -93,8 +93,8 @@
     (flet ((frob (add pop &aux (max (max (length add) (length pop))))
              (with-slots (expt) ope
                (let ((n (expt (random (expt max (/ expt))) expt)))
-                 (awhen (nth (floor n) pop) (ope-cancel ope it))
-                 (awhen (nth (- max (ceiling n)) add) (ope-place ope it))))))
+                 (awhen (nth (- max (ceiling n)) pop) (ope-cancel ope it))
+                 (awhen (nth (floor n) add) (ope-place ope it))))))
       (aif (dolist (new target (sort to-add #'< :key #'price))
              (aif (find (price new) excess :key #'price :test #'=)
                   (setf excess (remove it excess)) (push new to-add)))
@@ -329,7 +329,7 @@
       ;; FIXME: modularize all this decimal point handling
       ;; we need a pprint-style ~/aq/ function, and pass it aq objects!
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (aprog1 (format () "~&~A~A ~{~A~^ ~}~%~5,4,,VF~4,4F~4,4@F~A"
+      (aprog1 (format () "~&~A~A ~{~A~^ ~} ~5,4,,VF~4,4F~4,4@F~A~%"
                       name (format-timestring ; a naggy mess and lispy, too!
                             () (now) :format '((:hour 2) (:min 2) (:sec 2)))
                       (mapcar #'sastr '(primary counter primary counter)
@@ -380,8 +380,8 @@
                                                   (/ doge btc doge/btc)) 0)))
                                   (/ doge btc doge/btc)))))
               ;; ;; "Yeah, science!" - King of the Universe, Right Here
-              ;; (when (= (signum skew) (signum (log targeting-factor)))
-              ;;   (setf targeting-factor (/ targeting-factor)))
+              (when (= (signum skew) (signum (log targeting-factor)))
+                (setf targeting-factor (/ targeting-factor)))
               ;; report funding
               (makereport maker total-fund doge/btc total-btc total-doge buyin
                           (dbz-guard (/ (total-of    btc  doge) total-fund))

@@ -291,7 +291,7 @@ the high-level so we can express statistical arbitrage rules
 **** Was the last trade >= the lowest ask? -> buyer initiative
 **** Was the last trade <= the highest bid? -> seller initiative
 ** Placement rationale invalidation
-* Dumbot
+* TODO Dumbot
 ** Resilience
 *** Definition
 How large a buy or sell we want to suvive without getting "run over"

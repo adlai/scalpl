@@ -457,7 +457,8 @@
         (with-slots (market-timestamp-sensitivity) exchange
           (and (string= (direction prev) (direction next))
                (> market-timestamp-sensitivity
-                  (timestamp-difference (timestamp next) (timestamp prev)))))))))
+                  (timestamp-difference (timestamp next)
+                                        (timestamp prev)))))))))
 
 ;; (defgeneric same-trades? (trades-tracker prev next)
 ;;   (:method-combination and)
@@ -826,7 +827,8 @@
     (mapcar (lambda (offer) (cancel-offer gate offer)) offers)))
 
 (defclass supplicant (parent)
-  ((gate :initarg :gate) (market :initarg :market :reader market) offered
+  ((gate :initarg :gate) (market :initarg :market :reader market)
+   (offered :initform ())
    (response :initform (make-instance 'channel))
    (abbrev :allocation :class :initform "supplicant")
    (treasurer :initarg :treasurer) (lictor :initarg :lictor) (fee :initarg :fee)
