@@ -168,10 +168,21 @@
                                     .,(princ-to-string (txid from)))))))
       (if from (cdr (mapcar #'parse it)) (nreverse (mapcar #'parse it))))))
 
-(defun recent-splashes (market &key count &aux all)
+(deftype maybe-latest (minutes) `(or null (mod ,minutes)))
+(deftype maybe-timestamp () '(or null timestamp))
+
+(defun recent-splashes (market &key (count () countp) from &aux all)
+  (check-type count (maybe-latest 1001) "Those who can't count, don't!")
+  (check-type from maybe-timestamp "Please fart into the breathalyzer.")
+  (when (and countp (null from))
+    (warn "Please use the default window for latest data."))
   (awhen (public-request "liq-records"
                          `(("symbol" . ,(name market))
-                           . ,(when count `(("limit" . ,count)))))
+                           ,@(when count `(("limit" . ,count)))
+                           ;; yajahrhrhr, pols pos kiss stfu gtfo
+                           ,@(when from `(("start_time"
+                                           .,(prin1-to-string
+                                              (timestamp-to-unix from)))))))
     (dolist (row it all)
       (with-json-slots (time . #1=(side qty price)) row
         (push (list (multiple-value-bind (seconds milliseconds)
