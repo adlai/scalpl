@@ -1,7 +1,7 @@
 (defpackage #:scalpl.bybit
   (:nicknames #:bybit) (:export #:*bybit* #:bybit-gate #:*swagger*)
   (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
-        #:scalpl.actor #:scalpl.exchange))
+        #:scalpl.actor #:scalpl.exchange #:scalpl.qd))
 
 (in-package #:scalpl.bybit)
 
@@ -201,20 +201,15 @@
   (labels ((parse-offer (json)
              (with-json-slots (side price (oid "order_id") qty) json
                (make-instance 'offered :oid oid :market market
-                              :volume (/ (parse-integer qty)
-                                         (parse-float price))
+                              :volume (/ qty (parse-float price))
                               :price (* (parse-float price)
                                         (if (string= side "Sell") 1 -1)
-                                        (expt 10 (decimals market))))))
-           (rec (cursor acc)
-             (aif (gate-request gate '(:get "/v2/private/order/list")
-                                `(("order_status" . "New") ("limit" . "50")
-                                  ("symbol" . ,(name market)) .
-                                  ,(when cursor `(("cursor" . ,cursor)))))
-                  (with-json-slots (data cursor) it
-                    (aif data (rec cursor (nconc data acc)) acc))
-                  acc)))
-    (mapcar #'parse-offer (rec () ()))))
+                                        (expt 10 (decimals market)))))))
+    (aif (gate-request gate '(:get "/v2/private/order")
+                       `(("symbol" . ,(name market))))
+         (mapcar #'parse-offer it)
+         ;; FIXME: ret_code 0 & msg=OK mean that there are no orders
+         (warn "Request failed; active orders may be unreported!"))))
 
 (defun account-position (gate market)
   (awhen (gate-request gate '(:get "/v2/private/position/list")
@@ -332,12 +327,68 @@
                             )
               (warn "Failed placing: ~S~%~A" offer complaint)))))))
 
+(defun amend-raw-offer (gate market oid size &optional price)
+  (gate-request gate '(:post "/v2/private/order/replace")
+                `(("symbol" . ,market) ("order_id" . ,oid)
+                  ("p_r_qty" . ,(princ-to-string size))
+                  ,@(when price
+                      `(("p_r_price" . ,price))))))
+
+(defmethod amend-offer ((gate bybit-gate) (old offered) (new offer))
+  (with-slots (market oid) old
+    (with-slots (volume price) new
+      (let* ((factor (expt 10 (decimals market))))
+        (multiple-value-bind (json complaint)
+            (amend-raw-offer
+             gate (name market) oid
+             (floor (* volume (if (minusp price) 1
+                                  (/ price factor))))
+             (unless (= (realpart price) (realpart (price old)))
+               (multiple-value-bind (int dec)
+                   (floor (abs (/ (floor price 1/2) 2)) factor)
+                 (format () "~D.~V,'0D" int
+                         (max 1 (decimals market)) (* 10 dec)))))
+          (unless complaint
+            (with-json-slots ((returned-oid "order_id")) json
+              (if (string= returned-oid oid) ; no reason this should fail!
+                  (reinitialize-instance
+                   old :volume volume :price price)))))))))
+
+;;; FIXME:
+;;; The PostOnly option is, quite infuriatingly, only respected after
+;;; the Internet-facing endpoint has already confirmed the offer; thus,
+;;; there is a need for a followup that confirms offer placement, at least
+;;; half a second after the initial claim that it's been placed.
+
 (defmethod cancel-offer ((gate bybit-gate) (offer offered))
   (multiple-value-bind (ret err)
       (gate-request gate '(:post "/v2/private/order/cancel")
                     `(("symbol" . ,(name (market offer)))
                       ("order_id" . ,(oid offer))))
     (or ret (and (null err) (string= (oid offer) (getjso "order_id" ret))))))
+
+(defclass bybit-prioritizer (prioritizer) ())
+
+(defmethod prioriteaze ((ope bybit-prioritizer) target placed
+                        &aux to-add (excess placed))
+  (flet ((frob (add pop &aux (max (max (length add) (length pop))))
+           (with-slots (expt) ope
+             (let* ((n (expt (random (expt max (/ expt))) expt))
+                    (add (nth (floor n) add))
+                    (pop (nth (- max (ceiling n)) pop)))
+               (if (and add pop)
+                   (amend-offer (slot-reduce ope supplicant gate) pop add)
+                   (if add (ope-place ope add) (ope-cancel ope pop)))))))
+    (aif (dolist (new target (sort to-add #'< :key #'price))
+           (aif (find (price new) excess :key #'price :test #'=)
+                (setf excess (remove it excess)) (push new to-add)))
+         (frob it (reverse excess))   ; which of these is worst?
+         (if excess (frob () excess)  ; choose the lesser weevil
+             (and target placed (= (length target) (length placed))
+                  (loop for new in target and old in placed
+                     when (sufficiently-different? new old)
+                     collect new into news and collect old into olds
+                     finally (when news (frob news olds))))))))
 
 ;;;
 ;;; General Introspection
