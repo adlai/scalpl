@@ -444,14 +444,16 @@
  (with-slots (gate) supplicant
     ;;; there's a pattern here, and it belongs in the fucking symbol-plists:
    (format t "~&~%@#$%& Dump Of Recent Closes &%$#@~%")
-   (multiple-value-bind (rhos total) (recent-closes gate #|2000|#)
+   (multiple-value-bind (rhos total)
+       (apply #'recent-closes gate
+              (and (eq *standard-output* *debug-io*) 2500))
      (dolist (row rhos (values total (log (1+ total))))
        (destructuring-bind #1=(second action comment quanta tide) row
                            (format t "~&~10A ~4A ~5D ~1,6$ ~8$~%" . #1#))))
    (format t "~&~%@#$%& Dump Of Recent Daily Earnings &%$#@~%")
    (dolist (row (daily-returns gate))
      (destructuring-bind #2=(day coins flux) row
-       (format t "~&~10A ~A ~11@A~%" . #2#)))
+       (format t "~&~10A ~10A ~11@A~%" . #2#)))
    (format t "~&~%@#$%& Dump Of Recent Liquidity Scores &%$#@~%")
    (dolist (day (liquidity-contribution-score gate))
      (format t "~&~{~D ~F ~F ~F~}~%" day))
@@ -477,8 +479,9 @@
 
 ;;; This one belongs in the Ten Decades' Hayt
 (defun ditch-unplaced-offereds (maker &optional (stream *standard-output*))
+  (declare (ignorable stream))
   (flet ((query (stale)
-           (gate-request *gate*
+           (gate-request (slot-reduce maker gate)
                          '(:get "/v2/private/order")
                          `(("order_id" . ,(oid stale))
                            ("symbol" . "BTCUSD"))))
@@ -488,14 +491,24 @@
         (slot-reduce maker supplicant)
       (let ((stale (copy-list offered))
             (fresh (progn (send control '(:sync)) (recv response))))
-        (mapc #'identity (compare fresh stale)) ; TODO (push :net #P".asd")
-        (mapc (lambda (json) (fresh-line stream) (pprint-json stream json))
-              (remove "EC_PostOnlyWillTakeLiquidity" ; don't think too much
-                      (mapcar #'query (compare stale fresh)) ; about names!
-                      :key (getjso "reject_reason") :test-not #'string=))
-        (apply #'complex
-               (mapcar #'- (make-list 2 :initial-element order-slots)
-                       (list (length stale) (length fresh))))))))
+        (values (complex (- order-slots (length stale))
+                         (- order-slots (length fresh)))
+                (compare fresh stale)
+                (remove "EC_PostOnlyWillTakeLiquidity"  ; don't think too much
+                        (mapcar #'query (compare stale fresh)) ; about names!
+                        :key (getjso "reject_reason") :test-not #'string=))))))
+
+(defun estimate-funding-dividend (gate market)
+  (with-json-slots ((numerator "predicted_funding_fee")
+                    (predicted "predicted_funding_rate"))
+      (gate-request gate '(:get "/open-api/funding/predicted-funding")
+                    `(("symbol" . ,(name market))))
+    (with-json-slots ((rate "funding_rate"))
+        (gate-request gate '(:get "/open-api/funding/prev-funding-rate")
+                      `(("symbol" . ,(name market))))
+      (values (cons-aq* (primary market)
+                        (- (* (/ numerator predicted) (parse-float rate))))
+              rate (cons-aq* (primary market) (/ numerator predicted))))))
 
 ;;;
 ;;; Websocket
@@ -555,9 +568,10 @@
     (setf (values book-table socket) (make-orderbook-socket market))))
 
 (defmethod get-book ((market streaming-market) &key)
-  (with-slots (book-table) market
-    (loop for (price . offer) being each hash-value of book-table
-       if (eq (type-of offer) 'ask) collect offer into asks
-       if (eq (type-of offer) 'bid) collect offer into bids
-       finally (return (values (sort asks #'< :key #'price)
-                               (sort bids #'< :key #'price))))))
+  (if (not (slot-boundp market 'book-table)) (values () ())
+      (with-slots (book-table) market
+        (loop for (price . offer) being each hash-value of book-table
+           if (eq (type-of offer) 'ask) collect offer into asks
+           if (eq (type-of offer) 'bid) collect offer into bids
+           finally (return (values (sort asks #'< :key #'price)
+                                   (sort bids #'< :key #'price)))))))
