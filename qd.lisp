@@ -123,11 +123,11 @@
            (/ (* ask (- 1 (/ ask-fee 100)))
               (* bid (+ 1 (/ bid-fee 100)))))))
 
-(defun dumbot-offers (foreigners       ; w/filter to avoid feedback
+(defun dumbot-offers (foreigners       ; filtered to prevent overdamping
                       resilience       ; pq target offer depth to fill
                       funds            ; pq target total offer volume
                       epsilon          ; pq size of smallest order
-                      max-orders       ; target amount of offers
+                      max-orders       ; maximal offer count
                       magic            ; if you have to ask, you'll never know
                       &aux (acc 0.0) (share 0) (others (copy-list foreigners))
                         (asset (consumed-asset (first others))))
@@ -164,7 +164,7 @@
             (break-errors (not division-by-zero) ; dbz = no funds left, too bad
               (mapcar (offer-scaler total-shares bonus target-count)
                       chosen-stairs)))))
-    ;; TODO - use a callback for liquidity distribution control
+    ;; DONT use callbacks for liquidity distribution control
     (with-slots (volume) (first remaining-offers)
       (push (incf share (* 7/4 (incf acc volume))) (first remaining-offers)))))
 
