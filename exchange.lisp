@@ -308,6 +308,9 @@
 ;;;
 
 (defclass gate (actor)
+  ;; Had I a time machine, this would be named "turnstile";
+  ;; it does a bit more than merely rate-limiting, credential
+  ;; storage, cache invalidation, and occasional race conditions.
   ((exchange :initarg :exchange :initform (error "EI4NI") :reader exchange)
    (pubkey :initarg :pubkey :initform (error "gate requires API pubkey"))
    (secret :initarg :secret :initform (error "gate requires API secret"))
@@ -333,13 +336,18 @@
 
 (defmethod halt :before ((gate gate))
   (pexec (:name "gate kill helper")
+    ;; FIXME: the following loop is almost useless
     (loop until (account-balances gate) do (sleep 15))))
 
 (defun gate-request (gate path &optional options &aux (id (cons path options)))
   (with-slots (input output) gate
     (send input (list* id path options))
-    (loop for reply = (recv output) until (eq (car reply) id)
-       do (send output reply) finally (return (values-list (cdr reply))))))
+    (multiple-value-bind (data excuses condition)
+        ;; someday, stop seeking patterns in boilerplate garbage
+        (loop for reply = (recv output) until (eq (car reply) id)
+           do (send output reply) finally (return (values-list (cdr reply))))
+      ;; someday, importantly, is not ever part of the 21st century
+      (aif condition (signal it) (values data excuses)))))
 
 ;;;
 ;;; Public Data API
@@ -546,8 +554,7 @@
 (defmethod ensure-running ((market tracked-market)) market)
 
 (defgeneric print-book (book &key &allow-other-keys)
-  (:method ((book cons) &key count prefix ours
-            &aux (nalloc (and count (isqrt count))))
+  (:method ((book cons) &key count prefix ours)
     (destructuring-bind (bids . asks) book
       (flet ((width (side)
                (flet ((vol (noise) (quantity (given noise))))
