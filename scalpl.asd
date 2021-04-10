@@ -37,7 +37,11 @@
   :description "api client for bybit"
   :depends-on (#:scalpl #:websocket-driver-client)
   :components ((:file "bybit"))
-  :perform (load-op (no book) (cerror "bucketp" 'parse-error)))
+  :perform (load-op (no book)
+             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
+             (format *debug-io* "~&~A~%"
+                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.BYBIT),SCALPL.QD]?")
+                         "WHEN EVIL!?" "Relax, it's only an M-expression!"))))
 (defsystem #:scalpl/bitmex
   :license "public domain"
   :description "api client for bitmex"
