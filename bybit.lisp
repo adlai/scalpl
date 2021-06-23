@@ -126,13 +126,15 @@
   (destructuring-bind ((verb method) . parameters) request
     (multiple-value-bind (ret code status)
         (auth-request verb method key secret parameters)
-      `(,ret ,(awhen1 (case code
+      `(,ret ,(awhen1 (acase code
                         ((0)) ; C-style, no error
                         ;; TODO: lots of DEFINE-CONDITION ... see
                         ;; bybit-exchange.github.io/docs/inverse/#t-errors
                         ((20001 30032 30037)) ; filled before cancellation
+                        ((30076) it)          ; report failures to replace
                         (t status))     ; by default, echo the error text
-                (warn (format () "#~D ~A" code it)))))))
+                (typecase it
+                  (string (warn (format () "#~D ~A" code it)))))))))
 
 (defmethod shared-initialize ((gate bybit-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
@@ -211,6 +213,10 @@
          ;; FIXME: ret_code 0 & msg=OK mean that there are no orders
          (warn "Request failed; active orders may be unreported!"))))
 
+;;; TODO: meld this one into account-position (gate &optional market)
+(defun all-positions (gate)
+  (gate-request gate '(:get "/v2/private/position/list")))
+
 (defun account-position (gate market)
   (awhen (gate-request gate '(:get "/v2/private/position/list")
                        `(("symbol" . ,(name market))))
@@ -221,7 +227,7 @@
         (values `(,(cons-mp* market (* (parse-float entry)
                                        (if (string= side "Buy") -1 1)))
                   ,(cons-aq* primary (* (parse-float value)
-                                           (if (string= side "Buy") 1 -1)))
+                                        (if (string= side "Buy") 1 -1)))
                   ,(cons-aq counter (* size (if (string= side "Buy") -1 1))))
                 it)))))
 
@@ -331,8 +337,7 @@
   (gate-request gate '(:post "/v2/private/order/replace")
                 `(("symbol" . ,market) ("order_id" . ,oid)
                   ("p_r_qty" . ,(princ-to-string size))
-                  ,@(when price
-                      `(("p_r_price" . ,price))))))
+                  ,@(when price `(("p_r_price" . ,price))))))
 
 (defmethod amend-offer ((gate bybit-gate) (old offered) (new offer))
   (with-slots (market oid) old
@@ -348,11 +353,12 @@
                    (floor (abs (/ (floor price 1/2) 2)) factor)
                  (format () "~D.~V,'0D" int
                          (max 1 (decimals market)) (* 10 dec)))))
-          (unless complaint
-            (with-json-slots ((returned-oid "order_id")) json
-              (if (string= returned-oid oid) ; no reason this should fail!
-                  (reinitialize-instance
-                   old :volume volume :price price)))))))))
+          (if complaint
+              (warn (format () "~A was not modified to ~A" old new))
+              (with-json-slots ((returned-oid "order_id")) json
+                (if (string= returned-oid oid) ; how can this test fail?
+                    (reinitialize-instance     ; not rhetoric, enumerate
+                     old :volume volume :price price))))))))) ; or don't
 
 ;;; FIXME:
 ;;; The PostOnly option is, quite infuriatingly, only respected after
@@ -389,6 +395,13 @@
                      when (sufficiently-different? new old)
                      collect new into news and collect old into olds
                      finally (when news (frob news olds))))))))
+
+(defun wipe-offers (supplicant)
+  (multiple-value-bind (ret err)
+      (with-slots (gate market) supplicant
+        (gate-request gate '(:post "/v2/private/order/cancelAll")
+                      `(("symbol" . ,(name market)))))
+    (or err ret)))
 
 ;;;
 ;;; General Introspection
