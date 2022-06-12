@@ -18,22 +18,26 @@
            #:execution #:fee #:net-cost #:net-volume #:fee-tracker
            #:execution-tracker #:execution-since #:bases #:bases-without
            #:post-offer #:cancel-offer #:supplicant #:lictor #:treasurer
-           #:order-slots #:response #:supplicate #:bases-for
-           #:describe-account))
+           #:order-slots #:response #:supplicate #:bases-for #:reserved
+           #:describe-account #:backoff))
 
 (in-package #:scalpl.exchange)
 
 ;;; Networking... dump it here, later should probably split into net.lisp
 
-(defun http-request (path &rest keys &aux (backoff 3))
-  (loop (handler-case (return (apply #'drakma:http-request path keys))
+(defun http-request (path &rest keys &key (backoff 3) &allow-other-keys)
+  (loop (handler-case
+	    (return (apply #'drakma:http-request path
+			   (alexandria:remove-from-plist keys :backoff)))
           ((or simple-error drakma::drakma-simple-error
             usocket:ns-try-again-condition
             usocket:deadline-timeout-error usocket:timeout-error
             usocket:timeout-error usocket:ns-host-not-found-error
             end-of-file chunga::input-chunking-unexpected-end-of-file
-            cl+ssl::ssl-error usocket:connection-refused-error)
-              (error) (describe error) (sleep (incf backoff backoff))))))
+            cl+ssl::ssl-error usocket:connection-refused-error) (error)
+	    ;; (describe error)
+	    (if (zerop backoff) (return) ; might prevent nonce reuse...
+		(sleep (incf backoff backoff))))))) ; probably won't
 
 ;;; TODO
 ;;; This file MUST build the interface that each exchange client needs to
@@ -498,7 +502,7 @@
 
 (defclass book-tracker (parent)
   ((market :initarg :market :reader market :initform (error "required"))
-   (get-book-keys :initform '(:count 555) :initarg :get-book-keys)
+   (get-book-keys :initform () :initarg :get-book-keys)
    (delay :initarg :delay :initform 1) (book :initform ())
    (buffer :initform (make-instance 'channel)) fetcher
    (output :initform (make-instance 'channel))))
@@ -549,7 +553,16 @@
 (defmethod ensure-running ((market tracked-market)) market)
 
 (defgeneric print-book (book &key &allow-other-keys)
+  (:method ((tracker book-tracker) &rest keys)
+    (apply #'print-book (recv (slot-value tracker 'output)) keys))
+  (:method ((market tracked-market) &rest keys)
+    (apply #'print-book (slot-value market 'book-tracker)
+	   :prefix :military-time keys))
   (:method ((book cons) &key count prefix ours)
+    ;; (declare (optimize debug))
+    (when (eq prefix :military-time)
+      (setf prefix (format-timestring () (now)
+				      :format '((:hour 2) (:min 2)))))
     (destructuring-bind (bids . asks) book
       (flet ((width (side)
                (flet ((vol (noise) (quantity (given noise))))
@@ -604,7 +617,7 @@
 ;;; Private Data API
 ;;;
 
-(defgeneric placed-offers (gate))
+(defgeneric placed-offers (gate &optional market))
 (defgeneric account-balances (gate))
 
 (defclass balance-tracker (actor)
@@ -638,6 +651,8 @@
 
 (defgeneric market-fee (gate market)
   (:documentation "(bid . ask) fees, in percent")
+  (:method ((gate gate) (market tracked-market))
+    (market-fee gate (slot-reduce market scalpl.exchange::%market)))
   (:method :around ((gate gate) (market market))
     (actypecase (call-next-method) (number `(,it . ,it)) (cons it) (null))))
 
@@ -713,6 +728,9 @@
 (defmethod christen ((tracker execution-tracker) (type (eql 'actor)))
   (with-slots (gate market) tracker
     (format nil "~A ~A" (name gate) (name market))))
+
+(defmethod execute ((tracker execution-tracker) (command (eql :flush)))
+  (setf (slot-reduce tracker bases) nil))
 
 (defmethod execute ((tracker execution-tracker) (command (eql :rebase)))
   (with-slots (bases trades) tracker
@@ -830,10 +848,11 @@
 
 (defclass supplicant (parent)
   ((gate :initarg :gate) (market :initarg :market :reader market)
-   (offered :initform ())
+   (offered :initform ())	  ; (placed :initform ()) ; need both!
    (response :initform (make-instance 'channel))
    (abbrev :allocation :class :initform "supplicant")
-   (treasurer :initarg :treasurer) (lictor :initarg :lictor) (fee :initarg :fee)
+   (treasurer :initarg :treasurer)
+   (lictor :initarg :lictor) (fee :initarg :fee)
    (order-slots :initform 40 :initarg :order-slots)))
 
 (defun offers-spending (ope asset)
@@ -856,9 +875,10 @@
              (list (dolist (offer it) (when offer (push offer offered)))))))))
 
 ;;; FIXME: disambiguate placement from offerage, and redichotomise the book
-(defmethod placed-offers ((supplicant supplicant))
+(defmethod placed-offers ((supplicant supplicant) &optional market)
   (with-slots (gate market) supplicant
-    (remove market (placed-offers gate) :test-not #'eq :key #'market)))
+    (remove market (placed-offers gate market)
+	    :test-not #'eq :key #'market)))
 
 (defmethod execute ((supplicant supplicant) (cons cons) &aux (arg (cdr cons)))
   (with-slots (gate response offered) supplicant
@@ -885,7 +905,7 @@
       (init  lictor  execution-tracker)
       (init treasurer  balance-tracker)
       (unless (ignore-errors offered)
-        (setf offered (placed-offers gate))))))
+        (setf offered (placed-offers gate market))))))
 
 (defgeneric bases-for (supplicant asset)
   (:method ((supplicant supplicant) (market market))
@@ -903,6 +923,14 @@
                   (mapcar #'basis-offer (bases-for supplicant primary))
                   keys))))
 
+;;; la la la la la la la la la la la la la, lala!
+;;; what err melon what err melon, what? er, melon! water, fall!
+;; (defun respawn-syncer (&optional (supplicant *supplicant*))
+;;   (pexec (:name "syncer")
+;;     (loop (with-slots (control response) supplicant
+;; 	    (send control '(:sync)) (recv response) (sleep 17)))))
+;;; what are you syncing ahh.... bout?
+
 ;;;
 ;;; Here should begin the CLI directory, full of curses, horrors,
 ;;; and worst of all, commented curses at the curses horrors within.
@@ -919,3 +947,8 @@
   (:method ((supplicant t) (exchange exchange) (stream t))
     (error "I can't even tame lions, how do you expect me to balance books?"))
   (:documentation "summarize how things are going, profit-wise"))
+
+(defun respawn-syncer (&optional (supplicant *supplicant*) (wavenumber 17))
+  (pexec (:name "syncer")
+    (loop (with-slots (control response) supplicant
+	    (send control '(:sync)) (recv response) (sleep wavenumber)))))

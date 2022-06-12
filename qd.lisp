@@ -58,20 +58,22 @@
   (with-slots (market book-cache bids asks frequency supplicant cut) filter
     (let ((book (recv (slot-reduce market book))))
       (unless (eq book book-cache)
+	(setf book-cache book)
         (with-slots (offered fee) supplicant
           (destructuring-bind (bid . ask) (recv (slot-reduce fee output))
-            (macrolet ((ignore (side)
-                         `(ignore-offers (nthcdr ,side (,side book)) offered))
-                       (cache (n side) `(price (nth ,n (,side book-cache)))))
-              (flet ((ignore-both (car &aux (cdr car))
-                       (values (ignore car) (ignore cdr))))
-                (setf book-cache book (values bids asks)
-                      (ignore-both      ; TODO: targeting-aware lopsidedness
-                       (1- (loop for i from 0 count t until
-                                (< (/ cut 100)
-                                   (1- (profit-margin
-                                        (cache i car) (cache i cdr)
-                                        bid ask)))))))))))))
+	    (loop with rudder = (sin (phase cut)) with scale = (abs rudder)
+		  for i from 0 for j = (1+ (floor (* i (- 1 scale))))
+		  for a = (if (plusp rudder) j i)
+		  for b = (if (plusp rudder) i j)
+		  ;; do (break)
+		  until (< (/ (realpart cut) 100)
+			   (1- (profit-margin (price (nth a (car book)))
+					      (price (nth b (cdr book)))
+					      bid ask)))
+		  finally (setf bids (ignore-offers (nthcdr a (car book))
+						    offered)
+				asks (ignore-offers (nthcdr b (cdr book))
+						    offered)))))))
     (sleep frequency)))
 
 (defclass prioritizer (actor)
@@ -93,8 +95,8 @@
     (flet ((frob (add pop &aux (max (max (length add) (length pop))))
              (with-slots (expt) ope
                (let ((n (expt (random (expt max (/ expt))) expt)))
-                 (awhen (nth (- max (ceiling n)) pop) (ope-cancel ope it))
-                 (awhen (nth (floor n) add) (ope-place ope it))))))
+                 (awhen (nth (floor n) add) (ope-place ope it))
+                 (awhen (nth (- max (ceiling n)) pop) (ope-cancel ope it))))))
       (aif (dolist (new target (sort to-add #'< :key #'price))
              (aif (find (price new) excess :key #'price :test #'=)
                   (setf excess (remove it excess)) (push new to-add)))
@@ -123,12 +125,16 @@
            (/ (* ask (- 1 (/ ask-fee 100)))
               (* bid (+ 1 (/ bid-fee 100)))))))
 
-(defun dumbot-offers (foreigners       ; filtered to prevent overdamping
-                      resilience       ; pq target offer depth to fill
-                      funds            ; pq target total offer volume
-                      epsilon          ; pq size of smallest order
-                      max-orders       ; maximal offer count
-                      magic            ; if you have to ask, you'll never know
+;;; "plan to throw one away, for you already have"
+;;; "plan two: yeet it like a neet"
+;;; before undichotomising simultaneity and sequentialism,
+;;; reframe Kolmogrov complexity as nonlinear metric
+(defun dumbot-offers (foreigners        ; filtered to prevent overdamping
+                      resilience        ; pq target offer depth to fill
+                      funds             ; pq target total offer volume
+                      epsilon           ; pq size of smallest order
+                      max-orders        ; maximal offer count
+                      magic             ; if you have to ask, you'll never know
                       &aux (acc 0.0) (share 0) (others (copy-list foreigners))
                         (asset (consumed-asset (first others))))
   (do* ((remaining-offers others (rest remaining-offers))
@@ -141,14 +147,14 @@
                  (sort (subseq* (sort (or (subseq offers 0 (1- processed-tally))
                                           (warn "~&FIXME: GO DEEPER!~%") offers)
                                       #'> :key (lambda (x) (volume (cdr x))))
-                               0 count) #'< :key (lambda (x) (price (cdr x)))))
+                                0 count) #'< :key (lambda (x) (price (cdr x)))))
                (offer-scaler (total bonus count)
                  (let ((scale (/ funds (+ total (* bonus count)))))
                    (lambda (order &aux (vol (* scale (+ bonus (car order)))))
                      (with-slots (market price) (cdr order)
                        (make-instance 'offer ; FIXME: :given (ring a bell?)
                                       :given (cons-aq* asset vol) :volume vol
-                                      :market market :price (- price 5)))))))
+                                      :market market :price (1- price)))))))
           (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni! wut?
                                     max-orders processed-tally))
                  (chosen-stairs         ; the (shares . foreign-offer)s to fight
@@ -231,6 +237,9 @@
   ;; it also just makes you sound like a lad, a cad, and never a chad
   (with-slots (input output filter prioritizer epsilon frequency) ope
     (destructuring-bind (primary counter resilience ratio) (recv input)
+      (with-slots (cut) filter
+	(setf cut (complex (realpart cut)
+			   (* (realpart cut) (atan (log ratio))))))
       (with-slots (next-bids next-asks response) prioritizer
         (macrolet ((do-side (amount side chan epsilon)
                      #+ () "can't I write documentation for local macros?"
@@ -240,10 +249,10 @@
                                                     ,epsilon ',side ope))
                           ;; M-x viper SPACE          ; why'dit haffter
                           (recv response)))))
-          (let ((e (/ epsilon (+ 1/17 (abs (log (1+ (abs (log ratio)))))))))
+          (let ((e (/ epsilon (+ 1/13 (abs (log (1+ (abs (log ratio)))))))))
             (do-side counter bids next-bids
-                     (* (max e epsilon) (abs (price (first bids))) (max ratio 1)
-                        (expt 10 (- (decimals (market (first bids)))))))
+              (* (max e epsilon) (abs (price (first bids))) (max ratio 1)
+                 (expt 10 (- (decimals (market (first bids)))))))
             (do-side primary asks next-asks (* (max e epsilon) (max (/ ratio) 1)))
             ;; no, you may not write CL:DOCUMENTATION for macrolets,
             ;; you fine-source-reusing literati scum-bucket investor;
@@ -288,9 +297,10 @@
              (* 100 (1- (profit-margin (vwap "buy") (vwap "sell"))))))
          (side-last (side)
            (volume (find side trades :key #'direction :test #'string-equal)))
-         (chr (fraction)
-           (funcall (if (plusp fraction) #'identity #'char-downcase)
-                    (digit-char (- 36 (ceiling (* (abs fraction) 26))) 36))))
+         (chr (real)                ;_; was I a good function? // No.
+           (funcall (if (plusp real) #'identity #'char-downcase)
+                    (char "HWFUMONERYLSICAZJX"
+                          (floor (* (abs real) #xFF) #xF)))))
     (with-output-to-string (out)
       (when (and (find "buy" trades :key #'direction :test #'string-equal)
                  (find "sell" trades :key #'direction :test #'string-equal))
@@ -302,6 +312,7 @@
                            finally (return (min buy-sum sell-sum))))
                (min-last (apply 'min (mapcar #'side-last '("buy" "sell"))))
                (scale (expt (/ min-sum min-last) (/ (1+ length))))
+               ;; FIXME: neither a sticky hocker nor a logical shocker be
                (dps (loop for i to length collect
                          (depth-profit (/ min-sum (expt scale i)))))
                (highest (apply #'max 0 (remove-if #'minusp dps)))
@@ -315,7 +326,8 @@
 (defun makereport (maker fund rate btc doge investment risked skew &optional ha)
   (with-slots (name market ope snake last-report) maker
     (unless ha
-      (let ((new-report (list btc doge investment risked skew
+      (let ((new-report (list (float btc) (float doge) ; approximate,
+			      investment risked skew   ; intentionally.
                               (first (slot-reduce maker lictor trades)))))
         (if (equal new-report (if (channelp (first last-report))
                                   (cdr last-report) last-report))
@@ -373,6 +385,11 @@
                             buyin targeting-factor))
                    (doge (* fund-factor total-doge
                             (/ (- 1 buyin) targeting-factor)))
+                   ;; status should always be \in (0,1)
+                   (status (dbz-guard (/ (total-of    btc  doge) total-fund)))
+                   ;; torque's range varies, depending on markets and climates
+                   (torque (dbz-guard (/ (total-of (- btc) doge) total-fund)))
+                   ;; this old formula has lost its spice; needs sigmoid clamp
                    (skew (log (if (zerop (* btc doge))
                                   (max 1/100
                                        (min 100
@@ -380,12 +397,11 @@
                                                   (/ doge btc doge/btc)) 0)))
                                   (/ doge btc doge/btc)))))
               ;; ;; "Yeah, science!" - King of the Universe, Right Here
-              (when (= (signum skew) (signum (log targeting-factor)))
-                (setf targeting-factor (/ targeting-factor)))
+              ;; (when (= (signum skew) (signum (log targeting-factor)))
+              ;;   (setf targeting-factor (/ targeting-factor)))
               ;; report funding
-              (makereport maker total-fund doge/btc total-btc total-doge buyin
-                          (dbz-guard (/ (total-of    btc  doge) total-fund))
-                          (dbz-guard (/ (total-of (- btc) doge) total-fund)))
+              (makereport maker total-fund doge/btc total-btc total-doge
+                          buyin status torque)
               (flet ((f (g h) `((,g . ,(* cut (max 0 (* skew-factor h)))))))
                 (send (slot-reduce ope input)
                       (list (f (min btc (* 2/3 total-btc)) skew)
@@ -442,10 +458,12 @@
                (uptime (timestamp-difference
                         (now) (timestamp (first (last trades)))))
                (updays (/ uptime 60 60 24))
-               (volume (or depth (reduce #'+ (mapcar #'volume trades))))
+               (volume (reduce #'+ (mapcar #'volume trades)))
                (profit (* volume (1- (profit-margin (vwap "buy")
                                                     (vwap "sell"))) 1/2))
                (total (total (funds primary) (funds counter))))
+	  (format t "~&I failed calculus, so why take my ~
+                       word for any of these reckonings?~%")
           (format t "~&Been up              ~7@F days ~A~
                      ~%traded               ~7@F ~(~A~),~
                      ~%profit               ~7@F ~(~2:*~A~*~),~
@@ -479,3 +497,33 @@
 (defmethod describe-object :after ((maker maker) (stream t))
   (with-aslots (market) (slot-reduce maker supplicant)
     (describe-account it (exchange market) stream)))
+
+;; (flet ((window (start trades)
+;; 	 (if (null trades) (list start 0 nil)
+;; 	   (multiple-value-call 'list start
+;; 	     (length trades) (trades-profits trades)))))
+;;   (loop with windows
+;; 	for trades = (slot-reduce *maker* lictor trades)
+;; 	then (nthcdr window-count trades) ; FUCK A DUCK A RANDOM DUCK
+;; 	for window-start = (timestamp (first trades)) then window-close
+;; 	for window-close = (timestamp- window-start 1 :day)
+;; 	for window-count = (position window-close trades
+;; 				     :key #'timestamp
+;; 				     :test #'timestamp>=)
+;; 	for window = (window window-start
+;; 			     (if (null window-count) trades
+;; 			       (subseq trades 0 window-count)))
+;; 	while window-count do (push window windows)
+;; 	finally (return (cons window windows))))
+
+;; (defmethod describe-account :after (supplicant exchange stream)
+;;   (destructuring-bind (first . rest) (slot-reduce supplicant lictor trades)
+;;     (dolist (day (reduce (lambda (days trade)
+;;                            (destructuring-bind ((day . trades) . rest) days
+;;                              (let ((next (timestamp trade)))
+;;                                (if (= (day-of next) (day-of day))
+;;                                    (cons (list* day trade trades) rest)
+;;                                    (acons next trade days)))))
+;;                          rest :initial-value (acons (timestamp first) first ())))
+;;       (multiple-value-call 'format stream "~&~@{~A~#[~:; ~]~}~%" name
+;;                            (trades-profits day)))))
