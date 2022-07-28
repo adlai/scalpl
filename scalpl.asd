@@ -47,11 +47,6 @@
   :description "api client for bitmex"
   :depends-on (#:scalpl #:websocket-driver-client)
   :components ((:file "bitmex")))
-(defsystem #:scalpl/mpex
-  :license "public domain"
-  :description "api client for mpex"
-  :depends-on (#:scalpl #:rss)
-  :components ((:file "mpex")))
 (defsystem #:scalpl/kraken
   :license "public domain"
   :description "api client for kraken"
