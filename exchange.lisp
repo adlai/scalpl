@@ -381,7 +381,7 @@
            (setf taken (if butterfingerp counter primary)))))
      (cons-aq* (primary market) volume)
      (with-slots (counter decimals) market
-       (cons-aq* counter (* volume (/ (abs price) (expt 10 decimals))))))))
+       (cons-aq* counter (* volume (abs price)))))))
 
 (defmethod print-object ((trade trade) stream)
   (print-unreadable-object (trade stream :identity nil)
