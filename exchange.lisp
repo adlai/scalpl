@@ -334,11 +334,6 @@
     (when (send-blocks-p output) (setf cache (recv input)) (gate-post . #1#))
     (send output cache)))
 
-(defmethod halt :before ((gate gate))
-  (pexec (:name "gate kill helper")
-    ;; FIXME: the following loop is almost useless
-    (loop until (account-balances gate) do (sleep 15))))
-
 (defun gate-request (gate path &optional options &aux (id (cons path options)))
   (with-slots (input output) gate
     (send input (list* id path options))
