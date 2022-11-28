@@ -44,6 +44,11 @@ reason, and two good reasons (2!)
 1. it's more fun to write algorithms rather than refactoring the plumbing
 2. clustering the market functions as rudimentary reduction of offer noise
 3. noise reduction before numerical weightlifting is not premature optimization
+*** TODO convince yourself not to use support vector decomposition
+*** TODO painstakingly bikeshed programmatic selection of arbitrary basis
+it is so tempting to use 'natural basis', i.e. non-negative integers,
+market prices probably default to some sorta gaussian hyperreal crap.
+*** TODO some sorta Voronoi tesselation, with simplest sane algorithm
 ** DONE Pulls order book updates from a book-tracker
 Currently these are simply entire books, but depth updates would be best.
 ** DONE Pulls offer status updates from a supplicant
