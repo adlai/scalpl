@@ -26,9 +26,6 @@
 ;;   (load-swagger-specification
 ;;    #P"./promises/bybit/api-connectors/swagger.json"))
 
-(defclass bybit-market (market)
-  ((exchange :initform *bybit*) (fee :initarg :fee :reader fee)))
-
 (defun hmac-sha256 (message secret)
   (let ((hmac (ironclad:make-hmac (string-octets secret) 'ironclad:sha256)))
     (ironclad:update-hmac hmac (string-octets message))
@@ -50,7 +47,7 @@
 
 (defun bybit-request (path &rest args)
   (multiple-value-bind (body status headers uri stream close)
-      (if (and (slot-boundp *bybit* 'stream)
+      (if (and (ignore-errors (slot-boundp *bybit* 'stream))
                (open-stream-p (slot-value *bybit* 'stream)))
           (apply #'http-request (concatenate 'string *base-url* path)
                  :stream (slot-value *bybit* 'stream) :close () :keep-alive t
@@ -58,6 +55,8 @@
           (apply #'http-request (concatenate 'string *base-url* path)
                  ;; :close () :keep-alive t
                  args))
+    ;; (when (aand (assoc :content-length headers) (> (parse-integer (cdr it)) 7890))
+    ;;   (format *debug-io* "~&~A spat ~S~%" uri headers))
     (unless close (setf (slot-value *bybit* 'stream) stream))
     (case status
       (200 (with-json-slots (result ret_code ret_msg) (decode-json body)
@@ -67,11 +66,16 @@
 
 (defun bybit-path (&rest paths) (format () "~{~A~}" paths))
 
-(defun public-request (method parameters)
-  (bybit-request (bybit-path "/v2/public/" method)
+(defun public-request (method parameters
+		       &optional (prefix "/v2/public/"))
+  (bybit-request (bybit-path prefix method)
                  :parameters (loop for (key . value) in parameters collect
                                   (cons (string-downcase (string key))
                                         (princ-to-string value)))))
+
+;; (defmethod format-timestring (timestamp)
+;;   (format () "~D" (+ (timestamp-millisecond (now))
+;;                      (* 1000 (timestamp-to-unix (now))))))
 
 (defun auth-request (verb path key signer &optional params)
   (let* ((time (format () "~D" (+ (timestamp-millisecond (now))
@@ -81,6 +85,9 @@
          (sig (funcall signer (concatenate-url-parameters sorted)))
          (parameters `(,@sorted ("sign" . ,sig))))
     (bybit-request path :method verb :parameters parameters)))
+
+(defclass bybit-market (market)
+  ((exchange :initform *bybit*) (fee :initarg :fee :reader fee)))
 
 (defun get-info (&aux assets)
   (flet ((make-market (instrument)
@@ -98,8 +105,7 @@
                (make-instance
                 'bybit-market :name name :fee (parse-float fee)
                 :decimals (- (ilog (parse-float (getjso "tick_size" filter))))
-                :primary (asset long)
-                :counter (asset short))))))
+                :primary (asset long) :counter (asset short))))))
     (awhen (public-request "symbols" ())
       (values (mapcar #'make-market it) assets))))
 
@@ -129,9 +135,8 @@
       `(,ret ,(awhen1 (acase code
                         ((0)) ; C-style, no error
                         ;; TODO: lots of DEFINE-CONDITION ... see
-                        ;; bybit-exchange.github.io/docs/inverse/#t-errors
                         ((20001 30032 30037)) ; filled before cancellation
-                        ((30076) it)          ; report failures to replace
+                        ;; ((30076) it)          ; failures to replace
                         (t status))     ; by default, echo the error text
                 (typecase it
                   (string (warn (format () "#~D ~A" code it)))))))))
@@ -145,30 +150,54 @@
 ;;;
 
 (defmethod get-book ((market bybit-market) &key count &aux (pair (name market)))
-  (loop for raw in
-       (public-request "orderBook/L2" `(("symbol" . ,pair)))
-     for price = (parse-float (getjso "price" raw))
-     for type = (string-case ((getjso "side" raw)) ("Sell" 'ask) ("Buy" 'bid))
-     for offer = (make-instance type :market market
-                                :price (* (expt 10 (decimals market)) price)
-                                :volume (/ (getjso "size" raw) price))
-     if (eq type 'ask) collect offer into asks
-     if (eq type 'bid) collect offer into bids
-     finally (return (values asks bids))))
+  (loop
+    for raw in (public-request "orderBook/L2" `(("symbol" . ,pair)))
+    for price = (parse-float (getjso "price" raw))
+    for type = (string-case ((getjso "side" raw))
+		 ("Sell" 'ask) ("Buy" 'bid))
+    for offer = (make-instance
+		 type :market market
+                 :price (* (expt 10 (decimals market)) price)
+                 :volume (string-case (pair)
+			   ("BTCUSD" (/ (getjso "size" raw) price))
+			   ("BTCUSDZ22" (/ (getjso "size" raw) price))
+			   ("BTCUSDH23" (/ (getjso "size" raw) price))
+			   ("BTCUSDT" (getjso "size" raw))))
+    if (eq type 'ask) collect offer into asks
+    if (eq type 'bid) collect offer into bids
+    finally (return (values asks bids))))
 
 (defmethod trades-since ((market bybit-market) &optional from
                          &aux (pair (name market)))
   (flet ((parse (trade)
            (with-json-slots (id side time qty price) trade
-             (make-instance 'trade :market market :direction side :txid id
-                            :timestamp (parse-timestring time)
-                            :volume (/ qty price) :price price :cost qty))))
-    (awhen (public-request "trading-records"
-                           `(("symbol" . ,pair)
-                             ,@(when from
-                                 `(("from"
-                                    .,(princ-to-string (txid from)))))))
-      (if from (cdr (mapcar #'parse it)) (nreverse (mapcar #'parse it))))))
+             (make-instance
+	      'trade :market market :direction side
+	      :txid (string-case (pair)
+		      ("BTCUSD" id)
+		      ("BTCUSDZ22" id)
+		      ("BTCUSDH23" id)
+		      ("BTCUSDT" (parse-integer id)))
+	      :timestamp (parse-timestring time)
+	      :volume (/ qty price) :price price :cost qty))))
+    (awhen (string-case (pair)
+	     ("BTCUSD" (public-request
+			"trading-records"
+			`(("symbol" . ,pair) ("limit" . 1000))))
+	     ("BTCUSDZ22" (public-request
+			   "trading-records"
+			   `(("symbol" . ,pair) ("limit" . 1000))))
+	     ("BTCUSDH23" (public-request
+			   "trading-records"
+			   `(("symbol" . ,pair) ("limit" . 1000))))
+	     ("BTCUSDT" (public-request
+			 "linear/recent-trading-records"
+			 `(("symbol" . ,pair) ("limit" . 10))
+			 "/public/")))
+      (let ((trades (nreverse (mapcar #'parse it))))
+	(if (null from) trades
+	    (aif (member (txid from) trades :key #'txid :test #'=)
+		 (cdr it) trades))))))
 
 (deftype maybe-latest (minutes) `(or null (mod ,minutes)))
 (deftype maybe-timestamp () '(or null timestamp))
@@ -199,71 +228,160 @@
 ;;;
 
 (defmethod placed-offers ((gate bybit-gate) ; FIXME: BTCUSD-specific
-                          &aux (market (find-market "BTCUSD" :bybit)))
-  (labels ((parse-offer (json)
-             (with-json-slots (side price (oid "order_id") qty) json
-               (make-instance 'offered :oid oid :market market
-                              :volume (/ qty (parse-float price))
-                              :price (* (parse-float price)
-                                        (if (string= side "Sell") 1 -1)
-                                        (expt 10 (decimals market)))))))
-    (aif (gate-request gate '(:get "/v2/private/order")
-                       `(("symbol" . ,(name market))))
-         (mapcar #'parse-offer it)
-         ;; FIXME: ret_code 0 & msg=OK mean that there are no orders
-         (warn "Request failed; active orders may be unreported!"))))
+                          &optional (market (find-market "BTCUSD" :bybit)))
+  (let ((url (string-case ((name market))
+	       ("BTCUSD" "/v2/private/order")
+	       ("BTCUSDT" "/private/linear/order/search")
+	       ("BTCUSDZ22" "/futures/private/order")
+	       ("BTCUSDH23" "/futures/private/order"))))
+    (labels ((parse-offer (json)
+               (with-json-slots (side price (oid "order_id") qty) json
+		 (let ((price (etypecase price
+				(string (parse-float price))
+				(rational price))))
+		   (make-instance 'offered
+				  :oid oid :market market
+				  :volume (string-case ((name market))
+					    ("BTCUSD" (/ qty price))
+					    ("BTCUSDZ22" (/ qty price))
+					    ("BTCUSDH23" (/ qty price))
+					    ("BTCUSDT" qty))
+				  :price (* price
+					    (expt 10 (decimals market))
+					    (if (string= side "Sell")
+						1 -1)))))))
+      (aif (gate-request gate `(:get ,url) `(("symbol" . ,(name market))))
+           (mapcar #'parse-offer it)
+           ;; FIXME: ret_code 0 & msg=OK mean that there are no orders
+           (warn "Request failed; active orders may be unreported!")))))
 
 ;;; TODO: meld this one into account-position (gate &optional market)
 (defun all-positions (gate)
-  (gate-request gate '(:get "/v2/private/position/list")))
+  (flet ((fetch (url)
+	   (remove 0 (mapcar (getjso "data")
+			     (gate-request gate `(:get ,url)))
+		   :key (getjso "size")))) ; linear and inverse data
+    (values-list (mapcar #'fetch	   ; have similar structures
+			 '("/v2/private/position/list"
+			   "/private/linear/position/list"
+			   "/futures/private/position/list")))))
 
-(defun account-position (gate market)
-  (awhen (gate-request gate '(:get "/v2/private/position/list")
-                       `(("symbol" . ,(name market))))
-    (with-json-slots ((entry "entry_price") symbol size side
-                      (value "position_value"))
-        it
-      (with-slots (primary counter) market
-        (values `(,(cons-mp* market (* (parse-float entry)
-                                       (if (string= side "Buy") -1 1)))
-                  ,(cons-aq* primary (* (parse-float value)
-                                        (if (string= side "Buy") 1 -1)))
-                  ,(cons-aq counter (* size (if (string= side "Buy") -1 1))))
-                it)))))
+(defun hedged-position (gate market)
+  (awhen (gate-request gate '(:get "/private/linear/position/list")
+		       `(("symbol" . ,(name market))))
+    (with-slots (primary counter) market
+      (flet ((parse-position (json)
+	       (with-json-slots ((entry "entry_price")
+				 (value "position_value")
+				 symbol size side) json
+		 (let ((unit (if (string= side "Buy") -1 1)))
+		   `(,(cons-mp* market  (* entry   unit))
+		     ,(cons-aq* primary (* size (- unit)))
+		     ,(cons-aq* counter (* value   unit)))))))
+	(values (mapcar #'parse-position it) it)))))
 
-(defmethod account-balances ((gate bybit-gate) ; FIXME: BTCUSD-specific
-                             &aux (market (find-market "BTCUSD" :bybit)))
-  (with-aslots (primary counter) market ; if your code's quotient topology
-    (awhen (gate-request gate '(:get "/v2/private/wallet/balance")) ; over
-      (with-json-slots ((deposit "BTC")) it ; the comment space is denser
-        (with-json-slots ((mark "mark_price")) ; than the conversal, you
-            (car (public-request "tickers" `(("symbol" . "BTCUSD"))))
-          (with-json-slots (equity) deposit ; are gonna die, someday
-            (let ((fund (* equity
-                           #.(if (yes-or-no-p "Will Op require hopium?")
-                                 (prog ((unit 1))
-                                  :more (incf unit unit) ; ...... wait up
-                                  :less (if (yes-or-no-p "Fun?")    ; you
-                                            (decf unit (/ unit 3)) ; guys
-                                            (go :away)) ; [and gal(le)*s]
-                                  (check-type unit rational) ; are gettin
-                                  (if (y-or-n-p "More than ~2,2F?" unit)
-                                      (go :more) (go :less)) ; paid... ...
-                                  :away (if (yes-or-no-p "Again?") ; ...
-                                            (go :more) (return unit)))
-                                 (progn (print "[1,9)") (read))))))
-#| ... |# #1="..." #1# #1# #1# ; in what now!? paid in work!?
-              (aif (account-position gate market) ; you work to earn work!?
-                   (list (aq+ (cons-aq* primary fund) (second it)) ; more!?
-                         (aq+ (cons-aq* counter (* fund (parse-float mark)))
-                              (third it))) ; and more and more work? what kind
-                   (list (cons-aq* primary fund) ; of flyover honeytrap casino
-                         (cons-aq* counter (* fund (parse-float mark))))))))))))
+(defun account-position (gate market &aux (name (name market)))
+  (let ((url (string-case (name)
+	       ("BTCUSD" "/v2/private/position/list")
+	       ("BTCUSDZ22" "/futures/private/position/list")
+	       ("BTCUSDH23" "/futures/private/position/list"))))
+    (awhen (gate-request gate `(:get ,url) `(("symbol" . ,name)))
+      (with-json-slots ((entry "entry_price") symbol size side
+			(value "position_value"))
+		       (if (string= name "BTCUSD") it
+			   (getjso "data" (car it)))
+	(with-slots (primary counter) market
+          (values `(,(cons-mp* market
+			       (* (parse-float entry)
+                                  (if (string= side "Buy") -1 1)))
+                    ,(cons-aq* primary
+			       (* (parse-float value)
+                                  (if (string= side "Buy") 1 -1)))
+                    ,(cons-aq counter
+			      (* size (if (string= side "Buy") -1 1))))
+                  (if (string= name "BTCUSD") it
+		      (getjso "data" (car it)))))))))
+
+(defmethod hedged-balances ((gate bybit-gate) &aux balances)
+  (awhen (gate-request gate '(:get "/v2/private/wallet/balance"))
+    (awhen (remove 0 it :key #'cdadr)
+      (multiple-value-bind (inverse linear futures)
+	  (all-positions gate)
+	(let ((tickers (intersection
+			(delete-duplicates
+			 (mapcar (getjso "symbol")
+				 (append inverse linear))
+			 :test #'string=)
+			(public-request "tickers" ())
+			:key (getjso "symbol") :test #'string=)))
+	  (dolist (position inverse)
+	    (with-json-slots
+		((value "position_value") leverage size symbol side)
+		position
+	      (let* ((unit (if (string= side "Buy") -1 1))
+		     (fund (* (getjso "equity"
+				      (getjso (string-case (symbol)
+						("BTCUSD" "BTC")
+						("BTCUSDT" "USDT"))
+					      it))
+			      (parse-float leverage)))
+		     (mark (getjso "mark_price"
+				   (find symbol tickers
+					 :key (getjso "symbol")
+					 :test #'string=))))
+		(with-slots (primary counter)
+		    (find-market symbol *bybit*)
+		  (push (cons-aq* primary
+				  (+ fund (* (parse-float value)
+					     (- unit))))
+			balances)
+		  (push (cons-aq* counter
+				  (+ (* fund (parse-float mark))
+				     (* size unit)))
+			balances)))))))))
+  (with-json-slots ((mark "mark_price"))
+		   (car (public-request "tickers" `(("symbol" . "BTCUSD"))))
+    (if position
+	(let ((fund (* equity
+		       (parse-float (getjso "leverage" json)
+				    :type 'rational))))
+          (list (aq+ (cons-aq* primary fund)
+		     (second position))
+		(aq+ (cons-aq* counter
+			       (* fund (parse-float mark)))
+                     (third position))))
+	(list (cons-aq* primary equity)
+	      (cons-aq* counter
+			(* equity (parse-float mark)))))))
+
+(defmethod account-balances ((gate bybit-gate) &aux balances)
+  (awhen (gate-request gate '(:get "/v2/private/wallet/balance"))
+    (with-json-slots ((deposit "BTC")) it
+      (with-json-slots ((mark "mark_price"))
+		       (car (public-request "tickers" `(("symbol" . "BTCUSD"))))
+        (with-json-slots (equity) deposit
+	  (dolist (name '("BTCUSD" "BTCUSDZ22" "BTCUSDH23") balances)
+	    (with-aslots (primary counter) (find-market name :bybit)
+	      (multiple-value-bind (position json)
+		  (account-position gate it)
+		(if position
+		    (let ((fund (* equity
+				   (parse-float (getjso "leverage" json)
+						:type 'rational))))
+		      (push (aq+ (cons-aq* primary fund)
+				 (second position))
+			    balances)
+		      (push (aq+ (cons-aq* counter
+					   (* fund (parse-float mark)))
+				 (third position))
+			    balances))
+		    (progn (push (cons-aq* primary equity) balances)
+			   (push (cons-aq* counter
+					   (* equity (parse-float mark)))
+				 balances)))))))))))
 
 ;;; This horror can be avoided via the actor-delegate mechanism.
 (defmethod market-fee ((gate bybit-gate) (market bybit-market)) (fee market))
-(defmethod market-fee ((gate bybit-gate) market)
-  (fee (slot-reduce market scalpl.exchange::%market)))
 
 (defmethod parse-timestamp ((exchange (eql *bybit*)) (timestamp integer))
   (multiple-value-bind (unix milliseconds) (floor timestamp 1000)
@@ -288,29 +406,55 @@
   (macrolet ((params (&body body)
                `(append ,@(loop for (val key exp) in body
                              collect `(when ,val `((,,key . ,,exp)))))))
-    (awhen (gate-request gate '(:get "/v2/private/execution/list")
-                         (params (pair "symbol" pair) (count "limit" count)
-                                 (from "start_time"
-                                       (princ-to-string
-                                        (+ (* 1000 (timestamp-to-unix from))
-                                           (floor (nsec-of from) 1000000))))))
-      (getjso "trade_list" it))))
+    (let ((url (string-case (pair)
+		 ("BTCUSD" "/v2/private/execution/list")
+		 ("BTCUSDZ22" "/futures/private/execution/list")
+		 ("BTCUSDH23" "/futures/private/execution/list"))))
+      (awhen (gate-request gate `(:get ,url)
+                           (params (pair "symbol" pair)
+				   (count "limit" count)
+                                   (from "start_time"
+					 (princ-to-string
+                                          (+ (* 1000 (timestamp-to-unix
+						      from))
+                                             (floor (nsec-of from)
+						    1000000))))))
+	(getjso "trade_list" it)))))
 
 (defmethod execution-since ((gate bybit-gate) market since)
   (awhen (raw-executions gate :pair (name market) :count "200"
                          :from (if since (timestamp since)
-                                   (timestamp- (now) 3 :hour)))
+                                   (timestamp- (now) 3 :day)))
     (mapcar #'parse-execution
-            (if (null since) it
-                (subseq it (1+ (position (txid since) it :test #'string=
-                                         :key (getjso "exec_id"))))))))
+            (remove "Trade" 
+		    (if (null since) it
+			(subseq it (1+ (position
+					(txid since) it :test #'string=
+					:key (getjso "exec_id")))))
+		    :test-not #'string= :key (getjso "exec_type")))))
 
 (defun post-raw-limit (gate buyp market price size)
-  (gate-request gate '(:post "/v2/private/order/create")
-                `(("symbol" . ,market) ("side" .,(if buyp "Buy" "Sell"))
-                  ("order_type" . "Limit") ("price" . ,price)
-                  ("qty" . ,(princ-to-string (floor size)))
-                  ("time_in_force" . "PostOnly"))))
+  (let ((url (string-case (market)
+	       ("BTCUSD" "/v2/private/order/create")
+	       ("BTCUSDZ22" "/futures/private/order/create")
+	       ("BTCUSDH23" "/futures/private/order/create"))))
+    (gate-request gate `(:post ,url)
+                  `(("symbol" . ,market) ("price" . ,price)
+		    ("qty" . ,(princ-to-string (floor size)))
+		    ("side" .,(if buyp "Buy" "Sell"))
+		    ("order_type" . "Limit")
+		    ("time_in_force" . "PostOnly")))))
+
+(defun post-linear-open (gate market buyp price size)
+  (gate-request gate '(:post "/private/linear/order/create")
+		`(("symbol" . ,market) ("price" . ,price)
+		  ("qty" . ,(princ-to-string size))
+		  ("side" .,(if buyp "Buy" "Sell"))
+		  ("position_idx" . ,(if buyp "1" "2"))
+		  ("order_type" . "Limit")
+		  ("reduce_only" . "False")
+		  ("close_on_trigger" . "False")
+		  ("time_in_force" . "PostOnly"))))
 
 (defclass placed (offered) ((unique-request-identifier :initarg :urid)))
 
@@ -334,10 +478,14 @@
               (warn "Failed placing: ~S~%~A" offer complaint)))))))
 
 (defun amend-raw-offer (gate market oid size &optional price)
-  (gate-request gate '(:post "/v2/private/order/replace")
-                `(("symbol" . ,market) ("order_id" . ,oid)
-                  ("p_r_qty" . ,(princ-to-string size))
-                  ,@(when price `(("p_r_price" . ,price))))))
+  (let ((url (string-case (market)
+	       ("BTCUSD" "/v2/private/order/replace")
+	       ("BTCUSDZ22" "/futures/private/order/replace")
+	       ("BTCUSDH23" "/futures/private/order/replace"))))
+    (gate-request gate `(:post ,url)
+                  `(("symbol" . ,market) ("order_id" . ,oid)
+                    ("p_r_qty" . ,(princ-to-string size))
+                    ,@(when price `(("p_r_price" . ,price)))))))
 
 (defmethod amend-offer ((gate bybit-gate) (old offered) (new offer))
   (with-slots (market oid) old
@@ -354,7 +502,9 @@
                  (format () "~D.~V,'0D" int
                          (max 1 (decimals market)) (* 10 dec)))))
           (if complaint
-              (warn (format () "~A was not modified to ~A" old new))
+	      ;; most common atm is probably (not (/= 1 1))
+              (warn (format () "~&~A was not modified to ~A~%~A~%"
+			    old new complaint))
               (with-json-slots ((returned-oid "order_id")) json
                 (if (string= returned-oid oid) ; how can this test fail?
                     (reinitialize-instance     ; not rhetoric, enumerate
@@ -367,11 +517,17 @@
 ;;; half a second after the initial claim that it's been placed.
 
 (defmethod cancel-offer ((gate bybit-gate) (offer offered))
-  (multiple-value-bind (ret err)
-      (gate-request gate '(:post "/v2/private/order/cancel")
-                    `(("symbol" . ,(name (market offer)))
-                      ("order_id" . ,(oid offer))))
-    (or ret (and (null err) (string= (oid offer) (getjso "order_id" ret))))))
+  (let* ((symbol (name (market offer)))
+	 (url (string-case (symbol)
+		("BTCUSD" "/v2/private/order/cancel")
+		("BTCUSDZ22" "/futures/private/order/cancel")
+		("BTCUSDH23" "/futures/private/order/cancel"))))
+   (multiple-value-bind (ret err)
+       (gate-request gate `(:post ,url)
+                     `(("symbol" . ,(name (market offer)))
+                       ("order_id" . ,(oid offer))))
+     (or ret (and (null err)
+		  (string= (oid offer) (getjso "order_id" ret)))))))
 
 (defclass bybit-prioritizer (prioritizer) ())
 
@@ -408,13 +564,21 @@
 ;;;
 
 (defun daily-returns (gate &optional count)
+  ;; (mapcar 'funcall (mapcar #'getjso '("coin" "address")))
   (awhen (gate-request gate '(:get "/v2/private/wallet/fund/records")
                        (when count `(("limit" . ,(princ-to-string count)))))
     (mapcar (lambda (json)
               (with-json-slots
-                  ((balance "wallet_balance") (date "exec_time") amount) json
-                (list (parse-timestring date) balance amount))) ; NOONE KNOWS
-            (remove "RealisedPNL" (getjso "data" it) ; FOR WTF STANDS THE 'N'
+                  ((balance "wallet_balance") (date "exec_time")
+		   amount coin address)
+		  json
+		(let ((asset (find-asset (concatenate 'string
+						      coin "-" address)
+					 *bybit*)))
+                  (list (parse-timestring date)
+			(cons-aq* asset (parse-float balance))
+			(cons-aq* asset (parse-float amount))))))
+            (remove "RealisedPNL" (getjso "data" it)
                     :test-not #'string= :key (getjso "type")))))
 
 (defun fetch-pages (gate request options &optional (count 50)
@@ -428,10 +592,13 @@
                    (when count (< number count)))
        do (incf number) else do (loop-finish))))
 
-(defun recent-closes (gate &optional count &aux (sum 0s0))
+(defun recent-closes (gate &optional (count 25) &aux (sum 0s0))
+  (check-type count (integer 1 2501))
   (awhen (fetch-pages gate '(:get "/v2/private/trade/closed-pnl/list")
                       `(("symbol" . "BTCUSD") .
-                        ,(when count `(("limit" . "50"))))
+                        ,(when count
+			   `(("limit"
+			      . ,(princ-to-string count))))) ; lol!
                       (when count (ceiling count 50)))
     (values (mapcar (lambda (json)
                       (with-json-slots
@@ -457,9 +624,9 @@
  (with-slots (gate) supplicant
     ;;; there's a pattern here, and it belongs in the fucking symbol-plists:
    (format t "~&~%@#$%& Dump Of Recent Closes &%$#@~%")
-   (multiple-value-bind (rhos total)
+   (multiple-value-bind (rhos total)	; blessed are l'hoi pollois, ne?
        (apply #'recent-closes gate
-              (and (eq *standard-output* *debug-io*) 2500))
+	      (and (eq *standard-output* *debug-io*) '(2500)))
      (dolist (row rhos (values total (log (1+ total))))
        (destructuring-bind #1=(second action comment quanta tide) row
                            (format t "~&~10A ~4A ~5D ~1,6$ ~8$~%" . #1#))))
@@ -479,16 +646,24 @@
 ;;;
 
 (defmethod bases-for ((supplicant supplicant) (market bybit-market))
-  (with-slots (gate) supplicant           ; FIXME: only worked in BitMEX 'cuz
-    (awhen (account-position gate market) ; they usually did things correctly
-      (let ((entry (realpart (first it))) (size (abs (quantity (third it)))))
+  (with-slots (gate) supplicant
+    (awhen (account-position gate market)
+      (let ((entry (realpart (first it)))
+	    (size (abs (quantity (third it)))))
         (flet ((foolish (basis &aux (price (realpart (car basis))))
                  (if (= (signum price) (signum entry)) (> price entry)
+		     ;; N.B.: this logic allows bleeding to reduce chance
+		     ;; of liquidation; ...both hardcoded and ineffective
                      (and (< (isqrt size) (quantity (second basis)))
-                          (< (isqrt size) (quantity (third basis)))))))
+                          (< (isqrt size) (quantity (third basis))))
+		     )))
           (multiple-value-bind (primary counter) (call-next-method)
-            (values (remove-if #'foolish primary)
-                    (remove-if #'foolish counter))))))))
+	    (if (plusp entry)
+		(values () (remove-if #'foolish counter))
+		(values (remove-if #'foolish primary) ()))
+            ;; (values (remove-if #'foolish primary)
+            ;;         (remove-if #'foolish counter))
+	    ))))))
 
 ;;; This one belongs in the Ten Decades' Hayt
 (defun ditch-unplaced-offereds (maker &optional (stream *standard-output*))
@@ -512,6 +687,9 @@
                         :key (getjso "reject_reason") :test-not #'string=))))))
 
 (defun estimate-funding-dividend (gate market)
+  ;; oughtta return two triples: {dividend, rate, position} x {this,next}
+  ;; although it's worth considering both a five-valued ordering,
+  ;;   xor a sequence expressing plausible regions for the second
   (with-json-slots ((numerator "predicted_funding_fee")
                     (predicted "predicted_funding_rate"))
       (gate-request gate '(:get "/open-api/funding/predicted-funding")
@@ -519,9 +697,11 @@
     (with-json-slots ((rate "funding_rate"))
         (gate-request gate '(:get "/open-api/funding/prev-funding-rate")
                       `(("symbol" . ,(name market))))
-      (values (cons-aq* (primary market)
-                        (- (* (/ numerator predicted) (parse-float rate))))
-              rate (cons-aq* (primary market) (/ numerator predicted))))))
+      (values (list (cons-aq* (primary market)
+                              (- (* (/ numerator predicted) (parse-float rate))))
+                    rate (cons-aq* (primary market) (/ numerator predicted)))
+              (list (cons-aq* (primary market) (- numerator)) predicted
+                    (cons-aq* (primary market) (/ numerator predicted)))))))
 
 ;;;
 ;;; Websocket
@@ -538,7 +718,7 @@
                     (with-json-slots (id . #1=(side size price)) item
                       (let ,(when price `((price ,price))),@body))))
                (store-offer ()
-                 `(setf (gethash id book) `(price . ,(offer . #1#)))))
+                 `(setf (gethash id book) `(,price . ,(offer . #1#)))))
       (lambda (raw &aux (message (read-json raw)))
         (case (caar message)
           (:|success|
@@ -556,17 +736,20 @@
                        (do-data (update (/ id 10000))
                          (aif (gethash id book)
                               (rplacd it (offer . #1#)) (store-offer)))
-                       (do-data (insert (parse-float price)) (store-offer))
-                       (do-data (delete) (remhash id book))))
+                       (do-data (insert (parse-float price :type 'rational))
+                         (store-offer))
+                       (do-data (delete) (remhash id book))
+                       ))
                     ("snapshot"
                      (clrhash book)
-                     (do-data (data (parse-float price)) (store-offer)))
+                     (do-data (data (parse-float price :type 'rational))
+                       (store-offer)))
                     (t (wsd:close-connection client)
                        (error "unknown orderbook action: ~s" type)))
                   (wsd:close-connection client)))))))))
 
-(defun make-orderbook-socket (market &optional (depth 200) (frequency 100))
-  (let* ((book (make-hash-table :test #'eq))
+(defun make-orderbook-socket (market &optional old-book (depth 200) (frequency 100))
+  (let* ((book (or old-book (make-hash-table :test #'eql)))
          (topic (format () "orderBook~@[_~D~].~Dms.~A" depth frequency
                         (name market)))
          (client (wsd:make-client *websocket-url*)))
@@ -575,16 +758,74 @@
     (wsd:send client (format () "{\"op\":\"subscribe\",\"args\":[~S]}" topic))
     (values book client)))
 
-(defclass streaming-market (bybit-market) (socket book-table))
-(defmethod shared-initialize :after ((market streaming-market) (names t) &key)
-  (with-slots (socket book-table) market
-    (setf (values book-table socket) (make-orderbook-socket market))))
+;;; "There are only two Hard Problems of Consciousness:
+;;;    the false dichotomy between the problems, and
+;;;      prioritisation of hypothesis falsification."
+(defun make-liquidity-background (market minimum maximum step
+                                  &aux (price-factor (expt 10 (decimals market))))
+  (let ((size (1+ (ceiling (- maximum minimum) step))))
+    (let ((bids (make-hash-table :test #'eql :size size))
+          (asks (make-hash-table :test #'eql :size size)))
+      (loop for cdr on
+           (loop with descending for price from minimum to maximum by step
+              for mp = (* price price-factor)
+              for volume = (/ (1+ (random (expt size (random 1.5)))) price)
+              for ask = (make-instance 'ask :market market
+                                       :price mp :volume volume)
+              for bid = (make-instance 'bid :market market
+                                       :price mp :volume volume)
+              collect ask do (setf (gethash (price bid) bids)
+                                   (push bid descending)))
+         do (setf (gethash (price (car cdr)) asks) cdr))
+      (values bids asks))))
+
+(defclass streaming-market (bybit-market) (socket book-table background))
+
+(defmethod shared-initialize :after ((market streaming-market) (names t)
+                                     &key minimum maximum step)
+  (with-slots (socket book-table background) market
+    (setf (values book-table socket)
+          (if (slot-boundp market 'book-table)
+              (make-orderbook-socket market book-table)
+              (make-orderbook-socket market)))
+    (when (and minimum maximum step)
+      (setf background
+            (multiple-value-call #'cons
+              (make-liquidity-background market minimum maximum step))))))
+
+(defmethod get-book :before ((market streaming-market) &key)
+  (with-slots (book-table socket) market
+    (unless (and (slot-boundp market 'socket) (slot-boundp market 'book-table))
+      (loop for delay from 1
+         do (handler-case
+                (return (setf (values book-table socket)
+                              (make-orderbook-socket market)))
+              (error (error) (warn "~&Encountered:~%~A~%" error)))
+           (sleep delay))
+      (sleep 3))))
 
 (defmethod get-book ((market streaming-market) &key)
   (if (not (slot-boundp market 'book-table)) (values () ())
-      (with-slots (book-table) market
+      (with-slots (book-table background) market
         (loop for (price . offer) being each hash-value of book-table
            if (eq (type-of offer) 'ask) collect offer into asks
            if (eq (type-of offer) 'bid) collect offer into bids
-           finally (return (values (sort asks #'< :key #'price)
-                                   (sort bids #'< :key #'price)))))))
+           finally (return
+                     (let ((asks (sort asks #'> :key #'price))
+                           (bids (sort bids #'> :key #'price)))
+                       (values (nconc (nreverse asks)
+                                      (cdr (gethash (price (first asks))
+                                                    (cdr background))))
+                               (nconc (nreverse bids)
+                                      (cdr (gethash (price (first bids))
+                                                    (car background)))))))))))
+
+(defmethod get-book :after ((market streaming-market) &key)
+  (with-slots (book-table socket) market
+    (when (slot-boundp market 'socket)
+      (loop for delay from 1 while (eq (wsd:ready-state socket) :closed)
+         do (handler-case
+                (return (setf (values book-table socket)
+                              (make-orderbook-socket market)))
+              (error (error) (warn "~&Encountered:~%~A~%" error)))
+           (sleep delay)))))
