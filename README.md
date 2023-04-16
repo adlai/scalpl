@@ -93,7 +93,7 @@ language choice; the book itself lights the larval lisper's quest; and
 summarize the Bitcoin phenomenon for the unfamiliar, purely as enrichment;
 though catalyzed by cryptocurrency, ScalpL itself is agn-_asset_-ic.
 
-# Current Status [![Build Status](https://travis-ci.org/adlai/scalpl.svg?branch=master)](https://travis-ci.org/adlai/scalpl)
+# Current Status
 
 This program is a work in progress, built by a "Lone Wolf" madman. You should
 thus expect rudeness and flippancy, unless you pay for a consultation.
