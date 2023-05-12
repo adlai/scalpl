@@ -40,7 +40,7 @@ the imposition from without of order upon chaos.
 # Abstract
 
 There *will be* an engine for expressing arbitrarily intricate policies for
-placement and removal of offers in asset exchanges; today, it *is* hardcoded
+financial planning, execution, and study thruwaut ; today, it *is* hardcoded
 as a market maker. We also *endeavor* to provide a constructive extension of
 [Kerckhoffs's Law](https://en.wikipedia.org/wiki/Kerckhoffs%27s_principle)
 to game theory, although it may require [un?]countably infinitely many steps.
