@@ -9,6 +9,9 @@
 ;;; Actor
 ;;;
 
+;;; KILL YOUR SELF
+;;; trivial-garbage/b3af9c0c25d4d4c27/master/trivial-garbage.asd#L10
+
 ;;; TODO: Incorporate weak references and finalizers into the whole CSPSM model
 ;;; so they get garbage collected when there are no more references to the
 ;;; output channels
