@@ -1,0 +1,9 @@
+snip outta /article/FAQ-Options-Trading ...
+
+quarterly expiration date will be added when the Bi-Monthly Options contract expires on the same day as the Quarterly Option contract
+
+When the aforementioned Options contract expire on the same day:
+
+    A weekly expiration will be replaced by a Bi-Daily expiration and no new Bi-Daily expiration will be added. Bi-weekly expiration will now become a weekly expiration and a new Bi-weekly expiration will be added. 
+    A monthly expiration will be replaced by a Tri-Weekly expiration and no new Tri-Weekly expiration will be added. The Bi-Monthly expiration will now become a monthly expiration and a new Bi-Monthly expiration will be added.
+    A quarterly expiration will be replaced by a Bi-Monthly expiration. No new Bi-Monthly expiration will be added. A new quarterly expiration will be added.
