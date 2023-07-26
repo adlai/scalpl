@@ -3,10 +3,13 @@
   (:export #:http-request #:enable-pretty-printer-abuse
            #:exchange #:name #:assets #:markets #:parse-timestamp
            #:*exchanges* #:find-exchange #:fetch-exchange-data
+           #:gate #:gate-post #:gate-request #:output #:input #:cache
+
            #:asset #:find-asset #:asset-quantity
            #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
            #:market #:decimals #:primary #:counter #:find-market
            #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/ #:aq*
+
            #:offer #:bid #:ask #:offered #:taken #:given
            #:volume #:price #:placed #:oid #:consumed-asset
            #:gate #:gate-post #:gate-request #:output #:input #:cache
@@ -14,11 +17,14 @@
            #:trades-tracker #:trades #:trades-since #:vwap #:book
            #:book-tracker #:bids #:asks #:get-book #:get-book-keys
            #:balance-tracker #:balances #:sync #:print-book #:asset-funds
+
            #:placed-offers #:account-balances #:market-fee
            #:execution #:fee #:net-cost #:net-volume #:fee-tracker
            #:execution-tracker #:execution-since #:bases #:bases-without
            #:post-offer #:cancel-offer #:supplicant #:lictor #:treasurer
            #:order-slots #:response #:supplicate #:bases-for #:reserved
+           #:squash-reservations #:sufficiently-different?
+
            #:describe-account #:backoff #:respawn-syncer))
 
 (in-package #:scalpl.exchange)
@@ -27,8 +33,8 @@
 
 (defun http-request (path &rest keys &key (backoff 3) &allow-other-keys)
   (loop (handler-case
-	    (return (apply #'drakma:http-request path
-			   (alexandria:remove-from-plist keys :backoff)))
+            (return (apply #'drakma:http-request path
+                           (alexandria:remove-from-plist keys :backoff)))
           ((or simple-error drakma::drakma-simple-error
             usocket:ns-try-again-error
             usocket:ns-try-again-condition
@@ -36,9 +42,9 @@
             usocket:timeout-error usocket:ns-host-not-found-error
             end-of-file chunga::input-chunking-unexpected-end-of-file
             cl+ssl::ssl-error usocket:connection-refused-error) (error)
-	    ;; (describe error)
-	    (if (zerop backoff) (return) ; might prevent nonce reuse...
-		(sleep (incf backoff backoff))))))) ; probably won't
+            ;; (describe error)
+            (if (zerop backoff) (return) ; might prevent nonce reuse...
+                (sleep (incf backoff backoff))))))) ; probably won't
 
 ;;; TODO
 ;;; This file MUST build the interface that each exchange client needs to
@@ -178,6 +184,8 @@
 (defun asset (aq) (cdr (assoc (imagpart aq) *unit-registry*)))
 (defun quantity (aq) (realpart aq))
 (defun scaled-quantity (aq) (/ (realpart aq) (expt 10 (decimals (asset aq)))))
+
+;;; what mnemonic, possibly allowing renames, for not conflating these?
 (defun cons-aq (asset quantity) (complex (round quantity) (index asset)))
 (defun cons-aq* (asset quantity)
   (cons-aq asset (* quantity (expt 10 (decimals asset)))))
@@ -564,12 +572,12 @@
     (apply #'print-book (recv (slot-value tracker 'output)) keys))
   (:method ((market tracked-market) &rest keys)
     (apply #'print-book (slot-value market 'book-tracker)
-	   :prefix :military-time keys))
+           :prefix :military-time keys))
   (:method ((book cons) &key count prefix ours)
     ;; (declare (optimize debug))
     (when (eq prefix :military-time)
       (setf prefix (format-timestring () (now)
-				      :format '((:hour 2) (:min 2)))))
+                                      :format '((:hour 2) (:min 2)))))
     (destructuring-bind (bids . asks) book
       (flet ((width (side)
                (flet ((vol (noise) (quantity (given noise))))
@@ -604,7 +612,11 @@
                     (let ((bs (side mbid my-bids bids))
                           (as (side mask my-asks asks)))
                       (line (or mbid (car bids)) (or mask (car asks)))
+;; this still happens, occasionally...
+;; #<1389509474 730.71 Nis @ 0.09> #<1389508943 32.87402000 Usdc @ 78.99>
+;;       #<BID  730.71 Nis @ 0.09>     #<ASK  1000.00000000 Usdc @ 79.00>
                       (or bs (pop bids)) (or as (pop asks))))))
+            ;; WHY IS THAT BUG'S LIFE EXPECTANCY LONGER THAN MINE !?
             (flet ((shit (shy nola)     ; so es dreht...
                      (when shy
                        (let ((decimals (decimals (market (first shy)))))
@@ -655,6 +667,14 @@
 
 (defun asset-funds (asset funds)
   (aif (find asset funds :key #'asset) (scaled-quantity it) 0))
+
+(defgeneric squash-reservations (actor)
+  (:method ((treasurer balance-tracker) &aux aqs #|(sff t)|#)
+    (with-slots (reserved) treasurer
+      (dolist (aq reserved aqs)
+        (aif (member (asset aq) aqs :key #'asset)
+             (rplaca it (aq+ (car it) aq))
+             (push aq aqs))))))
 
 (defgeneric market-fee (gate market)
   (:documentation "(bid . ask) fees, in percent")
@@ -886,10 +906,15 @@
              ;; beyond merely the fact of failure itself.
              (list (dolist (offer it) (when offer (push offer offered)))))))))
 
+(defun sufficiently-different? (new old) ; someday dispatch on market
+  (declare (optimize (compilation-speed 0) speed))
+  (< 0.04 (abs (log (/ (quantity (given new)) (quantity (given old)))))))
+
 ;;; FIXME: disambiguate placement from offerage, and redichotomise the book
 (defmethod placed-offers ((supplicant supplicant) &optional market)
   (with-slots (gate market) supplicant
-    (placed-offers gate market)))
+    (remove market (placed-offers gate market)
+            :test-not #'eq :key #'market)))
 
 (defmethod execute ((supplicant supplicant) (cons cons) &aux (arg (cdr cons)))
   (with-slots (gate response offered) supplicant
@@ -939,7 +964,7 @@
 ;; (defun respawn-syncer (&optional (supplicant *supplicant*))
 ;;   (pexec (:name "syncer")
 ;;     (loop (with-slots (control response) supplicant
-;; 	    (send control '(:sync)) (recv response) (sleep 17)))))
+;;          (send control '(:sync)) (recv response) (sleep 17)))))
 ;;; what are you syncing ahh.... bout?
 
 ;;;
@@ -959,7 +984,7 @@
     (error "I can't even tame lions, how do you expect me to balance books?"))
   (:documentation "summarize how things are going, profit-wise"))
 
-(defun respawn-syncer (&optional (supplicant *supplicant*) (wavenumber 17))
+(defun respawn-syncer (&optional (supplicant *supplicant*) (wavenumber 7))
   (pexec (:name "syncer")
     (loop (with-slots (control response) supplicant
-	    (send control '(:sync)) (recv response) (sleep wavenumber)))))
+            (send control '(:sync)) (recv response) (sleep wavenumber)))))

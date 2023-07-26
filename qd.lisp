@@ -3,7 +3,8 @@
         #:scalpl.util #:scalpl.exchange #:scalpl.actor)
   (:export #:ope-placed #:ope-place #:ope-cancel
            #:prioritizer #:prioriteaze
-           #:next-bids #:next-asks #:sufficiently-different?))
+           #:next-bids #:next-asks
+           #:maker))
 
 (in-package #:scalpl.qd)
 
@@ -31,8 +32,9 @@
 (defclass filter (actor)
   ((abbrev :allocation :class :initform "filter") (cut :initarg :cut)
    (bids :initform ()) (asks :initform ()) (book-cache :initform nil)
-   (supplicant :initarg :supplicant :initform (error "must link supplicant"))
-   (frequency  :initarg :frequency  :initform 5/7))) ; FIXME: s/ll/sh/!?
+   (supplicant :initarg :supplicant	; DISAMBIGUATION GONEHYET!
+               :initform (error "must link supplicant"))
+   (frequency  :initarg :frequency  :initform 1/7))) ; FIXME: s/ll/sh/!?
 
 (defmethod christen ((filter filter) (type (eql 'actor)))
   (slot-reduce filter supplicant name))
@@ -59,22 +61,22 @@
   (with-slots (market book-cache bids asks frequency supplicant cut) filter
     (let ((book (recv (slot-reduce market book))))
       (unless (eq book book-cache)
-	(setf book-cache book)
+        (setf book-cache book)
         (with-slots (offered fee) supplicant
           (destructuring-bind (bid . ask) (recv (slot-reduce fee output))
-	    (loop with rudder = (sin (phase cut)) with scale = (abs rudder)
-		  for i from 0 for j = (1+ (floor (* i (- 1 scale))))
-		  for a = (if (plusp rudder) j i)
-		  for b = (if (plusp rudder) i j)
-		  ;; do (break)
-		  until (< (/ (realpart cut) 100)
-			   (1- (profit-margin (price (nth a (car book)))
-					      (price (nth b (cdr book)))
-					      bid ask)))
-		  finally (setf bids (ignore-offers (nthcdr a (car book))
-						    offered)
-				asks (ignore-offers (nthcdr b (cdr book))
-						    offered)))))))
+            (loop with rudder = (phase cut) with scale = (abs rudder)
+                  for i from 0 for j = (1+ (floor (* i (- 1 scale))))
+                  for a = (if (plusp rudder) j i)
+                  for b = (if (plusp rudder) i j)
+                  ;; do (break)
+                  until (< (/ (realpart cut) 100)
+                           (1- (profit-margin (price (nth a (car book)))
+                                              (price (nth b (cdr book)))
+                                              bid ask)))
+                  finally (setf bids (ignore-offers (nthcdr a (car book))
+                                                    offered)
+                                asks (ignore-offers (nthcdr b (cdr book))
+                                                    offered)))))))
     (sleep frequency)))
 
 (defclass prioritizer (actor)
@@ -87,9 +89,6 @@
 
 (defmethod christen ((prioritizer prioritizer) (type (eql 'actor)))
   (slot-reduce prioritizer supplicant name)) ; this is starting to rhyme
-
-(defun sufficiently-different? (new old) ; someday dispatch on market
-  (< 0.04 (abs (log (/ (quantity (given new)) (quantity (given old)))))))
 
 (defgeneric prioriteaze (ope target placed)
   (:method ((ope prioritizer) target placed &aux to-add (excess placed))
@@ -122,9 +121,9 @@
               (t (sleep frequency))))))
 
 (defun profit-margin (bid ask &optional (bid-fee 0) (ask-fee 0))
-  (abs (if (= bid-fee ask-fee 0) (/ ask bid)
-           (/ (* ask (- 1 (/ ask-fee 100)))
-              (* bid (+ 1 (/ bid-fee 100)))))))
+  (abs (if (= bid-fee ask-fee 0) (/ ask bid)	; VALUES
+           (/ (* ask (- 1 (/ ask-fee 100)))	; PREMATURE
+              (* bid (+ 1 (/ bid-fee 100)))))))	; OPTIMISATION
 
 ;;; "plan to throw one away, for you already have"
 ;;; "plan two: yeet it like a neet"
@@ -239,8 +238,8 @@
   (with-slots (input output filter prioritizer epsilon frequency) ope
     (destructuring-bind (primary counter resilience ratio) (recv input)
       (with-slots (cut) filter
-	(setf cut (complex (realpart cut)
-			   (* (realpart cut) (atan (log ratio))))))
+        (setf cut (complex (realpart cut)
+                           (* (realpart cut) (atan (log ratio))))))
       (with-slots (next-bids next-asks response) prioritizer
         (macrolet ((do-side (amount side chan epsilon)
                      #+ () "can't I write documentation for local macros?"
@@ -269,7 +268,8 @@
                                              :delegates `(,supplicant) ,@args)))
                (children (&rest slots)
                  `(progn ,@(mapcar (lambda (slot) `(adopt ope ,slot)) slots))))
-      (children (init prioritizer) (init filter :cut cut)))))
+      (children (init prioritizer)
+                (init filter :cut (abs cut))))))
 
 ;;;
 ;;; ACCOUNT TRACKING
@@ -286,7 +286,8 @@
    (print-args :initform '(:market t :ours t :wait () :count 28)))) ; perfect
 
 (defmethod christen ((maker maker) (type (eql 'actor)))
-  (name (slot-reduce maker gate)))
+  (with-slots (gate market) (slot-reduce maker supplicant)
+    (format () "~A.~A" (name market) (name gate))))
 
 (defmethod print-object ((maker maker) stream)
   (print-unreadable-object (maker stream :type t :identity nil)
@@ -328,7 +329,7 @@
   (with-slots (name market ope snake last-report) maker
     (unless ha
       (let ((new-report (list (float btc) (float doge) ; approximate,
-			      investment risked skew   ; intentionally.
+                              investment risked skew   ; intentionally.
                               (first (slot-reduce maker lictor trades)))))
         (if (equal new-report (if (channelp (first last-report))
                                   (cdr last-report) last-report))
@@ -392,18 +393,17 @@
                    ;; torque's range varies, depending on markets and climates
                    (torque (dbz-guard (/ (total-of (- btc) doge) total-fund)))
                    ;; this old formula has lost its spice; needs sigmoid clamp
-                   (skew (log (if (zerop (* btc doge))
-                                  (max 1/100
-                                       (min 100
-                                            (or (ignore-errors
-                                                 (/ doge btc doge/btc)) 0)))
-                                  (/ doge btc doge/btc)))))
+                   (skew (log (expt (if (zerop (* btc doge))
+                                        (max 1/100
+                                             (min 100
+                                                  (or (ignore-errors
+                                                       (/ doge btc doge/btc))
+                                                      0)))
+                                        (/ doge btc doge/btc))
+                                    (/ fund-factor)))))
               ;; ;; "Yeah, science!" - King of the Universe, Right Here
               ;; (when (= (signum skew) (signum (log targeting-factor)))
               ;;   (setf targeting-factor (/ targeting-factor)))
-              ;; report funding
-              (makereport maker total-fund doge/btc total-btc total-doge
-                          buyin status torque)
               (flet ((f (g h) `((,g . ,(* cut (max 0 (* skew-factor h)))))))
                 (send (slot-reduce ope input)
                       (list (f (min btc (* 2/3 total-btc)) skew)
@@ -412,7 +412,12 @@
                                (reduce #'max (mapcar #'volume trades)
                                        :initial-value 0))
                             (expt (exp skew) skew-factor)))
-                (recv (slot-reduce ope output))))))))))
+                (recv (slot-reduce ope output)))
+              ;; print more obnoxious untabulated numeroscopy
+              (makereport maker total-fund doge/btc total-btc total-doge
+                          buyin status torque)
+              ;; (throw :up (gensym "BARF"))
+              )))))))
 
 (defmethod initialize-instance :after ((maker maker) &key)
   (with-slots (supplicant ope delegates cut) maker
@@ -420,22 +425,43 @@
     (adopt maker (setf ope (make-instance 'ope-scalper :cut cut
                                           :supplicant supplicant)))))
 
-(defun reset-the-net (maker &key (revive t) (delay 5))
-  (mapc 'kill (mapcar 'task-thread (pooled-tasks)))
-  #+sbcl (sb-ext:gc :full t)
-  (when revive
-    (dolist (actor (list (slot-reduce maker market) (slot-reduce maker gate)
-                         (slot-reduce maker ope) maker))
-      (sleep delay) (reinitialize-instance actor))))
+;; (defun reset-the-net (maker &key (revive t) (delay 5))
+;;   (mapc 'kill (mapcar 'task-thread (pooled-tasks)))
+;;   #+sbcl (sb-ext:gc :full t)
+;;   (when revive
+;;     (dolist (actor (list (slot-reduce maker market)
+;;                       (slot-reduce maker gate)
+;;                          (slot-reduce maker ope) maker))
+;;       (sleep delay) (reinitialize-instance actor))))
 
-(defmacro define-maker (name &rest keys)
-  `(defvar ,name
-     (make-instance 'maker :name ,(string-trim "*+<>" name) ,@keys)))
+(defmacro define-maker (lexeme &rest keys)
+  (let* ((stem (etypecase lexeme	; COMMON-LISP:CHECK-TYPE pls
+                 (symbol (string lexeme)) (string lexeme)))
+         (name (let ((attack (elt stem 0))
+                     (ending (elt stem (1- (length stem)))))
+                 (or (cond	   ; SO MUCH THRUMB // NO WORK HELPING
+                       ((and (char= attack ending)
+                             (member attack '(#\* #\+ #|...|#)))
+                        (string-trim "+*" stem))    ; problem ?
+                       ((and (member attack '(#\< #\>))	; tell it to
+                             (member ending '(#\< #\>))) ; your cafe
+                        (cerror "Supply stem [sequence of base-char]"
+                                "WHO ARE YOU & WHY THIS CODE")))
+                     (error "GO TO FAIL, FO DIRECTIONS THAT FAILED")))))
+    `(defvar ,lexeme (make-instance 'maker :name ,name ,@keys))))
 
-(defun current-depth (maker)
-  (with-slots (resilience-factor market) maker
-    (with-slots (trades) (slot-value market 'trades-tracker)
-      (* resilience-factor (reduce #'max (mapcar #'volume trades))))))
+(defgeneric current-depth (maker &key random-state)	       ; clunk
+  (:method  ((maker maker) &key random-state)		       ; goes
+    (with-slots (resilience-factor market) maker	       ; the
+      (with-slots (trades) (slot-value market 'trades-tracker) ; KNIFE
+        (unless (or (null random-state) (eq random-state *random-state*))
+          (warn "~&Don't run out of entropy, fool!~%"))
+        (* (reduce #'max (mapcar #'volume trades)
+                   ;; I'm really bad at remembering useless shit for free
+                   :initial-value 0)	; what difference does that make?
+           (+ (random 1.0) resilience-factor))))))
+
+;;; the most important stage in AMNIOTE [chordate?] life is gastrulation
 
 (defun trades-profits (trades)
   (flet ((side-sum (side asset)
@@ -456,7 +482,7 @@
              (total (btc doge)          ; patt'ring on my chamber door?
                (+ btc (/ doge (vwap #1# :depth 50 :type :buy))))
              (vwap (side) (vwap lictor :type side :market #1# :depth depth)))
-        (let* ((trades (slot-reduce maker lictor trades))
+        (let* ((trades (slot-reduce maker lictor trades)) ; depth?
                (uptime (timestamp-difference
                         (now) (timestamp (first (last trades)))))
                (updays (/ uptime 60 60 24))
@@ -464,7 +490,7 @@
                (profit (* volume (1- (profit-margin (vwap "buy")
                                                     (vwap "sell"))) 1/2))
                (total (total (funds primary) (funds counter))))
-	  (format t "~&I failed calculus, so why take my ~
+          (format t "~&I failed calculus, so why take my ~
                        word for any of these reckonings?~%")
           (format t "~&Been up              ~7@F days ~A~
                      ~%traded               ~7@F ~(~A~),~
@@ -488,44 +514,4 @@
           (when source (send source next)))))
     (when market (path maker market book-tracker))))
 
-;;; General Introspection, Major Mayhem, and of course SFC Property
-
-(defmethod describe-object ((maker maker) (stream t))
-  (with-slots (name print-args lictor) maker
-    (apply #'print-book maker print-args) (performance-overview maker)
-    (multiple-value-call 'format stream "~@{~A~#[~:; ~]~}" name
-                         (trades-profits (slot-reduce lictor trades)))))
-
-(defmethod describe-object :after ((maker maker) (stream t))
-  (with-aslots (market) (slot-reduce maker supplicant)
-    (describe-account it (exchange market) stream)))
-
-;; (flet ((window (start trades)
-;; 	 (if (null trades) (list start 0 nil)
-;; 	   (multiple-value-call 'list start
-;; 	     (length trades) (trades-profits trades)))))
-;;   (loop with windows
-;; 	for trades = (slot-reduce *maker* lictor trades)
-;; 	then (nthcdr window-count trades) ; FUCK A DUCK A RANDOM DUCK
-;; 	for window-start = (timestamp (first trades)) then window-close
-;; 	for window-close = (timestamp- window-start 1 :day)
-;; 	for window-count = (position window-close trades
-;; 				     :key #'timestamp
-;; 				     :test #'timestamp>=)
-;; 	for window = (window window-start
-;; 			     (if (null window-count) trades
-;; 			       (subseq trades 0 window-count)))
-;; 	while window-count do (push window windows)
-;; 	finally (return (cons window windows))))
-
-;; (defmethod describe-account :after (supplicant exchange stream)
-;;   (destructuring-bind (first . rest) (slot-reduce supplicant lictor trades)
-;;     (dolist (day (reduce (lambda (days trade)
-;;                            (destructuring-bind ((day . trades) . rest) days
-;;                              (let ((next (timestamp trade)))
-;;                                (if (= (day-of next) (day-of day))
-;;                                    (cons (list* day trade trades) rest)
-;;                                    (acons next trade days)))))
-;;                          rest :initial-value (acons (timestamp first) first ())))
-;;       (multiple-value-call 'format stream "~&~@{~A~#[~:; ~]~}~%" name
-;;                            (trades-profits day)))))
+;;;; introspection commonly trivialised 'navel-gazing' ... -> navel.lisp
