@@ -19,6 +19,7 @@
    #:string-case
    #:concatenate-url-parameters
    #:urlencode-params
+   #:url-decode
    #:break-errors
    #:kw #:mvwrap
    #:subseq*
@@ -35,6 +36,7 @@
    #:with-json-slots
    #:mapjso*
    #+clozure #:memory-usage
+   #:split-sequence
    ))
 
 (in-package #:scalpl.util)
@@ -161,7 +163,7 @@
                price-string (+ expected delta) expected)))))
 
 (defun parse-price (price-string decimals)
-  (let ((dot (position #\. price-string)))
+  (let ((dot (or (position #\. price-string) (length price-string))))
     (multiple-value-bind (int end) (parse-integer (remove #\. price-string))
       (let ((delta (- end dot decimals)))
         (if (zerop delta) int
@@ -194,6 +196,20 @@
      (mapcar (lambda (cons)             ;   filled with regrets
                (cons (urlencode (car cons)) (urlencode (cdr cons))))
              alist))))                  ;   and hateful squalor
+
+(defun url-decode (string)
+  "Returns a URL-decoded version of the string STRING using the
+external format EXTERNAL-FORMAT."
+  (with-output-to-string (out)
+    (with-input-from-string (in string)
+      (loop for char = (read-char in () ()) while char
+            do (write-char (cond ((char= char #\+) #\Space)
+                                 ((char= char #\%)
+                                  (code-char (+ (* 16 (digit-char-p
+                                                       (read-char in) 16))
+                                                (digit-char-p (read-char in) 16))))
+                                 (t char))
+                           out)))))
 
 ;;; anaphora!
 

@@ -35,7 +35,9 @@
              (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
              (format *debug-io* "~&~A~%"
                      (if (y-or-n-p "USE-PACKAGE[(SCALPL.BYBIT),SCALPL.QD]?")
-                         "WHEN EVIL!?" "Relax, it's only an M-expression!"))))
+                         (use-package (find-package :scalpl.bybit)
+                                      (find-package :scalpl.qd))
+                         "Relax, it's only an M-expression!"))))
 (defsystem #:scalpl/bitmex
   :license "public domain"
   :description "api client for bitmex"

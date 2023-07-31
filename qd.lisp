@@ -1,5 +1,5 @@
 (defpackage #:scalpl.qd
-  (:use #:cl #:chanl #:anaphora #:local-time
+  (:use #:cl #:chanl #:anaphora #:local-time #:split-sequence
         #:scalpl.util #:scalpl.exchange #:scalpl.actor)
   (:export #:ope-placed #:ope-place #:ope-cancel
            #:prioritizer #:prioriteaze
@@ -55,6 +55,7 @@
 ;;; 3) profit vs recent cost basis - done, shittily - TODO parametrize depth
 
 (defmethod perform ((filter filter) &key)
+  (declare (optimize debug))
   (with-slots (market book-cache bids asks frequency supplicant cut) filter
     (let ((book (recv (slot-reduce market book))))
       (unless (eq book book-cache)
@@ -180,7 +181,7 @@
    (abbrev :allocation :class :initform "ope")
    (frequency :initform 1/7 :initarg :frequency)
    (supplicant :initarg :supplicant) filter prioritizer
-   (epsilon :initform (expt 0.14 5) :initarg :epsilon)
+   (epsilon :initform 1e-3 :initarg :epsilon)
    (magic :initform 3 :initarg :magic-count)))
 
 (defmethod christen ((ope ope-scalper) (type (eql 'actor)))
@@ -196,7 +197,7 @@
           (if (or (null bases) (zerop count) (null offers)) offers  ; again!
               (flet ((profit (o)
                        (funcall punk (1- (price o)) (price vwab) (cdar funds))))
-                (when vwab
+                (when (and vwab (plusp (quantity vwab)))
                   (setf book (rest (member 0 book :test #'< :key #'profit))))
                 (if (and vwab (plusp (profit car)))
                     `(,car .,(ope-sprinner
@@ -280,7 +281,7 @@
    (targeting-factor :initarg :targeting :initform (random 1.0))
    (skew-factor :initarg :skew-factor :initform 1)
    (cut :initform 0 :initarg :cut) ope (supplicant :initarg :supplicant)
-   (snake :initform (list 30))          ; FIXME: snake-args
+   (snake :initform (list 73))          ; FIXME: snake-args
    (abbrev :initform "maker" :allocation :class) (last-report :initform nil)
    (print-args :initform '(:market t :ours t :wait () :count 28)))) ; perfect
 
@@ -341,7 +342,7 @@
       ;; FIXME: modularize all this decimal point handling
       ;; we need a pprint-style ~/aq/ function, and pass it aq objects!
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (aprog1 (format () "~&~A~A ~{~A~^ ~} ~5,4,,VF~4,4F~4,4@F~A~%"
+      (aprog1 (format () "~&~A ~A ~{~A~^ ~} ~5,4,,VF~4,4F~4,4@F~%~A~%"
                       name (format-timestring ; a naggy mess and lispy, too!
                             () (now) :format '((:hour 2) (:min 2) (:sec 2)))
                       (mapcar #'sastr '(primary counter primary counter)
@@ -361,6 +362,7 @@
   (force-output))
 
 (defmethod perform ((maker maker) &key)
+  (declare (optimize debug))
   (call-next-method maker :blockp ())   ; memento, du musste mori!
   (with-slots (fund-factor resilience-factor targeting-factor skew-factor
                market name ope cut supplicant) maker
@@ -394,7 +396,7 @@
                                   (max 1/100
                                        (min 100
                                             (or (ignore-errors
-                                                  (/ doge btc doge/btc)) 0)))
+                                                 (/ doge btc doge/btc)) 0)))
                                   (/ doge btc doge/btc)))))
               ;; ;; "Yeah, science!" - King of the Universe, Right Here
               ;; (when (= (signum skew) (signum (log targeting-factor)))

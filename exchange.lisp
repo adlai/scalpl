@@ -10,7 +10,7 @@
            #:offer #:bid #:ask #:offered #:taken #:given
            #:volume #:price #:placed #:oid #:consumed-asset
            #:gate #:gate-post #:gate-request #:output #:input #:cache
-           #:trade #:cost #:direction #:txid
+           #:trade #:cost #:direction #:txid #:tracked-market
            #:trades-tracker #:trades #:trades-since #:vwap #:book
            #:book-tracker #:bids #:asks #:get-book #:get-book-keys
            #:balance-tracker #:balances #:sync #:print-book #:asset-funds
@@ -19,7 +19,7 @@
            #:execution-tracker #:execution-since #:bases #:bases-without
            #:post-offer #:cancel-offer #:supplicant #:lictor #:treasurer
            #:order-slots #:response #:supplicate #:bases-for #:reserved
-           #:describe-account #:backoff))
+           #:describe-account #:backoff #:respawn-syncer))
 
 (in-package #:scalpl.exchange)
 
@@ -30,6 +30,7 @@
 	    (return (apply #'drakma:http-request path
 			   (alexandria:remove-from-plist keys :backoff)))
           ((or simple-error drakma::drakma-simple-error
+            usocket:ns-try-again-error
             usocket:ns-try-again-condition
             usocket:deadline-timeout-error usocket:timeout-error
             usocket:timeout-error usocket:ns-host-not-found-error
@@ -64,7 +65,7 @@
 
 (defclass exchange ()
   ((name    :initarg :name    :reader name)
-   (stream  :initarg :stream  :reader stream)
+   ;; (stream  :initarg :stream  :reader stream)
    (assets  :initarg :assets  :reader assets)
    (markets :initarg :markets :reader markets)
    ;; FIXME: broken af; only necessary for exchanges that
@@ -124,6 +125,9 @@
 (defun physical-quantity-p (thing)      ; Find out why, from that
   (and (complexp thing) (find-unit (imagpart thing)))) ; ... ...
 
+;;; (upgraded-complex-part-type
+;;;  `(unsigned-byte ,(integer-length most-positive-fixnum)))
+;;; NO CODE USING 'CL:SATISFIES IS EVER SATISFACTORY!
 (deftype physical-quantity () '(satisfies physical-quantity-p))
 
 (defun pprint-physical-quantity (stream pq) ; one ! deft ! prick.
@@ -544,6 +548,9 @@
 ;;; tonight we dine in fail
 (defmethod get-book ((market tracked-market) &key)
   (get-book (slot-value market '%market)))
+(defmethod trades-since ((market tracked-market) &optional since)
+  (if (null since) (trades-since (slot-value market '%market))
+      (trades-since (slot-value market '%market) since)))
 
 (defmethod vwap ((market tracked-market) &rest keys)
   (apply #'vwap (slot-value market 'trades-tracker) keys))
@@ -654,7 +661,9 @@
   (:method ((gate gate) (market tracked-market))
     (market-fee gate (slot-reduce market scalpl.exchange::%market)))
   (:method :around ((gate gate) (market market))
-    (actypecase (call-next-method) (number `(,it . ,it)) (cons it) (null))))
+    (actypecase (call-next-method) (number `(,it . ,it)) (cons it) (null)))
+  (:method ((gate gate) (market tracked-market))
+    (market-fee gate (slot-value market '%market))))
 
 (defclass fee-fetcher (actor)
   ((abbrev :allocation :class :initform "fee fetcher")))
@@ -708,6 +717,10 @@
      (cons-aq* (primary market) net-volume)
      (cons-aq* (counter market) net-cost))))
 
+(defgeneric execution-since (gate market since)
+  (:method ((gate gate) (market tracked-market) since)
+    (execution-since gate (slot-value market '%market) since)))
+
 (defclass execution-fetcher (actor)
   ((abbrev :allocation :class :initform "exhun fetcher")))
 
@@ -752,8 +765,6 @@
 (defmethod shared-initialize :after
     ((tracker execution-tracker) (names t) &key) (execute tracker :rebase))
 
-(defgeneric execution-since (gate market since))
-
 ;;; This function returns three values:
 ;;;   1) remaining bases, after deducting the given aq (can be nil)
 ;;;   2) the vwab price of the given bases
@@ -779,7 +790,8 @@
              (values (cons (list bp excess other) bases)
                      (cons-mp (market bp)
                               (/ (- pwa (* (price bp) (quantity excess)))
-                                 (quantity given))) recur))
+                                 (quantity given)))
+                     recur))
          when (null bases) return
            (values nil (aq/ vwab-sum acc) vwab-sum))
     ((or division-by-zero arithmetic-error) ())))
@@ -877,8 +889,7 @@
 ;;; FIXME: disambiguate placement from offerage, and redichotomise the book
 (defmethod placed-offers ((supplicant supplicant) &optional market)
   (with-slots (gate market) supplicant
-    (remove market (placed-offers gate market)
-	    :test-not #'eq :key #'market)))
+    (placed-offers gate market)))
 
 (defmethod execute ((supplicant supplicant) (cons cons) &aux (arg (cdr cons)))
   (with-slots (gate response offered) supplicant

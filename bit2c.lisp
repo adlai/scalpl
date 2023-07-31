@@ -32,9 +32,8 @@
 
 (defgeneric make-signer (secret)
   (:method ((signer function)) signer)
-  (:method ((string string))
-    (lambda (message) (hmac-sha512 message string)))
-  (:method ((stream stream)) (make-signer (read-line stream)))
+  (:method ((string string)) (lambda (message) (hmac-sha512 message string)))
+  (:method ((stream stream)) (make-signer (string-upcase (read-line stream))))
   (:method ((path pathname)) (with-open-file (data path) (make-signer data))))
 
 (defgeneric make-key (key)
