@@ -82,7 +82,7 @@
 ;;                      (* 1000 (timestamp-to-unix (now))))))
 
 (defun auth-request (verb path key signer &optional params)
-  (let* ((window "2999")
+  (let* ((window "9999")
          (time (format () "~D" (+ (timestamp-millisecond (now))
                                   (* 1000 (timestamp-to-unix (now))))))
          (payload (concatenate 'string time key window
@@ -126,6 +126,12 @@
                (typecase market
                  (option-market (not (live-market-p market)))))
              (call-next-method)))
+
+;; (defmethod assets :around ((exchange (eql *bybit*)))
+;;   (remove-if (lambda (asset)
+;;                (typecase (market asset) ; no such link
+;;                  (option-market (not (live-market-p market)))))
+;;              (call-next-method)))
 
 (defmethod category ((market tracked-market))
   (category (slot-value market 'scalpl.exchange::%market)))
@@ -1403,19 +1409,24 @@
       do (sleep 5) do (sb-ext:gc :full t))
 
 #+ (or)
-(macrolet ((chaff (symbol market fund resilience)
-             `(progn
-                (define-maker ,symbol :supplicant
-                  (make-instance 'supplicant :market (find-market ,@market)
-                                             :gate *gate* :order-slots 37)
-                  :fund-factor ,fund :resilience ,resilience
-                  :targeting 1 :skew-factor 23/19 :cut 1/79)
-                (sleep 1)
-                (change-class (slot-reduce (market ,symbol)
+(macrolet ((chaff (symbol market &optional (resilience 23456.7) (skew 23/19))
+             `(let ((supplicant
+                      (make-instance 'supplicant
+                                     :market (find-market ,@market)
+                                     :gate *gate* :order-slots 37)))
+                (change-class (slot-reduce supplicant market
                                            scalpl.exchange::%market)
                               'bybit::streaming-market)
+                (format t "~&Loading ~A~%" (find-market ,@market))
+                (sleep 1)
+                (define-maker ,symbol :supplicant supplicant
+                  :fund-factor 2/7 :resilience ,resilience
+                  :targeting 1 :skew-factor ,skew :cut 1/79)
                 (change-class (slot-reduce ,symbol ope prioritizer)
                               'bybit::bybit-prioritizer))))
-  (chaff *fmayr* (:btc-05may23 :bybit) 2/5 13.5)
-  (chaff *usdtr* (:btcusdt :bybit) 2/5 13.5)
-  (chaff *perpr* (:btcperp :bybit) 2/5 13.5))
+  (chaff *perpr* (:btcperp :bybit))
+  (chaff *fsepr* (:btc-29sep23 :bybit))
+  (chaff *foctr* (:btc-27oct23 :bybit))
+  (chaff *fdecr* (:btc-29dec23 :bybit))
+  (chaff *fmarr* (:btc-29mar24 :bybit))
+  )

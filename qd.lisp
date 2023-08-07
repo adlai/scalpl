@@ -32,7 +32,7 @@
   ((abbrev :allocation :class :initform "filter") (cut :initarg :cut)
    (bids :initform ()) (asks :initform ()) (book-cache :initform nil)
    (supplicant :initarg :supplicant :initform (error "must link supplicant"))
-   (frequency  :initarg :frequency  :initform 1/7))) ; FIXME: s/ll/sh/!?
+   (frequency  :initarg :frequency  :initform 5/7))) ; FIXME: s/ll/sh/!?
 
 (defmethod christen ((filter filter) (type (eql 'actor)))
   (slot-reduce filter supplicant name))
@@ -83,7 +83,7 @@
    (response :initform (make-instance 'channel))
    (supplicant :initarg :supplicant) (expt :initform (exp 1))
    (abbrev :allocation :class :initform "prioritizer")
-   (frequency :initarg :frequency :initform 1/7))) ; FIXME: s/ll/sh/
+   (frequency :initarg :frequency :initform 3/7))) ; FIXME: s/ll/sh/
 
 (defmethod christen ((prioritizer prioritizer) (type (eql 'actor)))
   (slot-reduce prioritizer supplicant name)) ; this is starting to rhyme
@@ -179,7 +179,7 @@
   ((input :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
    (abbrev :allocation :class :initform "ope")
-   (frequency :initform 1/7 :initarg :frequency)
+   (frequency :initform 1 :initarg :frequency)
    (supplicant :initarg :supplicant) filter prioritizer
    (epsilon :initform 1e-3 :initarg :epsilon)
    (magic :initform 3 :initarg :magic-count)))
