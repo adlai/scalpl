@@ -180,8 +180,8 @@ the good folks at your local Gambler's Anonymous.")
       ((fee "Fee") (left "Volume") (target "AmountFrom"))
       (gate-request gate '(:get "Account/NextTradeFees") ())
     (format t "~&~A~%You're ~2$ NIS away from the fee drop:~%~
-                 Next Tier: ~$% taker and ~$% maker~%"
-            (now) (- target left) fee (- fee 1/2))))
+                 Next Tier: ~$% taker [and ??? maker]~%"
+            (now) (- target left) fee)))
 
 ;;;
 ;;; Private Data API
