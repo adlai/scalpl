@@ -6,6 +6,7 @@
   :license "public domain"
   :description "market maker + APIs to several Bitcoin exchanges"
   :author "Adlai Chandrasekhar"
+  ;; if you add Alexandria to the dependency list, I hunt you down and kill.
   :depends-on (#:anaphora #:string-case #:parse-float #:decimals #:ironclad
                #:chanl #:cl-json #:cl-base64 #:split-sequence #:local-time
                #:method-combination-utilities #:drakma)

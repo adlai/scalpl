@@ -124,7 +124,10 @@
 (defmethod markets :around ((exchange (eql *bybit*)))
   (remove-if (lambda (market)
                (typecase market
-                 (option-market (not (live-market-p market)))))
+                 (option-market (not (live-market-p market)))
+                 ;; for some strange and irrelevant reason,
+                 ;; the following excludes BTCUSDT ... who cares!?
+                 (linear-market (not (live-market-p market)))))
              (call-next-method)))
 
 ;; (defmethod assets :around ((exchange (eql *bybit*)))
@@ -450,6 +453,7 @@
                     it)))))))
 
 (defmethod account-balances ((gate bybit-gate) &aux balances)
+  ;; (declare (optimize debug))
   (awhen (gate-request gate '(:get "account/wallet-balance")
                        '(("accountType" . "contract")))
     (with-json-slots (coin) (first (getjso "list" it))
@@ -871,11 +875,12 @@
   (let ((client (wsd:make-client (websocket-url "option"))))
     (wsd:on :message client 'handle-options-websocket-message)
     (wsd:start-connection client)
-    (bt:make-thread (lambda ()
-                      (loop
-                        (sleep 17)
-                        (wsd:send client "{\"op\":\"ping\"}")))
-                    :name "websocket heartbeat")
+    (unless markets
+      (bt:make-thread (lambda ()
+                        (loop
+                          (sleep 17)
+                          (wsd:send client "{\"op\":\"ping\"}")))
+                      :name "websocket heartbeat"))
     (dolist (topic (mapcar (lambda (market)
                              (concatenate 'string "tickers." (name market)))
                            (remove (find-class 'option-market) markets
