@@ -277,6 +277,28 @@ external format EXTERNAL-FORMAT."
   (mapjso thunk jso)
   jso)
 
+(defun pprint-json (*standard-output* json)
+  ;; "Life is too long to talk about cross-platform development." - sudonymos
+  (typecase json
+    (rational
+     (write-string (decimals:format-decimal-number json :round-magnitude -8)))
+    (list (pprint-logical-block (*standard-output* json :prefix "{" :suffix "}")
+            (loop for (key . value) = (pop json) while key do
+              (pprint-logical-block (*standard-output* ())
+                (format t "\"~(~A~)\": ~@_" key)
+                (pprint-json *standard-output* value))
+              (when json (format t ", ") (pprint-newline :fill)))))
+    (string (format t "~S" json))
+    (vector (pprint-logical-block (nil nil :prefix "[" :suffix "]")
+              (let ((end (length json)) (i 0))
+                (when (plusp end)
+                  (loop
+                    (pprint-json *standard-output* (aref json i))
+                    (if (= (incf i) end) (return nil))
+                    (format t ", ")
+                    (pprint-newline :fill))))))
+    (t (format t "~(~A~)" json))))
+
 ;;; memory introspection, where supported
 #+clozure
 (defun memory-usage ()
