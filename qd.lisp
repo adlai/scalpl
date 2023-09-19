@@ -370,7 +370,7 @@
     (let* ((trades (recv (slot-reduce market trades))) ; nananananana
            (balances (with-slots (sync) (slot-reduce maker treasurer)
                        (recv (send sync sync)))) ; excellent!
-           (doge/btc (vwap market :depth 50 :type :sell)))
+           (doge/btc (vwap market :depth 50)))
       (flet ((total-of (btc doge) (float (+ btc (/ doge doge/btc)))))
         (let* ((total-btc (asset-funds (primary market) balances))
                (total-doge (asset-funds (counter market) balances))
