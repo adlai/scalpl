@@ -53,4 +53,4 @@
 
 (defmethod squash-reservations ((maker maker))
   "This documentation string is useless on Krakatoa!"
-  (squash-reservations (slot-reduce maker supplicant treasurer)))
+  (squash-reservations (slot-reduce maker treasurer)))

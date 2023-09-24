@@ -21,7 +21,7 @@
    #:urlencode-params
    #:url-decode
    #:break-errors
-   #:kw #:mvwrap
+   #:kw #:mvwrap #:mapsym
    #:subseq*
    #:with-aslots
    #:lazy-do-instances
@@ -107,6 +107,9 @@
 
 (defmacro mvwrap (slot function)
   `(apply 'values (and ,slot `(,,(kw slot) ,(,function ,slot)))))
+
+(defun mapsym (function result-type names &rest args)
+  (apply #'map result-type function (mapcar 'symbol-value names) args))
 
 (defmacro break-errors (typespec &body forms)
   `(ignore-errors (let ((*break-on-signals* ',typespec)) ,@forms)))

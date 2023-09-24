@@ -34,7 +34,7 @@
    (bids :initform ()) (asks :initform ()) (book-cache :initform nil)
    (supplicant :initarg :supplicant	; DISAMBIGUATION GONEHYET!
                :initform (error "must link supplicant"))
-   (frequency  :initarg :frequency  :initform 1/7))) ; FIXME: s/ll/sh/!?
+   (frequency  :initarg :frequency  :initform 1))) ; FIXME: s/ll/sh/!?
 
 (defmethod christen ((filter filter) (type (eql 'actor)))
   (slot-reduce filter supplicant name))
@@ -85,7 +85,7 @@
    (response :initform (make-instance 'channel))
    (supplicant :initarg :supplicant) (expt :initform (exp 1))
    (abbrev :allocation :class :initform "prioritizer")
-   (frequency :initarg :frequency :initform 3/7))) ; FIXME: s/ll/sh/
+   (frequency :initarg :frequency :initform 1))) ; FIXME: s/ll/sh/
 
 (defmethod christen ((prioritizer prioritizer) (type (eql 'actor)))
   (slot-reduce prioritizer supplicant name)) ; this is starting to rhyme
@@ -301,7 +301,7 @@
            (volume (find side trades :key #'direction :test #'string-equal)))
          (chr (real)                ;_; was I a good function? // No.
            (funcall (if (plusp real) #'identity #'char-downcase)
-                    (char "HWFUMONERYLSICAZJX"
+                    (char "HWFUMONERYLSICAZJX" ; vtqpkgdb ???
                           (floor (* (abs real) #xFF) #xF)))))
     (with-output-to-string (out)
       (when (and (find "buy" trades :key #'direction :test #'string-equal)
