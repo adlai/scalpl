@@ -1040,61 +1040,52 @@
 ;;; "There are only two Hard Problems of Consciousness:
 ;;;    the false dichotomy between the problems, and
 ;;;      prioritisation of hypothesis falsification."
-;; (defun make-liquidity-background (market minimum maximum step
-;;                                   &aux (price-factor (expt 10 (decimals market))))
-;;   (let ((size (1+ (ceiling (- maximum minimum) step))))
-;;     (let ((bids (make-hash-table :test #'eql :size size))
-;;           (asks (make-hash-table :test #'eql :size size)))
-;;       (loop for cdr on
-;;            (loop with descending for price from minimum to maximum by step
-;;               for mp = (* price price-factor)
-;;               for volume = (/ (1+ (random (expt size (random 1.5)))) price)
-;;               for ask = (make-instance 'ask :market market
-;;                                        :price mp :volume volume)
-;;               for bid = (make-instance 'bid :market market
-;;                                        :price mp :volume volume)
-;;               collect ask do (setf (gethash (price bid) bids)
-;;                                    (push bid descending)))
-;;          do (setf (gethash (price (car cdr)) asks) cdr))
-;;       (values bids asks))))
-
-;; (defclass streaming-market (bybit-market) (socket book-table background))
-
-;; (defmethod shared-initialize :after ((market streaming-market) (names t)
-;;                                      &key minimum maximum step)
-;;   (with-slots (socket book-table background) market
-;;     (setf (values book-table socket)
-;;           (if (slot-boundp market 'book-table)
-;;               (make-orderbook-socket market book-table)
-;;               (make-orderbook-socket market)))
-;;     (when (and minimum maximum step)
-;;       (setf background
-;;             (multiple-value-call #'cons
-;;               (make-liquidity-background market minimum maximum step))))))
+(defun make-liquidity-background (market minimum maximum step
+                                  &aux (price-factor (expt 10 (decimals market))))
+  (let ((size (1+ (ceiling (- maximum minimum) step))))
+    (let ((bids (make-hash-table :test #'eql :size size))
+          (asks (make-hash-table :test #'eql :size size)))
+      (loop for cdr on
+           (loop with descending for price from minimum to maximum by step
+              for mp = (* price price-factor)
+              for volume = (/ (1+ (random (expt size (random 1.5)))) price)
+              for ask = (make-instance 'ask :market market
+                                       :price mp :volume volume)
+              for bid = (make-instance 'bid :market market
+                                       :price mp :volume volume)
+              collect ask do (setf (gethash (price bid) bids)
+                                   (push bid descending)))
+         do (setf (gethash (price (car cdr)) asks) cdr))
+      (values bids asks))))
 
 (defclass streaming-market (bybit-market)
-  (socket (book-table :initform (make-hash-table :test #'eql))
+  (socket background (book-table :initform (make-hash-table :test #'eql))
    (trades :initform ()) (category :allocation :instance)))
 
-;; (defmethod get-book ((market streaming-market) &key)
-;;   (if (not (slot-boundp market 'book-table)) (values () ())
-;;       (with-slots (book-table background) market
-;;         (loop for (price . offer) being each hash-value of book-table
-;;            if (eq (type-of offer) 'ask) collect offer into asks
-;;            if (eq (type-of offer) 'bid) collect offer into bids
-;;            finally (return
-;;                      (let ((asks (sort asks #'> :key #'price))
-;;                            (bids (sort bids #'> :key #'price)))
-;;                        (values (nconc (nreverse asks)
-;;                                       (cdr (gethash (price (first asks))
-;;                                                     (cdr background))))
-;;                                (nconc (nreverse bids)
-;;                                       (cdr (gethash (price (first bids))
-;;                                                     (car background)))))))))))
+(defmethod shared-initialize :after ((market streaming-market) (names t)
+                                     &key minimum maximum step)
+  (with-slots (socket background) market
+    (setf socket (make-market-socket market))
+    (when (and minimum maximum step)
+      (setf background
+            (multiple-value-call #'cons
+              (make-liquidity-background market minimum maximum step))))))
 
-(defmethod shared-initialize :after ((market streaming-market) (names t) &key)
-  (with-slots (socket) market
-    (setf socket (make-market-socket market))))
+(defmethod get-book ((market streaming-market) &key)
+  (if (not (slot-boundp market 'book-table)) (values () ())
+      (with-slots (book-table background) market
+        (loop for (price . offer) being each hash-value of book-table
+           if (eq (type-of offer) 'ask) collect offer into asks
+           if (eq (type-of offer) 'bid) collect offer into bids
+           finally (return
+                     (let ((asks (sort asks #'> :key #'price))
+                           (bids (sort bids #'> :key #'price)))
+                       (flet ((book (side)
+                                (if (null background) (nreverse side)
+                                    (nconc (nreverse side)
+                                           (cdr (gethash (price (first side))
+                                                         (cdr background)))))))
+                         (values (side asks) (side bids)))))))))
 
 (defmethod get-book :before ((market streaming-market) &key)
   (with-slots (socket) market
@@ -1105,14 +1096,6 @@
               (error (error) (warn "~&Encountered:~%~A~%" error)))
            (sleep delay))
       (sleep 3))))
-(defmethod get-book ((market streaming-market) &key)
-  (if (not (slot-boundp market 'book-table)) (values () ())
-      (with-slots (book-table) market
-        (loop for offer being each hash-value of book-table
-           if (eq (type-of offer) 'ask) collect offer into asks
-           if (eq (type-of offer) 'bid) collect offer into bids
-           finally (return (values (sort asks #'< :key #'price)
-                                   (sort bids #'< :key #'price)))))))
 (defmethod get-book :after ((market streaming-market) &key)
   (with-slots (socket) market
     (when (slot-boundp market 'socket)
