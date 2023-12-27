@@ -4,6 +4,7 @@
   (:export ; if these are complex enough that their documentation
           ;; string overflows into the format restandardizatation
    ;; debate, then they may belong in someone else's utility lib.
+   #:projugate                          ; how useful is it, really?
    #:icbrt
    #:shorten-uid
    #:once-only
@@ -35,6 +36,7 @@
    #:jso-keys
    #:with-json-slots
    #:mapjso*
+   ;; #:pprint-json                     ; how useful is it, really!?
    #+clozure #:memory-usage
    #:split-sequence
    ))
