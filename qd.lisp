@@ -152,9 +152,15 @@
                  (let ((scale (/ funds (+ total (* bonus count)))))
                    (lambda (order &aux (vol (* scale (+ bonus (car order)))))
                      (with-slots (market price) (cdr order)
-                       (make-instance 'offer ; FIXME: :given (ring a bell?)
-                                      :given (cons-aq* asset vol) :volume vol
-                                      :market market :price (1- price)))))))
+                       (make-instance
+                        'offer
+                        :given (cons-aq* asset vol)
+                        :volume vol :market market
+                        :price (with-slots (tick decimals) market
+                                 (alet (if (slot-boundp market 'tick)
+                                           (* tick (expt 10 decimals))
+                                           1)
+                                   (- price it)))))))))
           (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni! wut?
                                     max-orders processed-tally))
                  (chosen-stairs         ; the (shares . foreign-offer)s to fight

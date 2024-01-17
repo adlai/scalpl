@@ -7,7 +7,7 @@
 
            #:asset #:find-asset #:asset-quantity
            #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
-           #:market #:decimals #:primary #:counter #:find-market
+           #:market #:tick #:decimals #:primary #:counter #:find-market
            #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/ #:aq*
 
            #:offer #:bid #:ask #:offered #:taken #:given
@@ -213,6 +213,7 @@
 
 (defclass market (registered-unit)
   ((name     :initarg :name     :reader name)
+   (tick     :initarg :tick     :reader tick)
    (decimals :initarg :decimals :reader decimals)
    (exchange :initarg :exchange :reader exchange)
    (counter  :initarg :counter  :reader counter)
