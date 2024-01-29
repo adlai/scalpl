@@ -146,16 +146,17 @@
   (let ((path (butlast slots)) (end (car (last slots))))
     (get-setf-expansion `(slot-value (slot-reduce ,root ,@path) ',end) env)))
 
-(defun rehome-symbol (symbol new-home &aux (source (symbol-package symbol)))
-  (unintern symbol source) (import symbol new-home) (import symbol source))
+(defun rehome-symbol (symbol target &aux (source (symbol-package symbol)))
+  (unintern symbol source) (import symbol target) (import symbol source))
 
-(defgeneric rehome-class (class new-home)
-  (:method ((class symbol) new-home)
-    (rehome-class (find-class class) (find-package new-home)))
-  (:method ((class class) (new-home package))
-    (mapcar (lambda (symbol) (rehome-symbol symbol new-home))
-            (cons (class-name class) (mapcar 'slot-definition-name
-                                             (class-direct-slots class))))))
+(defgeneric rehome-class (class target)
+  (:method ((class symbol) target)
+    (rehome-class (find-class class) (find-package target)))
+  (:method ((class class) (target package))
+    (mapcar (lambda (symbol) (rehome-symbol symbol target))
+            (cons (class-name class)
+                  (mapcar 'slot-definition-name
+                          (class-direct-slots class))))))
 
 (define-condition price-precision-problem ()
   ((price-string :initarg :price-string)
@@ -282,6 +283,7 @@ external format EXTERNAL-FORMAT."
   (mapjso thunk jso)
   jso)
 
+;;; (deftype json (do some thing useful) "someday")
 (defun pprint-json (*standard-output* json)
   ;; "Life is too long to talk about cross-platform development." - sudonymos
   (typecase json
@@ -290,7 +292,7 @@ external format EXTERNAL-FORMAT."
     (list (pprint-logical-block (*standard-output* json :prefix "{" :suffix "}")
             (loop for (key . value) = (pop json) while key do
               (pprint-logical-block (*standard-output* ())
-                (format t "\"~(~A~)\": ~@_" key)
+                (format t "\"~(~A~)\": ~@_" key) ; why quote keys?
                 (pprint-json *standard-output* value))
               (when json (format t ", ") (pprint-newline :fill)))))
     (string (format t "~S" json))

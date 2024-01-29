@@ -15,7 +15,7 @@ a set of numerical parameters representing
 ***** expectations regarding future market events
 ** Market Observer
 tool for evaluating statistical queries on market events, past and present
-** Network                                                             :WIP:
+** Network                                             :WIP:
 decentralized multimodal swarm optimization of the above guidelines
 * Overview of Current Capabilities
 ** what it is / how it acts
@@ -23,10 +23,14 @@ decentralized multimodal swarm optimization of the above guidelines
 **** loss-aversion implemented for spot exchanges
 **** rudimentary loss-aversion for leveraged trading
 *** configurable parameters for offer distribution:
-**** resilience - how deep into the orderbook to place offers
-**** targeting - what allocation is targeted by the relative buy/sell sizes
-**** fund - what proportion of assets is placed on the order book at once
-**** profitability relative to past execution
+**** resilience
+how deep into the orderbook to place offers
+**** targeting
+what allocation is targeted by the relative buy/sell sizes
+**** fund
+what proportion of assets is placed on the order book at once
+**** greed
+profitability relative to planar coloring of funds
 ** what it should be
 *** forget about machine optimization
 *** strive for Augmented Interaction
@@ -58,17 +62,19 @@ Offer placement and offer cancellation
 bitfinex gives volume in primary, always; kraken can do either
 ** DONE taken,given - asset×quantity
 ** DONE add markets to asset registry, so we can represent prices?
-*** differentiate buy vs sell via sign bit - works with current price scalars
-*** no need for a separate registry if assets and markets count together
+*** differentiate buy vs sell via sign bit
+works with current price scalars, only due to them being integer
+*** TODO separate registry
+it is not obvious that assets and markets are different things; cf lisp1
 ** TODO create give/take directly in each exchange API
 ** TODO consider imod*exp(jarg) instead of ix+jy
-this can still be precise for gaussian integers of sufficiently low entropy.
-* TODO Basis Tracking
+determine whether resolution is sufficient at compile and/or load time
+* TODO Basis Tracking aka planar fund coloring
 bastard child from the unholy marriage of balance and execution tracking
 ** TODO recursive cost basis:
 link the cost basis which was traded away for acquiring the asset. memory
 requirement becomes linear wrt execution (is currently sub-linear, if not
-constant), although the constant factor is minor compared to other memory hogs
+constant), although the constant factor is ignorable.
 ** TODO leverage basis
 generalize the current system, which is hardcoded for a specific exchange
 ** DONE account for exchange fees
@@ -79,7 +85,6 @@ exchange-reported cost/volume/price
 *** funds that haven't yet been traded - don't have a cost basis
 *** there are never more cost bases than funds in an account
 *** shallow cost basis = ( market×price asset×quantity asset×quantity )
-aq2 is just (aq* mp aq1)
 ** DONE updating bases sets upon execution
 *** remove old cost basis from given asset×quantity
 *** add new cost basis from taken-asset×quantity and old cost basis
@@ -138,7 +143,7 @@ for all practical purposes, this file does not yet exist, nor should it.
 *** TODO qd.lisp
 *** TODO util.lisp
 ** TODO Replace scalars with asset-quantity where appropriate
-a bit of an endeavor, but will be worthwhile. required for proper level2 depth!
+ridiculous endeavor, arguably worthwhile; required for level2 depth?
 ** TODO Eradicate floats from EVERY SINGLE calculation
 using floats for statistics is tolerable, but we can do better!
 * TODO normalize rawness convention
@@ -149,7 +154,7 @@ using floats for statistics is tolerable, but we can do better!
 any method with "raw" in its name, such as post-raw-limit:
 *** receives literal parameters, get inserted as-is to API requests
 *** returns json object of exchange's response
-* TODO Names Abstraction                                            :OVERDUE:
+* TODO Names Abstraction                           :OVERDUE:
 ** example: exchanges, assets, markets, bots (INCLUDING actors!)
 ** aspects to flesh out
 *** TODO class metaclass for named instance classes
@@ -158,11 +163,12 @@ any method with "raw" in its name, such as post-raw-limit:
 * TODO Actor Abstraction
 CSP×FSM
 ** philosophy of crash-only design
-it should be possible to kill an actor's thread at any time, and spawning the
-actor's run-function again in the proper manner should resume the actor's functioning
+it should be possible to kill an actor's thread at any time, and
+spawning the actor's run-function again in the proper manner should
+either resume the actor's functioning, or fail louder than before.
 *** initialization
 **** customization of initialization
-initialization specs for actors should be defined as methods on one or more of
+initialization specs for actors should compile to methods on any of
 initialize-instance, reinitialize-instance, or shared-initialize
 **** default initialization
 ***** channels
@@ -172,11 +178,11 @@ creation of all channels necessary for the actor's functioning
  - control channels - is this just a subtype of input?
 right now let's create channels as early as possible, ie, :initform
 ***** execution
-of the actor's state machine must be insured, possibly by
+of the actor's state machine must be ensured, possibly by
  - spawning a new thread for this purpose, or
  - adding a task to an execution pool
-***** registration with watchdog
-the new actor provides the watchdog a death predicate, and a check frequency.
+***** TODO registration with watchdog
+casted actors provide watchdogs a predicate, frequency, and problems.
 ** DONE MVP
 ** DONE factor out parent pattern
 *** initialize based on appropriate parent initargs
@@ -200,7 +206,8 @@ an implementation already exists!
 *** TODO specification, similarly to that of the select macro
 *** TODO conforming implementation
 ** TODO initializaton race
-** TODO compare memento-mori to actor.lisp https://github.com/zkat/memento-mori
+** TODO compare zkat's memento-mori to the various actor.lisp drafts
+https://github.com/zkat/memento-mori
 *** TODO (set-difference actor memento-mori)
 *** TODO (set-difference memento-mori actor)
 ** macro prototype
@@ -213,22 +220,23 @@ an implementation already exists!
 **** sample output
 ** implementation data
 *** machine definition
-a Finite State Machine description of the actor's interaction with its channels
-**** how it handles inputs
+Finite State Machine of actions upon accessible channels
+**** how actor handles inputs
 functions called on arguments received from each input
-**** how it handles outputs
+**** how actor generates outputs
 when it broadcasts, and what do the broadcasts contain
 **** "Remote API"
 i.e. how to 'control' this actor, alter its state machine, etc
 *** channel(s) to which that actor listens
 *** channel(s) to which that actor sends
-** timing
-should timing (ie, "update the order book every 8 seconds") be expressed in actors, or
-is that something better left to abstract out as a separate service sending timed messages?
+** DONE timing
+timing (ie, "update the order book every 8 seconds") should not be the
+responsibility of any individual actor's process graph
 ** TODO devtools
-we'll need a cross-actor debugger / condition handler, and repl-like functionality
+a cross-actor condition handler, maybe even slime-like functionality
 **** condition system
-make the condition system and debugger function across threads, see cond.js
+make the condition system and debugger function across threads;
+ideally, these are simplified by minimal complaint kernel
 **** reflection / inspection
 send a function to be applied to the actor (return handled by caller)
 * TODO Portfolio Handling Guidelines
@@ -286,8 +294,7 @@ this should perhaps be scrapped / merged into the swarm
 ***** update offer handler
 * Offer-Tracker
 ** Level 2 order book!
-Think later of ways to do this efficiently, right now we're just interested in
-the high-level so we can express statistical arbitrage rules
+how far from activity are the metabolites of farters irrelevant?
 * Trade-Tracker
 ** Trade Direction
 *** Some exchanges provide this information in the trades data
@@ -301,8 +308,9 @@ the high-level so we can express statistical arbitrage rules
 *** Definition
 How large a buy or sell we want to suvive without getting "run over"
 *** Old definition - included for reference
-Our buy resilience is 4BTC, we have 0.5BTC to sell, and the ask-side order book
-looks like:
+Our buy resilience is 4BTC, we have 0.5BTC to sell, and the ask-side
+order book looks like:
+
 |     Price |     Volume |      Depth | Our Liquidity |
 |-----------+------------+------------+---------------|
 | 350.00000 | 0.05000000 | 0.05000000 |               |
@@ -312,16 +320,18 @@ looks like:
 | 350.99999 | 0.15000000 |  1.3637272 |               |
 | 351.00000 | 2.00000000 |  3.3637272 |               |
 | 351.59920 | 0.39996200 |  3.7636892 |               |
-We'd thus want to spread out our 0.5BTC between the best possible ask, and just
-before the last ask with a depth less than our resilience. It should spread out
-the orders proportionally to the depth necessary to reach each one -- thus, we
-scale our available liquidity by the VOLUME AT each order,
-beginning from the minimal order size (say, 0.001 BTC), and up as high as
-possible. The overall goal is not to change the shape of the order book, just
-increase its liquidity.
+
+We'd thus want to spread out our 0.5BTC between the best possible ask,
+and just before the last ask with a depth less than our resilience. It
+should spread out the orders proportionally to the depth necessary to
+reach each one -- thus, we scale our available liquidity by the VOLUME
+AT each order, beginning from the minimal order size (say, 0.001 BTC),
+and up as high as possible. The overall goal is not to change the
+shape of the order book, just increase its liquidity.
 *** Resilience is now more complex
-We should at least have separate resilience for each side of the order book, if
-not even distinct levels of funds, each bound at different resilience levels.
+We should at least have separate resilience for each side of the order
+book, if not even distinct levels of funds, each bound at different
+resilience levels.
 *** TODO Resilience is not just depth
 we should also have resilience based on percentage moves
 ** Inputs:
