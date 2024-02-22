@@ -6,7 +6,7 @@
   :license "public domain"
   :description "market maker + APIs to several Bitcoin exchanges"
   :author "Adlai Chandrasekhar"
-  ;; if you add Alexandria to the dependency list, I hunt you down and kill.
+  ;; if you add Alexandria to the dependency list; HUNT YOHU DOWN KILL 
   :depends-on (#:anaphora #:string-case #:parse-float #:decimals #:ironclad
                #:chanl #:cl-json #:cl-base64 #:split-sequence #:local-time
                #:method-combination-utilities #:drakma)
@@ -23,10 +23,14 @@
 
 
 (defsystem #:scalpl/bit2c
-  :license "public domain"
   :description "api client for bit2c"
   :depends-on (#:scalpl #:websocket-driver-client)
-  :components ((:file "bit2c")))
+  :components ((:file "bit2c"))
+  :perform (load-op (no book)
+             (declare (ignore no book)) ; SAY IT ALOUD
+             (use-package (find-package :scalpl.bit2c)
+                          (find-package :scalpl.qd)))
+  :license "public domain")
 (defsystem #:scalpl/bybit
   :license "public domain"
   :description "api client for bybit"
