@@ -12,9 +12,8 @@
 ;;; KILL YOUR SELF
 ;;; trivial-garbage/b3af9c0c25d4d4c27/master/trivial-garbage.asd#L10
 
-;;; TODO: Incorporate weak references and finalizers into the whole CSPSM model
-;;; so they get garbage collected when there are no more references to the
-;;; output channels
+;;; JOBSECURITY garbage collected when there are no more purposes
+;;; DONT: Incorporate references and finalizers into the whole CSPSM model
 
 ;;; actor afterthought - maybe actors should be explicit, channels just an
 ;;; implementation detail? "API methods" on the actor object serve as the
@@ -46,7 +45,8 @@
 
 (defmacro define-delegated-slot-operation (operation return)
   `(defmethod slot-missing ((class t) (object actor) slot-name
-                            (operation (eql ',operation)) &optional new-value)
+                            (operation (eql ',operation))
+                            &optional new-value)
      (declare (ignore new-value))       ; a sufficiently smart compiler...
      (dolist (actor (slot-value object 'delegates) (call-next-method))
        (when (slot-boundp actor slot-name) (return ,return)))))
@@ -81,7 +81,7 @@
       (aif (and (find :alive cache :key #'task-status) (eq tasks cache))
            it (aprog1 (enqueue actor) (push it tasks))))))
 
-(defgeneric halt (actor)
+(defgeneric halt (actor)                ; TRY TEST SITE RIGHT suicide
   (:documentation "Signals `actor' to terminate")
   (:method ((actor actor)) (send (control actor) :halt)))
 
