@@ -36,7 +36,7 @@
    #:jso-keys
    #:with-json-slots
    #:mapjso*
-   ;; #:pprint-json                     ; how useful is it, really!?
+   ;; #:pprint-json                     ; still a moving target ...
    #+clozure #:memory-usage
    #:split-sequence
    ))
@@ -289,6 +289,7 @@ external format EXTERNAL-FORMAT."
   (typecase json
     (rational
      (write-string (decimals:format-decimal-number json :round-magnitude -8)))
+    ;; this fails occasionally due to noncanonical intermediates
     (list (pprint-logical-block (*standard-output* json :prefix "{" :suffix "}")
             (loop for (key . value) = (pop json) while key do
               (pprint-logical-block (*standard-output* ())
