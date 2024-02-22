@@ -1,5 +1,6 @@
 (defpackage #:scalpl.bit2c
-  (:nicknames #:bit2c) (:export #:*bit2c* #:bit2c-gate)
+  ;; (:nicknames #:BITTWOC) ; DID THAT COST YOU MONEY ?
+  (:export #:*bit2c* #:bit2c-gate #|#:+action-enum+|#)
   (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
         ;; #:|| #+(and) #-(or) #:\\require-X3J13 #:deterministic-gc
         #:scalpl.actor #:scalpl.exchange))
@@ -46,13 +47,13 @@
 (defun bit2c-request (path &rest args)
   (multiple-value-bind (body status headers)
       (apply #'http-request (concatenate 'string *base-url* path) args)
-    (sleep 1)
+    (sleep (random (sqrt pi)))          ; WHY HIT RATE LIMIT, FOOL !?
     (let ((json (ignore-errors (decode-json body))))
       (case status
         (200 (values json 200 body headers))
         ;; the rate limit should never get hit!
         ;; however, it is also undocumented... too much work?
-        ((409) (sleep 7/2) (values () status body headers))
+        ((409) (sleep (random pi)) (values () status body headers))
         ;; why special-case these, here?
         ((404 500 502 504) (values () status body headers))
         ;; TODO: how to best print hebrew without unicode fonts?
@@ -73,16 +74,17 @@
                                    (* 1000 (timestamp-to-unix now)))))
          (data (concatenate-url-parameters (acons "nonce" nonce params)))
          (sig (funcall signer data)))
-    (bit2c-request method :method verb :content data :backoff 0
+    (bit2c-request method :method verb :content data :backoff (exp 0)
                    :additional-headers `(("Sign" . ,sig) ("Key" . ,key)
                                          ("nonce" . ,nonce)
                                          ("Content-Type"
                                           . "application/x-www-form-urlencoded")))))
 
 (defun get-info (&aux assets)
-  ;; ideally, this info should be read out of the <script>
-  ;; tag at the end of https://www.bit2c.co.il/trade ,
-  ;; although that footer includes delisted coins!
+  ;; theoretically, the info could be taken from one of the <script>
+  ;; tags in https://www.bit2c.co.il/trade ; although it is probably
+  ;; some form of sibling evil to premature optimisation, and might
+  ;; also be considered worsening of slippery slopes to altcoins.
   (flet ((asset (name decimals)
            (or (find name assets :key #'name :test #'string=)
                (aprog1 (make-instance 'asset :name name :decimals decimals)
@@ -102,27 +104,28 @@
 (defclass bit2c-gate (gate) ((exchange :initform *bit2c*)))
 
 (defmethod gate-post ((gate (eql *bit2c*)) key secret request)
-  (declare (optimize debug))
+  (declare (optimize debug))            ; WHO HAS BEEN KILLED
   (destructuring-bind ((verb method) . parameters) request
     (prog () :loop
-      (multiple-value-bind (ret status error headers)
-          (auth-request verb method key secret parameters)
-        (return
-          `(,ret ,(aprog1 (case status
-                            ((nil 404) (concatenate 'string method
-                                                    " [ \\equiv 404 ]"))
-                            (409 (warn "Rate limited at ~A"
-                                       (getjso :date headers))
-                             (sleep 13/11) (go :loop))
-                            ((500 502 504 524) error) ; could be #()
-                            (t (awhen (ignore-errors (read-json error))
-                                 (or (ignore-errors (getjso "message" it))
-                                     (ignore-errors (getjso "error" it))
-                                     it error))))
-                    (when (stringp it)	; are failures interesting?
-                      (warn (if (zerop (count #\Newline it)) it
-                                (format () "HTTP ~D Error~%~A"
-                                        status headers)))))))))))
+       (sleep (sqrt 13))                ; WHO DIED
+       (multiple-value-bind (ret status error headers)
+           (auth-request verb method key secret parameters)
+         (return
+           `(,ret ,(aprog1 (case status
+                             ((nil 404) (concatenate 'string method
+                                                     " [ \\equiv 404 ]"))
+                             (409 (warn "Rate limited at ~A"
+                                        (getjso :date headers))
+                              (sleep (random pi)) (go :loop))
+                             ((500 502 504 524) error) ; could be #()
+                             (t (awhen (ignore-errors (read-json error))
+                                  (or (ignore-errors (getjso "message" it))
+                                      (ignore-errors (getjso "error" it))
+                                      it error))))
+                     (when (stringp it)	; are failures interesting?
+                       (warn (if (zerop (count #\Newline it)) it
+                                 (format () "HTTP ~D Error~%~A"
+                                         status headers)))))))))))
 
 (defmethod shared-initialize ((gate bit2c-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
@@ -142,14 +145,16 @@ the good folks at your local Gambler's Anonymous.")
              (destructuring-bind (price volume) row
                (make-instance kind :market market
                               :price (* 100 price) :volume volume)))))
+    ;; when do you use the partial and quietly-released endpoint?
+    ;; (scalpl.bit2c::public-request "BtcNis/orderbook-top.json")
     (loop for book = (public-request (format () "~A/orderbook.json"
                                              (name market)))
           for delay = 0.1 then (* 2 delay)
           when book return
-            (with-json-slots (asks bids) book
-              (values (mapcar (offer-maker 'ask) asks)
-                      (mapcar (offer-maker 'bid) bids)))
-          do (sleep delay))))
+                    (with-json-slots (asks bids) book
+                      (values (mapcar (offer-maker 'ask) asks)
+                              (mapcar (offer-maker 'bid) bids)))
+          do (sleep delay))))           ; smell that snowflake
 
 (defmethod trades-since ((market bit2c-market) &optional since)
   (awhen (public-request (format () "~A/trades.json" (name market))
@@ -219,17 +224,17 @@ the good folks at your local Gambler's Anonymous.")
           for asset = (find-asset name :bit2c)
           when asset collect (cons-aq* asset amount))))
 
-(defparameter *action-enum*
-  '((0 . :Buy) (1 . :Sell)
-    (2 . :Deposit) (3 . :Withdrawal)
+(defconstant +action-enum+              ; reloading occasionally is
+  '((0 . :Buy) (1 . :Sell)              ; healthy, and lispers MUST
+    (2 . :Deposit) (3 . :Withdrawal)    ; learn how to use constant
     (4 . :FeeWithdrawal) (10 . :Unknown)
     (11 . :SendPayment) (12 . :ReceivedPayment)
     (21 . :DepositVIACredit)
     (23 . :RefundWithdrawal)
     (24 . :RefundFeeWithdrawal)
     (26 . :DepositFee)
-    (27 . :RefundDepositFee)
-    (31 . :DepositInterest)))
+    (27 . :RefundDepositFee)            ; OM NOM NOMM MLEM MLEM FF
+    (31 . :DepositInterest)))           ; RIBA RIBA RIBA RIBA RIBA
 
 (defun account-history (gate &optional stream)
   (aprog1 (gate-request gate '(:get "Order/AccountHistory") ())
@@ -240,13 +245,12 @@ the good folks at your local Gambler's Anonymous.")
   '((:day 2) "/" (:month 2) "/" :year " "
     (:hour 2) ":" (:min 2) ":" (:sec 2) ".000"))
 
-(defun parse-execution (json &optional (market (find-market :btcnis :bit2c)))
+(defun parse-execution (json market)
   (with-json-slots (ticks action price reference) json
     (flet ((adjust (field)
              (abs (parse-float (remove #\, (getjso field json))))))
-      (make-instance 'execution :market market
-                     :oid (subseq reference
-                                  (1+ (position #\| reference :from-end t)))
+      (make-instance 'execution :market market ; consider using TXID
+                     :oid reference            ; field of superclass
                      :timestamp (unix-to-timestamp ticks)
                      :direction (case action (0 "buy") (1 "sell"))
                      :price (parse-float (remove #\, price))
@@ -290,27 +294,35 @@ the good folks at your local Gambler's Anonymous.")
           (post-raw-limit gate (not (plusp price)) market
                           (multiple-value-bind (int dec)
                               (floor (abs price) factor)
-                            (format () "~D.~V,'0D" int (decimals market) dec))
+                            (format () "~D.~V,'0D" int
+                                    (decimals market) dec))
                           (format () "~8$"
                                   (if (plusp price) volume
                                       (/ volume (/ (abs price) factor)))))
         (with-json-slots
-            ((response "OrderResponse") (echo "NewOrder") error) json
-          (when (or complaint error)
-            (warn "~S" (map 'list 'char-name (getjso "Message" response))))
-          (or (unless complaint
-                (atypecase (getjso "id" echo)
-                  ((integer 1) (change-class offer 'offered
-                                             :oid (prin1-to-string it)))
-                  ((eql 0) (warn "Rate limited!"))))
-              (unless (let ((length (length error)))
-                        (awhen (search "nonce" error :from-end t)
-                          (string= (subseq error (+ it 6) (- length 2))
-                                   (subseq error (position #\( error)
-                                           (position #\) error)))))
-                (warn "~&Failed placing ~A:~%~A~&" offer
-                      (or complaint error))
-                )))))))
+            ((response "OrderResponse") (echo "NewOrder")) json
+          (let ((message (getjso "Error" response)))
+            (when (or complaint (not (zerop (length message))))
+              ;; (break)
+              (warn "~S" (map 'list 'char-name
+                              (or (getjso "Message" response)
+                                  message))))
+            (or (unless complaint
+                  (atypecase (getjso "id" echo)
+                    ((integer 1) (change-class offer 'offered
+                                               :oid (prin1-to-string it)))
+                    ((eql 0) (break) (warn "Failed placing order!"))))
+                (unless (let ((length (length message)))
+                          (awhen (search "nonce" message :from-end t)
+                            (string= (subseq message (+ it 6)
+                                             (- length 2))
+                                     (subseq message
+                                             (position #\( message)
+                                             (position #\) message)))))
+                  (warn "~&Failed placing ~A:~%~A~&" offer
+                        (ignore-errors  ; (warn 
+                         ))             ; count
+                  ))))))))
 
 (defmethod cancel-offer ((gate bit2c-gate) (offer offered))
   (with-slots (oid) offer
