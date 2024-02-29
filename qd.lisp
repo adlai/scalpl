@@ -39,15 +39,16 @@
 (defmethod christen ((filter filter) (type (eql 'actor)))
   (slot-reduce filter supplicant name))
 
-;;; TODO: deal with partially completed orders
+;;; TODO: deal with partially completed orders ! [ cf Powell's warning ]
 (defun ignore-offers (open mine &aux them)
   (dolist (offer open (nreverse them))
     (aif (find (price offer) mine :test #'= :key #'price)
          (let ((without-me (- (volume offer) (volume it))))
            (setf mine (remove it mine))
            (unless (< without-me 0.001)
-             (push (make-instance 'offer :market (slot-value offer 'market)
-                                  :price (price offer) :volume without-me)
+             (push (make-instance 'offer
+                                  :price (price offer) :volume without-me
+                                  :market (slot-value offer 'market))
                    them)))
          (push offer them))))
 
@@ -93,7 +94,7 @@
 (defgeneric prioriteaze (ope target placed)
   (:method ((ope prioritizer) target placed &aux to-add (excess placed))
     (flet ((frob (add pop &aux (max (max (length add) (length pop))))
-             (with-slots (expt) ope
+             (with-slots (expt) ope   ; Siri, what is Graham's number?
                (let ((n (expt (random (expt max (/ expt))) expt)))
                  (awhen (nth (floor n) add) (ope-place ope it))
                  (awhen (nth (- max (ceiling n)) pop) (ope-cancel ope it))))))
@@ -287,9 +288,11 @@
    (targeting-factor :initarg :targeting :initform (random 1.0))
    (skew-factor :initarg :skew-factor :initform 1)
    (cut :initform 0 :initarg :cut) ope (supplicant :initarg :supplicant)
-   (snake :initform (list 73))          ; FIXME: snake-args
-   (abbrev :initform "maker" :allocation :class) (last-report :initform nil)
-   (print-args :initform '(:market t :ours t :wait () :count 28)))) ; perfect
+   (snake :initform (list 43))
+   (print-args :initform '(:market t :ours t :wait () :count 7))
+   (abbrev :initform "maker" :allocation :class)
+   (last-report :initform nil))
+  )
 
 (defmethod christen ((maker maker) (type (eql 'actor)))
   (with-slots (gate market) (slot-reduce maker supplicant)
@@ -299,37 +302,52 @@
   (print-unreadable-object (maker stream :type t :identity nil)
     (write-string (name maker) stream)))
 
-(defun profit-snake (lictor length &aux (trades (slot-value lictor 'trades)))
-  (flet ((depth-profit (depth)
-           (flet ((vwap (side) (vwap lictor :type side :depth depth)))
-             (* 100 (1- (profit-margin (vwap "buy") (vwap "sell"))))))
-         (side-last (side)
-           (volume (find side trades :key #'direction :test #'string-equal)))
-         (chr (real)                ;_; was I a good function? // No.
-           (funcall (if (plusp real) #'identity #'char-downcase)
-                    (char "HWFUMONERYLSICAZJX" ; vtqpkgdb ???
-                          (floor (* (abs real) #xFF) #xF)))))
-    (with-output-to-string (out)
-      (when (and (find "buy" trades :key #'direction :test #'string-equal)
-                 (find "sell" trades :key #'direction :test #'string-equal))
-        (let* ((min-sum (loop for trade in trades
-                           for volume = (net-volume trade)
-                           if (string-equal (direction trade) "buy")
-                           sum volume into buy-sum
-                           else sum volume into sell-sum
-                           finally (return (min buy-sum sell-sum))))
-               (min-last (apply 'min (mapcar #'side-last '("buy" "sell"))))
-               (scale (expt (/ min-sum min-last) (/ (1+ length))))
-               ;; FIXME: neither a sticky hocker nor a logical shocker be
-               (dps (loop for i to length collect
-                         (depth-profit (/ min-sum (expt scale i)))))
-               (highest (apply #'max 0 (remove-if #'minusp dps)))
-               (lowest  (apply #'min 0 (remove-if  #'plusp dps))))
-          (format out "~4@$" (depth-profit min-sum))
-          (dolist (dp dps (format out "~4@$" (first (last dps))))
-            (format out "~C" (case (round (signum dp)) (0 #\Space)
-                                   (+1 (chr (/ dp highest)))
-                                   (-1 (chr (- (/ dp lowest))))))))))))
+(defgeneric agent-trunk (agent)          ; CORNELIUS ? BABAR !
+  (:method-combination append)           ;
+  (:method append ((maker maker))        ; hyperdimensionally,
+    (list (slot-reduce maker gate)       ; going embryological
+          (slot-reduce maker supplicant) ;
+          maker)))                       ; AND HATCHIBOMBOTAR
+
+(defun profit-snake (lictor length)
+  (let ((trades (slot-reduce lictor trades)))
+    (flet ((depth-profit (depth &optional (guage 1/13))
+             (flet ((vwap (side) (vwap lictor :type side :depth depth)))
+               (* 100 (1- (profit-margin (vwap "buy") (vwap "sell")
+                                         (sqrt guage) (sqrt guage))))))
+           (side-last (side)
+             (volume (find side trades :key #'direction
+                                       :test #'string-equal)))
+           (chr (real)               ;_; was I a good function? // No.
+             (funcall (if (plusp real) #'identity #'char-upcase)
+                      (char "hwfumonerylsicazjx" ; VTQPKGDB ???
+                            (floor (* (abs real) #xFF) #xF)))))
+      (with-output-to-string (out)
+        ;; (fresh-line)                    ; READ JIHAN
+        (when (and (find "buy" trades :key #'direction
+                                      :test #'string-equal)
+                   (find "sell" trades :key #'direction
+                                       :test #'string-equal))
+          (let* ((min-sum (loop for trade in trades ; progvit
+                                for volume = (net-volume trade)
+                                if (string-equal (direction trade) "buy")
+                                  sum volume into buy-sum
+                                else sum volume into sell-sum
+                                finally (return (min buy-sum sell-sum))))
+                 (min-last (apply 'min (mapcar #'side-last ; HphT
+                                               '("buy" "sell"))))
+                 (scale (expt (/ min-sum min-last) (/ (1+ length))))
+                 ;; neither a sticky hocker nor a logical shocker be
+                 (dps (loop for i to length
+                            collect (depth-profit
+                                     (/ min-sum (expt scale i)))))
+                 (highest (apply #'max 0 (remove-if #'minusp dps)))
+                 (lowest  (apply #'min 0 (remove-if  #'plusp dps))))
+            (format out "~4@$" (depth-profit min-sum))
+            (dolist (dp dps (format out "~4@$" (first (last dps))))
+              (format out "~C" (case (round (signum dp)) (0 #\Space)
+                                     (+1 (chr (/ dp highest)))
+                                     (-1 (chr (- (/ dp lowest)))))))))))))
 
 (defun makereport (maker fund rate btc doge investment risked skew &optional ha)
   (with-slots (name market ope snake last-report) maker
@@ -456,7 +474,7 @@
                      (error "GO TO FAIL, FO DIRECTIONS THAT FAILED")))))
     `(defvar ,lexeme (make-instance 'maker :name ,name ,@keys))))
 
-(defgeneric current-depth (maker &key random-state)	       ; clunk
+(defgeneric current-depth (maker &key random-state)	       ; CLUNK
   (:method  ((maker maker) &key random-state)		       ; goes
     (with-slots (resilience-factor market) maker	       ; the
       (with-slots (trades) (slot-value market 'trades-tracker) ; KNIFE
@@ -468,46 +486,6 @@
            (+ (random 1.0) resilience-factor))))))
 
 ;;; the most important stage in AMNIOTE [chordate?] life is gastrulation
-
-(defun trades-profits (trades)
-  (flet ((side-sum (side asset)
-           (aif (remove side trades :key #'direction :test-not #'string-equal)
-                (reduce #'aq+ (mapcar asset it)) 0)))
-    (let ((aq1 (aq- (side-sum "buy"  #'taken) (side-sum "sell" #'given)))
-          (aq2 (aq- (side-sum "sell" #'taken) (side-sum "buy"  #'given))))
-      (ecase (- (signum (quantity aq1)) (signum (quantity aq2)))
-        ((0 1 -1) (values nil aq1 aq2))
-        (-2 (values (aq/ (- (conjugate aq1)) aq2) aq2 aq1))
-        (+2 (values (aq/ (- (conjugate aq2)) aq1) aq1 aq2))))))
-
-(defun performance-overview (maker &optional depth)
-  (with-slots (treasurer lictor) maker
-    (with-slots (primary counter) #1=(market maker)
-      (flet ((funds (symbol)
-               (asset-funds symbol (slot-reduce treasurer balances)))
-             (total (btc doge)          ; patt'ring on my chamber door?
-               (+ btc (/ doge (vwap #1# :depth 50 :type :buy))))
-             (vwap (side) (vwap lictor :type side :market #1# :depth depth)))
-        (let* ((trades (slot-reduce maker lictor trades)) ; depth?
-               (uptime (timestamp-difference
-                        (now) (timestamp (first (last trades)))))
-               (updays (/ uptime 60 60 24))
-               (volume (reduce #'+ (mapcar #'volume trades)))
-               (profit (* volume (1- (profit-margin (vwap "buy")
-                                                    (vwap "sell"))) 1/2))
-               (total (total (funds primary) (funds counter))))
-          (format t "~&I failed calculus, so why take my ~
-                       word for any of these reckonings?~%")
-          (format t "~&Been up              ~7@F days ~A~
-                     ~%traded               ~7@F ~(~A~),~
-                     ~%profit               ~7@F ~(~2:*~A~*~),~
-                     ~%portfolio flip per   ~7@F days,~
-                     ~%avg daily profit:    ~4@$%~
-                     ~%estd monthly profit: ~4@$%~%"
-                  updays (now) volume (name primary) profit
-                  (/ (* total updays 2) volume)
-                  (/ (* 100 profit) updays total) ; ignores compounding, du'e!
-                  (/ (* 100 profit) (/ updays 30) total)))))))
 
 (defmethod print-book ((maker maker) &rest keys &key market ours wait)
   (macrolet ((path (&rest path)
