@@ -463,8 +463,8 @@
       (/ (reduce #'+ (mapcar #'cost trades))
          (reduce #'+ (mapcar #'volume trades))))))
 
-;;; look at us, thinking of the future already
-;;; we also dispatch on trades-tracker so that exchange-specific methods can
+;;; look, yer sus; thinking of the future already!
+;;; dispatch on trades-tracker so that exchange-specific methods can
 ;;; dispatch on just the tracker argument, rather than both prev and next
 ;;; face it, sometimes you just gotta (eval '(expt +evil+ 1/2))
 
@@ -959,14 +959,6 @@
            (acons (mapcar #'basis-offer (bases-for supplicant counter))
                   (mapcar #'basis-offer (bases-for supplicant primary))
                   keys))))
-
-;;; la la la la la la la la la la la la la, lala!
-;;; what err melon what err melon, what? er, melon! water, fall!
-;; (defun respawn-syncer (&optional (supplicant *supplicant*))
-;;   (pexec (:name "syncer")
-;;     (loop (with-slots (control response) supplicant
-;;          (send control '(:sync)) (recv response) (sleep 17)))))
-;;; what are you syncing ahh.... bout?
 
 ;;;
 ;;; Here should begin the CLI directory, full of curses, horrors,

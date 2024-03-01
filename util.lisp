@@ -126,25 +126,23 @@
 
 (defmacro dbz-guard (form) `(handler-case ,form (division-by-zero () 0)))
 
-;;; right now this is only for convenience at the REPL
-;;; as was suggested in #lisp, if there's ever a need to do this in the actual
-;;; code, it's a red flag that some abstraction is missing
+;;; originally, this was only for exploratory concision!
+;;; as was suggested in #lisp, each occurrence in commit
+;;; codes is a red flag that some abstraction is missing
 (defmacro slot-reduce (root &rest slots)
   `(reduce 'slot-value ',slots :initial-value ,root))
-
 (defmacro slot-reducer (&rest slots &aux (root (gensym "root")))
   `(lambda (,root) (slot-reduce ,root ,@slots)))
-
 (defmacro slot-setter (new-value &rest slots &aux (root (gensym "root")))
   `(lambda (,root) (setf (slot-reduce ,root ,@slots) ,new-value)))
-
 (defmacro aslot-setter (new-value &rest slots)
   `(lambda (it) (setf (slot-reduce it ,@slots) ,new-value)))
-
 (define-setf-expander slot-reduce (root &rest slots &environment env)
   (assert (not (null slots)) (slots) "must supply at least one slot")
   (let ((path (butlast slots)) (end (car (last slots))))
-    (get-setf-expansion `(slot-value (slot-reduce ,root ,@path) ',end) env)))
+    (get-setf-expansion `(slot-value (slot-reduce ,root ,@path) ',end)
+                        env)))
+;;; NOW BUY SOME OPIUM PLEASE AND STOP BOTHERING ME WITHOUT PAYMENT
 
 (defun rehome-symbol (symbol target &aux (source (symbol-package symbol)))
   (unintern symbol source) (import symbol target) (import symbol source))
