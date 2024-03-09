@@ -80,6 +80,12 @@
                                                     offered)))))))
     (sleep frequency)))
 
+;;; TODO ... "PERSPECTIVES"
+;;; distantly related to &environment except within trading context
+;;; so rather than compile, load, and run being the possible times,
+;;; perspectives deal with computation time, execution time, and...
+;;; locations also relevant - probably superset of exchanges
+
 (defclass prioritizer (actor)
   ((next-bids :initform (make-instance 'channel))
    (next-asks :initform (make-instance 'channel))
