@@ -172,21 +172,22 @@ the good folks at your local Gambler's Anonymous.")
 
 ;;; Fee structure advertised in https://bit2c.co.il/home/Fees
 (defmethod market-fee ((gate bit2c-gate) (market bit2c-market))
-  (aif (gate-request gate '(:get "Account/Balance") ())
-       (reduce #'getjso `("FeeMaker" ,(name market) "Fees")
-               :initial-value it :from-end t)
-       (fee market)))
+  (aif (gate-request gate '(:GET "Account/Balance") ())
+       (getjso "Fees" it) (fee market)))
 
-;;; This function has not been published in their documentation yet,
-;;; so I suppose it could change unexpectedly... thus, avoid using
-;;; this function programmatically.
+;;; The endpoint Funds/GetUsersFees is not part of the official API
 (defun fee-tier-progress (gate)
   (with-json-slots
-      ((fee "Fee") (left "Volume") (target "AmountFrom"))
-      (gate-request gate '(:get "Account/NextTradeFees") ())
-    (format t "~&~A~%You're ~2$ NIS away from the fee drop:~%~
-                 Next Tier: ~$% taker [and ??? maker]~%"
-            (now) (- target left) fee)))
+      ((current-maker "feeMaker") (current-taker "feeTaker")
+       (next-maker "nextfeeMaker") (next-taker "nextfeeTaker")
+       (users-fee "usersFee") (volume "totalbalance"))
+      (gate-request gate '(:GET "Funds/GetUsersFees") ())
+    (format t "~&~A~%You've traded ~2$ NIS within the window:~%~
+                 Current fees: ~$% taker [and ~$% maker]~%~
+                 Next Tier: ~$% taker [and ~$% maker]~%~
+                 Mystery 'Users Fee': ~A~%"
+            (now) volume current-taker current-maker
+            next-taker next-maker users-fee)))
 
 ;;;
 ;;; Private Data API
@@ -211,19 +212,21 @@ the good folks at your local Gambler's Anonymous.")
           (nconc (mapcar (offer-parser market) ask)
                  (mapcar (offer-parser market) bid))))
       (awhen (gate-request gate '(:get "Order/MyOrders"))
-        (loop for (name . json) in it and market = (find-market name :bit2c)
+        (loop for (name . json) in it
+              and market = (find-market name :bit2c)
               nconc (with-json-slots (ask bid) json
                       (nconc (mapcar (offer-parser market) ask)
                              (mapcar (offer-parser market) bid)))))))
 
 (defmethod account-balances ((gate bit2c-gate))
-  (awhen (gate-request gate '(:get "Account/Balance") ())
+  (awhen (gate-request gate '(:GET "Account/Balance") ())
     ;; although the AVAILABLE_ and LOCKED_ amounts could be convenient
     ;; in future code, currently only keep the most relevant amounts
     (loop for (name . amount) in it until (string= name "Fees")
           for asset = (find-asset name :bit2c)
           when asset collect (cons-aq* asset amount))))
 
+;;; Could scrape from "https://bit2c.co.il/home/api#orderh" ...
 (defconstant +action-enum+              ; reloading occasionally is
   '((0 . :Buy) (1 . :Sell)              ; healthy, and lispers MUST
     (2 . :Deposit) (3 . :Withdrawal)    ; learn how to use constant
@@ -237,7 +240,7 @@ the good folks at your local Gambler's Anonymous.")
     (31 . :DepositInterest)))           ; RIBA RIBA RIBA RIBA RIBA
 
 (defun account-history (gate &optional stream)
-  (aprog1 (gate-request gate '(:get "Order/AccountHistory") ())
+  (aprog1 (gate-request gate '(:GET "Order/AccountHistory") ())
     ;; (format stream "~A" it)
     ))
 
@@ -264,7 +267,7 @@ the good folks at your local Gambler's Anonymous.")
 ;; (defmethod execution-until ...)
 
 (defmethod execution-since ((gate bit2c-gate) market since)
-  (awhen (gate-request gate '(:get "Order/OrderHistory")
+  (awhen (gate-request gate '(:GET "Order/OrderHistory")
                        `(("pair" . ,(name market))
                          ,@(when since
                              `(("fromTime"
@@ -282,7 +285,7 @@ the good folks at your local Gambler's Anonymous.")
 (defun post-raw-limit (gate buyp market price size)
   (check-type price string "Must supply decimals as strings")
   (check-type size string "Must supply decimals as strings")
-  (gate-request gate '(:post "Order/AddOrder")
+  (gate-request gate '(:POST "Order/AddOrder")
                 `(("pair" . ,(name market))
                   ("IsBid" . ,(if buyp "true" "false"))
                   ("Price" . ,price) ("Amount" . ,size))))
@@ -327,7 +330,7 @@ the good folks at your local Gambler's Anonymous.")
 (defmethod cancel-offer ((gate bit2c-gate) (offer offered))
   (with-slots (oid) offer
     (multiple-value-bind (ret err)
-        (gate-request gate '(:post "Order/CancelOrder") `(("id" . ,oid)))
+        (gate-request gate '(:POST "Order/CancelOrder") `(("id" . ,oid)))
       (if (null err)
           (with-json-slots ((errorp "HasError") (message "Error"))
               (getjso "OrderResponse" ret)
@@ -348,7 +351,7 @@ the good folks at your local Gambler's Anonymous.")
 (defun withdraw-shekels (gate amount comment)
   (check-type amount (integer 1))	; restart-case arity?
   (check-type comment (string))		; MUCH less than half kB
-  (gate-request gate '(:post "Funds/AddFund")
+  (gate-request gate '(:POST "Funds/AddFund")
                 `(("Total" . ,(format () "~D" amount))
                   ("Reference" . ,(format () "~S" comment))
                   ("IsDeposit" . "false"))))
