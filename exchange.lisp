@@ -36,15 +36,21 @@
             (return (apply #'drakma:http-request path
                            (alexandria:remove-from-plist keys :backoff)))
           ((or simple-error drakma::drakma-simple-error
+            usocket:timeout-error
             usocket:ns-try-again-error
             usocket:ns-try-again-condition
-            usocket:deadline-timeout-error usocket:timeout-error
-            usocket:timeout-error usocket:ns-host-not-found-error
-            end-of-file chunga::input-chunking-unexpected-end-of-file
-            cl+ssl::ssl-error usocket:connection-refused-error) (error)
-            ;; (describe error)
+            usocket:deadline-timeout-error
+            usocket:ns-host-not-found-error
+            usocket:connection-refused-error
+            chunga::input-chunking-unexpected-end-of-file
+            cl+ssl::ssl-error
+            end-of-file)                ; CAN YOU SMELL THE BAD
+            (condition)                 ; PATTERN THAT BEGS FOR
+            (warn (with-output-to-string (warning) ; YOU TO HIRE
+                    (describe condition warning))) ; ACTUAL DEVS?
             (if (zerop backoff) (return) ; might prevent nonce reuse...
                 (sleep (incf backoff backoff))))))) ; probably won't
+;;; why don't you (:use :drakma) , don't bother reimplementing...
 
 ;;; TODO
 ;;; This file MUST build the interface that each exchange client needs to
@@ -148,7 +154,7 @@
   (aprog1 (copy-pprint-dispatch ())     ; and 1985 actually is a howto manual!
     (set-pprint-dispatch 'physical-quantity #'pprint-physical-quantity 1 it)))
 
-(defun enable-pretty-printer-abuse (&optional (right-margin 77))
+(defun enable-pretty-printer-abuse (&optional (right-margin 67))
   (setf *print-pretty* t *print-right-margin* right-margin
         *print-pprint-dispatch* *physical-quantity-pprint-dispatch*))
 
@@ -913,18 +919,17 @@
 
 ;;; FIXME: disambiguate placement from offerage, and redichotomise the book
 (defmethod placed-offers ((supplicant supplicant) &optional market)
-  (with-slots (gate market) supplicant
-    (remove market (placed-offers gate market)
-            :test-not #'eq :key #'market)))
+  (with-slots (gate) supplicant (placed-offers gate market)))
 
 (defmethod execute ((supplicant supplicant) (cons cons) &aux (arg (cdr cons)))
-  (with-slots (gate response offered) supplicant
+  (with-slots (gate response offered market) supplicant
     (acase (car cons)
       (:cancel (when (cancel-offer gate arg)
                  (setf offered (set-difference offered arg :key #'oid
                                               :test #'string=))))
       (:offer (apply #'balance-guarded-place supplicant arg))
-      (:sync (send response (setf offered (placed-offers supplicant))))
+      (:sync (send response
+                   (setf offered (placed-offers supplicant market))))
       (t (setf offered (remove it offered :test #'string= :key #'oid))))))
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
