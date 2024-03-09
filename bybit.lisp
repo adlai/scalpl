@@ -2,7 +2,7 @@
   (:nicknames #:bybit)
   (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
         #:scalpl.actor #:scalpl.exchange #:scalpl.qd)
-  (:export #:*bybit* #:bybit-gate #:*swagger* #:bybit-market
+  (:export #:*bybit* #:bybit-gate #:bybit-market
            #:category #:recent-ticker
            #:linear-market #:inverse-market #:option-market))
 
@@ -104,7 +104,7 @@
 (defclass bybit-market (market)
   ((exchange :initform *bybit* :allocation :class)
    (category :initarg :category :allocation :class :reader category)
-   (fee :initarg :fee :reader fee) (tick :initarg :tick :reader tick)
+   (fee :initarg :fee :reader fee)
    (epsilon :initarg :epsilon :reader epsilon)
    (delivery :initarg :delivery :reader delivery)
    (recent-ticker :accessor recent-ticker)))
@@ -377,8 +377,11 @@
             (dolist (json (getjso "list" result))
               (with-json-slots (side price (oid "orderId") qty) json
                 (let* ((price (parse-price price (decimals market)))
-                       (volume (if (typep market 'inverse-market)
-                                   (/ (parse-float qty :type 'rational) price)
+                       (volume (if (string= (category market)
+                                            "inverse")
+                                   (/ (parse-float qty :type 'rational)
+                                      (expt 10 (- (decimals market)))
+                                      price) ; yuck
                                    (parse-float qty :type 'rational))))
                   (pushnew (make-instance
                             'offered :oid oid :market market :volume volume
@@ -490,7 +493,8 @@
                                 balances))))))))))))
   (awhen (gate-request gate '(:get "account/wallet-balance")
                        '(("accountType" . "unified")))
-    (with-json-slots ((equity "totalEquity")) (first (getjso "list" it))
+    (with-json-slots
+        ((equity "totalEquity")) (first (getjso "list" it))
       (dolist (market (remove "linear"
                               (remove "BTC" (markets *bybit*)
                                       :test-not #'search :key #'name)
@@ -498,14 +502,15 @@
         (with-slots (name primary counter category) market
           (when (string= "linear" category)
             (with-json-slots ((mark "markPrice"))
-                (car (getjso "list" (public-request "market/tickers"
-                                                    `(("category" . "linear")
-                                                      ("symbol" . ,name)))))
+                (car (getjso "list"
+                             (public-request "market/tickers"
+                                             `(("category" . "linear")
+                                               ("symbol" . ,name)))))
               (multiple-value-bind (position json)
                   (account-position gate market)
                 (if position
                     (let ((fund (* (parse-float equity)
-                                   (if (string= (getjso "leverage" json) "") 1
+                                   (if (string= (getjso "leverage" json) "") 5
                                        (parse-float (getjso "leverage" json))))))
                       (push (aq+ (cons-aq* primary (/ fund (parse-float mark)))
                                  (second position))
@@ -537,19 +542,22 @@
     (apply 'build-execution
            (slot-value market 'scalpl.exchange::%market) args))
   (:method ((market bybit-market) &rest args)
-    (destructuring-bind (oid txid side cost price volume fee time) args
-      (make-instance 'execution :direction side :market market :oid oid
-                                :txid txid :price price :cost (abs volume)
-                                :net-cost (abs (+ volume fee))
-                                :volume cost :net-volume cost
-                                :timestamp time)))
-  (:method ((market inverse-market) &rest args)
-    (destructuring-bind (oid txid side cost price volume fee time) args
-      (make-instance 'execution :direction side :market market :oid oid
-                                :txid txid :price price :cost cost
-                                :net-cost cost :volume (abs volume)
-                                :net-volume (abs (+ volume fee))
-                                :timestamp time))))
+    (if (string= "inverse" (category market))
+        (destructuring-bind
+            (oid txid side cost price volume fee time) args
+          (make-instance 'execution :direction side :market market
+                                    :txid txid :price price :cost cost
+                                    :net-cost cost :volume (abs volume)
+                                    :net-volume (abs (+ volume fee))
+                                    :timestamp time :oid oid))
+        (destructuring-bind
+            (oid txid side cost price volume fee time) args
+          (make-instance 'execution :direction side :market market
+                                    :txid txid :price price
+                                    :cost (abs volume)
+                                    :net-cost (abs (+ volume fee))
+                                    :volume cost :net-volume cost
+                                    :timestamp time :oid oid)))))
 
 (defun parse-execution (raw)
   (with-json-slots ((oid "orderId") (txid "execId") (amt "execQty")
@@ -574,7 +582,7 @@
                                        (princ-to-string
                                         (+ (* 1000 (timestamp-to-unix from))
                                            (floor (nsec-of from) 1000000))))))
-      (getjso "list" it))))
+      (sort (getjso "list" it) #'string< :key (getjso "execTime")))))
 
 (defmethod execution-since ((gate bybit-gate) (market bybit-market) since)
   (awhen (raw-executions gate :kind (category market)
@@ -583,8 +591,9 @@
                                         (timestamp- (now) 3 :hour)))
     (mapcar #'parse-execution
             (if (null since) it
-                (subseq it 0 (position (txid since) it :test #'string=
-                                                       :key (getjso "execId")))))))
+                (subseq it (1+ (position (txid since) it
+                                         :test #'string=
+                                         :key (getjso "execId"))))))))
 
 (defgeneric post-limit (gate market price size &optional reduce-only)
   (:method (gate (market tracked-market) price size &optional reduce-only)
@@ -706,7 +715,8 @@
         (gate-request gate '(:post "order/cancel-all")
                       `(("category" . ,(category market))
                         ("symbol" . ,(name market)))))
-    (or err ret)))
+    (values (or err ret)
+            (unless err (length (getjso "list" ret))))))
 
 ;;;
 ;;; General Introspection
@@ -808,7 +818,13 @@
                      )))
           (multiple-value-bind (primary counter) (call-next-method)
             (if (plusp entry)
-                (values () (or (remove-if #'foolish counter) (list it)))
+                (values ()
+                        (or (remove-if #'foolish counter)
+                            `((,(car it)
+                               ,(cons-aq (asset (caddr it))
+                                         (abs (quantity (caddr it))))
+                               ,(cons-aq (asset (cadr it))
+                                         (abs (quantity (cadr it))))))))
                 (values (or (remove-if #'foolish primary) (list it)) ()))
             ;; (values (remove-if #'foolish primary)
             ;;         (remove-if #'foolish counter))
@@ -974,14 +990,21 @@
       (wsd:send client (format () "{\"op\":\"subscribe\",\"args\":[\"~A\"]}" topic)))
     (setf (gethash (cons kind topics) (websocket-cache gate)) client)))
 
+(defparameter *pail* 1)
+
 (defun make-market-websocket-handler
-    (client table market &aux (category (category market)))
+    (client table market &aux (category (category market)) (skip 0))
   (with-slots (book-table trades decimals) market
     (flet ((offer (side size price)
              (make-instance side :market market
                                  :volume (if (string= "inverse" category)
                                              (/ size price) size)
-                                 :price (* price (expt 10 decimals)))))
+                                 :price (* price (expt 10 decimals))))
+           (snot (&rest icles)
+             (format *debug-io* "~&;;; ~A ~D ~{~A~^ ~} ~%"
+                     (now) skip icles)
+             (setf skip 0)
+             (length icles)))
       (lambda (raw &aux (message (read-json raw)))
         (case (caar message)
           (:|success|
@@ -989,6 +1012,10 @@
              (wsd:close-connection client)))
           (:|topic|
            (with-json-slots (topic type data) message
+             (if (> (random *pail*) pi)
+                 (progn (incf skip)
+                        (setf *pail* (sqrt (1+ (expt *pail* 2)))))
+                 (snot topic type (length data)))
              (cond
                ((string= topic table)
                 (when (or (string= type "snapshot")
@@ -1011,17 +1038,17 @@
                                 (price (parse-float p :type 'rational)))
                             (make-instance
                              'trade :direction side :txid i
-                                    :market market :price price
-                                    :cost (if (string= "inverse" category) size
-                                              (* size price))
-                                    :volume (if (string= "inverse" category)
-                                                (/ size price) size)
-                                    :timestamp (multiple-value-bind
-                                                     (seconds milliseconds)
-                                                   (floor time 1000)
-                                                 (unix-to-timestamp
-                                                  seconds :nsec (* (expt 10 6)
-                                                                   milliseconds)))))
+                             :market market :price price
+                             :cost (if (string= "inverse" category) size
+                                       (* size price))
+                             :volume (if (string= "inverse" category)
+                                         (/ size price) size)
+                             :timestamp (multiple-value-bind
+                                              (seconds milliseconds)
+                                            (floor time 1000)
+                                          (unix-to-timestamp
+                                           seconds :nsec (* (expt 10 6)
+                                                            milliseconds)))))
                           trades))))
                (t (wsd:close-connection client))))))))))
 
@@ -1073,19 +1100,25 @@
 
 (defmethod get-book ((market streaming-market) &key)
   (if (not (slot-boundp market 'book-table)) (values () ())
-      (with-slots (book-table background) market
-        (loop for (price . offer) being each hash-value of book-table
-           if (eq (type-of offer) 'ask) collect offer into asks
-           if (eq (type-of offer) 'bid) collect offer into bids
-           finally (return
-                     (let ((asks (sort asks #'> :key #'price))
-                           (bids (sort bids #'> :key #'price)))
-                       (flet ((book (side)
-                                (if (null background) (nreverse side)
-                                    (nconc (nreverse side)
-                                           (cdr (gethash (price (first side))
-                                                         (cdr background)))))))
-                         (values (side asks) (side bids)))))))))
+      (flet ((snot (&rest icles)
+               (format *debug-io* "~&;;; ~A ~{~A~^ ~} ~%"
+                       (now) icles)
+               (length icles)))
+       (with-slots (book-table background) market
+         (loop for offer being each hash-value of book-table
+               if (eq (type-of offer) 'ask) collect offer into asks
+               if (eq (type-of offer) 'bid) collect offer into bids
+               finally (return
+                         (let ((asks (sort asks #'> :key #'price))
+                               (bids (sort bids #'> :key #'price)))
+                           (flet ((book (side background)
+                                    ;; (snot (length side))
+                                    (if (null background) (nreverse side)
+                                        (nconc (reverse side)
+                                               (cdr (gethash (price (first side))
+                                                             background))))))
+                             (values (book asks (cdr background))
+                                     (book bids (car background)))))))))))
 
 (defmethod get-book :before ((market streaming-market) &key)
   (with-slots (socket) market
@@ -1095,7 +1128,7 @@
                 (return (setf socket (make-market-socket market)))
               (error (error) (warn "~&Encountered:~%~A~%" error)))
            (sleep delay))
-      (sleep 3))))
+      (sleep 13))))
 (defmethod get-book :after ((market streaming-market) &key)
   (with-slots (socket) market
     (when (slot-boundp market 'socket)
