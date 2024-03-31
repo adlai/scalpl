@@ -20,19 +20,20 @@
 ;;; client, and state machine on the channel side serves as the server
 
 (defclass actor ()
-  ((name :initarg :name :reader name    ; if you must, use (setf slot-value)
-         :documentation "Name for identifying this actor and its tasks")
-   (abbrev :initform () :allocation :class)
-   (tasks :initform nil :documentation "Tasks performing this actor's behavior")
+  ((abbrev :initform () :allocation :class)
+   (name :initarg :name :reader name ; if you must, use (setf slot-value)
+         :documentation "String identifying this actor and its tasks")
+   (tasks :initform nil :documentation "tasks performing behavior")
    (delegates :initform nil :initarg :delegates
-              :documentation "Other actors for delegating missing slot values")
+              :documentation "actors for delegating dispatches")
    (control :initform (make-instance 'channel) :reader control
             :documentation "Channel for controlling this actor")))
 
 (defgeneric christen (actor type)
   (:method ((actor actor) (type (eql 'actor))) (strftime t))
   (:method ((actor actor) (type (eql 'task)))
-    (with-slots (name abbrev) actor (format nil "~A~@[ ~A~]" name abbrev)))
+    (with-slots (name abbrev) actor
+      (format nil "~A~@[ ~A~]" name abbrev)))
   (:method :around ((actor actor) (type (eql 'task)))
     (concatenate 'string (strftime) " " (call-next-method))))
 
@@ -54,16 +55,21 @@
 
 (defgeneric execute (actor command)
   (:method ((actor actor) (command function)) (funcall command actor))
+  ;; (:method ((actor actor) (command symbol)) (throw symbol actor))
   (:method ((actor actor) (command (eql :halt))) (throw :halt actor)))
 
-(defgeneric enqueue (actor)
-  (:method ((actor actor))
-    (pexec (:name (christen actor 'task)
-            :initial-bindings '((*read-default-float-format* double-float)))
+(defgeneric halt (actor)
+  (:documentation "tell `actor' cease and desist from roles")
+  (:method ((actor actor)) (send (control actor) :halt)))
+
+(defgeneric enqueue (actor)             ; I DO NOT KNOW WHOSE INVITE
+  (:method ((actor actor))              ; ALLOWED QUARRELS ; DID YOU
+    (pexec (:name (christen actor 'task) :initial-bindings ; RESPOND
+            '((*read-default-float-format* double-float))) ; TO ANY?
       (catch :halt (perform actor)))))
 
 (defgeneric perform (actor &key)
-  (:documentation "Implement actor's behavior, executing commands by default")
+  (:documentation "Implement actor's role, executing commands by default")
   (:method :before ((actor actor) &key)
     (with-slots (tasks) actor
       (setf tasks (remove :terminated tasks :key #'task-status))))
@@ -77,13 +83,9 @@
 
 (defgeneric ensure-running (actor)
   (:method ((actor actor) &aux (cache (slot-value actor 'tasks)))
-    (with-slots (tasks) actor           ; this cache business... scheduler?
+    (with-slots (tasks) actor      ; this cache business... scheduler?
       (aif (and (find :alive cache :key #'task-status) (eq tasks cache))
            it (aprog1 (enqueue actor) (push it tasks))))))
-
-(defgeneric halt (actor)                ; TRY TEST SITE RIGHT suicide
-  (:documentation "Signals `actor' to terminate")
-  (:method ((actor actor)) (send (control actor) :halt)))
 
 (defmethod shared-initialize :after ((actor actor) (slot-names t) &key)
   (ensure-running actor))
