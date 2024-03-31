@@ -14,6 +14,9 @@
            #:volume #:price #:placed #:oid #:consumed-asset
            #:gate #:gate-post #:gate-request #:output #:input #:cache
            #:trade #:cost #:direction #:txid #:tracked-market
+
+           #:agent-trunk
+
            #:trades-tracker #:trades #:trades-since #:vwap #:book
            #:book-tracker #:bids #:asks #:get-book #:get-book-keys
            #:balance-tracker #:balances #:sync #:print-book #:asset-funds
@@ -620,8 +623,13 @@
                           (as (side mask my-asks asks)))
                       (line (or mbid (car bids)) (or mask (car asks)))
 ;; this still happens, occasionally...
+;;  #<1651667563 82.83 Nis @ 3.38>  #<1651655211 23.89966685 Usdc @ 3.59>
+;;    #<BID  105596.76 Nis @ 3.38>  #<1651681181 25.69897127 Usdc @ 3.59>
+;;     #<BID  60031.87 Nis @ 3.37>        #<ASK  49.59863812 Usdc @ 3.59>
+;; #<1651675524 127.76 Nis @ 3.36>     #<ASK  10086.18000000 Usdc @ 3.60>
 ;; #<1389509474 730.71 Nis @ 0.09> #<1389508943 32.87402000 Usdc @ 78.99>
 ;;       #<BID  730.71 Nis @ 0.09>     #<ASK  1000.00000000 Usdc @ 79.00>
+
                       (or bs (pop bids)) (or as (pop asks))))))
             ;; WHY IS THAT BUG'S LIFE EXPECTANCY LONGER THAN MINE !?
             (flet ((shit (shy nola)     ; so es dreht...
@@ -642,6 +650,9 @@
 ;;;
 ;;; Private Data API
 ;;;
+
+(defgeneric agent-trunk (agent)          ; CORNELIUS ? BABAR !
+  (:method-combination append))
 
 (defgeneric placed-offers (gate &optional market))
 (defgeneric account-balances (gate))
@@ -955,8 +966,14 @@
             (getf (slot-reduce supplicant lictor bases) (counter market))))
   (:method ((supplicant supplicant) (asset asset))
     (with-slots (primary counter %market) (market supplicant)
-      (cond ((eq asset counter) (nth-value 1 (bases-for supplicant %market)))
-            ((eq asset primary) (bases-for supplicant %market))))))
+      (cond ((eq asset counter)
+             (nth-value 1 (bases-for supplicant %market)))
+            ((eq asset primary)
+             (bases-for supplicant %market)))))) ;
+
+(defmethod agent-trunk append ((dowser supplicant))
+  (list (slot-reduce dowser market)     ; hyperdimensionally,
+        (slot-reduce dowser gate)))     ; going embryological
 
 (defmethod print-book ((supplicant supplicant) &rest keys)
   (with-slots (counter primary) (market supplicant)
@@ -977,9 +994,10 @@
 ;;;
 
 (defgeneric describe-account (supplicant exchange stream)
-  (:method ((supplicant t) (exchange t) (stream t)) (cerror "YODO" "YLED?"))
+  (:method ((supplicant t) (exchange t) (stream t))
+    (cerror "YODO" "How many times have you died, this week?"))
   (:method ((supplicant t) (exchange exchange) (stream t))
-    (error "I can't even tame lions, how do you expect me to balance books?"))
+    (error "I don't tame lions, how do you expect me to balance books?"))
   (:documentation "summarize how things are going, profit-wise"))
 
 (defun respawn-syncer (&optional (supplicant *supplicant*) (wavenumber 7))

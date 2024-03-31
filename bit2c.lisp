@@ -63,8 +63,8 @@
                         body :external-format :utf8))))))))
 
 (defun public-request (method &optional parameters)
-  (bit2c-request (format () "Exchanges/~A~:[~;?~A~]" method
-                         parameters (concatenate-url-parameters parameters))))
+  (bit2c-request (format () "Exchanges/~A~:[~;?~A~]" method parameters
+                         (concatenate-url-parameters parameters))))
 
 (defun auth-request (verb method key signer &optional params)
   (let* ((now (now))
@@ -134,6 +134,25 @@
 ;;;
 ;;; Public Data API
 ;;;
+
+;;; "https://bit2c.co.il/home/api#geto"
+;;; 03:Param Description
+;;; 04:ll    last price
+;;; 05:av    last 24 hours price avarage
+;;; 06:a     last 24 hours volume
+;;; 07:h     highest buy order
+;;; 08:l     lowest sell order
+;;; 09:c     last 24 hours average change - decimal(nullable)
+;;; 10:up    last change - true = up , false - down , null - no change
+;; (multiple-value-bind
+;;       (octets http-status response-headers locator
+;;        stream null string)
+;;     (drakma:http-request
+;;      "https://www.bit2c.co.il/Exchanges/BtcNis/Ticker.json"
+;;      :want-stream nil :user-agent (load-time-value (gensym "") t))
+;;   (values (map 'string 'code-char octets) (decode-json octets)
+;;           (now) response-headers
+;;           (list null locator stream http-status string)))
 
 (defmethod get-book ((market bit2c-market) &key count)
   (assert (null count) (count)

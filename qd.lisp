@@ -252,7 +252,8 @@
     (destructuring-bind (primary counter resilience ratio) (recv input)
       (with-slots (cut) filter
         (setf cut (complex (realpart cut)
-                           (* (realpart cut) (atan (log ratio))))))
+                           (/ (realpart cut)
+                              (- (/ pi 2) (atan (log ratio)))))))
       (with-slots (next-bids next-asks response) prioritizer
         (macrolet ((do-side (amount side chan epsilon)
                      #+ () "can't I write documentation for local macros?"
@@ -308,12 +309,9 @@
   (print-unreadable-object (maker stream :type t :identity nil)
     (write-string (name maker) stream)))
 
-(defgeneric agent-trunk (agent)          ; CORNELIUS ? BABAR !
-  (:method-combination append)           ;
-  (:method append ((maker maker))        ; hyperdimensionally,
-    (list (slot-reduce maker gate)       ; going embryological
-          (slot-reduce maker supplicant) ;
-          maker)))                       ; AND HATCHIBOMBOTAR
+(defmethod agent-trunk append ((maker maker))  ; HATCHIBOMBOTAR
+  (with-slots (supplicant) maker
+    (list* maker supplicant (agent-trunk supplicant)))) ; uses?
 
 (defun profit-snake (lictor length)
   (let ((trades (slot-reduce lictor trades)))
