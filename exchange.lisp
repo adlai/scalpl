@@ -50,7 +50,11 @@
             end-of-file)                ; CAN YOU SMELL THE BAD
             (condition)                 ; PATTERN THAT BEGS FOR
             (warn (with-output-to-string (warning) ; YOU TO HIRE
-                    (describe condition warning))) ; ACTUAL DEVS?
+                    ;; (describe condition warning)
+                    (format warning "~A ... ~D" ; _ ; ACTUAL DEVS?
+                            (class-of condition)
+                            (floor (integer-length backoff)
+                                   (or (ignore-errors) 2)))))
             (if (zerop backoff) (return) ; might prevent nonce reuse...
                 (sleep (incf backoff backoff))))))) ; probably won't
 ;;; why don't you (:use :drakma) , don't bother reimplementing...
@@ -785,7 +789,7 @@
 
 (defmethod execute ((tracker execution-tracker) (command (eql :rebase)))
   (with-slots (bases trades) tracker
-    (setf bases nil) (dolist (next (reverse trades))
+    (setf bases nil) (dolist (next (reverse trades)) ; &a-o-k ?
                        (update-bases tracker next))))
 
 (defmethod perform ((tracker execution-tracker) &key)
