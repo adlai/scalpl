@@ -74,7 +74,7 @@
                                    (* 1000 (timestamp-to-unix now)))))
          (data (concatenate-url-parameters (acons "nonce" nonce params)))
          (sig (funcall signer data)))
-    (bit2c-request method :method verb :content data :backoff (exp 0)
+    (bit2c-request method :method verb :content data :backoff 1
                    :additional-headers `(("Sign" . ,sig) ("Key" . ,key)
                                          ("nonce" . ,nonce)
                                          ("Content-Type"
