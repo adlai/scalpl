@@ -39,19 +39,14 @@
             (return (apply #'drakma:http-request path
                            (alexandria:remove-from-plist keys :backoff)))
           ((or simple-error drakma::drakma-simple-error
-            usocket:timeout-error
-            usocket:ns-try-again-error
-            usocket:ns-try-again-condition
-            usocket:deadline-timeout-error
-            usocket:ns-host-not-found-error
-            usocket:connection-refused-error
-            chunga::input-chunking-unexpected-end-of-file
-            cl+ssl::ssl-error
-            end-of-file)                ; CAN YOU SMELL THE BAD
-            (condition)                 ; PATTERN THAT BEGS FOR
-            (warn (with-output-to-string (warning) ; YOU TO HIRE
+               usocket:socket-condition	; most specific superclass...
+               chunga::input-chunking-unexpected-end-of-file
+               cl+ssl::ssl-error
+               end-of-file)
+            (condition)
+            (warn (with-output-to-string (warning)
                     ;; (describe condition warning)
-                    (format warning "~A ... ~D" ; _ ; ACTUAL DEVS?
+                    (format warning "~A ... ~D"
                             (class-of condition)
                             (floor (integer-length backoff)
                                    (or (ignore-errors) 2)))))

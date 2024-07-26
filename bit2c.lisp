@@ -246,9 +246,9 @@ the good folks at your local Gambler's Anonymous.")
           when asset collect (cons-aq* asset amount))))
 
 ;;; Could scrape from "https://bit2c.co.il/home/api#orderh" ...
-(defconstant +action-enum+              ; reloading occasionally is
-  '((0 . :Buy) (1 . :Sell)              ; healthy, and lispers MUST
-    (2 . :Deposit) (3 . :Withdrawal)    ; learn how to use constant
+(defparameter +action-enum+
+  '((0 . :Buy) (1 . :Sell)
+    (2 . :Deposit) (3 . :Withdrawal)
     (4 . :FeeWithdrawal) (10 . :Unknown)
     (11 . :SendPayment) (12 . :ReceivedPayment)
     (21 . :DepositVIACredit)
