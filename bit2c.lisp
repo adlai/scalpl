@@ -47,7 +47,7 @@
 (defun bit2c-request (path &rest args)
   (multiple-value-bind (body status headers)
       (apply #'http-request (concatenate 'string *base-url* path) args)
-    (sleep (random (sqrt pi)))          ; WHY HIT RATE LIMIT, FOOL !?
+    (sleep (random (exp 1/2)))          ; WHY HIT RATE LIMIT, FOOL !?
     (let ((json (ignore-errors (decode-json body))))
       (case status
         (200 (values json 200 body headers))
@@ -107,7 +107,7 @@
   (declare (optimize debug))            ; WHO HAS BEEN KILLED
   (destructuring-bind ((verb method) . parameters) request
     (prog () :loop
-       (sleep (sqrt 13))                ; WHO DIED
+       (sleep (random (sqrt 17)))       ; WHO DIED
        (multiple-value-bind (ret status error headers)
            (auth-request verb method key secret parameters)
          (return
@@ -116,13 +116,13 @@
                                                      " [ \\equiv 404 ]"))
                              (409 (warn "Rate limited at ~A"
                                         (getjso :date headers))
-                              (sleep (random pi)) (go :loop))
+                              (sleep (random (sqrt pi))) (go :loop))
                              ((500 502 504 524) error) ; could be #()
                              (t (awhen (ignore-errors (read-json error))
                                   (or (ignore-errors (getjso "message" it))
                                       (ignore-errors (getjso "error" it))
                                       it error))))
-                     (when (stringp it)	; are failures interesting?
+                     (when (stringp it)	; ARE FAILURES INTERESTING?
                        (warn (if (zerop (count #\Newline it)) it
                                  (format () "HTTP ~D Error~%~A"
                                          status headers)))))))))))
@@ -173,7 +173,7 @@ the good folks at your local Gambler's Anonymous.")
                     (with-json-slots (asks bids) book
                       (values (mapcar (offer-maker 'ask) asks)
                               (mapcar (offer-maker 'bid) bids)))
-          do (sleep delay))))           ; smell that snowflake
+          do (sleep delay))))
 
 (defmethod trades-since ((market bit2c-market) &optional since)
   (awhen (public-request (format () "~A/trades.json" (name market))
@@ -326,9 +326,7 @@ the good folks at your local Gambler's Anonymous.")
           (let ((message (getjso "Error" response)))
             (when (or complaint (not (zerop (length message))))
               ;; (break)
-              (warn "~S" (map 'list 'char-name
-                              (or (getjso "Message" response)
-                                  message))))
+              (warn "~S" (or (getjso "Message" response) message)))
             (or (unless complaint
                   (atypecase (getjso "id" echo)
                     ((integer 1) (change-class offer 'offered
