@@ -191,8 +191,12 @@ the good folks at your local Gambler's Anonymous.")
 
 ;;; Fee structure advertised in https://bit2c.co.il/home/Fees
 (defmethod market-fee ((gate bit2c-gate) (market bit2c-market))
-  (aif (gate-request gate '(:GET "Account/Balance") ())
-       (getjso "Fees" it) (fee market)))
+  (aif (gate-request gate '(:GET "Funds/GetUsersFees")
+                     (warn "BITTWOC has not documented Funds/GetUsersFees !"))
+       (with-json-slots ((current-maker "feeMaker")) it
+         current-maker)
+       (fee market)))
+;;; publishing it is +EV thus git push
 
 ;;; The endpoint Funds/GetUsersFees is not part of the official API
 (defun fee-tier-progress (gate)
