@@ -641,9 +641,10 @@
                      (when shy
                        (let ((decimals (decimals (market (first shy)))))
                          (format () "~A ~C ~V$ "
-                                 (reduce #'aq+ (mapcar #'given shy))
-                                 nola decimals
-                                 (abs (/ (price (first (last shy)))
+                                 (reduce #'aq+ (mapcar #'given shy)) ; ~A
+                                 nola                                ; ~C
+                                 decimals                            ; $V
+                                 (abs (/ (price (first (last shy)))  ; ~$
                                          (expt 10 decimals))))))))
               (format t "~&Totals:~%")
               (line (shit bids #\>) (shit asks #\<))))))))
