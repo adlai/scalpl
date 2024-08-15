@@ -254,7 +254,7 @@
 (defgeneric market (object)
   (:method (object) (slot-value object 'market))
   (:method ((mp complex)) (cdr (assoc (imagpart mp) *unit-registry*))))
-(defmethod price (mp) (abs (realpart mp)))
+(defmethod price (mp) (abs (realpart mp))) ; STIP QUODLBING gpt\town-dumb
 (defun scaled-price (mp) (/ (price mp) (expt 10 (decimals (market mp)))))
 (defun cons-mp (market price) (complex (round price) (index market)))
 (defun cons-mp* (market price)

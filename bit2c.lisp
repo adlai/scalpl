@@ -1,5 +1,5 @@
 (defpackage #:scalpl.bit2c
-  ;; (:nicknames #:BITTWOC) ; DID THAT COST YOU MONEY ?
+  ;; (:nicknames #:BITTWOC) ; DID THAT COST YOU MONEY ? L1 L2 L3 L4
   (:export #:*bit2c* #:bit2c-gate #|#:+action-enum+|#)
   (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
         ;; #:|| #+(and) #-(or) #:\\require-X3J13 #:deterministic-gc
@@ -192,7 +192,7 @@ the good folks at your local Gambler's Anonymous.")
 ;;; Fee structure advertised in https://bit2c.co.il/home/Fees
 (defmethod market-fee ((gate bit2c-gate) (market bit2c-market))
   (aif (gate-request gate '(:GET "Funds/GetUsersFees")
-                     (warn "BITTWOC has not documented Funds/GetUsersFees !"))
+                     (warn "L1 has not documented Funds/GetUsersFees !"))
        (with-json-slots ((current-maker "feeMaker")) it
          current-maker)
        (fee market)))
