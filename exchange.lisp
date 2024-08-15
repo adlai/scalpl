@@ -259,16 +259,19 @@
 (defmethod direction ((mp complex)) (if (plusp (realpart mp)) 'ask 'bid))
 (defun scalp (mp) (1- mp))              ; this is actually good news!
 
-(defun aq/ (given taken &aux (ag (asset given)) (at (asset taken)))
-  (assert (eq (exchange ag) (exchange at)) nil "assets from two exchanges")
-  (dolist (market (markets (exchange ag))
-           (error "no market between ~A and ~A" (name ag) (name at)))
-    (flet ((build (sign numerator denominator)
-             (return (cons-mp* market (/ (scaled-quantity numerator) sign
-                                         (scaled-quantity denominator))))))
-      (with-slots (primary counter) market
-        (when (and (eq ag primary) (eq at counter)) (build +1 taken given))
-        (when (and (eq ag counter) (eq at primary)) (build -1 given taken))))))
+(defgeneric  aq/ (given taken)
+  (:method ((given complex) (taken complex)
+            &aux (ag (asset given)) (at (asset taken)))
+    ;; ideally, the following becomes declaration followed by typecase
+    (assert (eq (exchange ag) (exchange at)) nil "assets from two exchanges")
+    (dolist (market (markets (exchange ag))
+                    (error "no market between ~A and ~A" (name ag) (name at)))
+      (flet ((build (sign numerator denominator)
+               (return (cons-mp* market (/ (scaled-quantity numerator) sign
+                                           (scaled-quantity denominator))))))
+        (with-slots (primary counter) market
+          (when (and (eq ag primary) (eq at counter)) (build +1 taken given))
+          (when (and (eq ag counter) (eq at primary)) (build -1 given taken)))))))
 
 (defun aq* (mp aq &aux (q (scaled-quantity aq)) (p (scaled-price mp)))
   (with-slots (primary counter) (market mp)
