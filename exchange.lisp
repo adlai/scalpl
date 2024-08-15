@@ -188,6 +188,9 @@
 (deftype asset-quantity ()
   "A precise quantity of a given asset"
   '(complex unsigned-byte))
+;;; the following is guaranteed by ANSI-compliance
+;; (subtypep (upgraded-complex-part-type 'unsigned-byte)
+;;           (upgraded-complex-part-type 'integer))
 
 (defun asset (aq) (cdr (assoc (imagpart aq) *unit-registry*)))
 (defun quantity (aq) (realpart aq))
