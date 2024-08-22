@@ -116,6 +116,8 @@
 (defclass option-market (bybit-market)
   ((category :initform "option" :allocation :class)
    (delivery-date :reader delivery-date) (strike :reader strike)))
+(defclass spot-market (bybit-market)
+  ((category :initform "spot" :allocation :class)))
 
 (defun live-market-p (market)
   (or (not (slot-boundp market 'delivery))
@@ -172,9 +174,9 @@
                         (option-market "option"))
                       (values markets assets))
       (with-json-slots (list)
-                       (public-request "market/instruments-info"
-                                       `(("category" . ,(cadr category))
-                                         ("limit" . "1000") ("baseCoin" . "BTC")))
+          (public-request "market/instruments-info"
+                          `(("category" . ,(cadr category))
+                            ("limit" . "1000") ("baseCoin" . "BTC")))
         (mapcar (category-parser (car category)) list)))))
 
 (defun fetch-new-options (&aux assets markets)
@@ -1373,7 +1375,7 @@
                        for market-placed = (bybit::market-placed *gate* market)
                        for (market-asks market-bids) = (last data 2)
                        for fresh-price = (princ-to-string
-                                          (if (null market-bids) 
+                                          (if (null market-bids)
                                               (* market-tick
                                                  (floor (* (getjso "markPrice"
                                                                    (recent-ticker market))
@@ -1409,7 +1411,7 @@
                               (with-json-slots
                                   (symbol side size)
                                   (nth-value 1 (bybit::account-position gate market))
-                                `(,symbol . ,(if (string= side "Buy") 
+                                `(,symbol . ,(if (string= side "Buy")
                                                  (parse-float size)
                                                  (- (parse-float size)))))))
       for total = (getjso "totalDelta"
