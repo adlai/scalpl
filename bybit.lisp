@@ -168,7 +168,36 @@
                             :primary (asset #\l 8) :counter (asset #\s 4)
                             :delivery (unix-to-timestamp
                                        (floor (parse-integer delivery) 1000)))
+                           markets)))))))
+         (spot-parser ()
+           (lambda (instrument)
+             (with-json-slots 
+                 ((name "symbol") (delivery "deliveryTime")
+                  (primary "baseCoin") (counter "quoteCoin")
+                  (price "priceFilter") (lot "lotSizeFilter")
+                  status)
+                 instrument
+               (flet ((asset (name decimals)
+                        (or (find name assets :key #'name :test #'string=)
+                            (aprog1 (make-instance 'asset :name name
+                                                          :decimals decimals)
+                              (push it assets)))))
+                 (when (and (string= status "Trading")
+                            (or (string= primary "BTC")
+                                (string= counter "BTC")))
+                   (let ((tick (parse-float (getjso "tickSize" price)))
+                         (epsilon (parse-float (getjso "quotePrecision" lot))))
+                     (push (make-instance
+                            'spot-market :name name :fee 0.1 :tick tick
+                                         :epsilon epsilon :decimals
+                                         (- (floor (log (abs tick) 10)))
+                                         :primary (asset primary 8)
+                                         :counter (asset counter 4))
                            markets))))))))
+    (with-json-slots (list)
+        (public-request "market/instruments-info"
+                        `(("category" . "spot") ("limit" . 1000)))
+      (mapcar (spot-parser) list))
     (dolist (category '((inverse-market "inverse")
                         (linear-market "linear")
                         (option-market "option"))
