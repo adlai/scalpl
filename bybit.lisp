@@ -522,6 +522,50 @@
 (defmethod account-balances ((gate bybit-gate) &aux balances)
   ;; (declare (optimize debug))
   (awhen (gate-request gate '(:get "account/wallet-balance")
+                       '(("accountType" . "unified")))
+    (with-json-slots
+        ((equity "totalEquity") (imr "accountIMRate") coin)
+      (first (getjso "list" it))
+      ;; (break)
+      (if (string= imr "0")
+          (dolist (json coin)
+            (format t "~&~S~%" json)
+            ;; (break)
+            (with-json-slots ((symbol "coin") equity) json
+              (push (list (cons-aq* (find-asset symbol *bybit*)
+                                    (parse-float equity)))
+                    balances)))
+          (dolist (market (remove "linear"
+                                  (remove "BTC" (markets *bybit*)
+                                          :test-not #'search :key #'name)
+                                  :test-not #'string= :key #'category))
+            (with-slots (name primary counter category) market
+              (when (string= "linear" category)
+                (with-json-slots
+                    ((mark "markPrice"))
+                    (car (getjso "list"
+                                 (public-request "market/tickers"
+                                                 `(("category" . "linear")
+                                                   ("symbol" . ,name)))))
+                  (multiple-value-bind (position json)
+                      (account-position gate market)
+                    (if position
+                        (let ((fund (* (parse-float equity)
+                                       (with-json-slots (leverage) json
+                                         (if (string= leverage "") 5
+                                             (parse-float leverage))))))
+                          (push (aq+ (cons-aq* primary (/ fund (parse-float mark)))
+                                     (second position))
+                                balances)
+                          (push (aq+ (cons-aq* counter fund)
+                                     (third position))
+                                balances))
+                        (let ((fund (parse-float equity)))
+                          (push (cons-aq* primary (/ fund (parse-float mark)))
+                                balances)
+                          (push (cons-aq* counter fund)
+                                balances)))))))))))
+  (awhen (gate-request gate '(:get "account/wallet-balance")
                        '(("accountType" . "contract")))
     (with-json-slots (coin) (first (getjso "list" it))
       (awhen (find "BTC" coin :test #'string= :key (getjso "coin"))
@@ -555,38 +599,6 @@
                           (push (cons-aq* primary equity) balances)
                           (push (cons-aq* counter (* equity (parse-float mark)))
                                 balances))))))))))))
-  (awhen (gate-request gate '(:get "account/wallet-balance")
-                       '(("accountType" . "unified")))
-    (with-json-slots
-        ((equity "totalEquity")) (first (getjso "list" it))
-      (dolist (market (remove "linear"
-                              (remove "BTC" (markets *bybit*)
-                                      :test-not #'search :key #'name)
-                              :test-not #'string= :key #'category))
-        (with-slots (name primary counter category) market
-          (when (string= "linear" category)
-            (with-json-slots ((mark "markPrice"))
-                (car (getjso "list"
-                             (public-request "market/tickers"
-                                             `(("category" . "linear")
-                                               ("symbol" . ,name)))))
-              (multiple-value-bind (position json)
-                  (account-position gate market)
-                (if position
-                    (let ((fund (* (parse-float equity)
-                                   (if (string= (getjso "leverage" json) "") 5
-                                       (parse-float (getjso "leverage" json))))))
-                      (push (aq+ (cons-aq* primary (/ fund (parse-float mark)))
-                                 (second position))
-                            balances)
-                      (push (aq+ (cons-aq* counter fund)
-                                 (third position))
-                            balances))
-                    (let ((fund (parse-float equity)))
-                      (push (cons-aq* primary (/ fund (parse-float mark)))
-                            balances)
-                      (push (cons-aq* counter fund)
-                            balances))))))))))
   balances)
 
 ;;; This horror can be avoided via the actor-delegate mechanism.
