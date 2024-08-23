@@ -148,7 +148,7 @@
             strike (parse-integer (pop parts))))))
 
 (defun get-info (&aux assets markets)
-  (flet ((category-parser (class)
+  (flet ((derivative-parser (class)
            (lambda (instrument)
              (with-json-slots ((name "symbol") (delivery "deliveryTime")
                                (coin "baseCoin") (price-filter "priceFilter")
@@ -206,7 +206,7 @@
           (public-request "market/instruments-info"
                           `(("category" . ,(cadr category))
                             ("limit" . "1000") ("baseCoin" . "BTC")))
-        (mapcar (category-parser (car category)) list)))))
+        (mapcar (derivative-parser (car category)) list)))))
 
 (defun fetch-new-options (&aux assets markets)
   (awhen (public-request "market/instruments-info"
