@@ -191,17 +191,14 @@
                          (base (parse-float (getjso "basePrecision" lot)))
                          (quote (parse-float (getjso "quotePrecision" lot)))
                          (epsilon (parse-float (getjso "minOrderAmt" lot))))
-                     (declare (ignore base quote)) ; HATE YOU WROTE
                      (push (make-instance
                             'spot-market :name name :fee 0.1 :tick tick
                                          :epsilon epsilon
                                          :decimals (precision tick)
-                                         :primary (asset primary 8
-                                                         ;; (precision base)
-                                                         )
-                                         :counter (asset counter 8
-                                                         ;; (precision quote)
-                                                         ))
+                                         :primary (asset primary
+                                                         (precision base))
+                                         :counter (asset counter
+                                                         (precision quote)))
                            markets))))))))
     (with-json-slots (list)
         (public-request "market/instruments-info"
@@ -281,7 +278,7 @@
                         ;; ((30076) it)          ; failures to replace
                         (t status))     ; by default, echo the error text
                 (typecase it
-                  (string (break) (warn "#~D ~A" code it))))))))
+                  (string #|(break)|# (warn "#~D ~A" code it))))))))
 
 (defmethod shared-initialize ((gate bybit-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
@@ -893,29 +890,30 @@
 
 (defmethod bases-for ((supplicant supplicant) (market bybit-market))
   (with-slots (gate) supplicant
-    (awhen (account-position gate market)
-      (let ((entry (realpart (first it)))
-            (size (abs (quantity (third it)))))
-        (flet ((foolish (basis &aux (price (realpart (car basis))))
-                 (if (= (signum price) (signum entry)) (> price entry)
-                     ;; N.B.: this logic allows bleeding to reduce chance
-                     ;; of liquidation; ...both hardcoded and ineffective
-                     (and (< (isqrt size) (quantity (second basis)))
-                          (< (isqrt size) (quantity (third basis))))
-                     )))
-          (multiple-value-bind (primary counter) (call-next-method)
-            (if (plusp entry)
-                (values ()
-                        (or (remove-if #'foolish counter)
-                            `((,(car it)
-                               ,(cons-aq (asset (caddr it))
-                                         (abs (quantity (caddr it))))
-                               ,(cons-aq (asset (cadr it))
-                                         (abs (quantity (cadr it))))))))
-                (values (or (remove-if #'foolish primary) (list it)) ()))
-            ;; (values (remove-if #'foolish primary)
-            ;;         (remove-if #'foolish counter))
-            ))))))
+    (aif (account-position gate market)
+         (let ((entry (realpart (first it)))
+               (size (abs (quantity (third it)))))
+           (flet ((foolish (basis &aux (price (realpart (car basis))))
+                    (if (= (signum price) (signum entry)) (> price entry)
+                        ;; N.B.: this logic allows bleeding to reduce chance
+                        ;; of liquidation; ...both hardcoded and ineffective
+                        (and (< (isqrt size) (quantity (second basis)))
+                             (< (isqrt size) (quantity (third basis))))
+                        )))
+             (multiple-value-bind (primary counter) (call-next-method)
+               (if (plusp entry)
+                   (values ()
+                           (or (remove-if #'foolish counter)
+                               `((,(car it)
+                                  ,(cons-aq (asset (caddr it))
+                                            (abs (quantity (caddr it))))
+                                  ,(cons-aq (asset (cadr it))
+                                            (abs (quantity (cadr it))))))))
+                   (values (or (remove-if #'foolish primary) (list it)) ()))
+               ;; (values (remove-if #'foolish primary)
+               ;;         (remove-if #'foolish counter))
+               )))
+         (call-next-method))))
 
 ;;; This one belongs in the Ten Decades' Hayt
 (defun ditch-unplaced-offereds (maker &optional (stream *standard-output*))
