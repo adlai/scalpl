@@ -181,18 +181,27 @@
                         (or (find name assets :key #'name :test #'string=)
                             (aprog1 (make-instance 'asset :name name
                                                           :decimals decimals)
-                              (push it assets)))))
+                              (push it assets))))
+                      (precision (multiplier)
+                        (- (floor (log (abs multiplier) 10)))))
                  (when (and (string= status "Trading")
                             (or (string= primary "BTC")
                                 (string= counter "BTC")))
                    (let ((tick (parse-float (getjso "tickSize" price)))
-                         (epsilon (parse-float (getjso "quotePrecision" lot))))
+                         (base (parse-float (getjso "basePrecision" lot)))
+                         (quote (parse-float (getjso "quotePrecision" lot)))
+                         (epsilon (parse-float (getjso "minOrderAmt" lot))))
+                     (declare (ignore base quote)) ; HATE YOU WROTE
                      (push (make-instance
                             'spot-market :name name :fee 0.1 :tick tick
-                                         :epsilon epsilon :decimals
-                                         (- (floor (log (abs tick) 10)))
-                                         :primary (asset primary 8)
-                                         :counter (asset counter 4))
+                                         :epsilon epsilon
+                                         :decimals (precision tick)
+                                         :primary (asset primary 8
+                                                         ;; (precision base)
+                                                         )
+                                         :counter (asset counter 8
+                                                         ;; (precision quote)
+                                                         ))
                            markets))))))))
     (with-json-slots (list)
         (public-request "market/instruments-info"
