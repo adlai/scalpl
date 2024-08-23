@@ -501,32 +501,34 @@
       (request "inverse" "BTC")))
   positions)                            ; apply 'values ?
 
-(defun account-position (gate market)
-  (with-slots (name category primary counter websocket-cache) market
-    (awhen (or (and (slot-exists-p market 'websocket-cache)
-                    (slot-boundp market 'websocket-cache)
-                    (gethash (cons "position" name) websocket-cache))
-               (awhen (gate-request gate '(:get "position/list")
-                                    `(("symbol" . ,name)
-                                      ("category" . ,category)))
-                 (first (getjso "list" it))))
-      (with-json-slots
-          ((entry "avgPrice") symbol size side (value "positionValue")) it
-        (unless (or (string= side "") (string= side "None"))
-          (with-slots (primary counter) market
-            (values `(,(cons-mp* market (* (parse-float entry)
-                                           (if (string= side "Buy") -1 1)))
-                      ,(cons-aq* primary
-                                 (* (if (string= category "inverse")
-                                        (parse-float value)
-                                        (parse-float size))
-                                    (if (string= side "Buy") 1 -1)))
-                      ,(cons-aq* counter
-                                 (* (if (string= category "inverse")
-                                        (parse-integer size)
-                                        (parse-float value))
-                                    (if (string= side "Buy") -1 1))))
-                    it)))))))
+(defgeneric account-position (gate market)
+  (:method ((gate gate) (market spot-market)))
+  (:method ((gate gate) (market bybit-market))
+    (with-slots (name category primary counter websocket-cache) market
+      (awhen (or (and (slot-exists-p market 'websocket-cache)
+                      (slot-boundp market 'websocket-cache)
+                      (gethash (cons "position" name) websocket-cache))
+                 (awhen (gate-request gate '(:get "position/list")
+                                      `(("symbol" . ,name)
+                                        ("category" . ,category)))
+                   (first (getjso "list" it))))
+        (with-json-slots
+            ((entry "avgPrice") symbol size side (value "positionValue")) it
+          (unless (or (string= side "") (string= side "None"))
+            (with-slots (primary counter) market
+              (values `(,(cons-mp* market (* (parse-float entry)
+                                             (if (string= side "Buy") -1 1)))
+                        ,(cons-aq* primary
+                                   (* (if (string= category "inverse")
+                                          (parse-float value)
+                                          (parse-float size))
+                                      (if (string= side "Buy") 1 -1)))
+                        ,(cons-aq* counter
+                                   (* (if (string= category "inverse")
+                                          (parse-integer size)
+                                          (parse-float value))
+                                      (if (string= side "Buy") -1 1))))
+                      it))))))))
 
 (defmethod account-balances ((gate bybit-gate) &aux balances)
   ;; (declare (optimize debug))
