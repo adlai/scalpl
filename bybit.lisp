@@ -281,7 +281,7 @@
                         ;; ((30076) it)          ; failures to replace
                         (t status))     ; by default, echo the error text
                 (typecase it
-                  (string (warn (format () "#~D ~A" code it)))))))))
+                  (string (break) (warn "#~D ~A" code it))))))))
 
 (defmethod shared-initialize ((gate bybit-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
@@ -538,11 +538,11 @@
       ;; (break)
       (if (string= imr "0")
           (dolist (json coin)
-            (format t "~&~S~%" json)
+            ;; (format t "~&~S~%" json)
             ;; (break)
             (with-json-slots ((symbol "coin") equity) json
-              (push (list (cons-aq* (find-asset symbol *bybit*)
-                                    (parse-float equity)))
+              (push (cons-aq* (find-asset symbol *bybit*)
+                              (parse-float equity))
                     balances)))
           (dolist (market (remove "linear"
                                   (remove "BTC" (markets *bybit*)
