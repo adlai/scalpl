@@ -343,6 +343,24 @@
                               :price (parse-integer price)))))
         (values (side 'ask a) (side 'bid b))))))
 
+(defmethod trades-since ((market spot-market) &optional from)
+  (with-slots (name) market
+    (flet ((parse (trade)
+             (with-json-slots ((id "execId") side time size price) trade
+               (let* ((price (parse-float price))
+                      (cost (parse-float size))
+                      (volume (/ cost price)))
+                 (make-instance 'trade :market market :direction side
+                                       :txid (parse-integer id)
+                                       :timestamp (unix-to-timestamp
+                                                   (floor (parse-integer time) 1000))
+                                       :cost cost :volume volume :price price)))))
+      (awhen (public-request "market/recent-trade"
+                             `(("symbol" . ,name) ("category" . "spot")))
+        (let ((trades (nreverse (mapcar #'parse (getjso "list" it)))))
+          (if (null from) trades
+              (cdr (member (txid from) trades :key 'txid :test '=))))))))
+
 (defmethod trades-since ((market inverse-market) &optional from)
   (with-slots (name) market
     (flet ((parse (trade)
