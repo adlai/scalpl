@@ -282,6 +282,21 @@
 ;;; Public Data API
 ;;;
 
+(defmethod get-book ((market spot-market) &key (count 5))
+  (with-slots (name decimals) market
+    (with-json-slots
+        (b a) (public-request "market/orderbook"
+                              `(("symbol" . ,name)
+                                ("limit" . ,(format () "~D" count))
+                                ("category" . "spot")))
+      (flet ((side (type list)
+               (loop for (price size) in list
+                     collect (make-instance
+                              type :market market
+                              :volume (parse-float size :type 'rational)
+                              :price (parse-price price decimals)))))
+        (values (side 'ask a) (side 'bid b))))))
+
 (defmethod get-book ((market linear-market) &key (count 5))
   (with-slots (name decimals) market
     (with-json-slots
