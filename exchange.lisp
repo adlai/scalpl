@@ -932,7 +932,7 @@
 
 (defun sufficiently-different? (new old) ; someday dispatch on market
   (declare (optimize (compilation-speed 0) speed))
-  (< 0.04 (abs (log (/ (quantity (given new)) (quantity (given old)))))))
+  (< 0.1 (abs (log (/ (quantity (given new)) (quantity (given old)))))))
 
 ;;; FIXME: disambiguate placement from offerage, and redichotomise the book
 (defmethod placed-offers ((supplicant supplicant) &optional market)
