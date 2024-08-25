@@ -17,17 +17,22 @@
   (ironclad:digest-sequence :sha256 message))
 
 ;;; API-Key = API key
-;;; API-Sign = Message signature using HMAC-SHA512 of (URI path + SHA256(nonce + POST data)) and base64 decoded secret API key
+;;; API-Sign = Message signature using HMAC-SHA512
+;;;              of (URI path + SHA256(nonce + POST data))
+;;;                  and base64 decoded secret API key
 
 (defgeneric make-signer (secret)
   (:method ((signer function)) signer)
   (:method ((array array))
     (lambda (path data nonce)
-      (hmac-sha512 (concatenate '(simple-array (unsigned-byte 8) (*))
-                                (map '(simple-array (unsigned-byte 8) (*)) 'char-code path)
-                                (hash-sha256 (map '(simple-array (unsigned-byte 8) (*))
-                                                  'char-code
-                                                  (concatenate 'string nonce (urlencode-params data)))))
+      (hmac-sha512 (concatenate
+		    '(simple-array (unsigned-byte 8) (*))
+                    (map '(simple-array (unsigned-byte 8) (*))
+			 'char-code path)
+                    (hash-sha256 (map '(simple-array (unsigned-byte 8) (*))
+                                      'char-code
+                                      (concatenate 'string nonce 
+						   (urlencode-params data)))))
                    array)))
   (:method ((string string)) (make-signer (base64-string-to-usb8-array string)))
   (:method ((stream stream)) (make-signer (read-line stream)))
