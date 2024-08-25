@@ -35,7 +35,10 @@
 ;;;   ordering, logging, rate limits, caching, and... spiders?
 
 (defun http-request (path &rest keys &aux (backoff 3))
-  (loop (handler-case (return (apply #'drakma:http-request path keys))
+  (loop (handler-case
+            (return (apply #'drakma:http-request path
+                           :user-agent "scalpl_301461a..00f612c/"
+                           keys))
           ((or simple-error drakma::drakma-simple-error
             usocket:ns-try-again-condition
             usocket:deadline-timeout-error usocket:timeout-error
