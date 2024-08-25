@@ -105,17 +105,6 @@
                                  :decimals pair_decimals)))
               (get-request "AssetPairs")))
 
-(defvar *kraken* (make-instance 'exchange :name :kraken :sensitivity 0.3))
-
-(defmethod fetch-exchange-data ((exchange (eql *kraken*)))
-  (with-slots (markets assets) exchange
-    (setf assets (get-assets) markets (get-markets assets))))
-
-(defmethod find-market (designator (exchange (eql *kraken*)))
-  (or (call-next-method)
-      (with-slots (markets) *kraken*
-        (find designator markets :key 'altname :test 'string-equal))))
-
 (defun request-cost (request)
   (string-case (request :default 1)
     ("AddOrder" 0) ("CancelOrder" 0)
@@ -139,17 +128,30 @@
                      ((send tokens t) (incf count))
                      (t (sleep 0.2)))))))
 
-(defclass kraken-gate (gate parent)
+(defclass token-mixin (exchange parent)
   ((delay :initform 10 :initarg :delay)
    (tokens :initform (make-instance 'channel))
-   (mint :initform (make-instance 'channel))
-   (exchange :initform *kraken* :allocation :class)))
+   (mint :initform (make-instance 'channel))))
 
-(defmethod initialize-instance :after ((gate kraken-gate) &key name)
+(defmethod initialize-instance :after ((gate token-mixin) &key name)
   (flet ((make (class role)
            (adopt gate (make-instance class :delegates `(,gate) :name
                                       (format nil "api ~A for ~A" role name)))))
     (mapcar #'make '(token-minter token-handler) '("minter" "counter"))))
+
+(defvar *kraken* (make-instance 'token-mixin :name :kraken :sensitivity 0.3))
+
+(defmethod fetch-exchange-data ((exchange (eql *kraken*)))
+  (with-slots (markets assets) exchange
+    (setf assets (get-assets) markets (get-markets assets))))
+
+(defmethod find-market (designator (exchange (eql *kraken*)))
+  (or (call-next-method)
+      (with-slots (markets) *kraken*
+        (find designator markets :key 'altname :test 'string-equal))))
+
+(defclass kraken-gate (gate)
+  ((exchange :initform *kraken* :allocation :class)))
 
 (defmethod gate-post ((gate (eql *kraken*)) key secret request)
   (destructuring-bind (command . options) request
@@ -210,7 +212,7 @@
 ;;; Private Data API
 ;;;
 
-(defmethod placed-offers ((gate kraken-gate))
+(defmethod placed-offers ((gate kraken-gate) &optional market)
   (awhen (gate-request gate "OpenOrders")
     (mapcar-jso (lambda (id data)
                   (with-json-slots (descr vol oflags) data

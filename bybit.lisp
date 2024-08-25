@@ -188,9 +188,12 @@
                             (or (string= primary "BTC")
                                 (string= counter "BTC")))
                    (let ((tick (parse-float (getjso "tickSize" price)))
-                         (base (parse-float (getjso "basePrecision" lot)))
-                         (quote (parse-float (getjso "quotePrecision" lot)))
-                         (epsilon (parse-float (getjso "minOrderAmt" lot))))
+                         (base (parse-float (getjso "basePrecision" lot)
+					    :type 'rational))
+                         (quote (parse-float (getjso "quotePrecision" lot)
+					     :type 'rational))
+                         (epsilon (parse-float (getjso "minOrderAmt" lot)
+					       :type 'rational)))
                      (push (make-instance
                             'spot-market :name name :fee 0.1 :tick tick
                                          :epsilon epsilon
