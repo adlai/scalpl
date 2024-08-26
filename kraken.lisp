@@ -26,13 +26,13 @@
   (:method ((array array))
     (lambda (path data nonce)
       (hmac-sha512 (concatenate
-		    '(simple-array (unsigned-byte 8) (*))
+                    '(simple-array (unsigned-byte 8) (*))
                     (map '(simple-array (unsigned-byte 8) (*))
-			 'char-code path)
+                         'char-code path)
                     (hash-sha256 (map '(simple-array (unsigned-byte 8) (*))
                                       'char-code
-                                      (concatenate 'string nonce 
-						   (urlencode-params data)))))
+                                      (concatenate 'string nonce
+                                                   (urlencode-params data)))))
                    array)))
   (:method ((string string)) (make-signer (base64-string-to-usb8-array string)))
   (:method ((stream stream)) (make-signer (read-line stream)))
@@ -198,13 +198,15 @@
                                               (timestamp-to-unix it) (nsec-of it)))))))
     (with-json-slots (last (trades (name market))) it
       (mapcar (lambda (trade)
-                (destructuring-bind (price volume time side kind data) trade
+                (destructuring-bind (price volume time side kind data id) trade
                   (let ((price  (parse-float price))
                         (volume (parse-float volume :type 'rational)))
-                    (make-instance 'trade :market market
+                    (make-instance 'trade
+                                   :market market :txid id
                                    :timestamp (parse-timestamp *kraken* time)
                                    ;; FIXME - "cost" later gets treated as precise
-                                   :volume volume :price price :cost (* volume price)
+                                   :volume volume :price price
+                                   :cost (* volume price)
                                    :direction (concatenate 'string side kind data)))))
               (rest trades)))))      ; same trick as in bitfinex execution-since
 
