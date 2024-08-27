@@ -216,20 +216,21 @@
 
 (defmethod placed-offers ((gate kraken-gate) &optional market)
   (awhen (gate-request gate "OpenOrders")
-    (mapcar-jso (lambda (id data)
-                  (with-json-slots (descr vol oflags) data
-                    (with-json-slots (pair type price order) descr
-                      (let* ((market (find-market pair *kraken*))
-                             (decimals (slot-value market 'decimals))
-                             (price-int (parse-price price decimals))
-                             (volume (parse-float vol :type 'rational)))
-                        (make-instance 'offered :oid id :market market
-                                       :price (if (string= type "buy")
-                                                  (- price-int) price-int)
-                                       ;; kissumes viqc
-                                       :volume (/ volume price-int
-                                                  (expt 1/10 decimals)))))))
-                (getjso "open" it))))
+    (remove market
+	    (mapcar-jso (lambda (id data)
+			  (with-json-slots (descr vol oflags) data
+			    (with-json-slots (pair type price order) descr
+			      (let* ((market (find-market pair *kraken*))
+				     (decimals (slot-value market 'decimals))
+				     (price-int (parse-price price decimals))
+				     (volume (parse-float vol :type 'rational)))
+				(make-instance
+				 'offered :oid id :market market
+				 :price (if (string= type "buy")
+					    (- price-int) price-int)
+				 :volume volume)))))
+			(getjso "open" it))
+	    :key #'market :test-not #'eq)))
 
 (defmethod account-balances ((gate kraken-gate))
   (remove-if #'zerop
@@ -317,7 +318,7 @@
       (when (string= type "sell") (setf volume (* volume price))) ; always viqc
       (multiple-value-bind (info errors)
           (gate-request gate "AddOrder"
-                        `(("ordertype" . "limit") ("oflags" . "viqc")
+                        `(("ordertype" . "limit")
                           ("type" . ,type) ("pair" . ,pair)
                           ("volume" . ,(format nil "~V$" vol-decimals volume))
                           ("price" . ,(format nil "~V$" decimals price))))
@@ -326,7 +327,7 @@
           ;; but kraken's margin casino isn't open for visitors yet
           (car (getjso "txid" info)))))))
 
-(defmethod post-offer ((gate kraken-gate) offer)
+(defmethod post-offer ((gate kraken-gate) (offer offer))
   ;; (format t "~&place  ~A~%" offer)
   (with-slots (market volume price) offer
     (flet ((post (type)
