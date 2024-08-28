@@ -1,5 +1,6 @@
 (defpackage #:scalpl.exchange
-  (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util #:scalpl.actor)
+  (:use #:cl #:chanl #:anaphora #:local-time
+	#:scalpl.util #:scalpl.actor #:scalpl.net)
   (:export #:http-request #:enable-pretty-printer-abuse
            #:exchange #:name #:assets #:markets #:parse-timestamp
            #:*exchanges* #:find-exchange #:fetch-exchange-data
@@ -31,29 +32,6 @@
            #:describe-account #:backoff #:respawn-syncer))
 
 (in-package #:scalpl.exchange)
-
-;;; Networking... dump it here, later should probably split into net.lisp
-
-(defun http-request (path &rest keys &key (backoff 3) &allow-other-keys)
-  (loop (handler-case
-            (return (apply #'drakma:http-request path
-                           :user-agent "scalpl_301461a..00f612c/"
-                           (alexandria:remove-from-plist keys :backoff)))
-          ((or simple-error drakma::drakma-simple-error
-               usocket:socket-condition	; most specific superclass...
-               chunga::input-chunking-unexpected-end-of-file
-               cl+ssl::ssl-error
-               end-of-file)
-            (condition)
-            (warn (with-output-to-string (warning)
-                    ;; (describe condition warning)
-                    (format warning "~A ... ~D"
-                            (class-of condition)
-                            (floor (integer-length backoff)
-                                   (or (ignore-errors) 2)))))
-            (if (zerop backoff) (return) ; might prevent nonce reuse...
-                (sleep (incf backoff backoff))))))) ; probably won't
-;;; why don't you (:use :drakma) , don't bother reimplementing...
 
 ;;; TODO
 ;;; This file MUST build the interface that each exchange client needs to

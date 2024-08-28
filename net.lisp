@@ -34,18 +34,28 @@
 ;;; TODO wrap Drakma in a bunch of abstractions that implement:
 ;;;   ordering, logging, rate limits, caching, and... spiders?
 
-(defun http-request (path &rest keys &aux (backoff 3))
+;;; Networking... dump it here, later should probably split into net.lisp
+
+(defun http-request (path &rest keys &key (backoff 3) &allow-other-keys)
   (loop (handler-case
             (return (apply #'drakma:http-request path
                            :user-agent "scalpl_301461a..00f612c/"
-                           keys))
+                           (alexandria:remove-from-plist keys :backoff)))
           ((or simple-error drakma::drakma-simple-error
-            usocket:ns-try-again-condition
-            usocket:deadline-timeout-error usocket:timeout-error
-            usocket:timeout-error usocket:ns-host-not-found-error
-            end-of-file chunga::input-chunking-unexpected-end-of-file
-            cl+ssl::ssl-error usocket:connection-refused-error)
-              (error) (describe error) (sleep (incf backoff backoff))))))
+               usocket:socket-condition	; most specific superclass...
+	       usocket:ns-try-again-error  ; this one is a nuisance !
+               chunga::input-chunking-unexpected-end-of-file
+               cl+ssl::ssl-error
+               end-of-file)
+            (condition)
+            (warn (with-output-to-string (warning)
+                    ;; (describe condition warning)
+                    (format warning "~A ... ~D"
+                            (class-of condition)
+                            (floor (integer-length backoff)
+                                   (or (ignore-errors) 2)))))
+            (if (zerop backoff) (return) ; might prevent nonce reuse...
+                (sleep (incf backoff backoff))))))) ; probably won't
 
 ;;; Websocket
 

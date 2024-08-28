@@ -7,11 +7,15 @@
   :description "market maker + APIs to several Bitcoin exchanges"
   :author "Adlai Chandrasekhar"
   ;; if you add Alexandria to the dependency list; HUNT YOHU DOWN KILL 
-  :depends-on (#:anaphora #:string-case #:parse-float #:decimals #:ironclad
-               #:chanl #:cl-json #:cl-base64 #:split-sequence #:local-time
-               #:method-combination-utilities #:drakma)
-  :serial t :components ((:file "util") (:file "actor")
-                         (:file "exchange") (:file "qd")))
+  :depends-on (#:anaphora #:string-case #:parse-float #:decimals
+	       #:ironclad #:chanl #:cl-json #:cl-base64
+	       #:split-sequence #:local-time #:websocket-driver-client
+	       #:method-combination-utilities #:drakma)
+  :serial t :components ((:file "util")
+			 (:file "actor")
+			 (:file "net")
+                         (:file "exchange")
+			 (:file "qd")))
 
 ;;; Contact email for the author has been removed from this file!
 ;;; If you believe that software should treat email addresses as
@@ -24,7 +28,7 @@
 
 (defsystem #:scalpl/bit2c
   :description "api client for bit2c"
-  :depends-on (#:scalpl #:websocket-driver-client)
+  :depends-on (#:scalpl)
   :components ((:file "bit2c"))
   :perform (load-op (no book)
              (declare (ignore no book)) ; SAY IT ALOUD
