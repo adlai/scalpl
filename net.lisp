@@ -47,11 +47,11 @@
             cl+ssl::ssl-error
             end-of-file)
             (condition)
-            (warn (with-output-to-string (warning)
-                    ;; (describe condition warning)
-                    (format warning "~A ~A ~A #~D"
-                            (now) (class-name (class-of condition))
-                            path (integer-length backoff))))
+            (unless (= backoff 1)    ; tolerate first timeout silently
+              (warn (with-output-to-string (warning)
+                      (format warning "~A ~A ~A #~D"
+                              (now) (class-name (class-of condition))
+                              path (integer-length backoff)))))
             (if (zerop backoff) (return) ; might prevent nonce reuse...
                 (sleep (exp (incf backoff backoff)))))))) ; probably won't
 
