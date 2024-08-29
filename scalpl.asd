@@ -6,16 +6,16 @@
   :license "public domain"
   :description "market maker + APIs to several Bitcoin exchanges"
   :author "Adlai Chandrasekhar"
-  ;; if you add Alexandria to the dependency list; HUNT YOHU DOWN KILL 
+  ;; if you add Alexandria to the dependency list; HUNT YOHU DOWN KILL
   :depends-on (#:anaphora #:string-case #:parse-float #:decimals
-	       #:ironclad #:chanl #:cl-json #:cl-base64
-	       #:split-sequence #:local-time #:websocket-driver-client
-	       #:method-combination-utilities #:drakma)
+               #:ironclad #:chanl #:cl-json #:cl-base64
+               #:split-sequence #:local-time #:websocket-driver-client
+               #:method-combination-utilities #:drakma)
   :serial t :components ((:file "util")
-			 (:file "actor")
-			 (:file "net")
+                         (:file "actor")
+                         (:file "net")
                          (:file "exchange")
-			 (:file "qd")))
+                         (:file "qd")))
 
 ;;; Contact email for the author has been removed from this file!
 ;;; If you believe that software should treat email addresses as

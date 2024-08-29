@@ -36,26 +36,24 @@
 
 ;;; Networking... dump it here, later should probably split into net.lisp
 
-(defun http-request (path &rest keys &key (backoff 3) &allow-other-keys)
+(defun http-request (path &rest keys &key (backoff 1) &allow-other-keys)
   (loop (handler-case
             (return (apply #'drakma:http-request path
-                           :user-agent "scalpl_301461a..00f612c/"
                            (alexandria:remove-from-plist keys :backoff)))
           ((or simple-error drakma::drakma-simple-error
-               usocket:socket-condition	; most specific superclass...
-	       usocket:ns-try-again-error  ; this one is a nuisance !
-               chunga::input-chunking-unexpected-end-of-file
-               cl+ssl::ssl-error
-               end-of-file)
+            usocket:socket-condition	; most specific superclass...
+            usocket:ns-try-again-error  ; least-informative-response!
+            chunga::input-chunking-unexpected-end-of-file
+            cl+ssl::ssl-error
+            end-of-file)
             (condition)
             (warn (with-output-to-string (warning)
                     ;; (describe condition warning)
-                    (format warning "~A ... ~D"
-                            (class-of condition)
-                            (floor (integer-length backoff)
-                                   (or (ignore-errors) 2)))))
+                    (format warning "~A ~A ~A #~D"
+                            (now) (class-name (class-of condition))
+                            path (integer-length backoff))))
             (if (zerop backoff) (return) ; might prevent nonce reuse...
-                (sleep (incf backoff backoff))))))) ; probably won't
+                (sleep (exp (incf backoff backoff)))))))) ; probably won't
 
 ;;; Websocket
 

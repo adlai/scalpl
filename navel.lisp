@@ -51,12 +51,12 @@
                (total (total (funds primary) (funds counter))))
           (format t "~&I failed calculus, so why take my ~
                        word for any of these reckonings?~%")
-          (format t "~&Been up              ~7@F days ~A~
-                     ~%traded               ~7@F ~(~A~),~
-                     ~%profit               ~7@F ~(~2:*~A~*~),~
-                     ~%portfolio flip per   ~7@F days,~
+          (format t "~&Looked across past   ~7@F days ~A~
+                     ~%where account traded ~7@F ~(~A~),~
+                     ~%captured profit of   ~7@F ~(~2:*~A~*~),~
+                     ~%expected turnover of ~7@F days;~
                      ~%avg daily profit:    ~4@$%~
-                     ~%estd monthly profit: ~4@$%~%"
+                     ~%optimistic estimate: ~4@$%~%"
                   updays (now) volume (name primary) profit
                   (/ (* total updays 2) volume)
                   ;; ignores compounding, du'e!

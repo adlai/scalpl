@@ -1,7 +1,7 @@
 (defpackage #:scalpl.exchange
   (:use #:cl #:chanl #:anaphora #:local-time
 	#:scalpl.util #:scalpl.actor #:scalpl.net)
-  (:export #:http-request #:enable-pretty-printer-abuse
+  (:export #:enable-pretty-printer-abuse
            #:exchange #:name #:assets #:markets #:parse-timestamp
            #:*exchanges* #:find-exchange #:fetch-exchange-data
            #:gate #:gate-post #:gate-request #:output #:input #:cache
@@ -29,7 +29,7 @@
            #:order-slots #:response #:supplicate #:bases-for #:reserved
            #:squash-reservations #:sufficiently-different?
 
-           #:describe-account #:backoff #:respawn-syncer))
+           #:describe-account #:respawn-syncer))
 
 (in-package #:scalpl.exchange)
 
@@ -985,7 +985,7 @@
     (error "I don't tame lions, how do you expect me to balance books?"))
   (:documentation "summarize how things are going, profit-wise"))
 
-(defun respawn-syncer (&optional (supplicant *supplicant*) (wavenumber 7))
+(defun respawn-syncer (&optional (supplicant *supplicant*) (wavenumber 17))
   (pexec (:name "syncer")
     (loop (with-slots (control response) supplicant
             (send control '(:sync)) (recv response) (sleep wavenumber)))))
