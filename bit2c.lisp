@@ -3,7 +3,7 @@
   (:export #:*bit2c* #:bit2c-gate #|#:+action-enum+|#)
   (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
         ;; #:|| #+(and) #-(or) #:\\require-X3J13 #:deterministic-gc
-        #:scalpl.actor #:scalpl.exchange))
+        #:scalpl.net #:scalpl.actor #:scalpl.exchange))
 
 (in-package #:scalpl.bit2c)
 

@@ -1,7 +1,8 @@
 (defpackage #:scalpl.poloniex
   (:nicknames #:poloniex)
   (:export #:*poloniex* #:poloniex-gate)
-  (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.util #:scalpl.exchange))
+  (:use #:cl #:chanl #:anaphora #:local-time
+        #:scalpl.util #:scalpl.net #:scalpl.exchange))
 
 (in-package #:scalpl.poloniex)
 

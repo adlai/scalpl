@@ -1,7 +1,7 @@
 (defpackage #:scalpl.bybit
   (:nicknames #:bybit)
   (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
-        #:scalpl.actor #:scalpl.exchange #:scalpl.qd)
+        #:scalpl.actor #:scalpl.net #:scalpl.exchange #:scalpl.qd)
   (:export #:*bybit* #:bybit-gate #:bybit-market
            #:category #:recent-ticker
            #:linear-market #:inverse-market #:option-market))

@@ -1,7 +1,7 @@
 (defpackage #:scalpl.bitmex
   (:nicknames #:bitmex) (:export #:*bitmex* #:bitmex-gate #:*swagger*)
   (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
-        #:scalpl.actor #:scalpl.exchange #:scalpl.qd))
+        #:scalpl.actor #:scalpl.net #:scalpl.exchange #:scalpl.qd))
 
 (in-package #:scalpl.bitmex)
 
