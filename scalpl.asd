@@ -26,6 +26,18 @@
 ;;; will be standardized by CLtL3...
 
 
+(defsystem #:scalpl/binance
+  :license "public domain"
+  :description "WIP api client for binance"
+  :depends-on (#:scalpl #:websocket-driver-client)
+  :components ((:file "binance"))
+  :perform (load-op (no book)
+             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
+             (format *debug-io* "~&~A~%"
+                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.BINANCE),SCALPL.QD]?")
+                         (use-package (find-package :scalpl.binance)
+                                      (find-package :scalpl.qd))
+                         "Relax, it's only an M-expression!"))))
 (defsystem #:scalpl/bit2c
   :description "api client for bit2c"
   :depends-on (#:scalpl)
