@@ -188,9 +188,10 @@
                                 :cost cost :volume volume :price price)))))
       (awhen (public-request "aggTrades"
                              `(("symbol" . ,name)))
-        (let ((trades (nreverse (mapcar #'parse it))))
+        (let ((trades (mapcar #'parse it)))
           (if (null from) trades
-              (cdr (member (txid from) trades :key 'txid :test '=))))))))
+              (member (timestamp from) trades 
+                      :key 'timestamp :test 'timestamp<)))))))
 
 ;; ;;;
 ;; ;;; Private Data API
