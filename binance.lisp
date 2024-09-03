@@ -211,7 +211,7 @@
                    (oid (format () "~D" oid)))
               (pushnew (make-instance 'offered :oid oid :market market
                                                :volume volume :price
-                                               (if (string= side "Sell")
+                                               (if (string= side "SELL")
                                                    price (- price)))
                        offers :test #'string= :key 'oid))))))
     offers))
