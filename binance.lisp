@@ -44,13 +44,13 @@
        (sleep (or (cdr (assoc :retry-after headers)) 1))
        (values () status body))
       (t (let ((reply (decode-json body)))
-	   (warn "Binance ~D~@[ [~A]~]~%URI: ~A" status 
-		 (getjso "code" reply) uri)
-	   (values () status reply))))))
+           (warn "Binance ~D~@[ [~A]~]~%URI: ~A" status
+                 (getjso "code" reply) uri)
+           (values () status reply))))))
 
 (defun public-request (path parameters)
   (binance-request path :parameters
-		   (loop for (key . value) in parameters
+                   (loop for (key . value) in parameters
                          collect (cons (string-downcase (string key))
                                        (princ-to-string value)))))
 
@@ -58,11 +58,11 @@
   (let* ((time (format () "~D" (+ (timestamp-millisecond (now))
                                   (* 1000 (timestamp-to-unix (now))))))
          (payload (concatenate 'string (urlencode-params params)
-			       "&timestamp=" time))
-	 (signature (funcall signer payload)))
+                               "&timestamp=" time))
+         (signature (funcall signer payload)))
     (funcall 'binance-request (concatenate 'string path "?" payload
-					   "&signature=" signature)
-	     :method verb :additional-headers `(("X-MBX-APIKEY" . ,key)))))
+                                           "&signature=" signature)
+             :method verb :additional-headers `(("X-MBX-APIKEY" . ,key)))))
 
 (defclass binance-market (market)
   ((exchange :initform *binance* :allocation :class)
@@ -87,11 +87,10 @@
 
 (defun get-info (&aux assets markets)
   (flet ((symbol-parser (json)
-           (with-json-slots 
+           (with-json-slots
                ((name "symbol") (primary "baseAsset") (counter "quoteAsset")
-		(primary-decimals "baseAssetPrecision")
-		(counter-decimals "quoteAssetPrecision")
-                (decimals "quotePrecision") filters status)
+                (primary-decimals "baseAssetPrecision")
+                (counter-decimals "quoteAssetPrecision") filters status)
                json
              (flet ((asset (name decimals)
                       (or (find name assets :key #'name :test #'string=)
@@ -99,17 +98,18 @@
                                                         :decimals decimals)
                             (push it assets)))))
                (when (and (string= status "TRADING"))
-		 (let ((price-filter (cdr (assoc "PRICE_FILTER" filters
-						 :key #'cdr :test #'string=)))
-		       (lot-filter (cdr (assoc "LOT_SIZE" filters
-					       :key #'cdr :test #'string=))))
+                 (let ((price-filter (cdr (assoc "PRICE_FILTER" filters
+                                                 :key #'cdr :test #'string=)))
+                       (lot-filter (cdr (assoc "LOT_SIZE" filters
+                                               :key #'cdr :test #'string=))))
                    (let ((tick (parse-float (getjso "tickSize" price-filter)
-					    :type 'rational))
-			 (epsilon (parse-float (getjso "minQty" lot-filter)
-					       :type 'rational)))
+                                            :type 'rational))
+                         (epsilon (parse-float (getjso "minQty" lot-filter)
+                                               :type 'rational)))
                      (push (make-instance
                             'spot-market :name name :fee 0.1 :tick tick
-                            :epsilon epsilon :decimals decimals
+                            :epsilon epsilon :decimals
+                            (floor (abs (log tick 10)))
                             :primary (asset primary primary-decimals)
                             :counter (asset counter counter-decimals))
                            markets))))))))
@@ -157,10 +157,10 @@
 (defmethod get-book ((market spot-market) &key count)
   (with-slots (name decimals) market
     (with-json-slots (bids asks)
-	(public-request "depth"
-			`(("symbol" . ,name)
-                          ,@(when count 
-			      `(("limit" . ,(format () "~D" count))))))
+        (public-request "depth"
+                        `(("symbol" . ,name)
+                          ,@(when count
+                              `(("limit" . ,(format () "~D" count))))))
       (flet ((side (type list)
                (loop for (price size) in list
                      collect (make-instance
@@ -172,19 +172,19 @@
 (defmethod trades-since ((market spot-market) &optional from)
   (with-slots (name) market
     (flet ((parse (trade)
-             (with-json-slots 
-		 ((id "a") (time "T") (qty "q") (price "p") (sellp "m"))
-		 trade
+             (with-json-slots
+                 ((id "a") (time "T") (qty "q") (price "p") (sellp "m"))
+                 trade
                (let* ((price (parse-float price :type 'rational))
                       (volume (parse-float qty :type 'rational))
                       (cost (* price volume)))
-                 (make-instance 'trade 
-				:market market :txid id
-				:direction (if sellp "sell" "buy")
+                 (make-instance 'trade
+                                :market market :txid id
+                                :direction (if sellp "sell" "buy")
                                 :timestamp (multiple-value-bind (sec ms)
-					       (floor time 1000)
-					     (unix-to-timestamp 
-					      sec :nsec (* ms (expt 10 6))))
+                                               (floor time 1000)
+                                             (unix-to-timestamp
+                                              sec :nsec (* ms (expt 10 6))))
                                 :cost cost :volume volume :price price)))))
       (awhen (public-request "aggTrades"
                              `(("symbol" . ,name)))
@@ -202,17 +202,17 @@
 (defmethod market-placed ((gate binance-gate) (market binance-market) &aux offers)
   (let ((url "openOrders"))
     (multiple-value-bind (result error)
-	(gate-request gate `(:get ,url) `(("symbol" . ,(name market))))
+        (gate-request gate `(:get ,url) `(("symbol" . ,(name market))))
       (unless error
-	(dolist (json result)
-	  (with-json-slots (side price (oid "orderId") (qty "origQty")) json
+        (dolist (json result)
+          (with-json-slots (side price (oid "orderId") (qty "origQty")) json
             (let* ((price (parse-price price (decimals market)))
-		   (volume (parse-float qty :type 'rational))
-		   (oid (format () "~D" oid)))
+                   (volume (parse-float qty :type 'rational))
+                   (oid (format () "~D" oid)))
               (pushnew (make-instance 'offered :oid oid :market market
-					       :volume volume :price
-					       (if (string= side "Sell")
-						   price (- price)))
+                                               :volume volume :price
+                                               (if (string= side "Sell")
+                                                   price (- price)))
                        offers :test #'string= :key 'oid))))))
     offers))
 
@@ -227,9 +227,10 @@
   (awhen (gate-request gate '(:get "account"))
     (dolist (coin (getjso "balances" it) balances)
       (with-json-slots (asset free locked) coin
-	(let ((total (+ (parse-float free) (parse-float locked))))
-	  (unless (zerop total)
-	    (push (cons-aq* (find-asset asset *binance*) total)
+        (let ((total (+ (parse-float free :type 'rational)
+                        (parse-float locked :type 'rational))))
+          (unless (zerop total)
+            (push (cons-aq* (find-asset asset *binance*) total)
                   balances)))))))
 
 ;;; This horror can be avoided via the actor-delegate mechanism.
@@ -237,91 +238,67 @@
   (awhen (gate-request gate '(:get "account/commission")
                        `(("symbol" . ,(name market))))
     (* 100 (parse-float (reduce 'getjso '("maker" "standardCommission")
-				:from-end t :initial-value it)))))
+                                :from-end t :initial-value it)))))
 
 (defmethod parse-timestamp ((exchange (eql *binance*)) (timestamp string))
   (multiple-value-bind (unix milliseconds)
       (floor (parse-integer timestamp) 1000)
     (unix-to-timestamp unix :nsec (* 1000000 milliseconds))))
 
-;; (defgeneric build-execution (market &rest args)
-;;   (:method ((market tracked-market) &rest args)
-;;     (apply 'build-execution
-;;            (slot-value market 'scalpl.exchange::%market) args))
-;;   (:method ((market binance-market) &rest args)
-;;     (if (string= "inverse" (category market))
-;;         (destructuring-bind
-;;             (oid txid side cost price volume fee time) args
-;;           (make-instance 'execution :direction side :market market
-;;                                     :txid txid :price price :cost cost
-;;                                     :net-cost cost :volume (abs volume)
-;;                                     :net-volume (abs (+ volume fee))
-;;                                     :timestamp time :oid oid))
-;;         (destructuring-bind
-;;             (oid txid side cost price volume fee time) args
-;;           (make-instance 'execution :direction side :market market
-;;                                     :txid txid :price price
-;;                                     :cost (abs volume)
-;;                                     :net-cost (abs (+ volume fee))
-;;                                     :volume cost :net-volume cost
-;;                                     :timestamp time :oid oid)))))
+(defgeneric build-execution (market &rest args)
+  (:method ((market tracked-market) &rest args)
+    (apply 'build-execution
+           (slot-value market 'scalpl.exchange::%market) args))
+  (:method ((market binance-market) &rest args)
+    (destructuring-bind
+        (oid txid side cost price volume fee time) args
+      (make-instance 'execution :direction side :market market
+                                :txid txid :price price
+                                :cost cost :net-cost (- cost fee)
+                                :volume volume :net-volume volume
+                                :timestamp time :oid oid))))
 
-;; (defun parse-execution (raw)
-;;   (with-json-slots ((oid "orderId") (txid "execId") (amt "execQty")
-;;                     symbol side (price "execPrice") (time "execTime")
-;;                     (execost "execValue") (exefee "execFee"))
-;;       raw
-;;     (unless (zerop (length side))
-;;       (flet ((adjust (value) (parse-float value)))
-;;         (build-execution (find-market symbol :binance)
-;;                          oid txid side (adjust amt) (adjust price)
-;;                          (adjust execost) (adjust exefee)
-;;                          (parse-timestamp *binance* time))))))
+(defun parse-execution (raw)
+  (with-json-slots ((oid "orderId") id qty
+                    symbol (buyp "isBuyer") price time
+                    (execost "quoteQty") (exefee "commission"))
+      raw
+    (flet ((adjust (value) (parse-float value :type 'rational)))
+      (build-execution (find-market symbol :binance)
+                       (format () "~D" oid) (format () "~D" id)
+                       (if buyp "buy" "sell")
+                       (adjust execost) (adjust price)
+                       (adjust qty) (adjust exefee)
+                       (parse-timestamp *binance* time)))))
 
-;; (defun raw-executions (gate &key kind pair from count)
-;;   (macrolet ((params (&body body)
-;;                `(append ,@(loop for (val key exp) in body
-;;                              collect `(when ,val `((,,key . ,,exp)))))))
-;;     (awhen (gate-request gate '(:get "execution/list")
-;;                          (params (kind "category" kind)
-;;                                  (pair "symbol" pair) (count "limit" count)
-;;                                  (from "startTime"
-;;                                        (princ-to-string
-;;                                         (+ (* 1000 (timestamp-to-unix from))
-;;                                            (floor (nsec-of from) 1000000))))))
-;;       (sort (getjso "list" it) #'string< :key (getjso "execTime")))))
+(defun raw-executions (gate &key pair from count)
+  (macrolet ((params (&body body)
+               `(append ,@(loop for (val key exp) in body
+                                collect `(when ,val `((,,key . ,,exp)))))))
+    (gate-request gate '(:get "myTrades")
+                  (params (pair "symbol" pair)
+                          (count "limit" count)
+                          (from "fromId" from)))))
 
-;; (defmethod execution-since ((gate binance-gate) (market binance-market) since)
-;;   (awhen (raw-executions gate :kind (category market)
-;;                               :pair (name market) :count "100"
-;;                               :from (if since (timestamp since)
-;;                                         (timestamp- (now) 3 :hour)))
-;;     (mapcar #'parse-execution
-;;             (if (null since) it
-;;                 (subseq it (1+ (position (txid since) it
-;;                                          :test #'string=
-;;                                          :key (getjso "execId"))))))))
+(defmethod execution-since ((gate binance-gate) (market binance-market) since)
+  (awhen (if (null since) (raw-executions gate :pair (name market))
+             (raw-executions gate :pair (name market)
+                                  :from (txid since)))
+    (mapcar #'parse-execution
+            (if (null since) it (cdr it)))))
 
-;; (defgeneric post-limit (gate market price size &optional reduce-only)
-;;   (:method (gate (market tracked-market) price size &optional reduce-only)
-;;     (post-limit gate (slot-value market 'scalpl.exchange::%market)
-;;                 price size reduce-only))
-;;   (:method ((gate binance-gate) (market binance-market) price size
-;;             &optional reduce-only &aux (now (now)))
-;;     (let ((link-id (format () "~12,'0X-~23,'0X"
-;;                            (+ (timestamp-millisecond now)
-;;                               (* 1000 (timestamp-to-unix now)))
-;;                            (random (expt 16 23)))))
-;;       (gate-request gate '(:post "order/create")
-;;                     (with-slots (name category epsilon) market
-;;                       `(("orderType" . "Limit") ("category" . ,category)
-;;                         ("symbol" . ,name) ("price" . ,price)
-;;                         ("side" . ,(if (plusp size) "Buy" "Sell"))
-;;                         ("qty" . ,(format () "~V$"
-;;                                           (abs (floor (log epsilon 10)))
-;;                                           (abs size)))
-;;                         ("timeInForce" . "PostOnly") ("orderLinkId" . ,link-id)
-;;                         ("reduceOnly" . ,(if reduce-only "true" "false"))))))))
+(defgeneric post-limit (gate market price size)
+  (:method (gate (market tracked-market) price size)
+    (post-limit gate (slot-value market 'scalpl.exchange::%market) price size))
+  (:method ((gate binance-gate) (market binance-market) price size)
+    (gate-request gate '(:post "order")
+                  (with-slots (name category epsilon) market
+                    `(("type" . "LIMIT_MAKER")
+                      ("symbol" . ,name) ("price" . ,price)
+                      ("side" . ,(if (plusp size) "BUY" "SELL"))
+                      ("quantity" . ,(format () "~V$"
+                                             (abs (floor (log epsilon 10)))
+                                             (abs size))))))))
 
 ;; (defun amend-limit (gate market oid price size) ; &optional considered harmful?
 ;;   (gate-request gate '(:post "order/amend")
@@ -332,27 +309,25 @@
 ;;                                       (abs (floor (log epsilon 10)))
 ;;                                       (abs size)))))))
 
-;; (defclass placed (offered) ((unique-request-identifier :initarg :urid)))
+(defclass placed (offered) ((unique-request-identifier :initarg :urid)))
 
-;; (defmethod post-offer ((gate binance-gate) (offer offer))
-;;   (with-slots (market volume price) offer
-;;     (let ((factor (expt 10 (decimals market))))
-;;       (multiple-value-bind (json complaint)
-;;           (post-limit gate market
-;;                       (multiple-value-bind (int dec)
-;;                           (floor (abs (/ (floor price 1/2) 2)) factor)
-;;                         (format nil "~D.~V,'0D"
-;;                                 int (max 1 (decimals market)) (* 10 dec)))
-;;                       (if (string= (category market) "inverse")
-;;                           (floor (* volume (if (minusp price) 1
-;;                                                (- (/ price factor)))))
-;;                           (/ volume (if (minusp price)
-;;                                         (/ (abs price) factor)
-;;                                         -1))))
-;;         (with-json-slots ((oid "orderId") (urid "orderLinkId")) json
-;;           (if (and json oid urid)
-;;               (change-class offer 'placed :oid oid :urid urid)
-;;               (warn "Failed placing: ~S~%~A" offer complaint)))))))
+(defmethod post-offer ((gate binance-gate) (offer offer))
+  (with-slots (market volume price) offer
+    (let ((factor (expt 10 (decimals market))))
+      (multiple-value-bind (json complaint)
+          (post-limit gate market
+                      (multiple-value-bind (int dec)
+                          (floor (abs (/ (floor price 1/2) 2)) factor)
+                        (format nil "~D.~V,'0D"
+                                int (max 1 (decimals market)) (* 10 dec)))
+                      (/ volume (if (minusp price)
+                                    (/ (abs price) factor)
+                                    -1)))
+        (with-json-slots ((oid "orderId") (urid "clientOrderId")) json
+          (if (and json oid urid)
+              (change-class offer 'placed :oid (format () "~D" oid)
+                                          :urid (format () "~D" urid))
+              (warn "Failed placing: ~S~%~A" offer complaint)))))))
 
 ;; (defmethod amend-offer ((gate binance-gate) (old offered) (new offer))
 ;;   (with-slots (market oid) old
