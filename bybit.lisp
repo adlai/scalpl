@@ -723,7 +723,7 @@
                       (multiple-value-bind (int dec)
                           (floor (abs (/ (floor price 1/2) 2)) factor)
                         (format nil "~D.~V,'0D"
-                                int (max 1 (decimals market)) (* 10 dec)))
+                                int (max 1 (decimals market)) dec))
                       (if (string= (category market) "inverse")
                           (floor (* volume (if (minusp price) 1
                                                (- (/ price factor)))))
@@ -745,7 +745,7 @@
                            (multiple-value-bind (int dec)
                                (floor (abs (/ (floor price 1/2) 2)) factor)
                              (format () "~D.~V,'0D" int
-                                     (max 1 (decimals market)) (* 10 dec))))
+                                     (max 1 (decimals market)) dec)))
                          (if (string= (category market) "inverse")
                              (floor (* volume (if (minusp price) 1
                                                   (/ price factor))))

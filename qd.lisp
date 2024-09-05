@@ -66,7 +66,7 @@
         (with-slots (offered fee) supplicant
           (destructuring-bind (bid . ask) (recv (slot-reduce fee output))
             (loop with rudder = (phase cut) with scale = (abs rudder)
-                  for i from 0 for j = (1+ (floor (* i (- 1 scale))))
+                  for i from 0 for j = (1+ (floor (* i (- 1 (/ scale pi)))))
                   for a = (if (plusp rudder) j i)
                   for b = (if (plusp rudder) i j)
                   ;; do (break)
