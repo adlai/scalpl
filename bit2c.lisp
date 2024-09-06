@@ -48,19 +48,19 @@
   (multiple-value-bind (body status headers)
       (apply #'http-request (concatenate 'string *base-url* path) args)
     (sleep (random (exp 1/2)))          ; WHY HIT RATE LIMIT, FOOL !?
-    (let ((json (ignore-errors (decode-json body))))
+    (let ((json (ignore-errors (decode-json body)))
+          (raw (if (stringp body) body
+                   (flexi-streams:octets-to-string
+                    body :external-format :utf8))))
       (case status
-        (200 (values json 200 body headers))
+        (200 (values json 200 raw headers))
         ;; the rate limit should never get hit!
         ;; however, it is also undocumented... too much work?
-        ((409) (sleep (random pi)) (values () status body headers))
+        ((409) (sleep (random pi)) (values () status raw headers))
         ;; why special-case these, here?
-        ((404 500 502 504) (values () status body headers))
+        ((404 500 502 504) (values () status raw headers))
         ;; TODO: how to best print hebrew without unicode fonts?
-        (t (values () status
-                   (if (stringp body) body
-                       (flexi-streams:octets-to-string
-                        body :external-format :utf8))))))))
+        (t (values () status raw))))))
 
 (defun public-request (method &optional parameters)
   (bit2c-request (format () "Exchanges/~A~:[~;?~A~]" method parameters
@@ -112,6 +112,7 @@
            (auth-request verb method key secret parameters)
          (return
            `(,ret ,(aprog1 (case status
+                             (200 nil)
                              ((nil 404) (concatenate 'string method
                                                      " [ \\equiv 404 ]"))
                              (409 (warn "Rate limited at ~A"
