@@ -27,6 +27,15 @@
 ;;; will be standardized by CLtL3...
 
 
+(defsystem #:scalpl/bit2c
+  :description "api client for bit2c"
+  :depends-on (#:scalpl)
+  :components ((:file "bit2c"))
+  :perform (load-op (no book)
+             (declare (ignore no book)) ; SAY IT ALOUD
+             (use-package (find-package :scalpl.bit2c)
+                          (find-package :scalpl.qd)))
+  :license "public domain")
 (defsystem #:scalpl/binance
   :license "public domain"
   :description "WIP api client for binance"
@@ -39,15 +48,6 @@
                          (use-package (find-package :scalpl.binance)
                                       (find-package :scalpl.qd))
                          "Relax, it's only an M-expression!"))))
-(defsystem #:scalpl/bit2c
-  :description "api client for bit2c"
-  :depends-on (#:scalpl)
-  :components ((:file "bit2c"))
-  :perform (load-op (no book)
-             (declare (ignore no book)) ; SAY IT ALOUD
-             (use-package (find-package :scalpl.bit2c)
-                          (find-package :scalpl.qd)))
-  :license "public domain")
 (defsystem #:scalpl/bybit
   :license "public domain"
   :description "api client for bybit"
@@ -60,18 +60,6 @@
                          (use-package (find-package :scalpl.bybit)
                                       (find-package :scalpl.qd))
                          "Relax, it's only an M-expression!"))))
-(defsystem #:scalpl/bitmex
-  :license "public domain"
-  :description "api client for bitmex"
-  :depends-on (#:scalpl #:websocket-driver-client)
-  :components ((:file "bitmex"))
-  :perform (load-op (no book)
-             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
-             (format *debug-io* "~&~A~%"
-                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.BITMEX),SCALPL.QD]?")
-                         (use-package (find-package :scalpl.bitmex)
-                                      (find-package :scalpl.qd))
-                         "Relax, it's only an M-expression!"))))
 (defsystem #:scalpl/kraken
   :license "public domain"
   :description "api client for kraken"
@@ -82,6 +70,18 @@
              (format *debug-io* "~&~A~%"
                      (if (y-or-n-p "USE-PACKAGE[(SCALPL.kraken),SCALPL.QD]?")
                          (use-package (find-package :scalpl.kraken)
+                                      (find-package :scalpl.qd))
+                         "Relax, it's only an M-expression!"))))
+(defsystem #:scalpl/bitmex
+  :license "public domain"
+  :description "api client for bitmex"
+  :depends-on (#:scalpl #:websocket-driver-client)
+  :components ((:file "bitmex"))
+  :perform (load-op (no book)
+             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
+             (format *debug-io* "~&~A~%"
+                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.BITMEX),SCALPL.QD]?")
+                         (use-package (find-package :scalpl.bitmex)
                                       (find-package :scalpl.qd))
                          "Relax, it's only an M-expression!"))))
 (defsystem #:scalpl/bitfinex
@@ -119,7 +119,7 @@
 (defsystem #:scalpl/dbi
   :license "public domain"
   :description "database interactions"
-  :depends-on (#:scalpl #:dbi)
+  :depends-on (#:scalpl #:dbi #:mito)
   :components ((:file "db")))
 (defsystem #:scalpl/irc
   :license "public domain"

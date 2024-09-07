@@ -338,15 +338,15 @@ the good folks at your local Gambler's Anonymous.")
                                                :oid (prin1-to-string it)))
                     ((eql 0) (break) (warn "Failed placing order!"))))
                 (unless (let ((length (length message)))
-                          (awhen (search "nonce" message :from-end t)
-                            (string= (subseq message (+ it 6)
-                                             (- length 2))
-                                     (subseq message
-                                             (position #\( message)
-                                             (position #\) message)))))
-                  (warn "~&Failed placing ~A:~%~A~&" offer
-                        (ignore-errors  ; (warn 
-                         ))             ; count
+                          (or (awhen (search "nonce" message :from-end t)
+                                (string= (subseq message (+ it 6)
+                                                 (- length 2))
+                                         (subseq message
+                                                 (position #\( message)
+                                                 (position #\) message))))
+                              (awhen (search " 30% " message)
+                                (warn "~&Coding ~3D BPM ; nice !~%" it))))
+                  (warn "~&Failed placing ~A:~%" offer) ; count ANYTHING!?
                   ))))))))
 
 (defmethod cancel-offer ((gate bit2c-gate) (offer offered))
