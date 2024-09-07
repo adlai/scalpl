@@ -30,7 +30,7 @@
 (defsystem #:scalpl/binance
   :license "public domain"
   :description "WIP api client for binance"
-  :depends-on (#:scalpl #:websocket-driver-client)
+  :depends-on (#:scalpl)        ; let's pretend this improved anything!
   :components ((:file "binance"))
   :perform (load-op (no book)
              (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
