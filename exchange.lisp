@@ -909,9 +909,9 @@
              ;; beyond merely the fact of failure itself.
              (list (dolist (offer it) (when offer (push offer offered)))))))))
 
-(defun sufficiently-different? (new old) ; someday dispatch on market
-  (declare (optimize (compilation-speed 0) speed))
-  (< 0.1 (abs (log (/ (quantity (given new)) (quantity (given old)))))))
+(defun sufficiently-different? (new old &optional market) ; someday dispatch
+  (declare (optimize (compilation-speed 0) speed)) ; smoke your rationaletous
+  (< 0.213456 (abs (log (/ (quantity (given new)) (quantity (given old)))))))
 
 ;;; FIXME: disambiguate placement from offerage, and redichotomise the book
 (defmethod placed-offers ((supplicant supplicant) &optional market)
