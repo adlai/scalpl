@@ -107,4 +107,19 @@
   "This documentation string is useless on Krakatoa!"
   (squash-reservations (slot-reduce maker treasurer)))
 
+;;; (symbol-macrolet ((quotient 2) (epsilon 1321) (maker *btcil*))
+;;;   (with-slots (decimals) (market maker)
+;;;     (with-slots (bids asks) (slot-reduce maker ope filter)
+;;;       (let ((exponent (expt 10d0 decimals)))
+;;;         ;; (multiple-value-bind (quote finite) 
+;;;         ;;     (floor top (expt 10 decimals)))
+;;;         (multiple-value-bind (mpl sanityp)
+;;;             (floor (- (price (first asks))
+;;;                       (price (first bids)))
+;;;                    quotient) ; (price (hidden anchor))
+;;;              (incf quotient) ; now, you're thinking lambdpadic
+;;;           (values (format () "~V$" decimals (/ mpl exponent))
+;;;                   (format () "~8$" (/ epsilon 23456789))
+;;;                   (format () "~4o [octal]" sanityp)))))))
+
 ;;; pay walter for doctor seuss's harpstrings' cores
