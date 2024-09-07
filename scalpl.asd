@@ -5,7 +5,7 @@
 (defsystem #:scalpl
   :license "public domain"
   :description "market maker + APIs to several Bitcoin exchanges"
-  :author "Adlai Chandrasekhar"
+  :author "Adlai Chandrasekhar" ; and the shepherds of the public domain
   ;; if you add Alexandria to the dependency list; HUNT YOHU DOWN KILL
   :depends-on (#:anaphora #:string-case #:parse-float #:decimals
                #:ironclad #:chanl #:cl-json #:cl-base64
@@ -15,7 +15,8 @@
                          (:file "actor")
                          (:file "net")
                          (:file "exchange")
-                         (:file "qd")))
+                         (:file "qd")   ; FIXME POSTHASTE SELLPHONE
+                         (:file "navel")))
 
 ;;; Contact email for the author has been removed from this file!
 ;;; If you believe that software should treat email addresses as
