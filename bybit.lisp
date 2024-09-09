@@ -271,15 +271,15 @@
         (auth-request verb method key secret parameters)
       `(,ret ,(awhen1 (acase code
                         ((0)) ; C-style, no error
-                        ((10006))     ; what is this, now?
-                        ((10027) ;; (mapc 'kill (pooled-threads))
-                         ) ; "I missed the part where it's my problem"
+                        ((10006) "promise codes?")
+                        ((10027) "issed the part where it's my problem\"")
                         ;; simply killing all pooled threads will not quite
                         ;; work, because it hits the debugger when the gate
                         ;; attempts to kill itself...
+                        ((10001))       ; THANK YOU FOR NOT SPOOFING
                         ;; TODO: lots of DEFINE-CONDITION ... see
                         ((20001 30032 30037)) ; filled before cancellation
-                        ;; ((30076) it)          ; failures to replace
+                        ((30076) it)          ; failures to replace
                         (t status))     ; by default, echo the error text
                 (typecase it
                   (string #|(break)|# (warn "#~D ~A" code it))))))))
