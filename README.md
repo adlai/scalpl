@@ -34,8 +34,9 @@ have a bad time if you rely on the source code without reading it, aloud!
 Reports of roughness and density have been greatly adjagitated; thus, if you
 have suggestions for [theme](https://www.youtube.com/watch?v=NCIUf8eYPqA)
 [songs](https://www.youtube.com/watch?v=6D6cw8Ob2sk), please speak, although
-you are encouraged to consider whether music is merely a part of nature, xor
-the imposition from without of order upon chaos.
+you are [encouraged](https://www.youtube.com/watch?v=I7O_8atyl4U) to consider
+whether music is merely a part of nature, xor-the
+   imposition from without of order upon chaos.
 
 # Abstract
 
