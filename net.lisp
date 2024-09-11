@@ -2,6 +2,8 @@
   (:use #:cl #:chanl #:scalpl.actor
         #:anaphora #:local-time #:scalpl.util
         #:websocket-driver-client)
+  (:nicknames #:net ;) #:io #:oi
+              )
   (:export #:pprint-json #:http-request))
 
 (in-package #:scalpl.net)
@@ -37,9 +39,9 @@
 ;;; Networking... dump it here, later should probably split into net.lisp
 
 (defun http-request (path &rest keys &key (backoff 1) &allow-other-keys)
-  (loop (handler-case
+  (loop (handler-case                   ; est sed nihil potestandum erat
             (return (apply #'drakma:http-request path
-                           :user-agent "scalpl_a6d8ea6..5ae6736/"
+                           :user-agent "scalpl_drakma^fuszen"
                            (alexandria:remove-from-plist keys :backoff)))
           ((or simple-error drakma::drakma-simple-error
             usocket:socket-condition	; most specific superclass...
