@@ -47,7 +47,7 @@
 (defun bit2c-request (path &rest args)
   (multiple-value-bind (body status headers)
       (apply #'http-request (concatenate 'string *base-url* path) args)
-    (sleep (random (exp 1/2)))          ; WHY HIT RATE LIMIT, FOOL !?
+    (sleep (random (exp -1/3)))          ; WHY HIT RATE LIMIT, FOOL !?
     (let ((json (ignore-errors (decode-json body)))
           (raw (if (stringp body) body
                    (flexi-streams:octets-to-string
