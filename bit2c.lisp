@@ -201,17 +201,18 @@ the good folks at your local Gambler's Anonymous.")
 
 ;;; The endpoint Funds/GetUsersFees is not part of the official API
 (defun fee-tier-progress (gate)
-  (with-json-slots
-      ((current-maker "feeMaker") (current-taker "feeTaker")
-       (next-maker "nextfeeMaker") (next-taker "nextfeeTaker")
-       (users-fee "usersFee") (volume "totalbalance"))
-      (gate-request gate '(:GET "Funds/GetUsersFees") ())
-    (format t "~&~A~%You've traded ~2$ NIS within the window:~%~
+  (aprog1 (now)
+    (with-json-slots
+        ((current-maker "feeMaker") (current-taker "feeTaker")
+         (next-maker "nextfeeMaker") (next-taker "nextfeeTaker")
+         (users-fee "usersFee") (volume "totalbalance"))
+        (gate-request gate '(:GET "Funds/GetUsersFees") ())
+      (format t "~&~A~%You've traded ~2$ NIS within the window:~%~
                  Current fees: ~$% taker [and ~$% maker]~%~
                  Next Tier: ~$% taker [and ~$% maker]~%~
-                 Mystery 'Users Fee': ~A~%"
-            (now) volume current-taker current-maker
-            next-taker next-maker users-fee)))
+                 Mystery 'Users Fee': ~A~%(NOW) > ,it = ~A~% //\\"
+              (now) volume current-taker current-maker
+              next-taker next-maker users-fee it))))
 
 ;;;
 ;;; Private Data API
