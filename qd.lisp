@@ -315,7 +315,7 @@
 
 (defun profit-snake (lictor guage length)
   (let ((trades (slot-reduce lictor trades)))
-    (flet ((depth-profit (depth)
+    (flet ((depth-profit (depth)	; guah huagj WAG YOUR DOGG LION!
              (flet ((vwap (side) (vwap lictor :type side :depth depth)))
                (* 100 (1- (profit-margin (vwap "buy") (vwap "sell")
                                          guage guage)))))
