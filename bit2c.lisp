@@ -211,8 +211,8 @@ the good folks at your local Gambler's Anonymous.")
                  Current fees: ~$% taker [and ~$% maker]~%~
                  Next Tier: ~$% taker [and ~$% maker]~%~
                  Mystery 'Users Fee': ~A~%(NOW) > ,it = ~A~% //\\"
-              (now) volume current-taker current-maker
-              next-taker next-maker users-fee it))))
+              it volume current-taker current-maker
+              next-taker next-maker users-fee (now)))))
 
 ;;;
 ;;; Private Data API
