@@ -754,9 +754,12 @@
                                            -1))))
           (if complaint
               (unless (string= "Order does not exist" complaint)
-                (warn (format () "~A was not modified to ~A" old new))
+                (warn (format () "~A~& was not modified to ~A" old new))
                 (if (search "than the filled amount" complaint)
-                    (cancel-offer gate old)))
+                    (cancel-offer gate old))
+                (warn 'style-warning :format-control "~A~&~A~%"
+                                     :format-arguments `("THANK YOU FOR NOT SPOOFING"
+                                                         ,complaint)))
               (with-json-slots ((returned-oid "orderId")) json
                 (if (string= returned-oid oid) ; how can this test fail?
                     (reinitialize-instance     ; not rhetoric, enumerate
