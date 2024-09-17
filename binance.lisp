@@ -246,6 +246,10 @@
       (floor (parse-integer timestamp) 1000)
     (unix-to-timestamp unix :nsec (* 1000000 milliseconds))))
 
+(defmethod parse-timestamp ((exchange (eql *binance*)) (timestamp integer))
+  (multiple-value-bind (unix milliseconds) (floor timestamp 1000)
+    (unix-to-timestamp unix :nsec (* 1000000 milliseconds))))
+
 (defgeneric build-execution (market &rest args)
   (:method ((market tracked-market) &rest args)
     (apply 'build-execution
