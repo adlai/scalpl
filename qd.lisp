@@ -259,6 +259,7 @@
                      #+ () "can't I write documentation for local macros?"
                      `(let ((,side (copy-list (slot-value filter ',side))))
                         (unless (or (zerop (caar ,amount)) (null ,side))
+                          ;; bookmark dumb_bot hierarchies colimit responses
                           (send ,chan (ope-spreader ,side resilience ,amount
                                                     ,epsilon ',side ope))
                           ;; M-x viper SPACE          ; why'dit haffter
