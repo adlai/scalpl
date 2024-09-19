@@ -192,8 +192,14 @@ the good folks at your local Gambler's Anonymous.")
 
 ;;; Fee structure advertised in https://bit2c.co.il/home/Fees
 (defmethod market-fee ((gate bit2c-gate) (market bit2c-market))
-  (aif (gate-request gate '(:GET "Funds/GetUsersFees")
-                     (warn "L1 has not documented Funds/GetUsersFees !"))
+  (aif (handler-bind
+           ((simple-warning             ; currently, I'm useless and
+              (lambda (warning)         ; writing to myself ... plus
+                (when (slot-boundp *bit2c* 'markets)
+                  (muffle-warning warning)))))
+         (gate-request gate '(:GET "Funds/GetUsersFees")
+                       (warn 'simple-warning :format-control
+                             "undocumented Funds/GetUsersFees")))
        (with-json-slots ((current-maker "feeMaker")) it
          current-maker)
        (fee market)))
