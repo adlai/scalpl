@@ -51,7 +51,10 @@
           (case status
             (200 (with-json-slots (result error)
                      (read-json (map 'string 'code-char body))
-                   (when error (mapc #'warn error))
+                   (when error
+                     (typecase error
+                       (string (warn error))
+                       (list (warn (format () "~A" error)))))
                    (values result error)))
             (404 (with-json-slots (result error)
                      (read-json (map 'string 'code-char body))
@@ -217,20 +220,20 @@
 (defmethod placed-offers ((gate kraken-gate) &optional market)
   (awhen (gate-request gate "OpenOrders")
     (remove market
-	    (mapcar-jso (lambda (id data)
-			  (with-json-slots (descr vol oflags) data
-			    (with-json-slots (pair type price order) descr
-			      (let* ((market (find-market pair *kraken*))
-				     (decimals (slot-value market 'decimals))
-				     (price-int (parse-price price decimals))
-				     (volume (parse-float vol :type 'rational)))
-				(make-instance
-				 'offered :oid id :market market
-				 :price (if (string= type "buy")
-					    (- price-int) price-int)
-				 :volume volume)))))
-			(getjso "open" it))
-	    :key #'market :test-not #'eq)))
+            (mapcar-jso (lambda (id data)
+                          (with-json-slots (descr vol oflags) data
+                            (with-json-slots (pair type price order) descr
+                              (let* ((market (find-market pair *kraken*))
+                                     (decimals (slot-value market 'decimals))
+                                     (price-int (parse-price price decimals))
+                                     (volume (parse-float vol :type 'rational)))
+                                (make-instance
+                                 'offered :oid id :market market
+                                 :price (if (string= type "buy")
+                                            (- price-int) price-int)
+                                 :volume volume)))))
+                        (getjso "open" it))
+            :key #'market :test-not #'eq)))
 
 (defmethod account-balances ((gate kraken-gate))
   (remove-if #'zerop

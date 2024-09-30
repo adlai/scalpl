@@ -753,14 +753,11 @@
                                            (/ (abs price) factor)
                                            -1))))
           (if complaint
-              (unless (string= "Order does not exist." complaint)
-                (warn (format () "~A~& was not modified to ~A" old new))
-                (if (search "than the filled amount" complaint)
-                    (cancel-offer gate old)
-                    (warn 'simple-warning
-                          :format-control "~A~&~A~%"
-                          :format-arguments `("thanks for not spoofing"
-                                              ,complaint))))
+              (string-case (complaint)
+                ("The order remains unchanged as the parameters entered match the existing ones.")
+                ("Order does not exist.")
+                ("The modified order quantity must be equal to or greater than the filled quantity.")
+                (t (warn (format () "~A~& was not modified to ~A" old new))))
               (with-json-slots ((returned-oid "orderId")) json
                 (if (string= returned-oid oid) ; how can this test fail?
                     (reinitialize-instance     ; not rhetoric, enumerate
