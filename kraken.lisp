@@ -54,6 +54,7 @@
                    (when error
                      (typecase error
                        (string (warn error))
+                       ((cons string null) (warn (first error)))
                        (list (warn (format () "~A" error)))))
                    (values result error)))
             (404 (with-json-slots (result error)
