@@ -756,7 +756,8 @@
               (string-case (complaint)
                 ("The order remains unchanged as the parameters entered match the existing ones.")
                 ("Order does not exist.")
-                ("The modified order quantity must be equal to or greater than the filled quantity.")
+                ("The modified order quantity must be equal to or greater than the filled quantity."
+                 (cancel-offer gate old))
                 (t (warn (format () "~A~& was not modified to ~A" old new))))
               (with-json-slots ((returned-oid "orderId")) json
                 (if (string= returned-oid oid) ; how can this test fail?
