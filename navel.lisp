@@ -9,7 +9,8 @@
 
 (defmethod describe-object ((maker maker) (stream t))
   (with-slots (name print-args lictor) maker
-    (apply #'print-book maker print-args) (performance-overview maker)
+    (apply #'print-book maker print-args)
+    (performance-overview maker)
     (multiple-value-call 'format stream "~@{~A~#[~:; ~]~}" name
                          (trades-profits (slot-reduce lictor trades)))))
 

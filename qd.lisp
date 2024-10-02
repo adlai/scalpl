@@ -4,7 +4,7 @@
   (:export #:ope-placed #:ope-place #:ope-cancel
            #:prioritizer #:prioriteaze
            #:next-bids #:next-asks
-           #:maker))
+           #:maker #:profit-margin #:print-args))
 
 (in-package #:scalpl.qd)
 
