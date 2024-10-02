@@ -341,9 +341,11 @@ the good folks at your local Gambler's Anonymous.")
               (warn "~S" (or (getjso "Message" response) message)))
             (or (unless complaint
                   (atypecase (getjso "id" echo)
-                    ((integer 1) (change-class offer 'offered
-                                               :oid (prin1-to-string it)))
-                    ((eql 0) (break) (warn "Failed placing order!"))))
+                    ((integer 1)
+                     (change-class offer 'offered
+                                   :oid (prin1-to-string it)))
+                    ((eql 0) ;; (break)
+                     (warn "FIXME! Balance guard failed..."))))
                 (unless (let ((length (length message)))
                           (or (awhen (search "nonce" message :from-end t)
                                 (string= (subseq message (+ it 6)
