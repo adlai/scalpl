@@ -272,7 +272,7 @@
       `(,ret ,(awhen1 (acase code
                         ((0)) ; C-style, no error
                         ((10001))       ; THANK YOU FOR NOT SPOOFING
-                        ((20001 30032 30037)) ; filled before cancellation
+                        ((20001 30032 30037 170213)) ; order already filled
                         ((30076) it)          ; failures to replace
                         (t status))     ; by default, echo the error text
                 (typecase it
