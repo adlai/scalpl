@@ -657,25 +657,33 @@
   (macrolet ((params (&body body)
                `(append ,@(loop for (val key exp) in body
                              collect `(when ,val `((,,key . ,,exp)))))))
-    (awhen (gate-request gate '(:get "execution/list")
-                         (params (kind "category" kind)
+    (awhen (loop with cursor and executions do
+                 (awhen (gate-request
+                         gate '(:get "execution/list")
+                         (params (cursor "cursor" cursor)
+                                 (kind "category" kind)
                                  (pair "symbol" pair) (count "limit" count)
                                  (from "startTime"
                                        (princ-to-string
                                         (+ (* 1000 (timestamp-to-unix from))
                                            (floor (nsec-of from) 1000000))))))
-      (sort (getjso "list" it) #'string< :key (getjso "execTime")))))
+                   (setf executions (append executions (getjso "list" it)))
+                   (setf cursor (getjso "nextPageCursor" it)))
+                 until (or (null cursor) (string= cursor ""))
+                 finally (return executions))
+      (sort it #'string< :key (getjso "execTime")))))
 
 (defmethod execution-since ((gate bybit-gate) (market bybit-market) since)
   (awhen (raw-executions gate :kind (category market)
-                              :pair (name market) :count "100"
+                              :pair (name market)
                               :from (if since (timestamp since)
                                         (timestamp- (now) 3 :hour)))
     (mapcar #'parse-execution
-            (if (null since) it
-                (subseq it (1+ (position (txid since) it
-                                         :test #'string=
-                                         :key (getjso "execId"))))))))
+            (let ((found (position (txid since) it
+                                   :test #'string=
+                                   :key (getjso "execId"))))
+              (if (or (null since) (null found)) it
+                  (subseq it (1+ found)))))))
 
 (defgeneric post-limit (gate market price size &optional reduce-only)
   (:method (gate (market tracked-market) price size &optional reduce-only)
