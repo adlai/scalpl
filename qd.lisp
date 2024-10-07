@@ -199,7 +199,7 @@
 (defmethod christen ((ope ope-scalper) (type (eql 'actor)))
   (name (slot-value ope 'supplicant)))
 
-(defun ope-sprinner (offers funds count magic bases punk dunk book)
+(defun ope-sprinner (offers funds count bases punk dunk book)
   (if (or (null bases) (zerop count) (null offers)) offers ; c'est pas un bean
       (destructuring-bind (car . cdr) offers
         (multiple-value-bind (bases vwab cost)
@@ -216,20 +216,20 @@
                               cdr (destructuring-bind ((caar . cdar) . cdr) funds
                                     (aprog1 `((,(- caar (volume car)) .,cdar) .,cdr)
                                       (signal "~S" it)))
-                              (1- count) magic bases punk dunk book))
-                    (ope-sprinner (funcall dunk book funds count magic) funds
-                                  count magic (and vwab `((,vwab ,(aq* vwab cost)
-                                                                 ,cost) ,@bases))
+                              (1- count) bases punk dunk book))
+                    (ope-sprinner (funcall dunk book funds count) funds
+                                  count (and vwab `((,vwab ,(aq* vwab cost)
+                                                           ,cost) ,@bases))
                                   punk dunk book))))))))
 
 (defun ope-spreader (book resilience funds epsilon side ope)
-  (flet ((dunk (book funds count magic &optional (start epsilon))
-           (and book (dumbot-offers book resilience (caar funds)
-                                    start (floor count) magic))))
-    (with-slots (supplicant magic) ope
-      (with-slots (order-slots) supplicant
-        (awhen (dunk book funds (/ order-slots 2) magic)
-          (ope-sprinner it funds (/ order-slots 2) magic
+  (with-slots (supplicant magic) ope
+    (with-slots (order-slots) supplicant
+      (flet ((dunk (book funds count &optional (start epsilon))
+               (and book (dumbot-offers book resilience (caar funds)
+                                        start (floor count) magic))))
+        (awhen (dunk book funds (/ order-slots 2))
+          (ope-sprinner it funds (/ order-slots 2)
                         (bases-for supplicant (asset (given (first it))))
                         (destructuring-bind (bid . ask)
                             (recv (slot-reduce ope supplicant fee output))
