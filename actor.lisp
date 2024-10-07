@@ -9,7 +9,8 @@
 ;;; Actor
 ;;;
 
-;;; KILL YOUR SELF
+;;; HALT YOUR STRESSORS, READER; THIS FILE HAS SOME DENSE CODE
+;;; AND IS BEST CONSUMED WITH MINIMAL DISTRACTIONS AND STIMULANTS
 ;;; trivial-garbage/b3af9c0c25d4d4c27/master/trivial-garbage.asd#L10
 
 ;;; JOBSECURITY garbage collected when there are no more purposes
