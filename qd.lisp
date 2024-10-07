@@ -222,15 +222,17 @@
                                                            ,cost) ,@bases))
                                   punk dunk book))))))))
 
-(defun ope-spreader (book resilience funds epsilon side ope)
-  (with-slots (supplicant magic) ope
-    (with-slots (order-slots) supplicant
+(defgeneric ope-spreader (ope book resilience funds epsilon side)
+  (:method ((ope ope-scalper) book resilience funds epsilon side)
+    (let ((slots (/ (slot-reduce ope supplicant order-slots) 2)))
       (flet ((dunk (book funds count &optional (start epsilon))
                (and book (dumbot-offers book resilience (caar funds)
-                                        start (floor count) magic))))
-        (awhen (dunk book funds (/ order-slots 2))
-          (ope-sprinner it funds (/ order-slots 2)
-                        (bases-for supplicant (asset (given (first it))))
+                                        start (floor count)
+                                        (slot-reduce ope magic)))))
+        (awhen (dunk book funds slots)
+          (ope-sprinner it funds slots
+                        (bases-for (slot-reduce ope supplicant)
+                                   (asset (given (first it))))
                         (destructuring-bind (bid . ask)
                             (recv (slot-reduce ope supplicant fee output))
                           (macrolet ((punk (&rest args)
@@ -260,8 +262,8 @@
                      `(let ((,side (copy-list (slot-value filter ',side))))
                         (unless (or (zerop (caar ,amount)) (null ,side))
                           ;; bookmark dumb_bot hierarchies colimit responses
-                          (send ,chan (ope-spreader ,side resilience ,amount
-                                                    ,epsilon ',side ope))
+                          (send ,chan (ope-spreader ope ,side resilience
+                                                    ,amount ,epsilon ',side))
                           ;; M-x viper SPACE          ; why'dit haffter
                           (recv response)))))
           (let ((e (/ epsilon (+ 1/13 (abs (log (1+ (abs (log ratio)))))))))
