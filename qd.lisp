@@ -200,22 +200,23 @@
   (name (slot-value ope 'supplicant)))
 
 (defun ope-sprinner (offers funds count bases punk dunk book)
-  (if (or (null bases) (zerop count) (null offers)) offers ; c'est pas un bean
-      (destructuring-bind (car . cdr) offers
-        (multiple-value-bind (bases vwab cost)
-            ;; what appears to be the officer, problem?
+  "accumulates liquidity provisioning from `funds' into `offers' along `book'"
+  (if (or (null bases) (zerop count) (null offers)) offers ; tail recursion !!!
+      (destructuring-bind (top . stink) offers ; each repetition gets stinkier!
+        (multiple-value-bind (bases vwab cost) ; these triples need DEFMACRO..?
             ;; (bases-without bases (given top)) fails, because bids are `viqc'
-            (bases-without bases (cons-aq* (consumed-asset car) (volume car)))
-          (if (or (null bases) (zerop count) (null offers)) offers  ; again!
+            (bases-without bases (cons-aq* (consumed-asset top) (volume top)))
+          ;; what appears to be the officer, problem? DEFUN CONSUMED-AQ* !!!
+          (if (or (null bases) (zerop count) (null offers)) offers  ; again?
               (flet ((profit (o)
                        (funcall punk (1- (price o)) (price vwab) (cdar funds))))
                 (when (and vwab (plusp (quantity vwab)))
                   (setf book (rest (member 0 book :test #'< :key #'profit))))
-                (if (and vwab (plusp (profit car)))
-                    `(,car .,(ope-sprinner
-                              cdr (destructuring-bind ((caar . cdar) . cdr) funds
-                                    (aprog1 `((,(- caar (volume car)) .,cdar) .,cdr)
-                                      (signal "~S" it)))
+                (if (and vwab (plusp (profit top)))
+                    `(,top .,(ope-sprinner
+                              stink (destructuring-bind
+                                        ((caar . cdar) . cdr) funds
+                                      `((,(- caar (volume top)) .,cdar) .,cdr))
                               (1- count) bases punk dunk book))
                     (ope-sprinner (funcall dunk book funds count) funds
                                   count (and vwab `((,vwab ,(aq* vwab cost)
@@ -223,6 +224,7 @@
                                   punk dunk book))))))))
 
 (defgeneric ope-spreader (ope book resilience funds epsilon side)
+  "allocates liquidity from `funds' along `book' by remaining arguments"
   (:method ((ope ope-scalper) book resilience funds epsilon side)
     (let ((slots (/ (slot-reduce ope supplicant order-slots) 2)))
       (flet ((dunk (book funds count &optional (start epsilon))
