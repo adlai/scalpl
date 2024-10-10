@@ -219,6 +219,7 @@ the good folks at your local Gambler's Anonymous.")
                  Mystery 'Users Fee': ~A~%(NOW) > ,it = ~A~% //\\"
               it volume current-taker current-maker
               next-taker next-maker users-fee (now)))))
+;;; consider arguing (format nil "~/signum/" EV), professionally ;)
 
 ;;;
 ;;; Private Data API
@@ -371,6 +372,19 @@ the good folks at your local Gambler's Anonymous.")
                                " not found."))
                 (values () message)))
           (values () err)))))
+
+;;; EXPLAME YOURSELF, BOOKIE BOOKISH BOOKWORM BOOGER BUGGER BAGGER NIGGER NAGGER!!
+;;; "#<2088550125 1963.09 Nis @ 219155.69>       #<ASK  0.16721539 Btc @ 225594.57>
+;;; Totals:
+;;;                3670899.68 Nis > 0.10             17.22194805 Btc < 2000000.00 
+;;; I failed calculus, so why take my word for any of these reckonings?
+;;; Looked across past   +30.885 days 2024-10-10T21:29:12.625675+03:00
+;;; where account traded +.27067 btc,
+;;; captured profit of   -.00746 btc,
+;;; expected turnover of  +169.8 days;
+;;; chudloadic exkrmnt:  -0.031%
+;;; mean daily profit:   -0.03247%
+;;; "
 
 (defmethod describe-account
     ((supplicant supplicant) (exchange (eql *bit2c*)) (stream t)))
