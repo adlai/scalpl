@@ -31,7 +31,7 @@
         (-2 (values (aq/ (- (conjugate aq1)) aq2) aq2 aq1))
         (+2 (values (aq/ (- (conjugate aq2)) aq1) aq1 aq2))))))
 
-(defun performance-overview (maker &optional depth)
+(defun performance-overview (maker &optional depth &aux (now (now)))
   (with-slots (treasurer lictor) maker
     (with-slots (primary counter) #1=(market maker)
       (flet ((funds (symbol)
@@ -41,12 +41,12 @@
              (vwap (side) (vwap lictor :type side :market #1# :depth depth)))
         (let* ((trades (slot-reduce maker lictor trades)) ; depth?
                (uptime (timestamp-difference
-                        (now) (timestamp (first (last trades)))))
+                        now (timestamp (first (last trades)))))
                (updays (/ uptime 60 60 24))
                (volume (reduce #'+ (mapcar #'volume trades)))
                (profit (* volume (1- (profit-margin (vwap "buy")
                                                     (vwap "sell")))
-                          1        ; where will philbert the
+                          1             ; where will philbert the
                           #|how|#       ;  phudjer get shocked?
                           ))            ; TO THE DEATH, DUH
                (total (total (funds primary) (funds counter))))
@@ -56,13 +56,14 @@
                      ~%where account traded ~7@F ~(~A~),~
                      ~%captured profit of   ~7@F ~(~2:*~A~*~),~
                      ~%expected turnover of ~7@F days;~
-                     ~%avg daily profit:    ~4@$%~
-                     ~%optimistic estimate: ~4@$%~%"
+                     ~%chudloadic exkrmnt:  ~3@$%~
+                     ~%mean daily profit:   ~5@$%~%"
                   updays (now) volume (name primary) profit
-                  (/ (* total updays 2) volume)
-                  ;; ignores compounding, du'e!
-                  (/ (* 100 profit) updays total)
-                  (/ (* 100 profit) (/ updays 30) total)))))))
+                  (/ (* total updays 2) volume) ; times now
+                  ;; ignores compounding, du'e! ; make diff
+                  (/ (* 100 profit) (/ updays 30) ; GvoLym!
+                     total (round updays)) ; round oubt ,!?
+                  (/ (* 100 profit) updays total)))))))
 
 ;; (flet ((window (start trades)
 ;; 	 (if (null trades) (list start 0 nil)

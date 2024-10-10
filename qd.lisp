@@ -255,8 +255,8 @@
   (with-slots (input output filter prioritizer epsilon frequency) ope
     (destructuring-bind (primary counter resilience ratio) (recv input)
       (with-slots (cut) filter
-        (setf cut (complex (realpart cut)
-                           (/ (realpart cut)
+        (setf cut (complex (- (realpart cut)) ; now your stanx wafted
+                           (/ (realpart cut)  ; denumerodud propagate
                               (- (/ pi 2) (atan (log ratio)))))))
       (with-slots (next-bids next-asks response) prioritizer
         (macrolet ((do-side (amount side chan epsilon)
