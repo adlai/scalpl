@@ -43,7 +43,7 @@
 (defun v5-url (path)
   (concatenate 'string *base-url* "/v5/" path))
 
-(defun bybit-request (path &rest args)
+(defun bybit-request (path &rest args &aux (now (now)))
   (multiple-value-bind (body status headers uri stream close)
       ;; (if (and (slot-boundp *bybit* 'stream)
       ;;        (open-stream-p (slot-value *bybit* 'stream)))
@@ -64,9 +64,9 @@
       (200 (with-json-slots
                (result (code "retCode") (msg "retMsg")) (decode-json body)
              (values result code msg)))
-      ((403) (warn "RATE LIMIT HIT~%URI: ~A~%~A" uri headers)
+      ((403) (warn "~&~A HIT RATE LIMIT~%URI: ~A~%~A" now uri headers)
        (values () status body))
-      (t (warn "ByBit ~D~@[ [~A]~]~%URI: ~A" status body uri)
+      (t (warn "~&~A ByBit ~D~@[ [~A]~]~%URI: ~A" now status body uri)
        (values () status body)))))
 
 (defun public-request (path parameters)
