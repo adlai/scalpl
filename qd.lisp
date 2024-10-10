@@ -356,7 +356,8 @@
             (dolist (dp dps (format out "~4@$" (first (last dps))))
               (format out "~C" (case (round (signum dp)) (0 #\Space)
                                      (+1 (chr (/ dp highest)))
-                                     (-1 (chr (- (/ dp lowest)))))))))))))
+                                     (-1 (chr (- (/ dp lowest)))))))
+            (format out "[ ]~4@$" guage)))))))
 
 (defun makereport (maker fund rate btc doge investment risked skew &optional ha)
   (with-slots (name market ope snake last-report cut) maker
@@ -376,7 +377,7 @@
       ;; FIXME: modularize all this decimal point handling
       ;; we need a pprint-style ~/aq/ function, and pass it aq objects!
       ;; time, total, primary, counter, invested, risked, risk bias, pulse
-      (aprog1 (format () "~&~A ~A ~{~A~^ ~} ~5,4,,VF~4,4F~4,4@F~%~A~%"
+      (aprog1 (format () "~&~@<~A ~A ~{~A~^ ~} ~5,4,,VF~4,4F~4,4@F~:_~A~:>~%"
                       name (format-timestring ; a naggy mess and lispy, too!
                             () (now) :format '((:hour 2) (:min 2) (:sec 2)))
                       (mapcar #'sastr '(primary counter primary counter)

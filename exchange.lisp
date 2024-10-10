@@ -136,6 +136,7 @@
     (set-pprint-dispatch 'physical-quantity #'pprint-physical-quantity 1 it)))
 
 (defun enable-pretty-printer-abuse (&optional (right-margin 67))
+  (warn "Incomplete;! c.f. `CL:*print-miser-width*'")
   (setf *print-pretty* t *print-right-margin* right-margin
         *print-pprint-dispatch* *physical-quantity-pprint-dispatch*))
 
