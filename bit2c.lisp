@@ -373,7 +373,7 @@ the good folks at your local Gambler's Anonymous.")
                 (values () message)))
           (values () err)))))
 
-;;; EXPLAME YOURSELF, BOOKIE BOOKISH BOOKWORM BOOGER BUGGER BAGGER NIGGER NAGGER!!
+;;; EXPLAME YOURSELF, BOOKISH BOOKIE ! BOOKWORM BOOGER BUGGER BAGGER stripmine, lol
 ;;; "#<2088550125 1963.09 Nis @ 219155.69>       #<ASK  0.16721539 Btc @ 225594.57>
 ;;; Totals:
 ;;;                3670899.68 Nis > 0.10             17.22194805 Btc < 2000000.00 
