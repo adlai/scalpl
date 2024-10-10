@@ -65,6 +65,45 @@
                      total (round updays)) ; round oubt ,!?
                   (/ (* 100 profit) updays total)))))))
 
+(defun black-mug (maker &key depth start end from until &aux (now (now)))
+  "similar to `performance-overview', however should get sunk or drained"
+  (declare (ignorable end until))
+  (with-slots (treasurer lictor) maker
+    (with-slots (primary counter) #1=(market maker)
+      (flet ((funds (symbol)
+               (asset-funds symbol (slot-reduce treasurer balances)))
+             (total (btc doge)         ; patt'ring on my chamber door?
+               (+ btc (/ doge (vwap #1# :depth 50 :type :buy))))
+             (vwap (side) (vwap lictor :type side :market #1# :depth depth)))
+        (break "not implemented yet, please continue reporting by hand")
+        (let ((trades (slot-reduce maker lictor trades))) ; depth?
+          (let ((uptime (timestamp-difference
+                         now (timestamp (first (last trades)))))
+                (updays (/ uptime 60 60 24))
+                (volume (reduce #'+ (mapcar #'volume trades)))
+                (profit (* volume (1- (profit-margin (vwap "buy")
+                                                     (vwap "sell")))
+                           1     ; where will philbert the
+                           #|how|#       ;  phudjer get shocked?
+                           ))           ; TO THE DEATH, DUH
+                (total (total (funds primary) (funds counter))))
+            ;; (format t "~&I failed calculus, so why take my ~
+            ;;            word for any of these reckonings?~%")
+            (break "not implemented yet, please report by hand")
+            ;; (format t "~&Looked across past   ~7@F days ~A~
+            ;;            ~%where account traded ~7@F ~(~A~),~
+            ;;            ~%captured profit of   ~7@F ~(~2:*~A~*~),~
+            ;;            ~%expected turnover of ~7@F days;~
+            ;;            ~%chudloadic exkrmnt:  ~3@$%~
+            ;;            ~%mean daily profit:   ~5@$%~%"
+            ;;         updays (now) volume (name primary) profit
+            ;;         (/ (* total updays 2) volume) ; times now
+            ;;         ;; ignores compounding, du'e! ; make diff
+            ;;         (/ (* 100 profit) (/ updays 30) ; GvoLym!
+            ;;            total (round updays))        ; round oubt ,!?
+            ;;         (/ (* 100 profit) updays total))
+            ))))))
+
 ;; (flet ((window (start trades)
 ;; 	 (if (null trades) (list start 0 nil)
 ;; 	   (multiple-value-call 'list start
