@@ -164,3 +164,16 @@
 ;;;                   (format () "~4o [octal]" sanityp)))))))
 
 ;;; pay walter for doctor seuss's harpstrings' cores
+
+;;; this code is deliberately obscure, RPC is not '''super simple stuff'''...
+(defgeneric slack-webhook (hook &optional message &key)
+  (:method (url &optional message &rest keys)
+    (declare (ignore message) (ignorable keys))
+    (error "must provide url, message, and optional keys"))
+  (:method ((url string) &optional (string-for-escaping "") &rest keys)
+    (declare (ignore keys))
+    (drakma:http-request url :method :post :content-type "application/json"
+			     :content (format nil "{\"text\":~S}"
+					      string-for-escaping))))
+
+;;; NOT END-OF-FILE ONLY END OF FUNDS farce-quit
