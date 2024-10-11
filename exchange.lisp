@@ -161,6 +161,10 @@
   (:method (designator (name symbol))
     (find-asset designator (find-exchange name))))
 
+(defun registered-markets (&optional (registry *unit-registry*))
+  (remove 'asset (mapcar 'cdr scalpl.exchange::*unit-registry*)
+          :test 'subtypep :key 'class-of))
+
 ;;;
 ;;; Asset Quantities
 ;;;
