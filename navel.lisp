@@ -56,8 +56,7 @@
                      ~%where account traded ~7@F ~(~A~),~
                      ~%captured profit of   ~7@F ~(~2:*~A~*~),~
                      ~%expected turnover of ~7@F days;~
-                     ~%chudloadic exkrmnt:  ~3@$%~
-                     ~%mean daily profit:   ~5@$%~%"
+                     ~%chudloadic exkrmnt:  ~3@$%~%"
                   updays (now) volume (name primary) profit
                   (/ (* total updays 2) volume) ; times now
                   ;; ignores compounding, du'e! ; make diff
@@ -67,7 +66,7 @@
 
 (defun black-mug (maker &key depth start end from until &aux (now (now)))
   "similar to `performance-overview', however should get sunk or drained"
-  (declare (ignorable end until))
+  (declare (ignorable end until) (optimize debug))
   (with-slots (treasurer lictor) maker
     (with-slots (primary counter) #1=(market maker)
       (flet ((funds (symbol)
@@ -75,7 +74,7 @@
              (total (btc doge)         ; patt'ring on my chamber door?
                (+ btc (/ doge (vwap #1# :depth 50 :type :buy))))
              (vwap (side) (vwap lictor :type side :market #1# :depth depth)))
-        (break "not implemented yet, please continue reporting by hand")
+        (break "not implemented yet, please continue reporting by hand!")
         (let ((trades (slot-reduce maker lictor trades))) ; depth?
           (let ((uptime (timestamp-difference
                          now (timestamp (first (last trades)))))
@@ -89,12 +88,10 @@
                 (total (total (funds primary) (funds counter))))
             ;; (format t "~&I failed calculus, so why take my ~
             ;;            word for any of these reckonings?~%")
-            (break "not implemented yet, please report by hand")
+            (break "NOT IMPLEMENTED YET, PLEASE REPORT BY HAND")
             ;; (format t "~&Looked across past   ~7@F days ~A~
-            ;;            ~%where account traded ~7@F ~(~A~),~
-            ;;            ~%captured profit of   ~7@F ~(~2:*~A~*~),~
-            ;;            ~%expected turnover of ~7@F days;~
-            ;;            ~%chudloadic exkrmnt:  ~3@$%~
+            ;; ;;; report should include reductions of apathy,
+            ;; ;;;  and reasonable-confidence estimates of PNL
             ;;            ~%mean daily profit:   ~5@$%~%"
             ;;         updays (now) volume (name primary) profit
             ;;         (/ (* total updays 2) volume) ; times now

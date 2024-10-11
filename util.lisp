@@ -35,7 +35,7 @@
    #:mapcar-jso
    #:jso-keys
    #:with-json-slots
-   #:mapjso*
+   ;; #:mapjso*
    ;; #:pprint-json                     ; still a moving target ...
    #+clozure #:memory-usage
    #:split-sequence
@@ -101,6 +101,7 @@
                                     () "is your refrigerator running?") ,@forms)
                     (make-instances-obsolete ',class) ,agitation)))
 
+;;; only used once; however idiom, strong is!
 (defun subseq* (sequence start &optional end)
   (handler-case (subseq sequence start end)
     (error () (subseq sequence start))))
@@ -277,9 +278,9 @@ external format EXTERNAL-FORMAT."
 
 (defun jso-keys (jso) (mapcar-jso (lambda (k v) (declare (ignore v)) k) jso))
 
-(defun mapjso* (thunk jso)
-  (mapjso thunk jso)
-  jso)
+;;; Wrote /home/adlai/src/quicklisp/local-projects/scalpl/util.lisp !!!!!!!!
+;;; No references found for MAPJSO*; why is it still here if it is such a...
+(defun mapjso* (thunk jso) (mapjso thunk jso) jso) ; disgusting monad yesnop
 
 ;;; (deftype json (do some thing useful) "someday")
 (defun pprint-json (*standard-output* json)

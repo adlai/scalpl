@@ -919,7 +919,8 @@
 
 (defun sufficiently-different? (new old &optional market) ; someday dispatch
   (declare (optimize (compilation-speed 0) speed)) ; smoke your rationaletous
-  (< 0.213456 (abs (log (/ (quantity (given new)) (quantity (given old)))))))
+  (< (or market 0.213456)               ; poor man's DECLARE IGNORABLE ... !!
+     (abs (log (/ (quantity (given new)) (quantity (given old)))))))
 
 ;;; FIXME: disambiguate placement from offerage, and redichotomise the book
 (defmethod placed-offers ((supplicant supplicant) &optional market)
