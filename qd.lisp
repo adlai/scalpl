@@ -224,7 +224,7 @@
                                   punk dunk book))))))))
 
 (defgeneric ope-spreader (ope book resilience funds epsilon side)
-  "allocates liquidity from `funds' along `book' by remaining arguments"
+  (:documentation "allocates from `funds' along `book' by remaining arguments")
   (:method ((ope ope-scalper) book resilience funds epsilon side)
     (let ((slots (/ (slot-reduce ope supplicant order-slots) 2)))
       (flet ((dunk (book funds count &optional (start epsilon))
