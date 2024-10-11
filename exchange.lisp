@@ -161,9 +161,12 @@
   (:method (designator (name symbol))
     (find-asset designator (find-exchange name))))
 
-(defun registered-markets (&optional (registry *unit-registry*))
-  (remove 'asset (mapcar 'cdr scalpl.exchange::*unit-registry*)
-          :test 'subtypep :key 'class-of))
+(macrolet ((define-filter (name &optional (keyword :test))
+             `(defun ,name (&optional (registry *unit-registry*))
+                (remove 'asset (mapcar 'cdr registry)
+                        ,keyword 'subtypep :key 'class-of))))
+  (define-filter registered-markets)
+  (define-filter registered-assets :test-not))
 
 ;;;
 ;;; Asset Quantities
