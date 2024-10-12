@@ -82,12 +82,12 @@
   (let ((path (concatenate 'string "/0/private/" method)))
     (push (cons "nonce" nonce) data)
     (raw-request (concatenate 'string "private/" method)
-                 :method :post
-                 :parameters data
-                 :additional-headers `(("API-Key"  . ,key)
-                                       ("API-Sign" . ,(base64:usb8-array-to-base64-string
-                                                       (funcall signer path data nonce)))
-                                       ("Content-Type" . "application/x-www-form-urlencoded")))))
+                 :method :post :parameters data
+                 :additional-headers
+                 `(("API-Key"  . ,key)
+                   ("API-Sign" . ,(base64:usb8-array-to-base64-string
+                                   (funcall signer path data nonce)))
+                   ("Content-Type" . "application/x-www-form-urlencoded")))))
 
 (defun get-assets ()
   (mapcar-jso (lambda (name data)

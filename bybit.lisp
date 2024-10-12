@@ -276,6 +276,7 @@
                         ((30076) it)          ; failures to replace
                         (t status))     ; by default, echo the error text
                 (typecase it
+                  ((eql 170213) "let's not spam this")
                   (string #|(break)|# (warn "#~D ~A" code it))))))))
 
 (defmethod shared-initialize ((gate bybit-gate) names &key pubkey secret)

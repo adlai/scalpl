@@ -984,14 +984,14 @@
 ;; (defgeneric describe-book ((book book) cook whither))
 
 ;;;
-;;; Who's fault is it that default puns are considered funny by default?
+;;; Who's fault is it that default puns are considered pithy by default?
 ;;;
 
 (defgeneric describe-account (supplicant exchange stream)
   (:method ((supplicant t) (exchange t) (stream t))
     (cerror "YODO" "How many times have you died, this week?"))
   (:method ((supplicant t) (exchange exchange) (stream t))
-    (error "I don't tame lions, how do you expect me to balance books?"))
+    (cerror "I don't tame lions; do you expect me to balance books?"))
   (:documentation "summarize how things are going, profit-wise"))
 
 (defun respawn-syncer (&optional (supplicant *supplicant*) (wavenumber 17))

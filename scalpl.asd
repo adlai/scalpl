@@ -15,6 +15,10 @@
                          (:file "actor")
                          (:file "net")
                          (:file "exchange")
+;;                  (:module "bitcoin" :depends-on ("config") :serial t
+;;                   :components ((:file "rpc-client") (:file "api")
+;;                                (:file "raw-parser")))
+;; ;;                 (:file "hunt" :depends-on ("bitcoin"))
                          (:file "qd")   ; FIXME POSTHASTE SELLPHONE
                          (:file "navel")))
 

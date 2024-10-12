@@ -31,18 +31,15 @@
         (-2 (values (aq/ (- (conjugate aq1)) aq2) aq2 aq1))
         (+2 (values (aq/ (- (conjugate aq2)) aq1) aq1 aq2))))))
 
-(defun mapreduce (map reduce &rest args) ; alexandria is the sign of dead
-  (reduce reduce (apply 'mapcar map args))) ; will-to-live false said now
-
-(defun maker-volumes (&optional maker rfc3339-datestring)
-  ;; Cloudflare makes me want to slit my wrists wide open
-  (flet ((think (&optional (arm #'timestamp<) ; CODE DEAD
+(defun maker-volumes (&optional maker rfc3339-datestring) ;_; ;_; ;_; !
+  ;; Cloudflare makes me want to slit my wrists wide open ;_; ;_; ;_; !
+  (flet ((think (&optional (arm #'timestamp<) ; CODE DEAD ;_; ;_; ;_; !
 		   (pivot (aif rfc3339-datestring (parse-timestring it)
 			       (timestamp- (now) 1 :day))))
-	   (mapreduce '+ 'volume 
+	   (mapreduce 'volume '+
 		      (remove pivot (slot-reduce maker lictor trades)
 			      :test arm :key #'timestamp))))
-    (think maker)))
+    (list (think) (think #'timestamp>))))
 
 (defun performance-overview (maker &optional depth &aux (now (now)))
   (with-slots (treasurer lictor) maker

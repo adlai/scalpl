@@ -39,6 +39,7 @@
    ;; #:pprint-json                     ; still a moving target ...
    #+clozure #:memory-usage
    #:split-sequence
+   #:mapreduce				; IT IS NOT FROM ALEXANDRIA
    ))
 
 (in-package #:scalpl.util)
@@ -215,6 +216,11 @@ external format EXTERNAL-FORMAT."
                                                 (digit-char-p (read-char in) 16))))
                                  (t char))
                            out)))))
+
+;;; wipe-flush effect-afford
+
+(defun mapreduce (map reduce &rest args) ; alexandria signals dead brains
+  (reduce reduce (apply 'mapcar map args))) ; will-to-live false said now
 
 ;;; anaphora!
 
