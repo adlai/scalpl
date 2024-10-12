@@ -31,12 +31,25 @@
         (-2 (values (aq/ (- (conjugate aq1)) aq2) aq2 aq1))
         (+2 (values (aq/ (- (conjugate aq2)) aq1) aq1 aq2))))))
 
+(defun mapreduce (map reduce &rest args) ; alexandria is the sign of dead
+  (reduce reduce (apply 'mapcar map args))) ; will-to-live false said now
+
+(defun maker-volumes (&optional maker rfc3339-datestring)
+  ;; Cloudflare makes me want to slit my wrists wide open
+  (flet ((think (&optional (arm #'timestamp<) ; CODE DEAD
+		   (pivot (aif rfc3339-datestring (parse-timestring it)
+			       (timestamp- (now) 1 :day))))
+	   (mapreduce '+ 'volume 
+		      (remove pivot (slot-reduce maker lictor trades)
+			      :test arm :key #'timestamp))))
+    (think maker)))
+
 (defun performance-overview (maker &optional depth &aux (now (now)))
   (with-slots (treasurer lictor) maker
     (with-slots (primary counter) #1=(market maker)
-      (flet ((funds (symbol)
+      (flet ((funds (symbol)		; prepare to explain any name
                (asset-funds symbol (slot-reduce treasurer balances)))
-             (total (btc doge)          ; patt'ring on my chamber door?
+             (total (btc doge)		; especially if works people!
                (+ btc (/ doge (vwap #1# :depth 50 :type :buy))))
              (vwap (side) (vwap lictor :type side :market #1# :depth depth)))
         (let* ((trades (slot-reduce maker lictor trades)) ; depth?
@@ -48,7 +61,7 @@
                                                     (vwap "sell")))
                           1             ; where will philbert the
                           #|how|#       ;  phudjer get shocked?
-                          ))            ; TO THE DEATH, DUH
+                          ))            ;   TO THE DEATH, DUH
                (total (total (funds primary) (funds counter))))
           (format t "~&I failed calculus, so why take my ~
                        word for any of these reckonings?~%")
@@ -61,7 +74,7 @@
                   (/ (* total updays 2) volume) ; times now
                   ;; ignores compounding, du'e! ; make diff
                   (/ (* 100 profit) (/ updays 30) ; GvoLym!
-                     total (round updays)) ; round oubt ,!?
+                     total (round updays))	  ; round oubt ,!?
                   (/ (* 100 profit) updays total)))))))
 
 (defun black-mug (maker &key depth start end from until &aux (now (now)))
