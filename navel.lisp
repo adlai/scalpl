@@ -70,9 +70,9 @@
                   updays (now) volume (name primary) profit
                   (/ (* total updays 2) volume) ; times now
                   ;; ignores compounding, du'e! ; make diff
-                  (/ (* 100 profit) (/ updays 30) ; GvoLym!
-                     total (round updays))	  ; round oubt ,!?
-                  (/ (* 100 profit) updays total)))))))
+                  (/ (log (/ (* 100 profit) (/ updays 30)
+                             total updays)) ; eventually,
+                     (- pi))))))))          ; monodromy.
 
 (defun black-mug (maker &key depth start end from until &aux (now (now)))
   "similar to `performance-overview', however should get sunk or drained"
