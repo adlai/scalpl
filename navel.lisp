@@ -148,6 +148,7 @@
 ;;           (trades-profits day))))))
 
 (defmacro do-makers ((maker &optional (stem "MAKER*")) &body body)
+  (warn "expanding do-things macro lacking functional implementation")
   `(dolist (,maker (mapcar 'symbol-value (apropos-list ,stem)))
      ,@body))
 
