@@ -183,4 +183,34 @@
 			     :content (format nil "{\"text\":~S}"
 					      string-for-escaping))))
 
+;;; why did emacs pin tree-sitter ? lol
+(defgeneric decompile-slack-webhook-url (webhook-url kind &key)
+  (:method ((webhook-url string) (null null) &key)
+    (error "I hope you know what you're doing."))
+  (:method ((webhook-url string) (kind (eql :|services|)) &key) ; NOT &AOK
+    (let* ((prefix (string kind))
+	   (token-start (+ 9 (search prefix webhook-url))))
+      (flet ((next-token (start &optional (separator #\/))
+	       (let ((end (position separator webhook-url :start start)))
+		 (values end (subseq* webhook-url start end)))))
+	(next-token token-start))))
+  (:method ((webhook-url string) (prefix string) &key) ; NOT &AOK
+    (let* ((token-start (+ 1 (length prefix) (search prefix webhook-url))))
+      (flet ((next-token (start &optional (separator #\/))
+	       (let ((end (position separator webhook-url :start start)))
+		 (values end (subseq* webhook-url start end)))))
+	(next-token token-start))))
+  (:method ((webhook-url string) (kind (eql 3)) &key)
+    (multiple-value-bind (first-pivot workspace)
+	  (decompile-slack-webhook-url webhook-url :|services|)
+      (check-type first-pivot unsigned-byte)
+      (multiple-value-bind (second-fulcrum application)
+	  (decompile-slack-webhook-url webhook-url workspace)
+	(check-type second-fulcrum unsigned-byte)
+	(multiple-value-bind (seventh-solidus token)
+	    (decompile-slack-webhook-url webhook-url application)
+	  (check-type seventh-solidus null)
+	  (values workspace application token))))))
+;;; "I hate your monad sofa king much, Archimedes" - Idogenese
+
 ;;; NOT END-OF-FILE ONLY END OF FUNDS farce-quit
