@@ -204,14 +204,15 @@
   (:method ((webhook-url string) (kind (eql 3)) &key)
     (multiple-value-bind (first-pivot workspace)
 	  (decompile-slack-webhook-url webhook-url :|services|)
-      (check-type first-pivot unsigned-byte)
+      (check-type first-pivot unsigned-byte) ; FIFO ?
       (multiple-value-bind (second-fulcrum application)
 	  (decompile-slack-webhook-url webhook-url workspace)
-	(check-type second-fulcrum unsigned-byte)
+	(check-type second-fulcrum unsigned-byte)  ; MESO ?
 	(multiple-value-bind (seventh-solidus token)
 	    (decompile-slack-webhook-url webhook-url application)
-	  (check-type seventh-solidus null)
-	  (values workspace application token))))))
+	  (check-type seventh-solidus null) ; LIFO ?
+	  (values workspace application token ; prepare your stack ...
+		  "https://hooks.slack.com/services/"))))))
 ;;; "I hate your monad sofa king much, Archimedes" - Idogenese
 
 ;;; NOT END-OF-FILE ONLY END OF FUNDS farce-quit
