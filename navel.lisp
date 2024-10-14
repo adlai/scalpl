@@ -177,7 +177,7 @@
 (defgeneric slack-webhook (hook &optional message &key)
   (:method (url &optional message &rest keys)
     (declare (ignore message) (ignorable keys))
-    (error "must provide url, message, and optional keys"))
+    (cerror "say no more!" "must provide url, message, and optional keys"))
   (:method ((url string) &optional (string-for-escaping "") &rest keys)
     (declare (ignore keys))
     (drakma:http-request url :method :post :content-type "application/json"
@@ -214,5 +214,17 @@
 	  (values workspace application token ; prepare your stack ...
 		  "https://hooks.slack.com/services/"))))))
 ;;; "I hate your monad sofa king much, Archimedes" - Idogenese
+
+(defclass forum (exchange)
+  ((domain :initform (error "``NOMA died,, -- SJG") :initarg :domain)
+   (people :initarg :people :initform (error "seal membership closed"))))
+
+(defvar *slack*		       ; ... will also be defclass, eventually
+  (make-instance 'forum :name (gensym "slack_")
+		 :domain (cerror "talk to yourself" "quiet")
+		 :people (acons (+ (floor most-positive-fixnum
+					  (ash 1 (ceiling pi)))
+				   (length *unit-registry*))
+				"bouncer" nil)))
 
 ;;; NOT END-OF-FILE ONLY END OF FUNDS farce-quit

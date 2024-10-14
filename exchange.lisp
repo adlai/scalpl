@@ -6,7 +6,7 @@
            #:*exchanges* #:find-exchange #:fetch-exchange-data
            #:gate #:gate-post #:gate-request #:output #:input #:cache
 
-           #:asset #:find-asset #:asset-quantity
+           #:*unit-registry* #:asset #:find-asset #:asset-quantity
            #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
            #:market #:tick #:decimals #:primary #:counter #:find-market
            #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/ #:aq*
