@@ -41,6 +41,8 @@
 			      :test arm :key #'timestamp))))
     (list (think) (think #'timestamp>))))
 
+;;; this should be slimmer, wrapping around a generic function
+;;; with dispatch on the return values of (log pnl) ie complex
 (defun performance-overview (maker &optional depth &aux (now (now)))
   (with-slots (treasurer lictor) maker
     (with-slots (primary counter) #1=(market maker)
@@ -56,7 +58,7 @@
                (volume (reduce #'+ (mapcar #'volume trades)))
                (profit (* volume (1- (profit-margin (vwap "buy")
                                                     (vwap "sell")))
-                          1             ; where will philbert the
+                          1      ; where will philbert the
                           #|how|#       ;  phudjer get shocked?
                           ))            ;   TO THE DEATH, DUH
                (total (total (funds primary) (funds counter))))
@@ -66,13 +68,13 @@
                      ~%where account traded ~7@F ~(~A~),~
                      ~%captured profit of   ~7@F ~(~2:*~A~*~),~
                      ~%expected turnover of ~7@F days;~
-                     ~%chudloadic exkrmnt:  ~3@$%~%"
+                     ~%chudloadic exkrmnt:  ~3@$~%"
                   updays (now) volume (name primary) profit
                   (/ (* total updays 2) volume) ; times now
                   ;; ignores compounding, du'e! ; make diff
-                  (/ (log (/ (* 100 profit) (/ updays 30)
-                             total updays)) ; eventually,
-                     (- pi))))))))          ; monodromy.
+                  (realpart (/ (log (/ (* 100 profit) (/ updays 30)
+                                       total updays)) ; eventually,
+                               (- pi)))))))))          ; monodromy.
 
 (defun black-mug (maker &key depth start end from until &aux (now (now)))
   "similar to `performance-overview', however should get sunk or drained"
