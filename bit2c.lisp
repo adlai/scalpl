@@ -324,16 +324,17 @@ the good folks at your local Gambler's Anonymous.")
 
 (defmethod post-offer ((gate bit2c-gate) (offer offer))
   (with-slots (market volume price) offer
-    (let ((factor (expt 10 (decimals market))))
+    (let ((dec-al (expt 10 (decimals market))))
       (multiple-value-bind (json complaint)
           (post-raw-limit gate (not (plusp price)) market
                           (multiple-value-bind (int dec)
-                              (floor (abs price) factor)
+                              (floor (abs price) dec-al)
                             (format () "~D.~V,'0D" int
                                     (decimals market) dec))
                           (format () "~8$"
-                                  (if (plusp price) volume
-                                      (/ volume (/ (abs price) factor)))))
+                                  (/ volume
+                                     (if (plusp price) 1
+                                         (/ (abs price) dec-al)))))
         (with-json-slots
             ((response "OrderResponse") (echo "NewOrder")) json
           (let ((now (now)) (message (getjso "Error" response)))
