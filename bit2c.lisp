@@ -336,16 +336,16 @@ the good folks at your local Gambler's Anonymous.")
                                       (/ volume (/ (abs price) factor)))))
         (with-json-slots
             ((response "OrderResponse") (echo "NewOrder")) json
-          (let ((message (getjso "Error" response)))
+          (let ((now (now)) (message (getjso "Error" response)))
             (when (or complaint (not (zerop (length message))))
-              ;; (break)
+              (break)
               (warn "~S" (or (getjso "Message" response) message)))
             (or (unless complaint
                   (atypecase (getjso "id" echo)
                     ((integer 1)
                      (change-class offer 'offered
                                    :oid (prin1-to-string it)))
-                    ((eql 0) ;; (break)
+                    ((eql 0) (break)
                      (warn "FIXME! Balance guard failed..."))))
                 (unless (let ((length (length message)))
                           (or (awhen (search "nonce" message :from-end t)
@@ -356,7 +356,8 @@ the good folks at your local Gambler's Anonymous.")
                                                  (position #\) message))))
                               (awhen (search " 30% " message)
                                 (warn "~&Coding ~3D BPM ; nice !~%" it))))
-                  (warn "~&Failed placing ~A:~%" offer) ; count ANYTHING!?
+                  (break)
+                  (warn "~A~&Failed placing ~A~%" now offer) ; count them?
                   ))))))))
 
 (defmethod cancel-offer ((gate bit2c-gate) (offer offered))
