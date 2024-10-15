@@ -690,7 +690,7 @@
 (defgeneric market-fee (gate market)
   (:documentation "(bid . ask) fees, in percent")
   (:method ((gate gate) (market tracked-market))
-    (market-fee gate (slot-reduce market scalpl.exchange::%market)))
+    (market-fee gate (slot-reduce market %market)))
   (:method :around ((gate gate) (market market))
     (actypecase (call-next-method) (number `(,it . ,it)) (cons it) (null)))
   (:method ((gate gate) (market tracked-market))
