@@ -82,6 +82,7 @@
   (check-type field (signed-byte 8) "I've got a one-track mind that leads nowhere")
   (if (zerop field) (subseq uid 0 (position separator uid))
       (or (cerror "Do not shorten the UID" "Unimplemented"))))
+;;; consider reading various UUID documents, before writing on
 
 (defun strftime (&optional datep &aux bits)
   (let ((data (multiple-value-list  ; my kingdom for a stack!
