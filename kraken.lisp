@@ -53,8 +53,9 @@
                      (read-json (map 'string 'code-char body))
                    (when error
                      (typecase error
-                       (string (warn error))
-                       ((cons string null) (warn (first error)))
+                       (string (cerror "LGTM" error))
+                       ((cons string null)
+                        (cerror "LGTM" (first error)))
                        (list (warn (format () "~A" error)))))
                    (values result error)))
             (404 (with-json-slots (result error)
@@ -319,13 +320,16 @@
 (defun post-limit (gate type market price volume decimals)
   (with-slots ((pair name) (vol-decimals decimals)) market
     (let ((price (/ price (expt 10d0 decimals))))
-      (when (string= type "sell") (setf volume (* volume price))) ; always viqc
+      (when (string= type "sell")
+        (setf volume (* volume price))) ; always viqc
       (multiple-value-bind (info errors)
-          (gate-request gate "AddOrder"
-                        `(("ordertype" . "limit")
-                          ("type" . ,type) ("pair" . ,pair)
-                          ("volume" . ,(format nil "~V$" vol-decimals volume))
-                          ("price" . ,(format nil "~V$" decimals price))))
+          (flet ((money (&rest args)
+                   (apply #'format nil "~V$" args)))
+            (gate-request gate "AddOrder"
+                          `(("ordertype" . "limit")
+                            ("type" . ,type) ("pair" . ,pair)
+                            ("volume" . ,(money vol-decimals volume))
+                            ("price" . ,(money decimals price)))))
         (unless errors
           ;; theoretically, we could get multiple oids here, (why "txid"!?)
           ;; but kraken's margin casino isn't open for visitors yet
@@ -335,7 +339,8 @@
   ;; (format t "~&place  ~A~%" offer)
   (with-slots (market volume price) offer
     (flet ((post (type)
-             (awhen (post-limit gate type market (abs price) volume
+             (awhen (post-limit gate type market
+                                (abs price) volume
                                 (slot-value market 'decimals))
                (change-class offer 'offered :oid it))))
       (if (< price 0) (post "buy") (post "sell")))))
@@ -345,5 +350,6 @@
 
 (defmethod cancel-offer ((gate kraken-gate) (offer offered))
   ;; (format t "~&cancel ~A~%" offer)
-  (multiple-value-bind (ret err) (cancel-order gate (oid offer))
-    (or ret (search "Unknown order" (car err)))))
+  (multiple-value-bind (ret err)
+      (cancel-order gate (oid offer))
+    (or ret (search "Unknown order" (car err))))) :toplevel-keyword
