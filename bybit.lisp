@@ -680,11 +680,13 @@
                               :from (if since (timestamp since)
                                         (timestamp- (now) 3 :hour)))
     (mapcar #'parse-execution
-            (let ((found (position (txid since) it
-                                   :test #'string=
-                                   :key (getjso "execId"))))
-              (if (or (null since) (null found)) it
-                  (subseq it (1+ found)))))))
+            (if (null since) it
+                (let ((found (position (txid since) it
+                                       :test #'string=
+                                       :key (getjso "execId"))))
+                  (if (null found) it
+                      ;; code simply smells wrong
+                      (subseq it (1+ found))))))))
 
 (defgeneric post-limit (gate market price size &optional reduce-only)
   (:method (gate (market tracked-market) price size &optional reduce-only)
