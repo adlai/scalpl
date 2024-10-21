@@ -106,8 +106,8 @@
 (defmethod gate-post ((gate (eql *bit2c*)) key secret request)
   (declare (optimize debug))            ; WHO HAS BEEN KILLED
   (destructuring-bind ((verb method) . parameters) request
-    (prog () :loop
-       (sleep (random (sqrt 17)))       ; WHO DIED
+    (prog () (sleep (exp -1))
+     :loop (sleep (random (sqrt 13)))   ; WHO DIED
        (multiple-value-bind (ret status error headers)
            (auth-request verb method key secret parameters)
          (return
@@ -339,14 +339,14 @@ the good folks at your local Gambler's Anonymous.")
             ((response "OrderResponse") (echo "NewOrder")) json
           (let ((now (now)) (message (getjso "Error" response)))
             (when (or complaint (not (zerop (length message))))
-              (break)
+              (cerror "Proceed" "Break-point one")
               (warn "~S" (or (getjso "Message" response) message)))
             (or (unless complaint
                   (atypecase (getjso "id" echo)
                     ((integer 1)
                      (change-class offer 'offered
                                    :oid (prin1-to-string it)))
-                    ((eql 0) (break)
+                    ((eql 0) (cerror "Proceed" "Break-point two")
                      (warn "FIXME! Balance guard failed..."))))
                 (unless (let ((length (length message)))
                           (or (awhen (search "nonce" message :from-end t)
@@ -357,8 +357,8 @@ the good folks at your local Gambler's Anonymous.")
                                                  (position #\) message))))
                               (awhen (search " 30% " message)
                                 (warn "~&Coding ~3D BPM ; nice !~%" it))))
-                  (break)
-                  (warn "~A~&Failed placing ~A~%" now offer) ; count them?
+                  (cerror "Proceed" "Break-point three")
+                  (warn "~A~&Failed placing ~A" now offer) ; count them?
                   ))))))))
 
 (defmethod cancel-offer ((gate bit2c-gate) (offer offered))

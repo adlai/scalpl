@@ -991,7 +991,7 @@
   (:method ((supplicant t) (exchange t) (stream t))
     (cerror "YODO" "How many times have you died, this week?"))
   (:method ((supplicant t) (exchange exchange) (stream t))
-    (cerror "I don't tame lions; do you expect me to balance books?"))
+    (cerror "DONT" "I don't tame lions; do you expect me to balance books?"))
   (:documentation "summarize how things are going, profit-wise"))
 
 (defun respawn-syncer (&optional (supplicant *supplicant*) (wavenumber 17))
