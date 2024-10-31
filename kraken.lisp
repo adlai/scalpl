@@ -45,13 +45,15 @@
     (with-open-file (stream path)
       (make-key stream))))
 
+(defvar *error-breakpoints* nil)
+
 (defun raw-request (path &rest keys)
   (multiple-value-bind (body status)
       (apply #'http-request (concatenate 'string +base-path+ path) keys)
           (case status
             (200 (with-json-slots (result error)
                      (read-json (map 'string 'code-char body))
-                   (when error
+                   (when (and error *error-breakpoints*)
                      (typecase error
                        (string (cerror "LGTM" error))
                        ((cons string null)
