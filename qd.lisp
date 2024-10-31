@@ -1,6 +1,6 @@
 (defpackage #:scalpl.qd
   (:use #:cl #:chanl #:anaphora #:local-time #:split-sequence
-        #:scalpl.util #:scalpl.exchange #:scalpl.actor)
+        #:scalpl.util #:scalpl.exchange #:scalpl.actor #:scalpl.net)
   (:export #:ope-placed #:ope-place #:ope-cancel
            #:prioritizer #:prioriteaze
            #:next-bids #:next-asks
@@ -70,10 +70,13 @@
                   for a = (if (plusp rudder) j i)
                   for b = (if (plusp rudder) i j)
                   ;; do (break)
-                  until (< (/ (realpart cut) 100)
-                           (1- (profit-margin (price (nth a (car book)))
-                                              (price (nth b (cdr book)))
-                                              bid ask)))
+                  until (let ((offer-a (nth a (car book)))
+			      (offer-b (nth b (cdr book))))
+			  (or (null offer-a) (null offer-b)
+			      (< (/ (realpart cut) 100)
+				 (1- (profit-margin (price offer-a)
+						    (price offer-b)
+						    bid ask)))))
                   finally (setf bids (ignore-offers (nthcdr a (car book))
                                                     offered)
                                 asks (ignore-offers (nthcdr b (cdr book))

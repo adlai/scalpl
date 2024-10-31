@@ -16,7 +16,7 @@
            #:gate #:gate-post #:gate-request #:output #:input #:cache
            #:trade #:cost #:direction #:txid #:tracked-market
 
-           #:agent-trunk
+           #:agent-trunk #:delay
 
            #:trades-tracker #:trades #:trades-since #:vwap #:book
            #:book-tracker #:bids #:asks #:get-book #:get-book-keys
