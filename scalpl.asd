@@ -67,7 +67,7 @@
 (defsystem #:scalpl/kraken
   :license "public domain"
   :description "api client for kraken"
-  :depends-on (#:scalpl)
+  :depends-on (#:scalpl #:websocket-driver-client)
   :components ((:file "kraken"))
   :perform (load-op (no book)
              (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:

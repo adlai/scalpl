@@ -355,3 +355,72 @@
   (multiple-value-bind (ret err)
       (cancel-order gate (oid offer))
     (or ret (search "Unknown order" (car err))))) :toplevel-keyword
+
+;;; Websocket
+
+(defun build-websocket-json (method &optional params)
+  (with-output-to-string (string)
+    (pprint-json string
+                 `(("method" . ,method)
+                   ,@(when params
+                       `(("params" . ,params)))))))
+
+(defun handle-websocket-raw (raw)
+  (let* ((json:*json-array-type* 'vector)
+         (json (read-json raw)))
+    (flet ((arrange-json (json)
+             (with-output-to-string (*standard-output*)
+               (let ((*print-pretty* t)
+                     (*print-right-margin* 67))
+                 (pprint-json *standard-output* json)))))
+      (case (caar json)
+        (:|channel|
+         (with-json-slots (channel data type) json
+           (string-case (channel)
+             ("heartbeat")
+             ("status" (format t "~&WS Connected: ~A~%"
+                               (arrange-json data)))
+             (t (format t "~&WS ~A ~A Data:~%~A~%"
+                        channel type (arrange-json data))))))
+        (:|method|)))))
+
+(defun create-public-websocket ()
+  (let ((client (wsd:make-client "wss://ws.kraken.com/v2")))
+    (wsd:on :message client 'handle-websocket-raw)
+    (wsd:start-connection client)
+    (wsd:send client (build-websocket-json "ping"))
+    client))
+
+(defun websocket-market-name (market)
+  (with-slots (primary counter) market
+    (flet ((fiat-name (asset &aux (string (name asset)))
+             (cond
+               ((char= (char string 0) #\Z)
+                (subseq string 1))
+               ((string= string "XXBT") "BTC")
+               (t string))))
+      (format nil "~A/~A" (fiat-name primary) (fiat-name counter)))))
+
+(defun subscribe-public-book (client market &optional depth)
+  (wsd:send client (build-websocket-json
+                    "subscribe"
+                    `(("channel" . "book")
+                      ("symbol" . #(,(websocket-market-name market)))
+                      ,@(when depth
+                          `(("depth" . ,(prin1-to-string depth)))))))
+  client)
+
+(defun subscribe-public-trades (client market)
+  (wsd:send client (build-websocket-json
+                    "subscribe"
+                    `(("channel" . "trade")
+                      ("symbol" . #(,(websocket-market-name market))))))
+  client)
+
+(defun subscribe-public-data (client market &optional depth)
+  (subscribe-public-trades client market)
+  (if (null depth) (subscribe-public-book client market)
+      (subscribe-public-book client market depth)))
+
+(defun private-websocket-token (gate)
+  (getjso "token" (gate-request gate "GetWebSocketsToken")))
