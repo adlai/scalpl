@@ -331,7 +331,8 @@
                           `(("ordertype" . "limit")
                             ("type" . ,type) ("pair" . ,pair)
                             ("volume" . ,(money vol-decimals volume))
-                            ("price" . ,(money decimals price)))))
+                            ("price" . ,(money decimals price))
+                            ("oflags" . "post"))))
         (unless errors
           ;; theoretically, we could get multiple oids here, (why "txid"!?)
           ;; but kraken's margin casino isn't open for visitors yet
