@@ -160,6 +160,9 @@
 (defclass kraken-gate (gate)
   ((exchange :initform *kraken* :allocation :class)))
 
+(defclass caching-gate (kraken-gate)
+  ((recent-responses :initform (make-hash-table :test 'equal))))
+
 (defmethod gate-post ((gate (eql *kraken*)) key secret request)
   (destructuring-bind (command . options) request
     ;; FIXME: this prevents add/cancel requests from going through while
@@ -238,6 +241,32 @@
                                  :volume volume)))))
                         (getjso "open" it))
             :key #'market :test-not #'eq)))
+
+(defmethod placed-offers ((gate caching-gate) &optional market)
+  (with-slots (recent-responses) gate
+    (aif (aand (gethash "OpenOrders" recent-responses)
+	       (destructuring-bind (timestamp . response) it
+		 (and (< (timestamp-difference (now) timestamp) 30)
+		      response)))
+	 (remove market it :key #'market :test-not #'eq)
+	 (awhen (gate-request gate "OpenOrders")
+	   (let ((placed (mapcar-jso
+			  (lambda (id data)
+                            (with-json-slots (descr vol oflags) data
+			      (with-json-slots (pair type price order) descr
+				(let* ((market (find-market pair *kraken*))
+				       (decimals (slot-value market 'decimals))
+				       (price-int (parse-price price decimals))
+				       (volume (parse-float vol :type 'rational)))
+                                  (make-instance
+                                   'offered :oid id :market market
+                                   :price (if (string= type "buy")
+					      (- price-int) price-int)
+                                   :volume volume)))))
+			  (getjso "open" it))))
+	     (setf (gethash "OpenOrders" recent-responses)
+		   (cons (now) placed))
+	     (remove market placed :key #'market :test-not #'eq))))))
 
 (defmethod account-balances ((gate kraken-gate))
   (remove-if #'zerop
