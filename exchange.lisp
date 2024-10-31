@@ -995,6 +995,6 @@
   (:documentation "summarize how things are going, profit-wise"))
 
 (defun respawn-syncer (&optional (supplicant *supplicant*) (wavenumber 17))
-  (pexec (:name "syncer")
+  (pexec (:name (format nil "~A syncer" (name supplicant)))
     (loop (with-slots (control response) supplicant
             (send control '(:sync)) (recv response) (sleep wavenumber)))))
