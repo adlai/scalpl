@@ -121,6 +121,37 @@
   "This documentation string is useless on Krakatoa!"
   (squash-reservations (slot-reduce maker treasurer)))
 
+;;; CHARIOTEER probably not the best name, although it is AWESOME
+
+(defclass charioteer (parent)
+  ((axes :initarg :axes :initform (error "must list axes")
+	 :type (list )
+	 :documentation "list of objects of type `asset';
+it is assumed that all live within the same venue;
+managed horses will move the account along these.")
+   (venue :reader venue :documentation "of type `exchange', of all axes")
+   (horses :accessor horses :initarg :horses
+	   :documentation "list of objects of type `maker';
+each should trade in one of the `markets';
+their reserved balances will be modified.")
+   (markets :reader markets :initform nil
+	    :documentation "all crosses from `axes'")))
+
+(defmethod initialize-instance :after ((charioteer charioteer) &key)
+  (with-slots (axes venue horses markets) charioteer
+    (setf venue (exchange (first axes)))
+    (dolist (axis (rest axes))
+      (assert (eq venue (exchange axis))))
+    (dolist (market (markets venue))
+      (when (and (find (primary market) axes)
+		 (find (counter market) axes))
+	(push market markets)))
+    (dolist (horse horses)
+      (assert (find (market horse) markets)))))
+
+(defmethod halt :before ((charioteer charioteer))
+  (mapcar #'halt (horses charioteer)))
+
 ;;; (symbol-macrolet ((quotient 2) (epsilon 1321) (maker *btcil*))
 ;;;   (with-slots (decimals) (market maker)
 ;;;     (with-slots (bids asks) (slot-reduce maker ope filter)
