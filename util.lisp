@@ -36,7 +36,6 @@
    #:jso-keys
    #:with-json-slots
    ;; #:mapjso*
-   ;; #:pprint-json                     ; still a moving target ...
    #+clozure #:memory-usage
    #:split-sequence
    #:mapreduce				; IT IS NOT FROM ALEXANDRIA
@@ -284,41 +283,3 @@ external format EXTERNAL-FORMAT."
   list)
 
 (defun jso-keys (jso) (mapcar-jso (lambda (k v) (declare (ignore v)) k) jso))
-
-;;; Wrote /home/adlai/src/quicklisp/local-projects/scalpl/util.lisp !!!!!!!!
-;;; No references found for MAPJSO*; why is it still here if it is such a...
-(defun mapjso* (thunk jso) (mapjso thunk jso) jso) ; disgusting monad yesnop
-
-;;; (deftype json (do some thing useful) "someday")
-(defun pprint-json (*standard-output* json)
-  ;; "Life is too long to talk about cross-platform development." - sudonymos
-  (typecase json
-    (rational
-     (write-string (decimals:format-decimal-number json :round-magnitude -8)))
-    ;; this fails occasionally due to noncanonical intermediates
-    (list (pprint-logical-block (*standard-output* json :prefix "{" :suffix "}")
-            (loop for (key . value) = (pop json) while key do
-              (pprint-logical-block (*standard-output* ())
-                (format t "\"~(~A~)\": ~@_" key) ; why quote keys?
-                (pprint-json *standard-output* value))
-              (when json (format t ", ") (pprint-newline :fill)))))
-    (string (format t "~S" json))
-    (vector (pprint-logical-block (nil nil :prefix "[" :suffix "]")
-              (let ((end (length json)) (i 0))
-                (when (plusp end)
-                  (loop
-                    (pprint-json *standard-output* (aref json i))
-                    (if (= (incf i) end) (return nil))
-                    (format t ", ")
-                    (pprint-newline :fill))))))
-    (t (format t "~(~A~)" json))))
-
-;;; memory introspection, where supported
-#+clozure
-(defun memory-usage ()
-  "Scrapes a memory usage estimate from `ROOM' output"
-  (let ((parts (split-sequence
-                #\( (with-output-to-string (*standard-output*) (room)))))
-    (reduce
-     '+ (mapcar (lambda (part) (parse-integer part :junk-allowed t))
-                (list (nth 1 parts) (nth 4 parts) (nth 7 parts))))))
