@@ -278,6 +278,18 @@
                          (gate-request gate "Balance"))
              :key #'quantity))
 
+(defmethod account-balances ((gate caching-gate))
+  (with-slots (recent-responses) gate
+    (aif (aand (gethash "Balance" recent-responses)
+               (destructuring-bind (timestamp . response) it
+                 (and (< (timestamp-difference (now) timestamp) 30)
+                      response)))
+         it
+         (let ((balances (call-next-method)))
+           (setf (gethash "Balance" recent-responses)
+                 (cons (now) balances))
+           balances))))
+
 (defmethod market-fee ((gate kraken-gate) market &aux (pair (name market)))
   (awhen (gate-request gate "TradeVolume" `(("pair" . ,pair)))
     (read-from-string (getjso "fee" (getjso pair (getjso "fees" it))))))
