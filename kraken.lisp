@@ -309,15 +309,46 @@
                                  ("sell" (- cost fee)))))))
 
 (defun raw-executions (gate &key start end)
-  (gate-request gate "TradesHistory"
-                `(,@(when start `(("start" . ,(txid start))))
-                  ,@(when end `(("end" . ,(txid end)))))))
+  (let ((range `(,@(when start `(("start" . ,(txid start))))
+		 ,@(when end `(("end" . ,(txid end)))))))
+    (loop for offset from 0 by 50
+	  for trades = (gate-request gate "TradesHistory"
+				     `(("ofs" . ,(princ-to-string offset))
+				       ,@range))
+	  nconc (getjso "trades" trades)
+	  until (> offset (- (getjso "count" trades) 50)))))
 
 (defmethod execution-since ((gate kraken-gate) (market market) since)
   (awhen (raw-executions gate :start since)
-    (with-json-slots (trades) it
-      (remove market (mapcar-jso #'parse-execution trades)
-              :key #'market :test-not #'eq))))
+    (remove market (mapcar-jso #'parse-execution it)
+            :key #'market :test-not #'eq)))
+
+(defmethod execution-since ((gate caching-gate) (market market) since)
+  (declare (optimize debug))
+  (with-slots (recent-responses) gate
+    (aif (aand (gethash "TradesHistory" recent-responses)
+	       (when (> 30 (timestamp-difference
+			    (now) (timestamp (car it))))
+		 it))
+	 (remove market
+		 (if (null since) it
+		     (remove (timestamp since) it
+			     :key #'timestamp :test #'timestamp>))
+		 :test-not #'eq :key #'market)
+	 (let* ((latest (or (car (gethash "TradesHistory" recent-responses))
+			    since))
+		(raw (raw-executions gate :start latest)))
+	   (dolist (execution (nreverse (mapcar-jso #'parse-execution raw)))
+	     (pushnew execution
+		      (gethash "TradesHistory" recent-responses)
+		      :key #'txid :test #'string=))
+	   (remove market
+		   (if (null since)
+		       (gethash "TradesHistory" recent-responses)
+		       (remove (timestamp since)
+			       (gethash "TradesHistory" recent-responses)
+			       :key #'timestamp :test #'timestamp>))
+		   :test-not #'eq :key #'market)))))
 
 #+nil
 (defun trades-history-chunk (tracker &key until since)
