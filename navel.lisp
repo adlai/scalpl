@@ -125,7 +125,6 @@
 
 (defclass charioteer (parent)
   ((axes :initarg :axes :initform (error "must list axes")
-	 :type (list )
 	 :documentation "list of objects of type `asset';
 it is assumed that all live within the same venue;
 managed horses will move the account along these.")
