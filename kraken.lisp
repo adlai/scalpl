@@ -245,28 +245,28 @@
 (defmethod placed-offers ((gate caching-gate) &optional market)
   (with-slots (recent-responses) gate
     (aif (aand (gethash "OpenOrders" recent-responses)
-	       (destructuring-bind (timestamp . response) it
-		 (and (< (timestamp-difference (now) timestamp) 30)
-		      response)))
-	 (remove market it :key #'market :test-not #'eq)
-	 (awhen (gate-request gate "OpenOrders")
-	   (let ((placed (mapcar-jso
-			  (lambda (id data)
+               (destructuring-bind (timestamp . response) it
+                 (and (< (timestamp-difference (now) timestamp) 30)
+                      response)))
+         (remove market it :key #'market :test-not #'eq)
+         (awhen (gate-request gate "OpenOrders")
+           (let ((placed (mapcar-jso
+                          (lambda (id data)
                             (with-json-slots (descr vol oflags) data
-			      (with-json-slots (pair type price order) descr
-				(let* ((market (find-market pair *kraken*))
-				       (decimals (slot-value market 'decimals))
-				       (price-int (parse-price price decimals))
-				       (volume (parse-float vol :type 'rational)))
+                              (with-json-slots (pair type price order) descr
+                                (let* ((market (find-market pair *kraken*))
+                                       (decimals (slot-value market 'decimals))
+                                       (price-int (parse-price price decimals))
+                                       (volume (parse-float vol :type 'rational)))
                                   (make-instance
                                    'offered :oid id :market market
                                    :price (if (string= type "buy")
-					      (- price-int) price-int)
+                                              (- price-int) price-int)
                                    :volume volume)))))
-			  (getjso "open" it))))
-	     (setf (gethash "OpenOrders" recent-responses)
-		   (cons (now) placed))
-	     (remove market placed :key #'market :test-not #'eq))))))
+                          (getjso "open" it))))
+             (setf (gethash "OpenOrders" recent-responses)
+                   (cons (now) placed))
+             (remove market placed :key #'market :test-not #'eq))))))
 
 (defmethod account-balances ((gate kraken-gate))
   (remove-if #'zerop
@@ -310,13 +310,13 @@
 
 (defun raw-executions (gate &key start end)
   (let ((range `(,@(when start `(("start" . ,(txid start))))
-		 ,@(when end `(("end" . ,(txid end)))))))
+                 ,@(when end `(("end" . ,(txid end)))))))
     (loop for offset from 0 by 50
-	  for trades = (gate-request gate "TradesHistory"
-				     `(("ofs" . ,(princ-to-string offset))
-				       ,@range))
-	  nconc (getjso "trades" trades)
-	  until (> offset (- (getjso "count" trades) 50)))))
+          for trades = (gate-request gate "TradesHistory"
+                                     `(("ofs" . ,(princ-to-string offset))
+                                       ,@range))
+          nconc (getjso "trades" trades)
+          until (> offset (- (getjso "count" trades) 50)))))
 
 (defmethod execution-since ((gate kraken-gate) (market market) since)
   (awhen (raw-executions gate :start since)
@@ -327,28 +327,28 @@
   (declare (optimize debug))
   (with-slots (recent-responses) gate
     (aif (aand (gethash "TradesHistory" recent-responses)
-	       (when (> 30 (timestamp-difference
-			    (now) (timestamp (car it))))
-		 it))
-	 (remove market
-		 (if (null since) it
-		     (remove (timestamp since) it
-			     :key #'timestamp :test #'timestamp>))
-		 :test-not #'eq :key #'market)
-	 (let* ((latest (or (car (gethash "TradesHistory" recent-responses))
-			    since))
-		(raw (raw-executions gate :start latest)))
-	   (dolist (execution (nreverse (mapcar-jso #'parse-execution raw)))
-	     (pushnew execution
-		      (gethash "TradesHistory" recent-responses)
-		      :key #'txid :test #'string=))
-	   (remove market
-		   (if (null since)
-		       (gethash "TradesHistory" recent-responses)
-		       (remove (timestamp since)
-			       (gethash "TradesHistory" recent-responses)
-			       :key #'timestamp :test #'timestamp>))
-		   :test-not #'eq :key #'market)))))
+               (when (> 30 (timestamp-difference
+                            (now) (timestamp (car it))))
+                 it))
+         (remove market
+                 (if (null since) it
+                     (remove (timestamp since) it
+                             :key #'timestamp :test #'timestamp>))
+                 :test-not #'eq :key #'market)
+         (let* ((latest (or (car (gethash "TradesHistory" recent-responses))
+                            since))
+                (raw (raw-executions gate :start latest)))
+           (dolist (execution (nreverse (mapcar-jso #'parse-execution raw)))
+             (pushnew execution
+                      (gethash "TradesHistory" recent-responses)
+                      :key #'txid :test #'string=))
+           (remove market
+                   (if (null since)
+                       (gethash "TradesHistory" recent-responses)
+                       (remove (timestamp since)
+                               (gethash "TradesHistory" recent-responses)
+                               :key #'timestamp :test #'timestamp>))
+                   :test-not #'eq :key #'market)))))
 
 #+nil
 (defun trades-history-chunk (tracker &key until since)
