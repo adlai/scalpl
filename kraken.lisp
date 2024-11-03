@@ -325,30 +325,25 @@
 
 (defmethod execution-since ((gate caching-gate) (market market) since)
   (declare (optimize debug))
-  (with-slots (recent-responses) gate
-    (aif (aand (gethash "TradesHistory" recent-responses)
-               (when (> 30 (timestamp-difference
-                            (now) (timestamp (car it))))
-                 it))
+  (symbol-macrolet
+      ((cache (gethash "TradesHistory" (slot-reduce gate recent-responses))))
+    (aif (aand cache (when (> 30 (timestamp-difference
+                                  (now) (timestamp (car it))))
+                       it))
          (remove market
                  (if (null since) it
                      (remove (timestamp since) it
                              :key #'timestamp :test #'timestamp>))
                  :test-not #'eq :key #'market)
-         (let* ((latest (or (car (gethash "TradesHistory" recent-responses))
-                            since))
-                (raw (raw-executions gate :start latest)))
-           (dolist (execution (nreverse (mapcar-jso #'parse-execution raw)))
-             (pushnew execution
-                      (gethash "TradesHistory" recent-responses)
-                      :key #'txid :test #'string=))
-           (remove market
-                   (if (null since)
-                       (gethash "TradesHistory" recent-responses)
-                       (remove (timestamp since)
-                               (gethash "TradesHistory" recent-responses)
-                               :key #'timestamp :test #'timestamp>))
-                   :test-not #'eq :key #'market)))))
+         (progn
+           (let ((raw (raw-executions gate :start (or (car cache) since))))
+             (dolist (execution (mapcar-jso #'parse-execution raw))
+               (pushnew execution cache :key #'txid :test #'string=)))
+           (reverse (remove market
+                            (if (null since) cache
+                                (remove (timestamp since) cache
+                                        :key #'timestamp :test #'timestamp>))
+                            :test-not #'eq :key #'market))))))
 
 #+nil
 (defun trades-history-chunk (tracker &key until since)
