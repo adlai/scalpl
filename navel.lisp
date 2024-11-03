@@ -182,7 +182,8 @@ their reserved balances will be modified.")
           for trade = (first (slot-reduce horse lictor trades))
           for delta = (and trade (timestamp-difference (timestamp trade)
                                                        previous-update))
-          until (and (>= delta 199)) finally (compute-tresses charioteer t))
+          until (and delta (>= delta 199)) finally
+            (compute-tresses charioteer t))
     (sleep 59)))
 
 (defmethod halt :before ((charioteer charioteer))
