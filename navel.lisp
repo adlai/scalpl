@@ -124,7 +124,7 @@
 ;;; CHARIOTEER probably not the best name, although it is AWESOME
 
 (defclass charioteer (parent)
-  ((gate :initarg :gate)
+  ((gate :initarg :gate) (previous-update :initform (now))
    (axes :initarg :axes :initform (error "must list axes")
          :documentation "list of objects of type `asset';
 it is assumed that all live within the same venue;
@@ -172,6 +172,14 @@ their reserved balances will be modified.")
                                     (- 1 (/ count))))))
           (dolist (horse team)
             (push tension (slot-reduce horse treasurer reserved))))))))
+
+(defmethod perform ((charioteer charioteer) &key)
+  (with-slots (previous-update horses) charioteer
+    (loop for horse in horses
+          for trade = (first (slot-reduce horse lictor trades))
+          for delta = (and trade (timestamp-difference (timestamp trade)
+                                                       previous-update))
+          until (and (>= delta 59)) finally (compute-tresses charioteer t))))
 
 (defmethod halt :before ((charioteer charioteer))
   (mapcar #'halt (horses charioteer)))
