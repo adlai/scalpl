@@ -156,7 +156,6 @@ their reserved balances will be modified.")
 
 (defun compute-tresses (charioteer &optional reset &aux tresses)
   (dolist (horse (horses charioteer))
-    (when reset (setf (slot-reduce horse treasurer reserved) ()))
     (flet ((bind (axis)
              (aif (assoc axis tresses)
                   (progn (incf (cadr it))
@@ -165,6 +164,10 @@ their reserved balances will be modified.")
       (with-slots (primary counter) (market horse)
         (bind primary) (bind counter))))
   (let ((balances (account-balances (slot-reduce charioteer gate))))
+    (dolist (horse (horses charioteer))
+      (when reset (setf (slot-reduce horse treasurer reserved) ())))
+    ;; there is still a brief window when the bots see reserved funds
+    ;; one fix is stopping them; another is rearranging these loops.
     (dolist (tress tresses tresses)
       (destructuring-bind (asset count &rest team) tress
         (let ((tension (cons-aq* asset
@@ -179,7 +182,8 @@ their reserved balances will be modified.")
           for trade = (first (slot-reduce horse lictor trades))
           for delta = (and trade (timestamp-difference (timestamp trade)
                                                        previous-update))
-          until (and (>= delta 59)) finally (compute-tresses charioteer t))))
+          until (and (>= delta 199)) finally (compute-tresses charioteer t))
+    (sleep 59)))
 
 (defmethod halt :before ((charioteer charioteer))
   (mapcar #'halt (horses charioteer)))
