@@ -259,4 +259,13 @@ their reserved balances will be modified.")
                                    (length *unit-registry*))
                                 "bouncer" nil)))
 
+(defun report-health (&optional (url *slack-url*) (charioteer *charioteer*))
+  (slack-webhook
+   url (format nil "I have ~D bots running; [~{~D~^ ~}]"
+               (length (horses charioteer))
+               ;; after updating ChanL, (pool-health)
+               (reduce 'mapcar '(length funcall)
+	               :from-end t :initial-value
+	               '(pooled-tasks pooled-threads all-threads)))))
+
 ;;; NOT END-OF-FILE ONLY END OF FUNDS farce-quit
