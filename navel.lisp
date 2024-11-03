@@ -34,11 +34,11 @@
 (defun maker-volumes (&optional maker rfc3339-datestring) ;_; ;_; ;_; !
   ;; Cloudflare makes me want to slit my wrists wide open ;_; ;_; ;_; !
   (flet ((think (&optional (arm #'timestamp<) ; CODE DEAD ;_; ;_; ;_; !
-		   (pivot (aif rfc3339-datestring (parse-timestring it)
-			       (timestamp- (now) 1 :day))))
-	   (mapreduce 'volume '+
-		      (remove pivot (slot-reduce maker lictor trades)
-			      :test arm :key #'timestamp))))
+                   (pivot (aif rfc3339-datestring (parse-timestring it)
+                               (timestamp- (now) 1 :day))))
+           (mapreduce 'volume '+
+                      (remove pivot (slot-reduce maker lictor trades)
+                              :test arm :key #'timestamp))))
     (list (think) (think #'timestamp>))))
 
 ;;; this should be slimmer, wrapping around a generic function
@@ -77,24 +77,24 @@
                                (- pi)))))))))          ; monodromy.
 
 ;; (flet ((window (start trades)
-;; 	 (if (null trades) (list start 0 nil)
-;; 	   (multiple-value-call 'list start
-;; 	     (length trades) (trades-profits trades)))))
+;;       (if (null trades) (list start 0 nil)
+;;         (multiple-value-call 'list start
+;;           (length trades) (trades-profits trades)))))
 ;;   (symbol-macrolet ((maker *maker*))
 ;;     (loop with windows
-;; 	  for trades = (slot-reduce maker lictor trades)
-;; 	    then (nthcdr window-count trades)
-;; 	  for window-start = (timestamp (first trades)) then window-close
-;; 	  for window-close = (timestamp- window-start 12 :day)
-;; 	  for window-count = (position window-close trades
-;; 				       :key #'timestamp
-;; 				       :test #'timestamp>=)
-;; 	  for window = (window window-start
-;; 			       (if (null window-count) trades
-;; 			           (subseq trades 0 window-count)))
+;;        for trades = (slot-reduce maker lictor trades)
+;;          then (nthcdr window-count trades)
+;;        for window-start = (timestamp (first trades)) then window-close
+;;        for window-close = (timestamp- window-start 12 :day)
+;;        for window-count = (position window-close trades
+;;                                     :key #'timestamp
+;;                                     :test #'timestamp>=)
+;;        for window = (window window-start
+;;                             (if (null window-count) trades
+;;                                 (subseq trades 0 window-count)))
 ;;           ;; did Harrison Bergeron kill himself, mrjr?
-;; 	  while window-count do (push window windows)
-;; 	  finally (return (cons window windows)))))
+;;        while window-count do (push window windows)
+;;        finally (return (cons window windows)))))
 
 ;; (defmethod describe-account :after
 ;;     (supplicant exchange stream)
@@ -130,11 +130,11 @@ it is assumed that all live within the same venue;
 managed horses will move the account along these.")
    (venue :reader venue :documentation "of type `exchange', of all axes")
    (horses :accessor horses :initarg :horses
-	   :documentation "list of objects of type `maker';
+           :documentation "list of objects of type `maker';
 each should trade in one of the `markets';
 their reserved balances will be modified.")
    (markets :reader markets :initform nil
-	    :documentation "all crosses from `axes'")))
+            :documentation "all crosses from `axes'")))
 
 (defmethod initialize-instance :after ((charioteer charioteer) &key)
   (with-slots (axes venue horses markets) charioteer
@@ -143,8 +143,8 @@ their reserved balances will be modified.")
       (assert (eq venue (exchange axis))))
     (dolist (market (markets venue))
       (when (and (find (primary market) axes)
-		 (find (counter market) axes))
-	(push market markets)))
+                 (find (counter market) axes))
+        (push market markets)))
     (dolist (horse horses)
       (assert (find (market horse) markets)))))
 
@@ -155,7 +155,7 @@ their reserved balances will be modified.")
 ;;;   (with-slots (decimals) (market maker)
 ;;;     (with-slots (bids asks) (slot-reduce maker ope filter)
 ;;;       (let ((exponent (expt 10d0 decimals)))
-;;;         ;; (multiple-value-bind (quote finite) 
+;;;         ;; (multiple-value-bind (quote finite)
 ;;;         ;;     (floor top (expt 10 decimals)))
 ;;;         (multiple-value-bind (mpl sanityp)
 ;;;             (floor (- (price (first asks))
@@ -176,8 +176,8 @@ their reserved balances will be modified.")
   (:method ((url string) &optional (string-for-escaping "") &rest keys)
     (declare (ignore keys))
     (drakma:http-request url :method :post :content-type "application/json"
-			     :content (format nil "{\"text\":~S}"
-					      string-for-escaping))))
+                             :content (format nil "{\"text\":~S}"
+                                              string-for-escaping))))
 
 ;;; why did emacs pin tree-sitter ? lol
 (defgeneric decompile-slack-webhook-url (webhook-url kind &key)
@@ -185,29 +185,29 @@ their reserved balances will be modified.")
     (error "I hope you know what you're doing."))
   (:method ((webhook-url string) (kind (eql :|services|)) &key) ; NOT &AOK
     (let* ((prefix (string kind))
-	   (token-start (+ 9 (search prefix webhook-url))))
+           (token-start (+ 9 (search prefix webhook-url))))
       (flet ((next-token (start &optional (separator #\/))
-	       (let ((end (position separator webhook-url :start start)))
-		 (values end (subseq* webhook-url start end)))))
-	(next-token token-start))))
+               (let ((end (position separator webhook-url :start start)))
+                 (values end (subseq* webhook-url start end)))))
+        (next-token token-start))))
   (:method ((webhook-url string) (prefix string) &key) ; NOT &AOK
     (let* ((token-start (+ 1 (length prefix) (search prefix webhook-url))))
       (flet ((next-token (start &optional (separator #\/))
-	       (let ((end (position separator webhook-url :start start)))
-		 (values end (subseq* webhook-url start end)))))
-	(next-token token-start))))
+               (let ((end (position separator webhook-url :start start)))
+                 (values end (subseq* webhook-url start end)))))
+        (next-token token-start))))
   (:method ((webhook-url string) (kind (eql 3)) &key)
     (multiple-value-bind (first-pivot workspace)
-	  (decompile-slack-webhook-url webhook-url :|services|)
+          (decompile-slack-webhook-url webhook-url :|services|)
       (check-type first-pivot unsigned-byte) ; FIFO ?
       (multiple-value-bind (second-fulcrum application)
-	  (decompile-slack-webhook-url webhook-url workspace)
-	(check-type second-fulcrum unsigned-byte)  ; MESO ?
-	(multiple-value-bind (seventh-solidus token)
-	    (decompile-slack-webhook-url webhook-url application)
-	  (check-type seventh-solidus null) ; LIFO ?
-	  (values workspace application token ; prepare your stack ...
-		  "https://hooks.slack.com/services/"))))))
+          (decompile-slack-webhook-url webhook-url workspace)
+        (check-type second-fulcrum unsigned-byte)  ; MESO ?
+        (multiple-value-bind (seventh-solidus token)
+            (decompile-slack-webhook-url webhook-url application)
+          (check-type seventh-solidus null) ; LIFO ?
+          (values workspace application token ; prepare your stack ...
+                  "https://hooks.slack.com/services/"))))))
 ;;; "I hate your monad sofa king much, Archimedes" - Idogenese
 
 (defclass forum (exchange)
@@ -216,10 +216,10 @@ their reserved balances will be modified.")
 
 (defvar *slack*		       ; ... will also be defclass, eventually
   (make-instance 'forum :name (gensym "slack_")
-		 :domain (cerror "talk to yourself" "quiet")
-		 :people (acons (+ (floor most-positive-fixnum
-					  (ash 1 (ceiling pi)))
-				   (length *unit-registry*))
-				"bouncer" nil)))
+                 :domain (cerror "talk to yourself" "quiet")
+                 :people (acons (+ (floor most-positive-fixnum
+                                          (ash 1 (ceiling pi)))
+                                   (length *unit-registry*))
+                                "bouncer" nil)))
 
 ;;; NOT END-OF-FILE ONLY END OF FUNDS farce-quit
