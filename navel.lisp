@@ -124,8 +124,9 @@
 ;;; CHARIOTEER probably not the best name, although it is AWESOME
 
 (defclass charioteer (parent)
-  ((axes :initarg :axes :initform (error "must list axes")
-	 :documentation "list of objects of type `asset';
+  ((gate :initarg :gate)
+   (axes :initarg :axes :initform (error "must list axes")
+         :documentation "list of objects of type `asset';
 it is assumed that all live within the same venue;
 managed horses will move the account along these.")
    (venue :reader venue :documentation "of type `exchange', of all axes")
@@ -137,7 +138,7 @@ their reserved balances will be modified.")
             :documentation "all crosses from `axes'")))
 
 (defmethod initialize-instance :after ((charioteer charioteer) &key)
-  (with-slots (axes venue horses markets) charioteer
+  (with-slots (gate axes venue horses markets) charioteer
     (setf venue (exchange (first axes)))
     (dolist (axis (rest axes))
       (assert (eq venue (exchange axis))))
@@ -147,6 +148,30 @@ their reserved balances will be modified.")
         (push market markets)))
     (dolist (horse horses)
       (assert (find (market horse) markets)))))
+
+(defmethod shared-initialize :after ((charioteer charioteer) (names t) &key)
+  (with-slots (gate horses) charioteer
+    (unless (slot-boundp charioteer 'gate)
+      (setf gate (slot-reduce (first horses) gate)))))
+
+(defun compute-tresses (charioteer &optional reset &aux tresses)
+  (dolist (horse (horses charioteer))
+    (when reset (setf (slot-reduce horse treasurer reserved) ()))
+    (flet ((bind (axis)
+             (aif (assoc axis tresses)
+                  (progn (incf (cadr it))
+                         (push horse (cddr it)))
+                  (push (list axis 1 horse) tresses))))
+      (with-slots (primary counter) (market horse)
+        (bind primary) (bind counter))))
+  (let ((balances (account-balances (slot-reduce charioteer gate))))
+    (dolist (tress tresses tresses)
+      (destructuring-bind (asset count &rest team) tress
+        (let ((tension (cons-aq* asset
+                                 (* (asset-funds asset balances)
+                                    (- 1 (/ count))))))
+          (dolist (horse team)
+            (push tension (slot-reduce horse treasurer reserved))))))))
 
 (defmethod halt :before ((charioteer charioteer))
   (mapcar #'halt (horses charioteer)))
