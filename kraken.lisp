@@ -136,7 +136,7 @@
                      (t (sleep 0.2)))))))
 
 (defclass token-mixin (exchange parent)
-  ((delay :initform 10 :initarg :delay)
+  ((delay :initform 9/8 :initarg :delay)
    (tokens :initform (make-instance 'channel))
    (mint :initform (make-instance 'channel))))
 
