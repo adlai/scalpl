@@ -1,7 +1,7 @@
 (defpackage #:scalpl.kraken
   (:nicknames #:kraken) (:export #:*kraken* #:kraken-gate)
   (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
-        #:scalpl.actor #:scalpl.net #:scalpl.exchange))
+        #:scalpl.actor #:scalpl.net #:scalpl.exchange #:scalpl.qd))
 
 (in-package #:scalpl.kraken)
 
@@ -415,6 +415,33 @@
                (change-class offer 'offered :oid it))))
       (if (< price 0) (post "buy") (post "sell")))))
 
+(defun amend-limit (gate type market txid price volume decimals)
+  (with-slots ((pair name) (vol-decimals decimals)) market
+    (let ((price (/ price (expt 10d0 decimals))))
+      (when (string= type "sell")
+        (setf volume (* volume price))) ; always viqc
+      (multiple-value-bind (info errors)
+          (flet ((money (&rest args)
+                   (apply #'format nil "~V$" args)))
+            (gate-request gate "AmendOrder"
+                          `(("txid" . ,txid)
+                            ("order_qty" . ,(money vol-decimals volume))
+                            ("price" . ,(money decimals price))
+                            ;; ("post_only" . "true")
+                            )))
+        (values (unless errors (getjso "amend_id" info)) errors)))))
+
+(defmethod amend-offer ((gate kraken-gate) (old offer) (new offer))
+  ;; (format t "~&amend  ~A~%" offer)
+  (with-slots (market volume price) new
+    (with-slots (oid old-market) old
+      (flet ((post (type)
+               (awhen (amend-limit gate type market
+                                   oid (abs price) volume
+                                   (slot-value market 'decimals))
+                 (change-class new 'offered :oid it))))
+        (if (< price 0) (post "buy") (post "sell"))))))
+
 (defun cancel-order (gate oid)
   (gate-request gate "CancelOrder" `(("txid" . ,oid))))
 
@@ -423,6 +450,31 @@
   (multiple-value-bind (ret err)
       (cancel-order gate (oid offer))
     (or ret (search "Unknown order" (car err))))) :toplevel-keyword
+
+;;; Duplicate of bybit-proiritizer ; factor them out... someday
+
+(defclass kraken-prioritizer (prioritizer) ())
+
+(defmethod prioriteaze ((ope kraken-prioritizer) target placed
+                        &aux to-add (excess placed))
+  (flet ((frob (add pop &aux (max (max (length add) (length pop))))
+           (with-slots (expt) ope
+             (let* ((n (expt (random (expt max (/ expt))) expt))
+                    (add (nth (floor n) add))
+                    (pop (nth (- max (ceiling n)) pop)))
+               (if (and add pop)
+                   (amend-offer (slot-reduce ope supplicant gate) pop add)
+                   (if add (ope-place ope add) (ope-cancel ope pop)))))))
+    (aif (dolist (new target (sort to-add #'< :key #'price))
+           (aif (find (price new) excess :key #'price :test #'=)
+                (setf excess (remove it excess)) (push new to-add)))
+         (frob it (reverse excess))   ; which of these is worst?
+         (if excess (frob () excess)  ; choose the lesser weevil
+             (and target placed (= (length target) (length placed))
+                  (loop for new in target and old in placed
+                     when (sufficiently-different? new old)
+                     collect new into news and collect old into olds
+                     finally (when news (frob news olds))))))))
 
 ;;; Websocket
 
