@@ -828,7 +828,8 @@
     ((or division-by-zero arithmetic-error) ())))
 
 (defun update-bases (tracker trade)
-  (unless (zerop (volume trade))        ; thx polo
+  (unless (with-slots (volume given taken) trade
+            (zerop (* volume (quantity given) (quantity taken))))
     (with-slots (bases) tracker
       (with-slots (taken given price market) trade
         (swhen (getf bases (asset given)) (setf it (bases-without it given)))
