@@ -248,26 +248,10 @@ their reserved balances will be modified.")
                   "https://hooks.slack.com/services/"))))))
 ;;; "I hate your monad sofa king much, Archimedes" - Idogenese
 
-;; (defclass forum (exchange)
-;;   ((domain :initform (error "``NOMA died,, -- SJG") :initarg :domain)
-;;    (people :initarg :people :initform (error "seal membership closed"))))
-
-;; (defvar *slack*		       ; ... will also be defclass, eventually
-;;   (make-instance 'forum :name (gensym "slack_")
-;;                  :domain (cerror "talk to yourself" "quiet")
-;;                  :people (acons (+ (floor most-positive-fixnum
-;;                                           (ash 1 (ceiling pi)))
-;;                                    (length *unit-registry*))
-;;                                 "bouncer" nil)))
-
 (defun report-health (&optional (url *slack-url*) (charioteer *charioteer*))
   (slack-webhook
    url (format nil "I have ~D bots running; [~{~D~^ ~}]"
-               (length (horses charioteer))
-               ;; after updating ChanL, (pool-health)
-               (reduce 'mapcar '(length funcall)
-	               :from-end t :initial-value
-	               '(pooled-tasks pooled-threads all-threads)))))
+               (length (horses charioteer)) (pool-health))))
 
 ;;; This needs to be refactored; the general idea is that any function
 ;;; communicating to Slack should have an option that doesn't communicate,
@@ -280,8 +264,9 @@ their reserved balances will be modified.")
             for buy = (minusp (price offer))
             count buy into bids count (not buy) into asks
             finally (push (list (name horse) bids asks
-                                (awhen (slot-reduce horse timestamp)
-                                  (timestamp-difference (now) it)))
+                                (awhen (ignore-errors
+                                        (slot-reduce horse timestamp))
+                                  (floor (timestamp-difference (now) it))))
                           offerings)))
     (setf offerings
           (subseq (sort offerings #'<
@@ -290,7 +275,7 @@ their reserved balances will be modified.")
                   0 count))
     (values (with-output-to-string (*standard-output*)
               (format t "~&  Market  Bids Asks Staleness")
-              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9,3F~]~%~}"
+              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9D~]~%~}"
                       offerings))
             offerings)))
 

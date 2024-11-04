@@ -21,12 +21,12 @@
 
 ;;; response: placed offer if successful, nil if not
 (defun ope-place (ope offer)
-  (with-slots (control response) (slot-value ope 'supplicant)
+  (with-slots (control) (slot-value ope 'supplicant)
     (send control (list :offer offer))))
 
 ;;; response: trueish = offer no longer placed, nil = unknown badness
 (defun ope-cancel (ope offer)
-  (with-slots (control response) (slot-value ope 'supplicant)
+  (with-slots (control) (slot-value ope 'supplicant)
     (send control (list :cancel offer))))
 
 (defclass filter (actor)
@@ -273,9 +273,14 @@
                           (recv response)))))
           (let ((e (/ epsilon (+ 1/13 (abs (log (1+ (abs (log ratio)))))))))
             (do-side counter bids next-bids
-              (* (max e epsilon) (abs (price (first bids))) (max ratio 1)
-                 (expt 10 (- (decimals (market (first bids)))))))
-            (do-side primary asks next-asks (* (max e epsilon) (max (/ ratio) 1)))
+              (min (* (max e epsilon)
+                      (abs (price (first bids)))
+                      (max ratio 1)
+                      (expt 10 (- (decimals (market (first bids))))))
+                   (/ (caar counter) 7)))
+            (do-side primary asks next-asks
+              (min (* (max e epsilon) (max (/ ratio) 1))
+                   (/ (caar primary) 7)))
             ;; no, you may not write CL:DOCUMENTATION for macrolets,
             ;; you fine-source-reusing literati scum-bucket investor;
             ;; and keep those widths in check unless you want an "and mate"!
@@ -443,8 +448,8 @@
               ;;   (setf targeting-factor (/ targeting-factor)))
               (flet ((f (g h) `((,g . ,(* cut (max 0 (* skew-factor h)))))))
                 (send (slot-reduce ope input)
-                      (list (f (min btc (* 2/3 total-btc)) skew)
-                            (f (min doge (* 2/3 total-doge)) (- skew))
+                      (list (f (min btc total-btc) skew)
+                            (f (min doge total-doge) (- skew))
                             (* resilience-factor
                                (reduce #'max (mapcar #'volume trades)
                                        :initial-value 0))

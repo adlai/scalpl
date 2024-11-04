@@ -932,6 +932,7 @@
 (defmethod execute ((supplicant supplicant) (cons cons) &aux (arg (cdr cons)))
   (with-slots (gate response timestamp offered market) supplicant
     (acase (car cons)
+      (:timestamp (setf timestamp (now)))
       (:cancel (when (cancel-offer gate arg)
                  (setf timestamp (now))
                  (setf offered (set-difference offered arg :key #'oid
