@@ -1,7 +1,7 @@
 (defpackage #:scalpl.navel
   (:use #:cl #:anaphora #:local-time #:chanl #:scalpl.actor
         #:scalpl.util #:scalpl.exchange #:scalpl.qd)
-  (:export #:yank))
+  (:export #:*charioteer* *slack-url*))
 
 (in-package #:scalpl.navel)
 
@@ -248,17 +248,17 @@ their reserved balances will be modified.")
                   "https://hooks.slack.com/services/"))))))
 ;;; "I hate your monad sofa king much, Archimedes" - Idogenese
 
-(defclass forum (exchange)
-  ((domain :initform (error "``NOMA died,, -- SJG") :initarg :domain)
-   (people :initarg :people :initform (error "seal membership closed"))))
+;; (defclass forum (exchange)
+;;   ((domain :initform (error "``NOMA died,, -- SJG") :initarg :domain)
+;;    (people :initarg :people :initform (error "seal membership closed"))))
 
-(defvar *slack*		       ; ... will also be defclass, eventually
-  (make-instance 'forum :name (gensym "slack_")
-                 :domain (cerror "talk to yourself" "quiet")
-                 :people (acons (+ (floor most-positive-fixnum
-                                          (ash 1 (ceiling pi)))
-                                   (length *unit-registry*))
-                                "bouncer" nil)))
+;; (defvar *slack*		       ; ... will also be defclass, eventually
+;;   (make-instance 'forum :name (gensym "slack_")
+;;                  :domain (cerror "talk to yourself" "quiet")
+;;                  :people (acons (+ (floor most-positive-fixnum
+;;                                           (ash 1 (ceiling pi)))
+;;                                    (length *unit-registry*))
+;;                                 "bouncer" nil)))
 
 (defun report-health (&optional (url *slack-url*) (charioteer *charioteer*))
   (slack-webhook
@@ -268,5 +268,34 @@ their reserved balances will be modified.")
                (reduce 'mapcar '(length funcall)
 	               :from-end t :initial-value
 	               '(pooled-tasks pooled-threads all-threads)))))
+
+;;; This needs to be refactored; the general idea is that any function
+;;; communicating to Slack should have an option that doesn't communicate,
+;;; only returning its message to the REPL, and some wrapper that does.
+
+(defun weakest-providers (&optional (count 5) (charioteer *charioteer*))
+  (let (offerings)
+    (dolist (horse (horses charioteer))
+      (loop for offer in (slot-reduce horse offered)
+            for buy = (minusp (price offer))
+            count buy into bids count (not buy) into asks
+            finally (push (list (name horse) bids asks) offerings)))
+    (setf offerings
+          (subseq (sort offerings #'<
+                        :key (lambda (data)
+                               (* (second data) (third data))))
+                  0 count))
+    (values (with-output-to-string (*standard-output*)
+              (format t "~&  Market  Bids Asks")
+              (format t "~&~:{~8A ~4D ~4D~%~}" offerings))
+            offerings)))
+
+(defun report-weakest-providers
+    (&optional (count 5) (url *slack-url*) (charioteer *charioteer*))
+  (slack-webhook url
+                 (format nil
+                         "~&Weakest ~D Bots (out of ~2D):~%```~%~A```"
+                         count (length (horses charioteer))
+                         (weakest-providers count charioteer))))
 
 ;;; NOT END-OF-FILE ONLY END OF FUNDS farce-quit
