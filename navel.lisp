@@ -281,10 +281,16 @@ their reserved balances will be modified.")
 
 (defun report-weakest-providers
     (&optional (count 5) (url *slack-url*) (charioteer *charioteer*))
+  (if (eq count t) (setf count (length (horses charioteer))))
   (slack-webhook url
                  (format nil
                          "~&Weakest ~D Bots (out of ~2D):~%```~%~A```"
                          count (length (horses charioteer))
                          (weakest-providers count charioteer))))
+
+(defun start-reporter (&optional count (wavelength 600))
+  (pexec (:name "slack autoreporter")
+    (loop (report-weakest-providers (or count t))
+          (sleep wavelength))))
 
 ;;; NOT END-OF-FILE ONLY END OF FUNDS farce-quit
