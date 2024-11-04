@@ -893,6 +893,7 @@
 (defclass supplicant (parent)
   ((gate :initarg :gate) (market :initarg :market :reader market)
    (offered :initform ())	  ; (placed :initform ()) ; need both!
+   (timestamp :reader timestamp)
    (response :initform (make-instance 'channel))
    (abbrev :allocation :class :initform "supplicant")
    (treasurer :initarg :treasurer)
@@ -916,6 +917,7 @@
              ;; The retention of null return values is retained, in optimistic
              ;; anticipation of the day when failures will contain information
              ;; beyond merely the fact of failure itself.
+             ;; TODO - review whether this multiple placement is still used
              (list (dolist (offer it) (when offer (push offer offered)))))))))
 
 (defun sufficiently-different? (new old &optional market) ; someday dispatch
@@ -928,12 +930,14 @@
   (with-slots (gate) supplicant (placed-offers gate market)))
 
 (defmethod execute ((supplicant supplicant) (cons cons) &aux (arg (cdr cons)))
-  (with-slots (gate response offered market) supplicant
+  (with-slots (gate response timestamp offered market) supplicant
     (acase (car cons)
       (:cancel (when (cancel-offer gate arg)
+                 (setf timestamp (now))
                  (setf offered (set-difference offered arg :key #'oid
                                               :test #'string=))))
-      (:offer (apply #'balance-guarded-place supplicant arg))
+      (:offer (when (apply #'balance-guarded-place supplicant arg)
+                (setf timestamp (now))))
       (:sync (send response
                    (setf offered (placed-offers supplicant market))))
       (t (setf offered (remove it offered :test #'string= :key #'oid))))))

@@ -279,15 +279,19 @@ their reserved balances will be modified.")
       (loop for offer in (slot-reduce horse offered)
             for buy = (minusp (price offer))
             count buy into bids count (not buy) into asks
-            finally (push (list (name horse) bids asks) offerings)))
+            finally (push (list (name horse) bids asks
+                                (awhen (slot-reduce horse timestamp)
+                                  (timestamp-difference (now) it)))
+                          offerings)))
     (setf offerings
           (subseq (sort offerings #'<
                         :key (lambda (data)
                                (* (second data) (third data))))
                   0 count))
     (values (with-output-to-string (*standard-output*)
-              (format t "~&  Market  Bids Asks")
-              (format t "~&~:{~8A ~4D ~4D~%~}" offerings))
+              (format t "~&  Market  Bids Asks Staleness")
+              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9,3F~]~%~}"
+                      offerings))
             offerings)))
 
 (defun report-weakest-providers
