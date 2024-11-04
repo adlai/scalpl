@@ -333,7 +333,7 @@
          (remove market
                  (if (null since) it
                      (remove (timestamp since) it
-                             :key #'timestamp :test #'timestamp>))
+                             :key #'timestamp :test #'timestamp>=))
                  :test-not #'eq :key #'market)
          (progn
            (let ((raw (raw-executions gate :start (or (car cache) since))))
@@ -342,7 +342,7 @@
            (reverse (remove market
                             (if (null since) cache
                                 (remove (timestamp since) cache
-                                        :key #'timestamp :test #'timestamp>))
+                                        :key #'timestamp :test #'timestamp>=))
                             :test-not #'eq :key #'market))))))
 
 #+nil
