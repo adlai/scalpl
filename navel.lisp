@@ -262,10 +262,15 @@ their reserved balances will be modified.")
                   "https://hooks.slack.com/services/"))))))
 ;;; "I hate your monad sofa king much, Archimedes" - Idogenese
 
-(defun report-health (&optional (url *slack-url*) (charioteer *charioteer*))
+(defvar *slack-url*)
+
+(defun report-health (&optional comment)
   (slack-webhook
-   url (format nil "I have ~D bots running; [~{~D~^ ~}]"
-               (length (horses charioteer)) (pool-health))))
+   *slack-url* (concatenate
+                'string (format () "I have ~D bots running; [~{~D~^ ~}]"
+                                (length (horses *charioteer*))
+                                (pool-health))
+                (when comment (format () " // comment:~%~A" comment)))))
 
 ;;; This needs to be refactored; the general idea is that any function
 ;;; communicating to Slack should have an option that doesn't communicate,
