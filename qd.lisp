@@ -81,7 +81,7 @@
                                                     offered)
                                 asks (ignore-offers (nthcdr b (cdr book))
                                                     offered)))))))
-    (sleep frequency)))
+    (sleep (/ frequency))))
 
 ;;; TODO ... "PERSPECTIVES"
 ;;; distantly related to &environment except within trading context
@@ -128,7 +128,7 @@
                (send response (prioriteaze prioritizer next placed-bids)))
               ((recv next-asks next)
                (send response (prioriteaze prioritizer next placed-asks)))
-              (t (sleep frequency))))))
+              (t (sleep (/ frequency)))))))
 
 (defun profit-margin (bid ask &optional (bid-fee 0) (ask-fee 0))
   (abs (if (= bid-fee ask-fee 0) (/ ask bid)	; VALUES
@@ -285,7 +285,7 @@
             ;; you fine-source-reusing literati scum-bucket investor;
             ;; and keep those widths in check unless you want an "and mate"!
             )))) ; this line is fine though, plenty of sideband, and green, too!
-    (send output (sleep frequency))))
+    (send output (sleep (/ frequency)))))
 ;;; C-h k C-x [
 
 (defmethod initialize-instance :after ((ope ope-scalper) &key cut)

@@ -767,7 +767,7 @@
 (defclass execution-tracker (parent)
   ((abbrev :allocation :class :initform "exhun tracker")
    (trades :initform nil :initarg :trades) (bases :initform nil)
-   (delay :initform 11) (buffer :initform (make-instance 'channel)) fetcher))
+   (delay :initform 41) (buffer :initform (make-instance 'channel)) fetcher))
 
 (defmethod christen ((tracker execution-tracker) (type (eql 'actor)))
   (with-slots (gate market) tracker
