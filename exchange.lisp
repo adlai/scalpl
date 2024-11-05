@@ -110,6 +110,8 @@
 (defclass registered-unit ()
   ((index :initform (length *unit-registry*) :reader index)))
 
+(defmethod index ((null null)) 0)
+
 (defmethod initialize-instance :after ((unit registered-unit) &key)
   (push (cons (index unit) unit) *unit-registry*))
 
@@ -199,10 +201,11 @@
 (defun aq- (aq1 &optional aq2 &rest aqs)
   (cond
     (aqs (aq- aq1 (reduce #'aq+ aqs :initial-value aq2)))
+    ((null aq2) (cons-aq (asset aq1) (- (quantity aq1))))
     ((eq (asset aq1) (asset aq2))
      (cons-aq (asset aq1) (- (quantity aq1) (quantity aq2))))
     ((zerop aq1) (cons-aq (asset aq2) (- (quantity aq2))))
-    ((null aq2) (cons-aq (asset aq1) (- (quantity aq1)))) ((zerop aq2) aq1)
+    ((zerop aq2) aq1)
     (t (error "assets ~A and ~A don't match" aq1 aq2))))
 
 ;;;

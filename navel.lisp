@@ -16,20 +16,29 @@
 
 (defmethod describe-object :after ((maker maker) (stream t))
   (with-aslots (market) (slot-reduce maker supplicant)
-    (describe-account it (exchange market) stream)))
+    (handler-case (describe-account it (exchange market) stream)
+      (simple-error () (continue)))))
 
 ;;; more lifts from quick dirty scrip scribbles
 
 (defun trades-profits (trades)
-  (flet ((side-sum (side asset)
-           (aif (remove side trades :key #'direction :test-not #'string-equal)
-                (reduce #'aq+ (mapcar asset it)) 0)))
-    (let ((aq1 (aq- (side-sum "buy"  #'taken) (side-sum "sell" #'given)))
-          (aq2 (aq- (side-sum "sell" #'taken) (side-sum "buy"  #'given))))
-      (ecase (- (signum (quantity aq1)) (signum (quantity aq2)))
-        ((0 1 -1) (values nil aq1 aq2))
-        (-2 (values (aq/ (- (conjugate aq1)) aq2) aq2 aq1))
-        (+2 (values (aq/ (- (conjugate aq2)) aq1) aq1 aq2))))))
+  (flet ((side-trades (side)
+           (remove side trades :test-not #'string-equal :key #'direction))
+         (side-sum (side-trades asset)
+           (aif side-trades (mapreduce asset #'aq+ side-trades) 0)))
+    (let ((buys (side-trades "buy")) (sells (side-trades "sell")))
+      (let ((aq1 (aq- (side-sum buys  #'taken) (side-sum sells #'given)))
+            (aq2 (aq- (side-sum sells #'taken) (side-sum buys  #'given))))
+        (cond
+          ((and buys sells)
+           (ecase (- (signum (quantity aq1)) (signum (quantity aq2)))
+             ((0 1 -1) (values nil aq1 aq2))
+             (-2 (values (aq/ (- (conjugate aq1)) aq2) aq2 aq1))
+             (+2 (values (aq/ (- (conjugate aq2)) aq1) aq1 aq2))))
+          (buys (values nil  (side-sum buys #'taken)
+                        (aq- (side-sum buys #'given))))
+          (sells (values nil  (side-sum sells #'taken)
+                         (aq- (side-sum sells #'given)))))))))
 
 (defun maker-volumes (&optional maker rfc3339-datestring) ;_; ;_; ;_; !
   ;; Cloudflare makes me want to slit my wrists wide open ;_; ;_; ;_; !
@@ -51,30 +60,29 @@
              (total (btc doge)		; especially if works people!
                (+ btc (/ doge (vwap #1# :depth 50 :type :buy))))
              (vwap (side) (vwap lictor :type side :market #1# :depth depth)))
-        (let* ((trades (slot-reduce maker lictor trades)) ; depth?
-               (uptime (timestamp-difference
-                        now (timestamp (first (last trades)))))
-               (updays (/ uptime 60 60 24))
-               (volume (reduce #'+ (mapcar #'volume trades)))
-               (profit (* volume (1- (profit-margin (vwap "buy")
-                                                    (vwap "sell")))
-                          1      ; where will philbert the
-                          #|how|#       ;  phudjer get shocked?
-                          ))            ;   TO THE DEATH, DUH
-               (total (total (funds primary) (funds counter))))
-          (format t "~&I failed calculus, so why take my ~
-                       word for any of these reckonings?~%")
-          (format t "~&Looked across past   ~7@F days ~A~
-                     ~%where account traded ~7@F ~(~A~),~
-                     ~%captured profit of   ~7@F ~(~2:*~A~*~),~
-                     ~%expected turnover of ~7@F days;~
-                     ~%chudloadic exkrmnt:  ~3@$~%"
-                  updays (now) volume (name primary) profit
-                  (/ (* total updays 2) volume) ; times now
-                  ;; ignores compounding, du'e! ; make diff
-                  (realpart (/ (log (/ (* 100 profit) (/ updays 30)
-                                       total updays)) ; eventually,
-                               (- pi)))))))))          ; monodromy.
+        (awhen (slot-reduce lictor trades)
+          (let ((updays (/ (timestamp-difference
+                            now (timestamp (first (last it))))
+                           60 60 24))
+                (volume (reduce #'+ (mapcar #'volume it))))
+            (when (trades-profits it)
+              (let ((profit (* (1- (profit-margin (vwap "buy") (vwap "sell")))
+                               volume))           ;   TO THE DEATH, DUH
+
+                    (total (total (funds primary) (funds counter))))
+                (format t "~&I failed calculus, so why take my ~
+                             word for any of these reckonings?~%")
+                (format t "~&Looked across past   ~7@F days ~A~
+                           ~%where account traded ~7@F ~(~A~),~
+                           ~%captured profit of   ~7@F ~(~2:*~A~*~),~
+                           ~%expected turnover of ~7@F days;~
+                           ~%chudloadic exkrmnt:  ~3@$~%"
+                        updays (now) volume (name primary) profit
+                        (/ (* total updays 2) volume) ; times now
+                        ;; ignores compounding, du'e! ; make diff
+                        (realpart (/ (log (/ (* 100 profit) (/ updays 30)
+                                             total updays))  ; eventually,
+                                     (- pi))))))))))))          ; monodromy.
 
 ;; (flet ((window (start trades)
 ;;       (if (null trades) (list start 0 nil)
