@@ -429,7 +429,8 @@
                    (btc  (* fund-factor total-btc
                             buyin targeting-factor))
                    (doge (* fund-factor total-doge
-                            (/ (- 1 buyin) targeting-factor)))
+                            (if (zerop targeting-factor) 1
+                                (/ (- 1 buyin) targeting-factor))))
                    ;; status should always be \in (0,1)
                    (status (dbz-guard (/ (total-of    btc  doge) total-fund)))
                    ;; torque's range varies, depending on markets and climates
