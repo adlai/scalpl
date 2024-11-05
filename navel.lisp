@@ -296,12 +296,13 @@ their reserved balances will be modified.")
 
 (defun report-weakest-providers
     (&optional (count 5) (url *slack-url*) (charioteer *charioteer*))
-  (if (eq count t) (setf count (length (horses charioteer))))
-  (slack-webhook url
-                 (format nil
-                         "~&Weakest ~D Bots (out of ~2D):~%```~%~A```"
-                         count (length (horses charioteer))
-                         (weakest-providers count charioteer))))
+  (let ((length (length (horses charioteer)))
+        (control "~&Summary of ~D~@[ out of ~2D~] bots:~%```~%~A```"))
+    (if (eq count t) (setf count length))
+    (let ((report (format nil control count
+                          (unless (= count length) length)
+                          (weakest-providers count charioteer))))
+      (if url (slack-webhook url report) report))))
 
 (defun start-reporter (&optional count (wavelength 600))
   (pexec (:name "slack autoreporter")
