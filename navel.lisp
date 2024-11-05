@@ -294,7 +294,8 @@ their reserved balances will be modified.")
     (setf offerings
           (subseq (sort offerings #'<
                         :key (lambda (data)
-                               (* (second data) (third data))))
+                               (/ (* (second data) (third data))
+                                  (aif (third data) it 1))))
                   0 count))
     (values (with-output-to-string (*standard-output*)
               (format t "~&  Market  Bids Asks Staleness Activity")
