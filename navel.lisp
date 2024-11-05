@@ -282,10 +282,14 @@ their reserved balances will be modified.")
       (loop for offer in (slot-reduce horse offered)
             for buy = (minusp (price offer))
             count buy into bids count (not buy) into asks
-            finally (push (list (name horse) bids asks
-                                (awhen (ignore-errors
-                                        (slot-reduce horse timestamp))
-                                  (floor (timestamp-difference (now) it))))
+            finally (push (list* (name horse) bids asks
+                                 (awhen (ignore-errors
+                                         (slot-reduce horse timestamp))
+                                   (floor (timestamp-difference (now) it)))
+                                 (aif (multiple-value-list
+                                       (trades-profits
+                                        (slot-reduce horse lictor trades)))
+                                      (cdr it) '(0 0)))
                           offerings)))
     (setf offerings
           (subseq (sort offerings #'<
@@ -293,8 +297,8 @@ their reserved balances will be modified.")
                                (* (second data) (third data))))
                   0 count))
     (values (with-output-to-string (*standard-output*)
-              (format t "~&  Market  Bids Asks Staleness")
-              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9D~]~%~}"
+              (format t "~&  Market  Bids Asks Staleness Activity")
+              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9D~] ~21@A ~21@A~%~}"
                       offerings))
             offerings)))
 
