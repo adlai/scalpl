@@ -145,6 +145,8 @@ their reserved balances will be modified.")
    (markets :reader markets :initform nil
             :documentation "all crosses from `axes'")))
 
+(defvar *charioteer*)
+
 (defmethod initialize-instance :after ((charioteer charioteer) &key)
   (with-slots (gate axes venue horses markets) charioteer
     (setf venue (exchange (first axes)))
@@ -195,7 +197,12 @@ their reserved balances will be modified.")
     (sleep 59)))
 
 (defmethod halt :before ((charioteer charioteer))
-  (mapcar #'halt (horses charioteer)))
+  (dolist (horse (horses charioteer))
+    (aand (task-thread (first (slot-reduce horse tasks)))
+          (thread-alive-p it)
+          (or (send (slot-reduce horse control) :halt :blockp nil)
+              (bt:interrupt-thread
+               it (lambda () (throw :halt :killed)))))))
 
 ;;; (symbol-macrolet ((quotient 2) (epsilon 1321) (maker *btcil*))
 ;;;   (with-slots (decimals) (market maker)
