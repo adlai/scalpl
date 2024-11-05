@@ -84,25 +84,24 @@
                                              total updays))  ; eventually,
                                      (- pi))))))))))))          ; monodromy.
 
-;; (flet ((window (start trades)
-;;       (if (null trades) (list start 0 nil)
-;;         (multiple-value-call 'list start
-;;           (length trades) (trades-profits trades)))))
-;;   (symbol-macrolet ((maker *maker*))
-;;     (loop with windows
-;;        for trades = (slot-reduce maker lictor trades)
-;;          then (nthcdr window-count trades)
-;;        for window-start = (timestamp (first trades)) then window-close
-;;        for window-close = (timestamp- window-start 12 :day)
-;;        for window-count = (position window-close trades
-;;                                     :key #'timestamp
-;;                                     :test #'timestamp>=)
-;;        for window = (window window-start
-;;                             (if (null window-count) trades
-;;                                 (subseq trades 0 window-count)))
-;;           ;; did Harrison Bergeron kill himself, mrjr?
-;;        while window-count do (push window windows)
-;;        finally (return (cons window windows)))))
+(defun windowed-report (maker &optional (length 1) (unit :day))
+  (flet ((window (start trades)
+	   (if (null trades) (list start 0 nil)
+	       (multiple-value-call 'list start
+	         (length trades) (trades-profits trades)))))
+    (loop with windows
+	  for trades = (slot-reduce maker lictor trades)
+	    then (nthcdr window-count trades)
+	  for window-start = (timestamp (first trades)) then window-close
+	  for window-close = (timestamp- window-start length unit)
+	  for window-count = (position window-close trades
+				       :key #'timestamp
+				       :test #'timestamp>=)
+	  for window = (window window-start
+			       (if (null window-count) trades
+			           (subseq trades 0 window-count)))
+	  while window-count do (push window windows)
+	  finally (return (cons window windows)))))
 
 ;; (defmethod describe-account :after
 ;;     (supplicant exchange stream)
