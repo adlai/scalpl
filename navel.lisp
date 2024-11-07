@@ -198,10 +198,12 @@ their reserved balances will be modified.")
                   for staleness = (awhen (slot-reduce horse timestamp)
                                     (floor (timestamp-difference (now) it)))
                   when (> staleness 900) collect (cons staleness horse))))
-      (awhen (first (sort stalenesses #'> :key #'car))
-        (restart-maker (cdr it))
-        (report-health (format nil "unwedged `~A`"
-                               (name (market (cdr it))))))
+      (awhen (mapcar #'cdr (sort stalenesses #'> :key #'car))
+        (dolist (horse it) (restart-maker horse) (sleep 1/2))
+        (report-health (apply #'format nil
+                              "unwedged ~#[~;`~A`~;`~A` and `~A`~:;~
+                               ~@{~#[~; and~] `~A`~^, ~}~]"
+                              (mapcar #'name (mapcar #'market it)))))
       (sleep 59))))
 
 (defmethod halt :before ((charioteer charioteer))
@@ -279,7 +281,7 @@ their reserved balances will be modified.")
                 'string (format () "I have ~D bots running; [~{~D~^ ~}]"
                                 (length (horses *charioteer*))
                                 (pool-health))
-                (when comment (format () " // comment:~%~A" comment)))))
+                (when comment (format () " // comment: ~A" comment)))))
 
 ;;; This needs to be refactored; the general idea is that any function
 ;;; communicating to Slack should have an option that doesn't communicate,
