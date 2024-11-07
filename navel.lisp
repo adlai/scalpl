@@ -278,7 +278,7 @@ their reserved balances will be modified.")
 (defun report-health (&optional comment)
   (slack-webhook
    *slack-url* (concatenate
-                'string (format () "I have ~D bots running; [~{~D~^ ~}]"
+                'string (format () "I have ~D bots loaded; [~{~D~^ ~}]"
                                 (length (horses *charioteer*))
                                 (pool-health))
                 (when comment (format () " // comment: ~A" comment)))))
