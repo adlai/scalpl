@@ -288,7 +288,8 @@
     (send output (sleep (/ frequency)))))
 ;;; C-h k C-x [
 
-(defmethod initialize-instance :after ((ope ope-scalper) &key cut)
+(defmethod initialize-instance :after
+    ((ope ope-scalper) &key cut &allow-other-keys)
   (with-slots (filter prioritizer supplicant) ope
     (macrolet ((init (slot &rest args)
                  `(setf ,slot (make-instance ',slot :supplicant supplicant
@@ -408,6 +409,8 @@
   (call-next-method maker :blockp ())   ; memento, du musste mori!
   (with-slots (fund-factor resilience-factor targeting-factor skew-factor
                market name ope cut supplicant) maker
+    (with-slots (control response) supplicant
+      (send control '(:sync)) (recv response))
     (let* ((trades (recv (slot-reduce market trades))) ; nananananana
            (balances (with-slots (sync) (slot-reduce maker treasurer)
                        (recv (send sync sync)))) ; excellent!
@@ -461,11 +464,11 @@
               ;; (throw :up (gensym "BARF"))
               )))))))
 
-(defmethod initialize-instance :after ((maker maker) &key)
+(defmethod initialize-instance :after ((maker maker) &rest keys)
   (with-slots (supplicant ope delegates cut) maker
     (adopt maker supplicant) (push supplicant delegates)
-    (adopt maker (setf ope (make-instance 'ope-scalper :cut cut
-                                          :supplicant supplicant)))))
+    (adopt maker (setf ope (apply 'make-instance 'ope-scalper
+                                  :cut cut :supplicant supplicant keys)))))
 
 ;; (defun reset-the-net (maker &key (revive t) (delay 5))
 ;;   (mapc 'kill (mapcar 'task-thread (pooled-tasks)))
@@ -494,13 +497,15 @@
 
 (defmethod restart-maker ((maker maker))
   (with-slots (supplicant prioritizer) (slot-reduce maker ope)
-    (flet ((maybe-kill (actor)
-             (awhen (task-thread (first (slot-reduce actor tasks)))
-               (kill it))))
-      (mapc #'maybe-kill
-            (list maker prioritizer supplicant
-                  (slot-reduce maker ope)))
-      (sleep 1/2) (reinitialize-instance maker))))
+    (with-slots (treasurer lictor) supplicant
+      (flet ((maybe-kill (actor)
+               (awhen (task-thread (first (slot-reduce actor tasks)))
+                 (kill it))))
+        (mapc #'maybe-kill
+              (list maker prioritizer supplicant treasurer lictor
+                    (slot-reduce lictor fetcher)
+                    (slot-reduce maker ope)))
+        (sleep 1/2) (reinitialize-instance maker)))))
 
 (defgeneric current-depth (maker &key random-state)	       ; CLUNK
   (:method  ((maker maker) &key random-state)		       ; goes

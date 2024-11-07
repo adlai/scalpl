@@ -36,7 +36,7 @@
   :depends-on (#:scalpl)
   :components ((:file "bit2c"))
   :perform (load-op (no book)
-             (declare (ignore no book)) ; SAY IT ALOUD
+             (declare (ignore no book))
              (use-package (find-package :scalpl.bit2c)
                           (find-package :scalpl.qd)))
   :license "public domain")
@@ -46,72 +46,48 @@
   :depends-on (#:scalpl)        ; let's pretend this improved anything!
   :components ((:file "binance"))
   :perform (load-op (no book)
-             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
-             (format *debug-io* "~&~A~%"
-                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.BINANCE),SCALPL.QD]?")
-                         (use-package (find-package :scalpl.binance)
-                                      (find-package :scalpl.qd))
-                         "Relax, it's only an M-expression!"))))
+             (use-package (find-package :scalpl.binance)
+                          (find-package :scalpl.qd))))
 (defsystem #:scalpl/bybit
   :license "public domain"
   :description "api client for bybit"
   :depends-on (#:scalpl #:websocket-driver-client)
   :components ((:file "bybit"))
   :perform (load-op (no book)
-             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
-             (format *debug-io* "~&~A~%"
-                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.BYBIT),SCALPL.QD]?")
-                         (use-package (find-package :scalpl.bybit)
-                                      (find-package :scalpl.qd))
-                         "Relax, it's only an M-expression!"))))
+             (use-package (find-package :scalpl.bybit)
+                          (find-package :scalpl.qd))))
 (defsystem #:scalpl/kraken
   :license "public domain"
   :description "api client for kraken"
   :depends-on (#:scalpl #:websocket-driver-client)
   :components ((:file "kraken"))
   :perform (load-op (no book)
-             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
-             (format *debug-io* "~&~A~%"
-                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.kraken),SCALPL.QD]?")
-                         (use-package (find-package :scalpl.kraken)
-                                      (find-package :scalpl.qd))
-                         "Relax, it's only an M-expression!"))))
+             (use-package (find-package :scalpl.kraken)
+                          (find-package :scalpl.qd))))
 (defsystem #:scalpl/bitmex
   :license "public domain"
   :description "api client for bitmex"
   :depends-on (#:scalpl #:websocket-driver-client)
   :components ((:file "bitmex"))
   :perform (load-op (no book)
-             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
-             (format *debug-io* "~&~A~%"
-                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.BITMEX),SCALPL.QD]?")
-                         (use-package (find-package :scalpl.bitmex)
-                                      (find-package :scalpl.qd))
-                         "Relax, it's only an M-expression!"))))
+             (use-package (find-package :scalpl.bitmex)
+                          (find-package :scalpl.qd))))
 (defsystem #:scalpl/bitfinex
   :license "public domain"
   :description "api client for bitfinex"
   :depends-on (#:scalpl)
   :components ((:file "bitfinex"))
   :perform (load-op (no book)
-             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
-             (format *debug-io* "~&~A~%"
-                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.BITFINEX),SCALPL.QD]?")
-                         (use-package (find-package :scalpl.bitfinex)
-                                      (find-package :scalpl.qd))
-                         "Relax, it's only an M-expression!"))))
+             (use-package (find-package :scalpl.bitfinex)
+                          (find-package :scalpl.qd))))
 (defsystem #:scalpl/poloniex
   :license "public domain"
   :description "api client for poloniex"
   :depends-on (#:scalpl)
   :components ((:file "poloniex"))
   :perform (load-op (no book)
-             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
-             (format *debug-io* "~&~A~%"
-                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.POLONIEX),SCALPL.QD]?")
-                         (use-package (find-package :scalpl.poloniex)
-                                      (find-package :scalpl.qd))
-                         "Relax, it's only an M-expression!"))))
+             (use-package (find-package :scalpl.poloniex)
+                          (find-package :scalpl.qd))))
 
 ;;; The above were ordered by date of last modification,
 ;;; and the ordering should not be taken as any sort of

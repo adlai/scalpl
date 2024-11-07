@@ -197,7 +197,8 @@ their reserved balances will be modified.")
             (loop for horse in horses
                   for staleness = (awhen (slot-reduce horse timestamp)
                                     (floor (timestamp-difference (now) it)))
-                  when (> staleness 900) collect (cons staleness horse))))
+                  when (and staleness (> staleness 900))
+                    collect (cons staleness horse))))
       (awhen (mapcar #'cdr (sort stalenesses #'> :key #'car))
         (dolist (horse it) (restart-maker horse) (sleep 1/2))
         (report-health (apply #'format nil
@@ -321,7 +322,8 @@ their reserved balances will be modified.")
       (if url (slack-webhook url report) report))))
 
 (defun start-reporter (&optional count (wavelength 600))
-  (pexec (:name "slack autoreporter")
+  (pexec (:name "slack autoreporter"
+          :initial-bindings `((*slack-url* ,*slack-url*)))
     (loop (report-weakest-providers (or count t))
           (sleep wavelength))))
 

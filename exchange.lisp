@@ -16,7 +16,7 @@
            #:gate #:gate-post #:gate-request #:output #:input #:cache
            #:trade #:cost #:direction #:txid #:tracked-market
 
-           #:agent-trunk #:delay
+           #:agent-trunk #:delay #:fetcher
 
            #:trades-tracker #:trades #:trades-since #:vwap #:book
            #:book-tracker #:bids #:asks #:get-book #:get-book-keys
@@ -942,8 +942,7 @@
                                               :test #'string=))))
       (:offer (when (apply #'balance-guarded-place supplicant arg)
                 (setf timestamp (now))))
-      (:sync (send response
-                   (setf offered (placed-offers supplicant market))))
+      (:sync (send response (setf offered (placed-offers gate market))))
       (t (setf offered (remove it offered :test #'string= :key #'oid))))))
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
