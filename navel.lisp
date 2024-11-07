@@ -193,7 +193,16 @@ their reserved balances will be modified.")
                                                        previous-update))
           until (and delta (>= delta 199)) finally
             (compute-tresses charioteer t))
-    (sleep 59)))
+    (let ((stalenesses
+            (loop for horse in horses
+                  for staleness = (awhen (slot-reduce horse timestamp)
+                                    (floor (timestamp-difference (now) it)))
+                  when (> staleness 900) collect (cons staleness horse))))
+      (awhen (first (sort stalenesses #'> :key #'car))
+        (restart-maker (cdr it))
+        (report-health (format nil "unwedged `~A`"
+                               (name (market (cdr it))))))
+      (sleep 59))))
 
 (defmethod halt :before ((charioteer charioteer))
   (dolist (horse (horses charioteer))
@@ -282,24 +291,20 @@ their reserved balances will be modified.")
       (loop for offer in (slot-reduce horse offered)
             for buy = (minusp (price offer))
             count buy into bids count (not buy) into asks
-            finally (push (list* (name horse) bids asks
-                                 (awhen (ignore-errors
-                                         (slot-reduce horse timestamp))
-                                   (floor (timestamp-difference (now) it)))
-                                 (aif (multiple-value-list
-                                       (trades-profits
-                                        (slot-reduce horse lictor trades)))
-                                      (cdr it) '(0 0)))
+            finally (push (list (name horse) bids asks
+                                (awhen (ignore-errors
+                                        (slot-reduce horse timestamp))
+                                  (floor (timestamp-difference (now) it))))
                           offerings)))
     (setf offerings
           (subseq (sort offerings #'<
                         :key (lambda (data)
                                (/ (* (second data) (third data))
-                                  (aif (third data) it 1))))
+                                  (aif (fourth data) (max it 1) 1))))
                   0 count))
     (values (with-output-to-string (*standard-output*)
-              (format t "~&  Market  Bids Asks Staleness Activity")
-              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9D~] ~21@A ~21@A~%~}"
+              (format t "~&  Market  Bids Asks Staleness")
+              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9D~]~%~}"
                       offerings))
             offerings)))
 

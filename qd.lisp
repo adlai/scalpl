@@ -4,7 +4,7 @@
   (:export #:ope-placed #:ope-place #:ope-cancel
            #:prioritizer #:prioriteaze
            #:next-bids #:next-asks
-           #:maker #:profit-margin #:print-args))
+           #:maker #:restart-maker #:profit-margin #:print-args))
 
 (in-package #:scalpl.qd)
 
@@ -492,6 +492,16 @@
                                 "WHO ARE YOU & WHY THIS CODE")))
                      (error "GO TO FAIL, FO DIRECTIONS THAT FAILED")))))
     `(defvar ,lexeme (make-instance 'maker :name ,name ,@keys))))
+
+(defmethod restart-maker ((maker maker))
+  (with-slots (supplicant prioritizer) (slot-reduce maker ope)
+    (flet ((maybe-kill (actor)
+             (awhen (task-thread (first (slot-reduce actor tasks)))
+               (kill it))))
+      (mapc #'maybe-kill
+            (list maker prioritizer supplicant
+                  (slot-reduce maker ope)))
+      (sleep 1/2) (reinitialize-instance maker))))
 
 (defgeneric current-depth (maker &key random-state)	       ; CLUNK
   (:method  ((maker maker) &key random-state)		       ; goes

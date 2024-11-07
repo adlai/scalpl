@@ -896,7 +896,7 @@
 (defclass supplicant (parent)
   ((gate :initarg :gate) (market :initarg :market :reader market)
    (offered :initform ())	  ; (placed :initform ()) ; need both!
-   (timestamp :reader timestamp)
+   (timestamp :reader timestamp :initform nil)
    (response :initform (make-instance 'channel))
    (abbrev :allocation :class :initform "supplicant")
    (treasurer :initarg :treasurer)
