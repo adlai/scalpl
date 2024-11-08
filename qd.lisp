@@ -351,9 +351,8 @@
                                   sum volume into buy-sum
                                 else sum volume into sell-sum
                                 finally (return (min buy-sum sell-sum))))
-                 (min-last (apply 'min (mapcar #'side-last ; HphT
-                                               '("buy" "sell"))))
-                 (scale (expt (/ min-sum min-last) (/ (1+ length))))
+                 (mean-last (/ (+ (side-last "buy") (side-last "sell")) 2))
+                 (scale (expt (/ min-sum mean-last) (/ (1+ length))))
                  ;; neither a sticky hocker nor a logical shocker be
                  (dps (loop for i to length
                             collect (depth-profit
