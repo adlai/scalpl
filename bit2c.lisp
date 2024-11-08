@@ -347,7 +347,7 @@ the good folks at your local Gambler's Anonymous.")
                      (change-class offer 'offered
                                    :oid (prin1-to-string it)))
                     ((eql 0) (cerror "Proceed" "Break-point two")
-                     (warn "FIXME! Balance guard failed..."))))
+                     (warn "FIXME! Balance guard probably failed..."))))
                 (unless (let ((length (length message)))
                           (or (awhen (search "nonce" message :from-end t)
                                 (string= (subseq message (+ it 6)
@@ -357,8 +357,8 @@ the good folks at your local Gambler's Anonymous.")
                                                  (position #\) message))))
                               (awhen (search " 30% " message)
                                 (warn "~&Coding ~3D BPM ; nice !~%" it))))
-                  (cerror "Proceed" "Break-point three")
-                  (warn "~A~&Failed placing ~A" now offer) ; count them?
+                  (cerror "Proceed" "Balance guard failed.")
+                  (warn "~A~&Balance guard failed when placing ~A" now offer) ; count them?
                   ))))))))
 
 (defmethod cancel-offer ((gate bit2c-gate) (offer offered))
