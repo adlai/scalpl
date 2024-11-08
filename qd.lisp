@@ -194,7 +194,7 @@
   ((input :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
    (abbrev :allocation :class :initform "ope")
-   (frequency :initform 1 :initarg :frequency)
+   (frequency :initform 1/5 :initarg :frequency)
    (supplicant :initarg :supplicant) filter prioritizer
    (epsilon :initform 1e-3 :initarg :epsilon)
    (magic :initform 3 :initarg :magic-count)))
@@ -464,7 +464,8 @@
               ;; (throw :up (gensym "BARF"))
               )))))))
 
-(defmethod initialize-instance :after ((maker maker) &rest keys)
+(defmethod initialize-instance :after
+    ((maker maker) &rest keys &key &allow-other-keys)
   (with-slots (supplicant ope delegates cut) maker
     (adopt maker supplicant) (push supplicant delegates)
     (adopt maker (setf ope (apply 'make-instance 'ope-scalper

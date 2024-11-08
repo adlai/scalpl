@@ -1,7 +1,8 @@
 (defpackage #:scalpl.kraken
-  (:nicknames #:kraken) (:export #:*kraken* #:kraken-gate)
+  (:nicknames #:kraken)
   (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
-        #:scalpl.actor #:scalpl.net #:scalpl.exchange #:scalpl.qd))
+        #:scalpl.actor #:scalpl.net #:scalpl.exchange #:scalpl.qd)
+  (:export #:*kraken* #:kraken-gate #:caching-gate))
 
 (in-package #:scalpl.kraken)
 
@@ -309,14 +310,18 @@
                                  ("sell" (- cost fee)))))))
 
 (defun raw-executions (gate &key start end)
-  (let ((range `(,@(when start `(("start" . ,(txid start))))
-                 ,@(when end `(("end" . ,(txid end)))))))
-    (loop for offset from 0 by 50
-          for trades = (gate-request gate "TradesHistory"
-                                     `(("ofs" . ,(princ-to-string offset))
-                                       ,@range))
-          nconc (getjso "trades" trades)
-          until (> offset (- (getjso "count" trades) 50)))))
+  (flet ((endpoint (thing)
+           (etypecase thing
+             (timestamp (prin1-to-string (timestamp-to-unix thing)))
+             (trade (txid thing)) (string thing))))
+    (let ((range `(,@(when start `(("start" . ,(endpoint start))))
+                   ,@(when end `(("end" . ,(endpoint end)))))))
+      (loop for offset from 0 by 50
+            for trades = (gate-request gate "TradesHistory"
+                                       `(("ofs" . ,(princ-to-string offset))
+                                         ,@range))
+            nconc (getjso "trades" trades)
+            until (> offset (- (getjso "count" trades) 50))))))
 
 (defmethod execution-since ((gate kraken-gate) (market market) since)
   (awhen (raw-executions gate :start since)

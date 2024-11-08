@@ -196,19 +196,16 @@ their reserved balances will be modified.")
                                                        previous-update))
           until (and delta (>= delta 199)) finally
             (compute-tresses charioteer t))
-    (let ((stalenesses
-            (loop for horse in horses
-                  for staleness = (awhen (slot-reduce horse timestamp)
-                                    (floor (timestamp-difference (now) it)))
-                  when (and staleness (> staleness 900))
-                    collect (cons staleness horse))))
-      (awhen (mapcar #'cdr (sort stalenesses #'> :key #'car))
-        (dolist (horse it) (restart-maker horse) (sleep 1/2))
-        (report-health (apply #'format nil
-                              "unwedged ~#[~;`~A`~;`~A` and `~A`~:;~
+    (awhen (loop for horse in horses
+                 for staleness = (awhen (slot-reduce horse timestamp)
+                                   (floor (timestamp-difference (now) it)))
+                 unless (and staleness (< staleness 900)) collect horse)
+      (dolist (horse it) (restart-maker horse) (sleep 1/2))
+      (report-health (apply #'format nil
+                            "unwedged ~#[~;`~A`~;`~A` and `~A`~:;~
                                ~@{~#[~; and~] `~A`~^, ~}~]"
-                              (mapcar #'name (mapcar #'market it)))))
-      (sleep 59))))
+                            (mapcar #'name (mapcar #'market it)))))
+    (sleep 59)))
 
 (defmethod halt :before ((charioteer charioteer))
   (dolist (horse (horses charioteer))
