@@ -336,7 +336,6 @@
    (pubkey :initarg :pubkey :initform (error "gate requires API pubkey"))
    (secret :initarg :secret :initform (error "gate requires API secret"))
    (input  :initarg :input  :initform (make-instance 'channel))
-   (output :initarg :output :initform (make-instance 'channel))
    (cache  :initform nil)))
 
 (defmethod christen ((gate gate) (type (eql 'actor)))
@@ -351,18 +350,14 @@
 
 (defmethod perform ((gate gate) &key)
   (call-next-method gate :blockp ())
-  (with-slots (input output . #1=(exchange pubkey secret cache)) gate ; has-a
-    (when (send-blocks-p output) (setf cache (recv input)) (gate-post . #1#))
-    (send output cache)))
+  (with-slots (input . #1=(exchange pubkey secret cache)) gate ; has-a
+    (destructuring-bind (output . request) (recv input)
+      (setf cache request) (gate-post . #1#) (send output cache))))
 
 (defun gate-request (gate path &optional options &aux (id (cons path options)))
-  (with-slots (input output) gate
-    (send input (list* id path options))
-    (multiple-value-bind (data excuses condition)
-        ;; someday, stop seeking patterns in boilerplate garbage
-        (loop for reply = (recv output) until (eq (car reply) id)
-           do (send output reply) finally (return (values-list (cdr reply))))
-      ;; someday, importantly, is not ever part of the 21st century
+  (let ((output (make-instance 'channel)))
+    (send (slot-reduce gate input) (list* output id path options))
+    (multiple-value-bind (data excuses condition) (values-list (cdr (recv output)))
       (aif condition (signal it) (values data excuses)))))
 
 ;;;
