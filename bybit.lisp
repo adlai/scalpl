@@ -783,6 +783,10 @@
                         ("category" . ,category))))
     (or ret (and (null err) (string= (oid offer) (getjso "orderId" ret))))))
 
+(defun ope-amend (ope old new)
+  (amend-offer (slot-reduce ope supplicant gate) old new)
+  (send (slot-reduce ope supplicant control) '(:timestamp)))
+
 (defclass bybit-prioritizer (prioritizer) ())
 
 (defmethod prioriteaze ((ope bybit-prioritizer) target placed
@@ -793,7 +797,7 @@
                     (add (nth (floor n) add))
                     (pop (nth (- max (ceiling n)) pop)))
                (if (and add pop)
-                   (amend-offer (slot-reduce ope supplicant gate) pop add)
+                   (ope-amend ope pop add)
                    (if add (ope-place ope add) (ope-cancel ope pop)))))))
     (aif (dolist (new target (sort to-add #'< :key #'price))
            (aif (find (price new) excess :key #'price :test #'=)
