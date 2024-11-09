@@ -310,7 +310,7 @@ their reserved balances will be modified.")
                   0 count))
     (values (with-output-to-string (*standard-output*)
               (format t "~&  Market  Bids Asks Staleness Last hour")
-              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9D~] ~4D~%~}"
+              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9D~]~6@T~4D~%~}"
                       offerings))
             offerings)))
 
