@@ -411,10 +411,12 @@
                market name ope cut supplicant) maker
     (with-slots (control response) supplicant
       (send control '(:sync)) (recv response))
-    (let* ((trades (recv (slot-reduce market trades))) ; nananananana
-           (balances (with-slots (sync) (slot-reduce maker treasurer)
-                       (recv (send sync sync)))) ; excellent!
-           (doge/btc (vwap market :depth 50)))
+    (let ((trades (recv (slot-reduce market trades)))
+          (balances (with-slots (sync balances)
+                        (slot-reduce maker treasurer)
+                      (recv (send sync sync))
+                      balances))
+          (doge/btc (vwap market :depth 50)))
       (flet ((total-of (btc doge) (float (+ btc (/ doge doge/btc)))))
         (let* ((total-btc (asset-funds (primary market) balances))
                (total-doge (asset-funds (counter market) balances))

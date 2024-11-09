@@ -1001,8 +1001,3 @@
   (:method ((supplicant t) (exchange exchange) (stream t))
     (cerror "DONT" "I don't tame lions; do you expect me to balance books?"))
   (:documentation "summarize how things are going, profit-wise"))
-
-(defun respawn-syncer (&optional (supplicant *supplicant*) (wavenumber 17))
-  (pexec (:name (format nil "~A syncer" (name supplicant)))
-    (loop (with-slots (control response) supplicant
-            (send control '(:sync)) (recv response) (sleep wavenumber)))))
