@@ -297,7 +297,10 @@ their reserved balances will be modified.")
             finally (push (list (name horse) bids asks
                                 (awhen (ignore-errors
                                         (slot-reduce horse timestamp))
-                                  (floor (timestamp-difference (now) it))))
+                                  (floor (timestamp-difference (now) it)))
+                                (count (timestamp- (now) 1 :hour)
+                                       (slot-reduce horse lictor trades)
+                                       :test #'timestamp> :key #'timestamp))
                           offerings)))
     (setf offerings
           (subseq (sort offerings #'<
@@ -306,8 +309,8 @@ their reserved balances will be modified.")
                                   (aif (fourth data) (max it 1) 1))))
                   0 count))
     (values (with-output-to-string (*standard-output*)
-              (format t "~&  Market  Bids Asks Staleness")
-              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9D~]~%~}"
+              (format t "~&  Market  Bids Asks Staleness Last hour")
+              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9D~] ~4D~%~}"
                       offerings))
             offerings)))
 
