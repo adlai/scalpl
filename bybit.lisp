@@ -798,7 +798,7 @@
     (aif (dolist (new target (sort to-add #'< :key #'price))
            (aif (find (price new) excess :key #'price :test #'=)
                 (setf excess (remove it excess)) (push new to-add)))
-         (frob it (reverse excess))   ; which of these is worst?
+         (frob it excess)   ; which of these is worst?
          (if excess (frob () excess)  ; choose the lesser weevil
              (and target placed (= (length target) (length placed))
                   (loop for new in target and old in placed

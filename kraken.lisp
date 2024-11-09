@@ -431,9 +431,8 @@
             (gate-request gate "AmendOrder"
                           `(("txid" . ,txid)
                             ("order_qty" . ,(money vol-decimals volume))
-                            ("price" . ,(money decimals price))
-                            ;; ("post_only" . "true")
-                            )))
+                            ("limit_price" . ,(money decimals price))
+                            ("post_only" . "true"))))
         (values (unless errors (getjso "amend_id" info)) errors)))))
 
 (defmethod amend-offer ((gate kraken-gate) (old offer) (new offer))
@@ -454,7 +453,7 @@
   ;; (format t "~&cancel ~A~%" offer)
   (multiple-value-bind (ret err)
       (cancel-order gate (oid offer))
-    (or ret (search "Unknown order" (car err))))) :toplevel-keyword
+    (or ret (search "Unknown order" (car err)))))
 
 ;;; Duplicate of bybit-proiritizer ; factor them out... someday
 
@@ -477,7 +476,7 @@
     (aif (dolist (new target (sort to-add #'< :key #'price))
            (aif (find (price new) excess :key #'price :test #'=)
                 (setf excess (remove it excess)) (push new to-add)))
-         (frob it (reverse excess))   ; which of these is worst?
+         (frob it excess)   ; which of these is worst?
          (if excess (frob () excess)  ; choose the lesser weevil
              (and target placed (= (length target) (length placed))
                   (loop for new in target and old in placed
