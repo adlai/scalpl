@@ -357,7 +357,7 @@
 (defun gate-request (gate path &optional options &aux (id (cons path options)))
   (let ((output (make-instance 'channel)))
     (send (slot-reduce gate input) (list* output id path options))
-    (multiple-value-bind (data excuses condition) (values-list (cdr (recv output)))
+    (destructuring-bind (data &optional excuses condition) (cdr (recv output))
       (aif condition (signal it) (values data excuses)))))
 
 ;;;
