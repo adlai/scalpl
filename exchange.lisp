@@ -422,6 +422,7 @@
 (defclass trades-tracker (parent)
   ((market :initarg :market :reader market)
    (delay  :initarg :delay  :initform 47)
+   (cutoff :initform '(1 :day))
    (buffer :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
    (trades :initform nil) fetcher))
@@ -430,14 +431,17 @@
   (format nil "trade tracker ~A" (market tracker)))
 
 (defmethod perform ((tracker trades-tracker) &key)
-  (with-slots (buffer trades market output) tracker
+  (with-slots (buffer trades market output cutoff) tracker
     (let ((last (car trades)))
       (select
-        ((send buffer last)) ((send output trades)) ;D   ^V^   ]:C
-        ((recv buffer next)             ;              batsign
+        ((send buffer last)) ((send output trades))
+        ((recv buffer next)
          (if (trades-mergeable? tracker last next)
              (setf (car trades) (merge-trades tracker last next))
-             (push next trades)))
+             (push next trades))
+         (awhen (member (apply #'timestamp- (now) cutoff)
+                        trades :key #'timestamp :test #'timestamp>)
+           (rplacd it ())))
         (t (sleep 0.2))))))
 
 (defmethod initialize-instance :after ((tracker trades-tracker) &key)
