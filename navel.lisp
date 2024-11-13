@@ -1,7 +1,7 @@
 (defpackage #:scalpl.navel
   (:use #:cl #:anaphora #:local-time #:chanl #:scalpl.actor
         #:scalpl.util #:scalpl.exchange #:scalpl.qd)
-  (:export #:*charioteer* *slack-url*))
+  (:export #:*charioteer* #:markets #:horses #:net-worth *slack-url*))
 
 (in-package #:scalpl.navel)
 
@@ -206,6 +206,22 @@ their reserved balances will be modified.")
                                ~@{~#[~; and~] `~A`~^, ~}~]"
                             (mapcar #'name (mapcar #'market it)))))
     (sleep 59)))
+
+(defun net-worth (charioteer target)
+  (let ((balances (account-balances (slot-reduce charioteer gate)))
+        (prices (mapcar (lambda (market)
+                          (let ((vwap (vwap market :depth 1000)))
+                            (with-slots (primary counter) market
+                              (if (eq primary target)
+                                  (cons counter vwap)
+                                  (cons primary (/ vwap))))))
+                        (remove-if (lambda (market)
+                                     (and (not (eq target (primary market)))
+                                          (not (eq target (counter market)))))
+                                   (markets *charioteer*)))))
+    (loop for balance in balances for asset = (asset balance)
+          for price = (if (eq asset target) 1 (cdr (assoc asset prices)))
+          sum (/ (scaled-quantity balance) price))))
 
 (defmethod halt :before ((charioteer charioteer))
   (dolist (horse (horses charioteer))
