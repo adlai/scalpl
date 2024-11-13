@@ -316,7 +316,7 @@ their reserved balances will be modified.")
                                   (floor (timestamp-difference (now) it)))
                                 (count (timestamp- (now) 1 :hour)
                                        (slot-reduce horse lictor trades)
-                                       :test #'timestamp> :key #'timestamp))
+                                       :test #'timestamp< :key #'timestamp))
                           offerings)))
     (setf offerings
           (subseq (sort offerings #'<
@@ -326,12 +326,13 @@ their reserved balances will be modified.")
                   0 count))
     (values (with-output-to-string (*standard-output*)
               (format t "~&  Market  Bids Asks Staleness Last hour")
-              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9D~]~6@T~4D~%~}"
+              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9D~] ~9D~%~}"
                       offerings))
             offerings)))
 
 (defun report-weakest-providers
     (&optional (count 5) (url *slack-url*) (charioteer *charioteer*))
+  #+sbcl (sb-ext:gc :full t)
   (let ((length (length (horses charioteer)))
         (control "~&Summary of ~D~@[ out of ~2D~] bots:~%```~%~A```"))
     (if (eq count t) (setf count length))
