@@ -80,7 +80,7 @@
   ;; (check-type separator character "Strings must contain characters")
   (check-type field (signed-byte 8) "I've got a one-track mind that leads nowhere")
   (cond
-    ((null separator) (subseq uid 0 (floor (length uid) 2)))
+    ((null separator) (subseq uid (floor (length uid) 2)))
     ((zerop field) (subseq uid 0 (position separator uid)))))
 ;;; consider reading various UUID documents, before writing on
 

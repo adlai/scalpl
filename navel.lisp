@@ -2,7 +2,7 @@
   (:use #:cl #:anaphora #:local-time #:chanl #:scalpl.actor
         #:scalpl.util #:scalpl.exchange #:scalpl.qd)
   (:export #:trades-profits
-           #:*charioteer* *slack-url* *slack-pnl-url*
+           #:charioteer #:*charioteer* *slack-url* *slack-pnl-url*
            #:axes #:markets #:horses #:net-worth #:net-activity))
 
 (in-package #:scalpl.navel)
@@ -196,10 +196,11 @@ their reserved balances will be modified.")
                                                        previous-update))
           until (and delta (>= delta 199)) finally
             (compute-tresses charioteer t))
-    (awhen (loop for horse in horses
-                 for staleness = (awhen (slot-reduce horse timestamp)
-                                   (floor (timestamp-difference (now) it)))
-                 unless (and staleness (< staleness 900)) collect horse)
+    (awhen (and *slack-url*
+                (loop for horse in horses
+                      for staleness = (awhen (slot-reduce horse timestamp)
+                                        (floor (timestamp-difference (now) it)))
+                      unless (and staleness (< staleness 900)) collect horse))
       (dolist (horse it) (restart-maker horse) (sleep 1/2))
       (report-health (apply #'format nil
                             "unwedged ~#[~;`~A`~;`~A` and `~A`~:;~
