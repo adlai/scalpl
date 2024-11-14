@@ -318,7 +318,7 @@
     (with-slots (given price market) offer
       (let ((market-decimals (slot-value market 'decimals))
             *print-readably* *print-escape* *print-circle*)
-        (format stream "~@[~A ~]~A @ ~A" (shorten-uid (oid offer))
+        (format stream "~@[~A ~]~A @ ~A" (shorten-uid (oid offer) nil)
                 given (decimals:format-decimal-number
                        (/ (abs price) (expt 10 market-decimals))
                        :round-magnitude (- market-decimals)

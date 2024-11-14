@@ -77,10 +77,11 @@
 (defun shorten-uid (uid &optional (separator #\-) (field 0))
   (check-type uid string "Identifiers must be strings")
   ;; (ctypecase uid (string) (null (setf uid "")))
-  (check-type separator character "Strings must contain characters")
+  ;; (check-type separator character "Strings must contain characters")
   (check-type field (signed-byte 8) "I've got a one-track mind that leads nowhere")
-  (if (zerop field) (subseq uid 0 (position separator uid))
-      (or (cerror "Do not shorten the UID" "Unimplemented"))))
+  (cond
+    ((null separator) (subseq uid 0 (floor (length uid) 2)))
+    ((zerop field) (subseq uid 0 (position separator uid)))))
 ;;; consider reading various UUID documents, before writing on
 
 (defun strftime (&optional datep &aux bits)
