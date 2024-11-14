@@ -1,7 +1,9 @@
 (defpackage #:scalpl.navel
   (:use #:cl #:anaphora #:local-time #:chanl #:scalpl.actor
         #:scalpl.util #:scalpl.exchange #:scalpl.qd)
-  (:export #:*charioteer* #:markets #:horses #:net-worth *slack-url*))
+  (:export #:trades-profits
+           #:*charioteer* *slack-url*
+           #:markets #:horses #:net-worth #:net-activity))
 
 (in-package #:scalpl.navel)
 
@@ -70,8 +72,6 @@
                                volume))           ;   TO THE DEATH, DUH
 
                     (total (total (funds primary) (funds counter))))
-                (format t "~&I failed calculus, so why take my ~
-                             word for any of these reckonings?~%")
                 (format t "~&Looked across past   ~7@F days ~A~
                            ~%where account traded ~7@F ~(~A~),~
                            ~%captured profit of   ~7@F ~(~2:*~A~*~),~
@@ -218,10 +218,36 @@ their reserved balances will be modified.")
                         (remove-if (lambda (market)
                                      (and (not (eq target (primary market)))
                                           (not (eq target (counter market)))))
-                                   (markets *charioteer*)))))
+                                   (markets charioteer)))))
     (loop for balance in balances for asset = (asset balance)
           for price = (if (eq asset target) 1 (cdr (assoc asset prices)))
           sum (/ (scaled-quantity balance) price))))
+
+(defun net-activity (charioteer target &aux deltas)
+  (let ((prices (mapcar (lambda (market)
+                          (let ((vwap (vwap market :depth 1000)))
+                            (with-slots (primary counter) market
+                              (if (eq primary target)
+                                  (cons counter vwap)
+                                  (cons primary (/ vwap))))))
+                        (remove-if (lambda (market)
+                                     (and (not (eq target (primary market)))
+                                          (not (eq target (counter market)))))
+                                   (markets charioteer)))))
+    (dolist (horse (horses *charioteer*))
+      (multiple-value-bind (net-price taken given)
+          (trades-profits (slot-reduce horse lictor trades))
+        (declare (ignore net-price))
+        (flet ((adjust (delta)
+                 (aif (member (asset delta) deltas :key #'asset)
+                      (rplaca it (aq+ (car it) delta))
+                      (push delta deltas))))
+          (adjust taken) (adjust given))))
+    (values (loop for delta in deltas for asset = (asset delta)
+                  for price = (if (eq asset target) 1
+                                  (cdr (assoc asset prices)))
+                  sum (/ (scaled-quantity delta) price))
+            deltas)))
 
 (defmethod halt :before ((charioteer charioteer))
   (dolist (horse (horses charioteer))
