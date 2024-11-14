@@ -3,7 +3,7 @@
         #:scalpl.util #:scalpl.exchange #:scalpl.qd)
   (:export #:trades-profits
            #:*charioteer* *slack-url*
-           #:markets #:horses #:net-worth #:net-activity))
+           #:axes #:markets #:horses #:net-worth #:net-activity))
 
 (in-package #:scalpl.navel)
 
@@ -234,7 +234,7 @@ their reserved balances will be modified.")
                                      (and (not (eq target (primary market)))
                                           (not (eq target (counter market)))))
                                    (markets charioteer)))))
-    (dolist (horse (horses *charioteer*))
+    (dolist (horse (horses charioteer))
       (multiple-value-bind (net-price taken given)
           (trades-profits (slot-reduce horse lictor trades))
         (declare (ignore net-price))
@@ -367,10 +367,28 @@ their reserved balances will be modified.")
                           (weakest-providers count charioteer))))
       (if url (slack-webhook url report) report))))
 
-(defun start-reporter (&optional count (wavelength 600))
+(defun report-net-activity
+    (&optional (url *slack-url*) (charioteer *charioteer*))
+  (with-slots (horses axes) charioteer
+    (let* ((trades (mapcar (slot-reducer lictor trades) horses))
+           (earliest (first (sort (reduce 'mapcar '(timestamp first last)
+                                          :from-end t :initial-value trades)
+                                  #'timestamp<)))
+           (report (format () "~&Net effect of ~D trades since ~A: $~$~%"
+                           (reduce #'+ (mapcar 'length trades))
+                           (format-timestring () earliest :format
+                                              '(:short-weekday #\@
+                                                (:hour 2) #\: (:min 2)))
+                           (net-activity charioteer (first axes)))))
+      (if url (slack-webhook url report) report))))
+
+(defun start-reporter (&optional count (staleness 600) (activity 6))
   (pexec (:name "slack autoreporter"
           :initial-bindings `((*slack-url* ,*slack-url*)))
-    (loop (report-weakest-providers (or count t))
-          (sleep wavelength))))
+    (loop for counter from 0
+          when (zerop (mod counter activity)) do
+            (report-net-activity)
+          do (report-weakest-providers (or count t))
+             (sleep staleness))))
 
 ;;; NOT END-OF-FILE ONLY END OF FUNDS farce-quit
