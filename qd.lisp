@@ -31,6 +31,7 @@
 
 (defclass filter (actor)
   ((abbrev :allocation :class :initform "filter") (cut :initarg :cut)
+   (stink-tolerances :initarg :stink-tolerances :initform nil)
    (bids :initform ()) (asks :initform ()) (book-cache :initform nil)
    (supplicant :initarg :supplicant	; DISAMBIGUATION GONEHYET!
                :initform (error "must link supplicant"))
@@ -63,24 +64,37 @@
     (let ((book (recv (slot-reduce market book))))
       (unless (eq book book-cache)
         (setf book-cache book)
-        (with-slots (offered fee) supplicant
-          (destructuring-bind (bid . ask) (recv (slot-reduce fee output))
-            (loop with rudder = (phase cut) with scale = (abs rudder)
-                  for i from 0 for j = (1+ (floor (* i (- 1 (/ scale pi)))))
-                  for a = (if (plusp rudder) j i)
-                  for b = (if (plusp rudder) i j)
-                  ;; do (break)
-                  until (let ((offer-a (nth a (car book)))
-			      (offer-b (nth b (cdr book))))
-			  (or (null offer-a) (null offer-b)
-			      (< (/ (realpart cut) 100)
-				 (1- (profit-margin (price offer-a)
-						    (price offer-b)
-						    bid ask)))))
-                  finally (setf bids (ignore-offers (nthcdr a (car book))
-                                                    offered)
-                                asks (ignore-offers (nthcdr b (cdr book))
-                                                    offered)))))))
+        (let ((unstunk (cons (car book-cache) (cdr book-cache))))
+          (with-slots (stink-tolerances) filter
+            (when stink-tolerances
+              (flet ((ignore-stink (book ratio)
+                       (subseq book 0
+                               (position (* ratio (price (first book)))
+                                         book :key #'price :test #'<))))
+                (macrolet ((trim-side (side stink)
+                             `(when ,stink
+                                (setf (,side unstunk)
+                                      (ignore-stink (,side unstunk) ,stink)))))
+                  (destructuring-bind (fear . greed) stink-tolerances
+                    (trim-side car fear) (trim-side cdr greed)))))
+            (with-slots (offered fee) supplicant
+              (destructuring-bind (bid . ask) (recv (slot-reduce fee output))
+                (loop with rudder = (phase cut) with scale = (abs rudder)
+                      for i from 0 for j = (1+ (floor (* i (- 1 (/ scale pi)))))
+                      for a = (if (plusp rudder) j i)
+                      for b = (if (plusp rudder) i j)
+                      ;; do (break)
+                      until (let ((offer-a (nth a (car unstunk)))
+                                  (offer-b (nth b (cdr unstunk))))
+                              (or (null offer-a) (null offer-b)
+                                  (< (/ (realpart cut) 100)
+                                     (1- (profit-margin (price offer-a)
+                                                        (price offer-b)
+                                                        bid ask)))))
+                      finally (setf bids (ignore-offers (nthcdr a (car unstunk))
+                                                        offered)
+                                    asks (ignore-offers (nthcdr b (cdr unstunk))
+                                                        offered)))))))))
     (sleep (/ frequency))))
 
 ;;; TODO ... "PERSPECTIVES"
