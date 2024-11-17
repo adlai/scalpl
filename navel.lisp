@@ -246,9 +246,10 @@ their reserved balances will be modified.")
                                     :key #'timestamp :test #'timestamp>))
           (declare (ignore net-price))
           (flet ((adjust (delta)
-                   (aif (member (asset delta) deltas :key #'asset)
-                        (rplaca it (aq+ (car it) delta))
-                        (push delta deltas))))
+                   (when delta
+                     (aif (member (asset delta) deltas :key #'asset)
+                          (rplaca it (aq+ (car it) delta))
+                          (push delta deltas)))))
             (adjust taken) (adjust given))))
       (values (loop for delta in deltas for asset = (asset delta)
                     for price = (if (eq asset target) 1
@@ -379,16 +380,25 @@ their reserved balances will be modified.")
 (defun report-net-activity
     (&optional (url *slack-pnl-url*) (charioteer *charioteer*))
   (with-slots (horses axes) charioteer
-    (let* ((trades (mapcar (slot-reducer lictor trades) horses))
+    (let* ((trades (mapcar (lambda (trades)
+                             (remove (timestamp- (now) 1 :hour) trades
+                                     :key #'timestamp :test #'timestamp>))
+                           (mapcar (slot-reducer lictor trades) horses)))
            (earliest (first (sort (reduce 'mapcar '(timestamp first last)
-                                          :from-end t :initial-value trades)
+                                          :from-end t :initial-value
+                                          (remove nil trades))
                                   #'timestamp<)))
-           (report (format () "~&Net effect of ~D trades since ~A: $~$~%"
-                           (reduce #'+ (mapcar 'length trades))
-                           (format-timestring () earliest :format
-                                              '(:short-weekday #\@
-                                                (:hour 2) #\: (:min 2)))
-                           (net-activity charioteer))))
+           (report (if (null earliest)
+                       (format () "~&Zero trades since ~A~%"
+                               (format-timestring () earliest :format
+                                                  '(:short-weekday #\@
+                                                    (:hour 2) #\: (:min 2))))
+                       (format () "~&Net effect of ~D trades since ~A: $~$~%"
+                               (reduce #'+ (mapcar 'length trades))
+                               (format-timestring () earliest :format
+                                                  '(:short-weekday #\@
+                                                    (:hour 2) #\: (:min 2)))
+                               (net-activity charioteer)))))
       (if url (slack-webhook url report) report))))
 
 (defun start-reporter (&optional count (staleness 600) (activity 6))
