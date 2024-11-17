@@ -2,7 +2,7 @@
   (:use #:cl #:anaphora #:local-time #:chanl #:scalpl.actor
         #:scalpl.util #:scalpl.exchange #:scalpl.qd)
   (:export #:trades-profits
-           #:*charioteer* *slack-url*
+           #:*charioteer* *slack-url* *slack-pnl-url*
            #:axes #:markets #:horses #:net-worth #:net-activity))
 
 (in-package #:scalpl.navel)
@@ -374,8 +374,10 @@ their reserved balances will be modified.")
                           (weakest-providers count charioteer))))
       (if url (slack-webhook url report) report))))
 
+(defvar *slack-pnl-url*)
+
 (defun report-net-activity
-    (&optional (url *slack-url*) (charioteer *charioteer*))
+    (&optional (url *slack-pnl-url*) (charioteer *charioteer*))
   (with-slots (horses axes) charioteer
     (let* ((trades (mapcar (slot-reducer lictor trades) horses))
            (earliest (first (sort (reduce 'mapcar '(timestamp first last)
@@ -391,7 +393,8 @@ their reserved balances will be modified.")
 
 (defun start-reporter (&optional count (staleness 600) (activity 6))
   (pexec (:name "slack autoreporter"
-          :initial-bindings `((*slack-url* ,*slack-url*)))
+          :initial-bindings `((*slack-url* ,*slack-url*)
+                              (*slack-pnl-url* ,*slack-pnl-url*)))
     (loop for counter from 0
           when (zerop (mod counter activity)) do
             (report-net-activity)
