@@ -49,29 +49,28 @@
 (defvar *error-breakpoints* nil)
 
 (defun raw-request (path &rest keys)
-  (multiple-value-bind (body status)
+  (multiple-value-bind (body status headers)
       (apply #'http-request (concatenate 'string +base-path+ path) keys)
-          (case status
-            (200 (with-json-slots (result error)
-                     (read-json (map 'string 'code-char body))
-                   (when (and error *error-breakpoints*)
-                     (typecase error
-                       (string (cerror "LGTM" error))
-                       ((cons string null)
-                        (cerror "LGTM" (first error)))
-                       (list (warn (format () "~A" error)))))
-                   (values result error)))
-            (404 (with-json-slots (result error)
-                     (read-json (map 'string 'code-char body))
-                   (format t "~&Aborting after 404...~%")
-                   (describe error)
-                   (values result error))
-                 (values nil t))
-            ((400 409 500 502 503 504 520 522 524 525)
-             (format t "~&Retrying after ~D...~%" status)
-             (sleep 2) (apply #'raw-request path keys))
-            (t (cerror "Retry request" "HTTP Error ~D" status)
-               (apply #'raw-request path keys)))))
+    (case status
+      (200 (with-json-slots (result error)
+               (read-json (map 'string 'code-char body))
+             (when (and error *error-breakpoints*)
+               (typecase error
+                 (string (cerror "LGTM" error))
+                 ((cons string null)
+                  (cerror "LGTM" (first error)))
+                 (list (warn (format () "~A" error)))))
+             (values result error headers)))
+      (404 (with-json-slots (result error)
+               (read-json (map 'string 'code-char body))
+             (format t "~&Aborting after 404...~%")
+             (describe error))
+       (values nil t headers))
+      ((400 409 500 502 503 504 520 522 524 525)
+       (format t "~&Retrying after ~D...~%" status)
+       (sleep 2) (apply #'raw-request path keys))
+      (t (cerror "Retry request" "HTTP Error ~D" status)
+       (apply #'raw-request path keys)))))
 
 (defun get-request (path &optional data)
   (raw-request (concatenate 'string "public/" path "?"
@@ -148,6 +147,13 @@
     (mapcar #'make '(token-minter token-handler) '("minter" "counter"))))
 
 (defvar *kraken* (make-instance 'token-mixin :name :kraken :sensitivity 0.3))
+
+(defmethod perform ((kraken (eql *kraken*)) &key)
+  (let ((package (find-package :keyword)))
+    (do-symbols (keyword package)
+      (when (search "-PAD" (string keyword) :from-end t)
+        (unintern keyword package))))
+  (sleep 60))
 
 (defmethod fetch-exchange-data ((exchange (eql *kraken*)))
   (with-slots (markets assets) exchange
