@@ -332,7 +332,7 @@
   (declare (optimize debug))
   (symbol-macrolet
       ((cache (gethash "TradesHistory" (slot-reduce gate recent-responses))))
-    (aif (aand cache (when (> 30 (timestamp-difference
+    (aif (aand cache (when (> 15 (timestamp-difference
                                   (now) (timestamp (car it))))
                        it))
          (remove market
