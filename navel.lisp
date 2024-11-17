@@ -1,7 +1,7 @@
 (defpackage #:scalpl.navel
   (:use #:cl #:anaphora #:local-time #:chanl #:scalpl.actor
         #:scalpl.util #:scalpl.exchange #:scalpl.qd)
-  (:export #:trades-profits
+  (:export #:trades-profits #:windowed-report
            #:charioteer #:*charioteer* *slack-url* *slack-pnl-url*
            #:axes #:markets #:horses #:net-worth #:net-activity))
 
@@ -31,16 +31,10 @@
     (let ((buys (side-trades "buy")) (sells (side-trades "sell")))
       (let ((aq1 (aq- (side-sum buys  #'taken) (side-sum sells #'given)))
             (aq2 (aq- (side-sum sells #'taken) (side-sum buys  #'given))))
-        (cond
-          ((and buys sells)
-           (ecase (- (signum (quantity aq1)) (signum (quantity aq2)))
+        (ecase (- (signum (quantity aq1)) (signum (quantity aq2)))
              ((0 1 -1) (values nil aq1 aq2))
-             (-2 (values (aq/ (- (conjugate aq1)) aq2) aq2 aq1))
-             (+2 (values (aq/ (- (conjugate aq2)) aq1) aq1 aq2))))
-          (buys (values nil  (side-sum buys #'taken)
-                        (aq- (side-sum buys #'given))))
-          (sells (values nil  (side-sum sells #'taken)
-                         (aq- (side-sum sells #'given)))))))))
+             (-2 (values (aq/ (projugate aq1) aq2) aq2 aq1))
+             (+2 (values (aq/ (projugate aq2) aq1) aq1 aq2)))))))
 
 (defun maker-volumes (&optional maker rfc3339-datestring) ;_; ;_; ;_; !
   ;; Cloudflare makes me want to slit my wrists wide open ;_; ;_; ;_; !
