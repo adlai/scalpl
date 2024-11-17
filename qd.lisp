@@ -119,8 +119,8 @@
     (flet ((frob (add pop &aux (max (max (length add) (length pop))))
              (with-slots (expt) ope   ; Siri, what is Graham's number?
                (let ((n (expt (random (expt max (/ expt))) expt)))
-                 (awhen (nth (floor n) add) (ope-place ope it))
-                 (awhen (nth (- max (ceiling n)) pop) (ope-cancel ope it))))))
+                 (awhen (nth (- max (ceiling n)) pop) (ope-cancel ope it))
+                 (awhen (nth (floor n) add) (ope-place ope it))))))
       (aif (dolist (new target (sort to-add #'< :key #'price))
              (aif (find (price new) excess :key #'price :test #'=)
                   (setf excess (remove it excess)) (push new to-add)))
