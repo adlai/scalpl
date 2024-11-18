@@ -151,7 +151,8 @@
 (defmethod perform ((kraken (eql *kraken*)) &key)
   (let ((package (find-package :keyword)))
     (do-symbols (keyword package)
-      (when (search "-PAD" (string keyword) :from-end t)
+      (when (let* ((string (string keyword)) (length (length string)))
+              (and (> length 5) (string= (subseq string (- length 4)) "-PAD")))
         (unintern keyword package))))
   (sleep 60))
 
