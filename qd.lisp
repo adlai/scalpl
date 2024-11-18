@@ -467,8 +467,8 @@
               ;;   (setf targeting-factor (/ targeting-factor)))
               (flet ((f (g h) `((,g . ,(* cut (max 0 (* skew-factor h)))))))
                 (send (slot-reduce ope input)
-                      (list (f (min btc total-btc) skew)
-                            (f (min doge total-doge) (- skew))
+                      (list (f (* 2/3 total-btc) skew)
+                            (f (* 2/3 total-doge) (- skew))
                             (* resilience-factor
                                (reduce #'max (mapcar #'volume trades)
                                        :initial-value 0))
