@@ -171,7 +171,7 @@
                            markets)))))))
          (spot-parser ()
            (lambda (instrument)
-             (with-json-slots 
+             (with-json-slots
                  ((name "symbol") (delivery "deliveryTime")
                   (primary "baseCoin") (counter "quoteCoin")
                   (price "priceFilter") (lot "lotSizeFilter")
@@ -795,12 +795,13 @@
            (with-slots (expt) ope
              (let* ((n (expt (random (expt max (/ expt))) expt))
                     (add (nth (floor n) add))
-                    (pop (nth (- max (ceiling n)) pop)))
+                    (pop (nth (floor n) pop)))
                (if (and add pop)
                    (ope-amend ope pop add)
                    (if add (ope-place ope add) (ope-cancel ope pop)))))))
     (aif (dolist (new target (sort to-add #'< :key #'price))
-           (aif (find (price new) excess :key #'price :test #'=)
+           (aif (aand (find (price new) excess :key #'price :test #'=)
+                      (not (sufficiently-different? new it)) it)
                 (setf excess (remove it excess)) (push new to-add)))
          (frob it excess)   ; which of these is worst?
          (if excess (frob () excess)  ; choose the lesser weevil
