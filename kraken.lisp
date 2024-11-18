@@ -148,14 +148,6 @@
 
 (defvar *kraken* (make-instance 'token-mixin :name :kraken :sensitivity 0.3))
 
-(defmethod perform ((kraken (eql *kraken*)) &key)
-  (let ((package (find-package :keyword)))
-    (do-symbols (keyword package)
-      (when (let* ((string (string keyword)) (length (length string)))
-              (and (> length 5) (string= (subseq string (- length 4)) "-PAD")))
-        (unintern keyword package))))
-  (sleep 60))
-
 (defmethod fetch-exchange-data ((exchange (eql *kraken*)))
   (with-slots (markets assets) exchange
     (setf assets (get-assets) markets (get-markets assets))))
