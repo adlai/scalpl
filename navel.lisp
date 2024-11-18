@@ -249,7 +249,7 @@ their reserved balances will be modified.")
       (values (loop for delta in deltas for asset = (asset delta)
                     for price = (if (eq asset target) 1
                                     (cdr (assoc asset prices)))
-                    sum (/ (scaled-quantity delta) price))
+                    when price sum (/ (scaled-quantity delta) price))
               deltas))))
 
 (defmethod halt :before ((charioteer charioteer))
@@ -396,14 +396,18 @@ their reserved balances will be modified.")
                                (net-activity charioteer)))))
       (if url (slack-webhook url report) report))))
 
-(defun start-reporter (&optional count (staleness 600) (activity 6))
+(defun start-reporter (&optional count (staleness 10) (activity 60))
   (pexec (:name "slack autoreporter"
           :initial-bindings `((*slack-url* ,*slack-url*)
                               (*slack-pnl-url* ,*slack-pnl-url*)))
-    (loop for counter from 0
-          when (zerop (mod counter activity)) do
-            (report-net-activity)
-          do (report-weakest-providers (or count t))
-             (sleep staleness))))
+    ;; Although the following code is hideous, it serves as an
+    ;; initial sketch for how to build a cron-like scheduler.
+    (loop for minute = (timestamp-minute (now))
+          for activity? = (zerop (mod minute activity))
+          for staleness? = (zerop (mod minute staleness))
+          do (when activity? (report-net-activity))
+             (when staleness? (report-weakest-providers (or count t)))
+             (when (or activity? staleness?) (sleep 30))
+          do (sleep 45))))
 
 ;;; NOT END-OF-FILE ONLY END OF FUNDS farce-quit
