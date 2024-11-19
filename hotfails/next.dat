@@ -2,7 +2,11 @@ WARNING: FIXME! Balance guard probably failed...
 WARNING: 2024-11-20T01:23:07.514233+02:00
 Balance guard failed when placing #<OFFER  888.41789440 Usdc @ 3.77>
 
+<<<3<<< HEAD
 anybody hexdump?
 
 scalpl (git)-[remotes/github/HEAD] % git shortlog --summary
   1337  Adlai
+=======
+anybody hexdump?
+>>>4>>> ab887a8 (THIS COMMIT IS NOT 1337)
