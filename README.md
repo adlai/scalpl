@@ -33,17 +33,10 @@ have a bad time if you rely on the source code without reading it, aloud!
 ## PROCLAIMER REGARDING CONTINUITY
 Reports of roughness and density have been greatly adjagitated; thus, if you
 have suggestions for [theme](https://www.youtube.com/watch?v=NCIUf8eYPqA)
-<<<<<<< HEAD
-[songs](https://www.youtube.com/watch?v=6D6cw8Ob2sk), please speak, although
-you are [encouraged](https://www.youtube.com/watch?v=I7O_8atyl4U) to consider
-whether music is merely a part of nature, xor-the
-   imposition from without of order upon chaos.
-=======
 [songs](https://www.youtube.com/watch?v=6D6cw8Ob2sk), [please speak, and go
 softly?](youtube.com/watch?v=rGB9T17tBHo) now your professional commendation
 and you encourage me to reconsider whether music is only a part of nature;
 the imposition from without of order upon chaos.
->>>>>>> 145c131 (U THEME SONG README.md)
 
 # Abstract
 
