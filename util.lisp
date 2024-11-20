@@ -11,6 +11,9 @@
    #:shallow-copy
    #:dbz-guard
    #:slot-reduce #:slot-reducer #:slot-setter #:aslot-setter
+
+:PRICE-PRECISION-PROBLEM ;yes
+   
    #:aand1 #:awhen1 #:amvp1
    #:parse-price
    #:parse-float

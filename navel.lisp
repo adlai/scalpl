@@ -8,6 +8,14 @@
 
 (in-package #:scalpl.navel)
 
+(defmethod describe-object :before ((maker maker) (stream t))
+  (with-aslots (market) (slot-reduce maker supplicant)
+    (handler-case (terpri)
+      (describe-account (it) (exchange market) stream it)
+      (simple-error () (continue)))))
+
+(define-condition describe-account (price-precision-problem error) ())
+
 ;;; General Introspection, Major Mayhem, and of course SFC Property
 
 (defmethod describe-object ((maker maker) (stream t))
