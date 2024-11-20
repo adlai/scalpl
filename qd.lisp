@@ -402,8 +402,8 @@
       (aprog1 (format () "~&~@<~A ~A ~{~A~^ ~} ~5,4,,VF~4,4F~4,4@F~:_~A~:>~%"
                       name (format-timestring ; a naggy mess and lispy, too!
                             () (now) :format '((:hour 2) (:min 2) (:sec 2)))
-                      (mapcar #'sastr '(primary counter primary counter)
-                              `(,@#1=`(,fund ,(* fund rate)) ,btc ,doge))
+                      (mapcar #'sastr '(counter primary counter primary) ;!
+                              `(,doge ,btc ,@#1=`(,(* fund rate) ,fund)));
                       ;; THE FOLLOWING LINES ARE SEVERE MATHEMATICAL AGONY!
                       #.(code-char (1+ (char-code #\9))) ; this loud n'ugh?
                       investment risked skew ; >= SU[1x2]? PL[3]? the usual
