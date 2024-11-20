@@ -169,7 +169,7 @@
                  (> processed-tally max-orders))) ; AND: at maximal order count
         (flet ((pick (count offers)
                  (sort (subseq* (sort (or (subseq offers 0 (1- processed-tally))
-                                          (warn "~&FIXME: GO DEEPER!~%") offers)
+                                          (warn "DEPTH; charge?") offers)
                                       #'> :key (lambda (x) (volume (cdr x))))
                                 0 count) #'< :key (lambda (x) (price (cdr x)))))
                (offer-scaler (total bonus count)
