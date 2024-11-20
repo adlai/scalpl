@@ -164,6 +164,14 @@
     (find-asset designator (find-exchange name))))
 
 (macrolet ((define-filter (name &optional (keyword :test))
+             #+NIL
+             (handler-bind ((style-warning (warning)
+                              :report
+                              (lambda (signal)
+                                (signal signal) ; HARRASSMENT !!!
+                                (describe signal *debug-io*)
+                                (abort signal) (continue))
+                              NIL)))
              ;; yes, the macrolet needs to be in fossil !!
              `(defun ,name (&optional (registry *unit-registry*))
                 (declare (optimize safety space)) ; COMPILATIONS?
