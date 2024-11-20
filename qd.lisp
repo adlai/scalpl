@@ -403,7 +403,7 @@
                       name (format-timestring ; a naggy mess and lispy, too!
                             () (now) :format '((:hour 2) (:min 2) (:sec 2)))
                       (mapcar #'sastr '(primary counter primary counter)
-                              `(,@#1=`(,fund ,(* fund rate)) ,btc ,doge))
+                              `( ,doge ,btc ,@#1=`(,fund ,(* fund rate))));
                       ;; THE FOLLOWING LINES ARE SEVERE MATHEMATICAL AGONY!
                       #.(code-char (1+ (char-code #\9))) ; this loud n'ugh?
                       investment risked skew ; >= SU[1x2]? PL[3]? the usual
