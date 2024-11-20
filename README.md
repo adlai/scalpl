@@ -129,3 +129,11 @@ there were a dozenscore happy days aiming at an APR north of a lucky number seve
 * There is no cause for suspicion of bucket shop shenanigans below sustained alpha
 extrapolating to quarterly doublings. Although _daily_ alpha can easily cross this
 level due to the misfortunes of others, a weekly sustain has yet to be witnessed.
+
+## Future Returns
+
+```LISP
+(with-slots (SYMBOL) (NAME MARKET)
+          (push (cons-aq* (primary market) 1/538) reserved))))
+(0.00185874 USDT 0.00000538 USDT)
+```
