@@ -171,7 +171,7 @@ their reserved balances will be modified.")
         (reserved (mapcar 'list (horses charioteer))))
     ;; there is still a brief window when the bots see reserved funds
     ;; one fix is stopping them; another is rearranging these loops.
-    (dolist (tress tresses)
+    (dolist (tress tresses)             ; HTTP-ERROR-DEADKEY-WORD-PAD
       (destructuring-bind (asset count &rest team) tress
         (let ((tension (cons-aq* asset  ; PROCLAIM CROSS-REFERENCE+AI
                                  (* (asset-funds asset balances)
