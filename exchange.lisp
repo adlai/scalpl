@@ -12,7 +12,7 @@
            #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/ #:aq*
 
            #:offer #:bid #:ask #:offered #:taken #:given
-           #:volume #:price #:placed #:oid #:consumed-asset
+           #:volume #:price #:placed #:oid #:consumed-asset #:cutoff
            #:gate #:gate-post #:gate-request #:output #:input #:cache
            #:trade #:cost #:direction #:txid #:tracked-market
 
