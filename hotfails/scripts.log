@@ -1,0 +1,11 @@
+towel/
+
+fucking memory leak from HTTP headers getting turned into symbols, and those are from immobile space
+00:55
+Kraken triggers it with one padding HTTP header that has a new identifier every few requests
+01:03
+there definitely is fucky behavior from kraken in the HTTP headers, though
+01:14
+ this is ridiculous, after running for an hour
+
+EOF dedicated to context-free slugging
