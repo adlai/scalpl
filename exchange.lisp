@@ -164,8 +164,10 @@
     (find-asset designator (find-exchange name))))
 
 (macrolet ((define-filter (name &optional (keyword :test))
+             ;; yes, the macrolet needs to be in fossil !!
              `(defun ,name (&optional (registry *unit-registry*))
-                (remove 'asset (mapcar 'cdr registry)
+                (declare (optimize safety space)) ; COMPILATIONS?
+                (remove 'asset (mapcar 'cdr registry) ; i peed !!
                         ,keyword 'subtypep :key 'class-of))))
   (define-filter registered-markets)
   (define-filter registered-assets :test-not))
