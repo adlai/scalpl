@@ -430,7 +430,7 @@
                         (slot-reduce maker treasurer)
                       (recv (send sync sync))
                       balances))
-          (doge/btc (vwap market :depth 50)))
+          (doge/btc (vwap market :depth (* 789 (current-depth maker)))))
       (flet ((total-of (btc doge) (float (+ btc (/ doge doge/btc)))))
         (let* ((total-btc (asset-funds (primary market) balances))
                (total-doge (asset-funds (counter market) balances))

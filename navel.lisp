@@ -12,7 +12,7 @@
 (defmethod describe-object ((maker maker) (stream t))
   (with-slots (name print-args lictor) maker
     (apply #'print-book maker print-args)
-    (performance-overview maker)
+    (ignore-errors (or (performance-overview maker) (warn "YOUR SELF")))
     (multiple-value-call 'format stream "~@{~A~#[~:; ~]~}" name
                          (trades-profits (slot-reduce lictor trades)))))
 
@@ -350,12 +350,14 @@ their reserved balances will be modified.")
     (setf offerings
           (subseq (sort offerings #'<
                         :key (lambda (data)
-                               (/ (* (second data) (third data))
-                                  (aif (fourth data) (max it 1) 1))))
+                               (destructuring-bind (second third fourth fifth)
+                                   (rest data)
+                                 (/ (* second third fifth)
+                                    (aif fourth (max it 1) 1)))))
                   0 count))
     (values (with-output-to-string (*standard-output*)
-              (format t "~&  Market  Bids Asks Staleness Last hour")
-              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9D~] ~9D~%~}"
+              (format t "~&  Market  Bids Asks Staleness exh/_hr")
+              (format t "~&~:{~8A  ~4D ~4D ~:[unknown~;~:*~9D~] ~7D~%~}"
                       offerings))
             offerings)))
 
