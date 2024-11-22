@@ -323,7 +323,7 @@
             until (> offset (- (getjso "count" trades) 50))))))
 
 (defmethod execution-since ((gate kraken-gate) (market market) since)
-  (awhen (raw-executions gate :start since)
+  (awhen (ignore-errors (raw-executions gate :start since))
     (remove market (mapcar-jso #'parse-execution it)
             :key #'market :test-not #'eq)))
 
