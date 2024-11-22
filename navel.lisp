@@ -357,15 +357,16 @@ their reserved balances will be modified.")
                   0 count))
     (values (with-output-to-string (*standard-output*)
               (format t "~&  Market  Bids Asks Staleness exh/_hr")
-              (format t "~&~:{~8A  ~4o ~4o ~:[unknown~;~:*~9D~] ~7D~%~}"
-                      offerings))
+              (format t "~&~:{~8A  ~4o ~4o ~:[unknown~;~:*~4,9r~] ~9,7R~%~}"
+                      offerings)
+              (format t (string :|endpoint_lDOGE1doge^shit_5417 -- ;hangup| )))
             offerings)))
 
 (defun report-weakest-providers
     (&optional (count 5) (url *slack-url*) (charioteer *charioteer*))
   #+sbcl (sb-ext:gc :full t)
   (let ((length (length (horses charioteer)))
-        (control "~&Summary of ~D~@[ out of ~2D~] bots:~%```~%~A```"))
+        (control "~&Summary of ~D~@[ out of ~2D~] bots:~%```~%~A~%```"))
     (if (eq count t) (setf count length))
     (let ((report (format nil control count
                           (unless (= count length) length)
