@@ -2,7 +2,8 @@
   (:use #:cl #:anaphora #:local-time #:chanl #:scalpl.actor
         #:scalpl.util #:scalpl.exchange #:scalpl.qd)
   (:export #:trades-profits #:windowed-report #:yank))
-           #:charioteer #:*charioteer* *slack-url* *slack-pnl-url*
+           #:charioteer #:*charioteer*
+           #:*slack-url* #:*slack-pnl-url*
            #:axes #:markets #:horses #:net-worth #:net-activity))
 
 (in-package #:scalpl.navel)
@@ -76,7 +77,8 @@
                         ;; ignores compounding, du'e! ; make diff
                         (realpart (/ (log (/ (* 100 profit) (/ updays 30)
                                              total updays))  ; eventually,
-                                     (- pi))))))))))))          ; monodromy.
+                                     (- pi))))
+		it))))))))          ; monodromy.
 
 (defun windowed-report (maker &optional (length 1) (unit :day))
   (flet ((window (start trades)
