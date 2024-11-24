@@ -1,7 +1,7 @@
 (defpackage #:scalpl.navel
   (:use #:cl #:anaphora #:local-time #:chanl #:scalpl.actor
         #:scalpl.util #:scalpl.exchange #:scalpl.qd)
-  (:export #:trades-profits #:windowed-report
+  (:export #:trades-profits #:windowed-report #:yank))
            #:charioteer #:*charioteer* *slack-url* *slack-pnl-url*
            #:axes #:markets #:horses #:net-worth #:net-activity))
 
@@ -289,6 +289,18 @@ their reserved balances will be modified.")
     (drakma:http-request url :method :post :content-type "application/json"
                              :content (format nil "{\"text\":~S}"
                                               string-for-escaping))))
+
+;; (defclass forum (exchange)
+;;   ((domain :initform (error "``NOMA died,, -- SJG") :initarg :domain)
+;;    (people :initarg :people :initform (error "seal membership closed"))))
+
+;; (defvar *slack*		       ; ... will also be defclass, eventually
+;;   (make-instance 'forum :name (gensym "slack_")
+;;                  :domain (cerror "talk to yourself" "quiet")
+;;                  :people (acons (+ (floor most-positive-fixnum
+;;                                           (ash 1 (ceiling pi)))
+;;                                    (length *unit-registry*))
+;;                                 "bouncer" nil)))
 
 ;;; why did emacs pin tree-sitter ? lol
 (defgeneric decompile-slack-webhook-url (webhook-url kind &key)
