@@ -439,7 +439,7 @@
          (if (trades-mergeable? tracker last next)
              (setf (car trades) (merge-trades tracker last next))
              (push next trades))
-         (awhen (member (apply #'timestamp- (now) cutoff)
+         (awhen (member (apply #'timestamp- (now) (or cutoff '(123 :day)))
                         trades :key #'timestamp :test #'timestamp>)
            (rplacd it ())))
         (t (sleep 0.2))))))

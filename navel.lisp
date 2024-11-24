@@ -371,7 +371,7 @@ their reserved balances will be modified.")
                   0 count))
     (values (with-output-to-string (*standard-output*)
               (format t "~&  Market  Bids Asks Staleness exh/_hr")
-              (format t "~&~:{~8A  ~4o ~4o ~:[unknown~;~:*~4,9r~] ~9,7R~%~}"
+              (format t "~&~:{~8A  ~4o ~4o ~:[unknown~;~:*~3,9r~] ~7,7R~%~}"
                       offerings)
               (format t (string :|endpoint_lDOGE1doge^shit_5417 -- ;hangup| )))
             offerings)))
