@@ -1,0 +1,5 @@
+This one is older than several Bitcoin halvings! god damn ...
+
+ #<95141 36.47 Nis @ 3.59>  #<84746 44.35312165 Usdc @ 3.61>
+  #<34517 36.37 Nis @ 3.58> #<88160 113.82612888 Usdc @ 3.62>
+#<BID  5048.37 Nis @ 3.58>  #<ASK  613.82612888 Usdc @ 3.62>

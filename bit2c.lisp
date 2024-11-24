@@ -271,10 +271,11 @@ the good folks at your local Gambler's Anonymous.")
     (27 . :RefundDepositFee)            ; OM NOM NOMM MLEM MLEM FF
     (31 . :DepositInterest)))           ; RIBA RIBA RIBA RIBA RIBA
 
-(defun account-history (gate &optional stream)
-  (aprog1 (gate-request gate '(:GET "Order/AccountHistory") ())
-    ;; (format stream "~A" it)
-    ))
+;;; The following code belongs, at minimum, closer to the file's end...
+;; (defun account-history (gate &optional stream)
+;;   (aprog1 (gate-request gate '(:GET "Order/AccountHistory") ())
+;;     ;; (format stream "~A" it)
+;;     ))
 
 (defparameter *bit2c-timestamp*
   '((:day 2) "/" (:month 2) "/" :year " "

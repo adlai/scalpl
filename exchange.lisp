@@ -163,6 +163,8 @@
   (:method (designator (name symbol))
     (find-asset designator (find-exchange name))))
 
+;;; The idea targeted by the following form is the most complicated
+;;; one that I can fit between my ears without killing myself; TODO
 (macrolet ((define-filter (name &optional (keyword :test))
              #+NIL
              (handler-bind ((style-warning (warning)
@@ -179,6 +181,8 @@
                         ,keyword 'subtypep :key 'class-of))))
   (define-filter registered-markets)
   (define-filter registered-assets :test-not))
+;;; THE IDEA NOT DESCRIBED WITHIN THE ABOVE COMMENTS IS TOO COMPLEX,
+;;; I WILL DIE WITH UNFINISHED WORK LITTERED ALL OVER THE INTERNET!!
 
 ;;;
 ;;; Asset Quantities
@@ -934,8 +938,10 @@
 
 (defun sufficiently-different? (new old &optional market) ; someday dispatch
   (declare (optimize (compilation-speed 0) speed)) ; smoke your rationaletous
-  (< (or market 0.213456)               ; poor man's DECLARE IGNORABLE ... !!
-     (abs (log (/ (quantity (given new)) (quantity (given old)))))))
+  (let ((stale (the integer (quantity (given old)))))
+    (or (zerop stale)
+        (< (or market 0.213456)  ; poor man's DECLARE IGNORABLE ... !!
+           (abs (log (/ (quantity (given new)) stale)))))))
 
 ;;; FIXME: disambiguate placement from offerage, and redichotomise the book
 (defmethod placed-offers ((supplicant supplicant) &optional market)

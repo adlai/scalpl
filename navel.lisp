@@ -201,6 +201,8 @@ their reserved balances will be modified.")
                                                        previous-update))
           until (and delta (>= delta 199)) finally
             (compute-tresses charioteer t))
+    ;; DONT move the defvar ; the toplevel variable should be a different one,
+    ;; see the partially-reverted commit begging for more metaprogramming ...!
     (awhen (and *slack-url*
                 (loop for horse in horses
                       for staleness = (awhen (slot-reduce horse timestamp)

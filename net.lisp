@@ -14,6 +14,7 @@
 (defun pprint-json (*standard-output* json)
   (typecase json ; see cl-json's source, or at least util.lisp, for the format
     (complex (error "Congratulations, you are wasting your own time."))
+    ;; I HATE JSON I HATE BSON I HATE YOU I HATE MY LIFE I HATE THIS LINE MOST !
     (real (format t "~A" json))  ; TODO: error instead of exceeding JS precision
     (list (pprint-logical-block (*standard-output* json :prefix "{" :suffix "}")
             (loop for (key . value) = (pop json) while key do
