@@ -282,7 +282,8 @@ their reserved balances will be modified.")
 (defgeneric slack-webhook (hook &optional message &key)
   (:method (url &optional message &rest keys)
     (declare (ignore message) (ignorable keys))
-    (cerror "say no more!" "must provide url, message, and optional keys"))
+    (cerror "say no more!" "must provide url, message, and optional keys")
+    (values message keys))
   (:method ((url string) &optional (string-for-escaping "") &rest keys)
     (declare (ignore keys))
     (drakma:http-request url :method :post :content-type "application/json"
@@ -322,13 +323,13 @@ their reserved balances will be modified.")
 
 (defvar *slack-url*)
 
-(defun report-health (&optional comment)
-  (slack-webhook
-   *slack-url* (concatenate
-                'string (format () "I have ~D bots loaded; [~{~D~^ ~}]"
-                                (length (horses *charioteer*))
-                                (pool-health))
-                (when comment (format () " // comment: ~A" comment)))))
+(defun report-health (&optional comment (webhook *slack-url*))
+  (slack-webhook webhook
+                 (concatenate
+                  'string (format () "I have ~D bots loaded; [~{~D~^ ~}]"
+                                  (length (horses *charioteer*))
+                                  (pool-health))
+                  (when comment (format () " // comment: ~A" comment)))))
 
 ;;; This needs to be refactored; the general idea is that any function
 ;;; communicating to Slack should have an option that doesn't communicate,
