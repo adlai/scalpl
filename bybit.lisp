@@ -365,7 +365,8 @@
                              `(("symbol" . ,name) ("category" . "spot")))
         (let ((trades (nreverse (mapcar #'parse (getjso "list" it)))))
           (if (null from) trades
-              (cdr (member (txid from) trades :key 'txid :test '=))))))))
+              (remove (timestamp from) trades
+                      :key #'timestamp :test #'timestamp>=)))))))
 
 (defmethod trades-since ((market inverse-market) &optional from)
   (with-slots (name) market
