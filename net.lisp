@@ -47,6 +47,7 @@
           ((or simple-error drakma::drakma-simple-error
             usocket:socket-condition	; most specific superclass...
             usocket:ns-try-again-error  ; least-informative-response!
+            usocket:ns-host-not-found-error
             chunga::input-chunking-unexpected-end-of-file
             cl+ssl::ssl-error
             end-of-file)

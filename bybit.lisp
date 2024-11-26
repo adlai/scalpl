@@ -273,6 +273,7 @@
                         ((0)) ; C-style, no error
                         ((10001))       ; THANK YOU FOR NOT SPOOFING
                         ((20001 30032 30037 170213)) ; order already filled
+                        ;; ((170130))      ; FIXME minimum order size
                         ((30076) it)          ; failures to replace
                         (t status))     ; by default, echo the error text
                 (typecase it
@@ -738,7 +739,9 @@
         (with-json-slots ((oid "orderId") (urid "orderLinkId")) json
           (if (and json oid urid)
               (change-class offer 'placed :oid oid :urid urid)
-              (warn "Failed placing: ~S~%~A" offer complaint)))))))
+              ;; TODO dispatch upon complaint before warning?
+              (warn "Failed placing: ~S~%~A" offer complaint)
+              ))))))
 
 (defmethod amend-offer ((gate bybit-gate) (old offered) (new offer))
   (with-slots (market oid) old
