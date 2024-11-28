@@ -163,26 +163,12 @@
   (:method (designator (name symbol))
     (find-asset designator (find-exchange name))))
 
-;;; The idea targeted by the following form is the most complicated
-;;; one that I can fit between my ears without killing myself; TODO
 (macrolet ((define-filter (name &optional (keyword :test))
-             #+NIL
-             (handler-bind ((style-warning (warning)
-                              :report
-                              (lambda (signal)
-                                (signal signal) ; HARRASSMENT !!!
-                                (describe signal *debug-io*)
-                                (abort signal) (continue))
-                              NIL)))
-             ;; yes, the macrolet needs to be in fossil !!
              `(defun ,name (&optional (registry *unit-registry*))
-                (declare (optimize safety space)) ; COMPILATIONS?
-                (remove 'asset (mapcar 'cdr registry) ; i peed !!
+                (remove 'asset (mapcar 'cdr registry)
                         ,keyword 'subtypep :key 'class-of))))
   (define-filter registered-markets)
   (define-filter registered-assets :test-not))
-;;; THE IDEA NOT DESCRIBED WITHIN THE ABOVE COMMENTS IS TOO COMPLEX,
-;;; I WILL DIE WITH UNFINISHED WORK LITTERED ALL OVER THE INTERNET!!
 
 ;;;
 ;;; Asset Quantities
