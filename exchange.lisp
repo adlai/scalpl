@@ -937,12 +937,12 @@
   (with-slots (gate response timestamp offered market) supplicant
     (acase (car cons)
       (:timestamp (setf timestamp (now)))
+      (:offer (when (apply #'balance-guarded-place supplicant arg)
+                (setf timestamp (now))))
       (:cancel (when (cancel-offer gate arg)
                  (setf timestamp (now))
                  (setf offered (set-difference offered arg :key #'oid
                                               :test #'string=))))
-      (:offer (when (apply #'balance-guarded-place supplicant arg)
-                (setf timestamp (now))))
       (:sync (send response (setf offered (placed-offers gate market))))
       (t (setf offered (remove it offered :test #'string= :key #'oid))))))
 
