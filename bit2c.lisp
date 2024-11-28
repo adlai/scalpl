@@ -271,12 +271,6 @@ the good folks at your local Gambler's Anonymous.")
     (27 . :RefundDepositFee)            ; OM NOM NOMM MLEM MLEM FF
     (31 . :DepositInterest)))           ; RIBA RIBA RIBA RIBA RIBA
 
-;;; The following code belongs, at minimum, closer to the file's end...
-;; (defun account-history (gate &optional stream)
-;;   (aprog1 (gate-request gate '(:GET "Order/AccountHistory") ())
-;;     ;; (format stream "~A" it)
-;;     ))
-
 (defparameter *bit2c-timestamp*
   '((:day 2) "/" (:month 2) "/" :year " "
     (:hour 2) ":" (:min 2) ":" (:sec 2) ".000"))
@@ -388,6 +382,21 @@ the good folks at your local Gambler's Anonymous.")
 ;;; chudloadic exkrmnt:  -0.031%
 ;;; mean daily profit:   -0.03247%
 ;;; "
+
+;;; The following code belongs, probably, after some page break...
+;; (defun account-history (gate &optional stream)
+;;   (aprog1 (gate-request gate '(:GET "Order/AccountHistory") ())
+;;     ;; (format stream "~A" it)
+;;     ))
+
+;;; The following code was only reasonable for a window where the
+;;; encountered accountAction values were {0,1,3,4,31}; a smarter
+;;; grouping would be helpful for the complete account overview.
+;; (loop with groupings for record in *
+;;       for action = (getjso "accountAction" record)
+;;       for index = (floor (log (1+ action) 3))
+;;       do (push record (getf groupings index))
+;;       finally (return (length groupings)))
 
 (defmethod describe-account
     ((supplicant supplicant) (exchange (eql *bit2c*)) (stream t)))
