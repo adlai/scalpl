@@ -342,25 +342,25 @@ the good folks at your local Gambler's Anonymous.")
             (when (or complaint (not (zerop (length message))))
               (cerror "Proceed" "Break-point one")
               (warn "~S" (or (getjso "Message" response) message)))
-            (or (unless complaint
-                  (atypecase (getjso "id" echo)
-                    ((integer 1)
-                     (change-class offer 'offered
-                                   :oid (prin1-to-string it)))
-                    ((eql 0) (cerror "Proceed" "Break-point two")
-                     (warn "FIXME! Balance guard probably failed..."))))
-                (unless (let ((length (length message)))
-                          (or (awhen (search "nonce" message :from-end t)
-                                (string= (subseq message (+ it 6)
-                                                 (- length 2))
-                                         (subseq message
-                                                 (position #\( message)
-                                                 (position #\) message))))
-                              (awhen (search " 30% " message)
-                                (warn "~&Coding ~3D BPM ; nice !~%" it))))
-                  (cerror "Proceed" "Balance guard failed.")
-                  (warn "~A~&Balance guard failed when placing ~A" now offer) ; count them?
-                  ))))))))
+            (if (search " 30% " message)
+                (warn "~&Exceeded 30% price range~%~A" message)
+                (or (unless complaint
+                      (atypecase (getjso "id" echo)
+                        ((integer 1)
+                         (change-class offer 'offered
+                                       :oid (prin1-to-string it)))
+                        ((eql 0) (cerror "Proceed" "Break-point two")
+                         (warn "FIXME! Balance guard probably failed..."))))
+                    (unless (let ((length (length message)))
+                              (or (awhen (search "nonce" message :from-end t)
+                                    (string= (subseq message (+ it 6)
+                                                     (- length 2))
+                                             (subseq message
+                                                     (position #\( message)
+                                                     (position #\) message))))))
+                      (cerror "Proceed" "Balance guard failed.")
+                      (warn "~A~&Balance guard failed when placing ~A" now offer) ; count them?
+                      )))))))))
 
 (defmethod cancel-offer ((gate bit2c-gate) (offer offered))
   (with-slots (oid) offer
