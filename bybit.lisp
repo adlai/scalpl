@@ -851,6 +851,7 @@
 ;;   (flet ((fetch-page ()
 ;;            (gate-request gate request
 ;;                          (acons "page" (format () "~D" number) options))))
+;;     ;; THE FOLLOWING USAGE OF #'GETJSO INTRODUCES A MEMORY LEAK!!!!!!!!!!
 ;;     (loop for page = (fetch-page) when page append (getjso data-key page)
 ;;        and if (aif (getjso "last_page" page)
 ;;                    (< (getjso "current_page" page) it)

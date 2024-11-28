@@ -480,6 +480,7 @@
                                gate '(:get "user/quoteFillRatio") ())))))
 
 (defun quote-value-ratio (gate &key symbols &aux piss dung)
+  ;; the following usage of #'GETJSO must be poached for the config parser
   ;; #.(reduce 'getjso '("summary" :|get| "/user/quoteValueRatio" "paths")
   ;;           :from-end t :initial-value *swagger*) ; nice short docstring :)
   "Please read the exchange's official documentation for these statistics:

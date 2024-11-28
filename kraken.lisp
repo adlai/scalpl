@@ -188,6 +188,8 @@
                      &aux (pair (name market)))
   (let ((decimals (slot-value market 'decimals)))
     (with-json-slots (bids asks)
+        ;; the following #'GETJSO call is not a memory leak, because the
+        ;; list of markets is loaded at startup or updated manually.
         (getjso pair (get-request "Depth" `(("pair" . ,pair)
                                             ("count" . ,(prin1-to-string count)))))
       (flet ((parser (class)
@@ -292,6 +294,8 @@
 
 (defmethod market-fee ((gate kraken-gate) market &aux (pair (name market)))
   (awhen (gate-request gate "TradeVolume" `(("pair" . ,pair)))
+    ;; the following #'GETJSO call is arguably not a memory leak, because
+    ;; the list of markets is loaded at startup or updated manually.
     (read-from-string (getjso "fee" (getjso pair (getjso "fees" it))))))
 
 (defun parse-execution (txid json)
@@ -361,6 +365,7 @@
             (flet ((process (trades-jso)
                      (mapjso (lambda (tid data)
                                (map nil (lambda (key)
+					  ;; the following calls do not leak memory
                                           (setf (getjso key data)
                                                 (read-from-string (getjso key data))))
                                     '("price" "cost" "fee" "vol"))

@@ -262,6 +262,8 @@ external format EXTERNAL-FORMAT."
 (defun decode-json (arg)
   (read-json (flexi-streams:octets-to-string arg :external-format :utf8)))
 
+;;; WARNING: Careless use of this function could cause memory leaks,
+;;; similarly to issue that was encountered with Drakma, Chunga, and Kraken
 (defun getjso (key &optional (map () map-p))
   (if (not map-p) (lambda (map) (getjso key map))
       (cdr (assoc (intern (string key) :keyword) map :test #'string=))))
