@@ -1,0 +1,117 @@
+;; swank:close-connection:
+;;  Interrupt thread failed:
+;;   thread #<THREAD "ChanL Old Worker" ABORTED {103FFC0153}> has exited.
+;; Event history start:
+dispatch-event: (:DEBUG-ACTIVATE 39 1 NIL)
+encode-message
+decode-message
+dispatch-event:
+(:EMACS-REX (SWANK:INVOKE-NTH-RESTART-FOR-EMACS 1 0) "SCALPL.QD" 39 1492)
+send-event: #<SB-THREAD:THREAD "repl-thread" RUNNING {10016B0233}>
+(:EMACS-REX (SWANK:INVOKE-NTH-RESTART-FOR-EMACS 1 0) "SCALPL.QD" 1492)
+dispatch-event:
+(:RETURN #<SB-THREAD:THREAD "repl-thread" RUNNING {10016B0233}>
+ (:ABORT "NIL") 1492)
+dispatch-event:
+(:RETURN #<SB-THREAD:THREAD "worker" RUNNING {100DF5FE33}>
+ (:OK (:TITLE "#<CACHING-GATE {10217E34B3}>"
+ :ID 96 :CONTENT (("Class: "
+                  (:VALUE "#<STANDARD-CLASS SCALPL.KRAKEN:CACHING-GATE>" 97) "
+" "--------------------" "
+" " Group slots by inheritance " (:ACTION "[ ]" 60) "
+" " Sort slots alphabetically  " (:ACTION "[X]" 61) "
+" "
+" "All Slots:" "
+" (:ACTION "[ ]" 62) "  " (:VALUE "ABBREV" 98) "          "
+ " = " (:VALUE "NIL" 99) "
+" (:ACTION "[ ]" 63) "  " (:VALUE "CACHE" 100) "           "
+ " = " (:VALUE "@70=((\"TradesHistory\" (\"ofs\" . \"0\")
+                      (\"start\" . \"TONQYM-6ESLP-H25J5W\")) ..)" 101) "
+" (:ACTION "[ ]" 64) "  " (:VALUE "CONTROL" 102) "         "
+ " = " (:VALUE "#<CHANNEL {1001587393}>" 103) "
+" (:ACTION "[ ]" 65) "  " (:VALUE "DELEGATES" 104) "       "
+ " = " (:VALUE "NIL" 105) "
+" (:ACTION "[ ]" 66) "  " (:VALUE "EXCHANGE" 106) "        "
+ " = " (:VALUE "#<KRAKEN>" 107) "
+" (:ACTION "[ ]" 67) "  " (:VALUE "INPUT" 108) "           "
+ " = " (:VALUE "#<CHANNEL {1021CC5F43}>" 109) "
+" (:ACTION "[ ]" 68) "  " (:VALUE "NAME" 110) "            "
+ " = " (:VALUE "\"RBh\"" 111) "
+" (:ACTION "[ ]" 69) "  " (:VALUE "PUBKEY" 112) "          "
+ " = " (:VALUE "\"REDACTEDLOLNICETRY\"" 113) "
+" (:ACTION "[ ]" 70) "  " (:VALUE "RECENT-RESPONSES" 114) ""
+ " = " (:VALUE "@2=#<HASH-TABLE :TEST EQUAL :COUNT 3 {10024F3403}>" 115) "
+" (:ACTION "[ ]" 71) "  " (:VALUE "SECRET" 116) "          "
+ " = " (:VALUE "REDACTEDLOLNICETRY" 117) "
+" (:ACTION "[ ]" 72) "  " (:VALUE "TASKS" 118) "           "
+ " = " (:VALUE "(#<TASK 23:4:8 RBh [ALIVE] {103F2246E3}>
+                 #<TASK 17:42:13 RBh [PENDING] {100B19CB53}>)" 119) "
+" "
+" (:ACTION "[set value]" 73) "  " (:ACTION "[make unbound]" 74) "
+") 96 0 500))) 1488)
+encode-message
+dispatch-event: (:DEBUG-RETURN 39 1 NIL)
+encode-message
+decode-message
+dispatch-event: (:EMACS-REX (SWANK-REPL:LISTENER-EVAL
+                             "(scalpl.navel::report-net-activity nil)
+") "SCALPL.QD" :REPL-THREAD 1493)
+send-event: #<SB-THREAD:THREAD "repl-thread" RUNNING {10016B0233}>
+(:EMACS-REX (SWANK-REPL:LISTENER-EVAL "(scalpl.navel::report-net-activity nil)
+") "SCALPL.QD" 1493)
+dispatch-event: (:WRITE-STRING "
+" NIL 39)
+encode-message
+decode-message
+dispatch-event: (:WRITE-DONE 39)
+send-event: #<SB-THREAD:THREAD "repl-thread" RUNNING {10016B0233}> (:WRITE-DONE)
+wait-for-event: (:WRITE-DONE) NIL
+dispatch-event: (:PRESENTATION-START 245 :REPL-RESULT)
+encode-message
+dispatch-event: (:PING 39 79)
+encode-message
+wait-for-event: (:EMACS-PONG 79) NIL
+decode-message
+dispatch-event: (:EMACS-PONG 39 79)
+send-event: #<SB-THREAD:THREAD "repl-thread" RUNNING {10016B0233}>
+(:EMACS-PONG 79)
+dispatch-event:
+(:WRITE-STRING "\"Net effect of 236 trades since Thu@22:05: $267.33
+\"" :REPL-RESULT)
+encode-message
+dispatch-event: (:PRESENTATION-END 245 :REPL-RESULT)
+dispatch-event:
+(:RETURN #<SB-THREAD:THREAD "worker" FINISHED values: T {10167E4683}>
+ (:OK (:COMPILATION-RESULT NIL T 0.068 NIL NIL)) 1491)
+encode-message
+dispatch-event: (:WRITE-STRING "
+" :REPL-RESULT)
+encode-message
+dispatch-event: (:RETURN #<SB-THREAD:THREAD "repl-thread" RUNNING {10016B0233}>
+                 (:OK NIL) 1493)
+encode-message
+dispatch-event: (:EMACS-INTERRUPT T)
+wait-for-event: (COMMON-LISP:OR (:EMACS-REX . SWANK::_) (:SLDB-RETURN 2)) NIL
+interrupt-worker-thread: T #<THREAD "ChanL Old Worker" ABORTED {103FFC0153}>
+close-connection:
+ Interrupt thread failed:
+  thread #<THREAD "ChanL Old Worker" ABORTED {103FFC0153}> has exited. ...
+;; Event history end.
+;; Backtrace:
+0: (SB-THREAD:INTERRUPT-THREAD
+    #<SB-THREAD:THREAD "ChanL Old Worker" ABORTED {103FFC0153}>
+    #<FUNCTION (LAMBDA NIL :IN SWANK::QUEUE-THREAD-INTERRUPT) {100E470BDB}>)
+1: (SWANK::DISPATCH-LOOP #<SWANK::MULTITHREADED-CONNECTION {102668E753}>)
+2: (SWANK::CONTROL-THREAD #<SWANK::MULTITHREADED-CONNECTION {102668E753}>)
+3: ((FLET SB-UNIX::BODY :IN SB-THREAD::RUN))
+4: ((FLET "WITHOUT-INTERRUPTS-BODY-11" :IN SB-THREAD::RUN))
+5: ((FLET SB-UNIX::BODY :IN SB-THREAD::RUN))
+6: ((FLET "WITHOUT-INTERRUPTS-BODY-4" :IN SB-THREAD::RUN))
+7: (SB-THREAD::RUN)
+8: ("foreign function: call_into_lisp_")
+9: ("foreign function: funcall1")
+;; Connection to Emacs lost. [
+;;  condition: Interrupt thread failed:
+;;   thread #<THREAD "ChanL Old Worker" ABORTED {103FFC0153}> has exited.
+;;  type: SB-THREAD:INTERRUPT-THREAD-ERROR
+;;  style: :SPAWN]

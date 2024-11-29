@@ -323,7 +323,7 @@
             for trades = (gate-request gate "TradesHistory"
                                        `(("ofs" . ,(princ-to-string offset))
                                          ,@range))
-            nconc (getjso "trades" trades)
+            nconc (getjso "trades" trades) while trades
             until (> offset (- (getjso "count" trades) 50))))))
 
 (defmethod execution-since ((gate kraken-gate) (market market) since)
