@@ -1,0 +1,110 @@
+Heap exhausted during garbage collection: 0 bytes available, 32 requested.
+     | Immobile Objects |
+ Gen layout symbol  code Boxed Cons Raw Code SmMix Mixed LgRaw LgCode LgMix Waste%      Alloc      Trig Dirty GCs Mem-age
+  3      0      0     0  4153  687  5441   0     3   273     0      0     0    1.3  341464272 196161194 10557   1  1.3158
+  4   1006   2541 11016  8036 1585 11518  15    77   521    43      0    45    1.5  705215712  48638122 15378   1  0.7496
+  5      0      0     0     0    0     0   0     0     0     0      0     0    0.0          0   2000000     0   0  0.0000
+  6    763  23053 18971   215  112     8   3    11    13     0      0     9    4.5   11615472   2000000    19   0  0.0000
+Tot   1769  25594 29987 12404 2384 16967  18    91   807    43      0    54    1.4 1058294992 [98.6% of 1073741824 max]
+GC control variables:
+   *GC-INHIBIT* = true
+   *GC-PENDING* = true
+   *STOP-FOR-GC-PENDING* = false
+Collection trigger variables:
+   dynamic_space_size = 1073741824
+   bytes_allocated = 1058294992
+   auto_gc_trigger = 821231091
+   bytes_consed_between_gcs = 53687091
+fatal error encountered in SBCL pid 6488 tid 209643:
+Heap exhausted, game over.
+
+Welcome to LDB, a low-level debugger for the Lisp runtime environment.
+(GC in progress, oldspace=3, newspace=4)
+ldb> help
+help    Display this help information.
+?       (an alias for help)
+backtrace       Backtrace up to N frames.
+call    Call FUNCTION with ARG1, ARG2, ...
+catchers        Print a list of all the active catchers.
+context Print interrupt context number I.
+dump    Dump memory starting at ADDRESS for COUNT words.
+d       (an alias for dump)
+exit    Exit this instance of the monitor.
+findpath        Find path to an object.
+flush   Flush all temp variables.
+hashtable       Dump a hashtable in detail.
+layouts Dump LAYOUT instances.
+print   Print object at ADDRESS.
+p       (an alias for print)
+pte     Page table entry for address
+quit    Quit.
+regs    Display current Lisp registers.
+search  Search heap for object.
+threads List threads
+verify  Check heap invariants
+ldb> regs
+CSP     =       0x7c5c0a3fe020
+ldb> threads
+(thread*,pthread,sb-vm:thread,name)
+0x7c5bfe600080 0x7c5bfe3ff6c0 0x1000c18000 "ChanL Old Worker"
+0x7c5bff200080 0x7c5bfefff6c0 0x1000c18090 "ChanL Old Worker"
+0x7c5bff800080 0x7c5bff5ff6c0 0x1000c18120 "ChanL Old Worker"
+0x7c5bffe00080 0x7c5bffbff6c0 0x1000c181b0 "ChanL Old Worker"
+0x7c5c08800080 0x7c5c085ff6c0 0x1000c18240 "ChanL Old Worker"
+0x7c5c08e00080 0x7c5c08bff6c0 0x1000c182d0 "ChanL Old Worker"
+0x7c5c09400080 0x7c5c091ff6c0 0x1000c18360 "ChanL Old Worker"
+0x7c5c09a00080 0x7c5c097ff6c0 0x1000c18400 "ChanL Old Worker"
+0x7c5c0a000080 0x7c5c09dff6c0 0x1000c18490 "ChanL Old Worker"
+0x7c5c0a600080 0x7c5c0a3ff6c0 0x1000c18520 "ChanL Old Worker"
+0x7c5c0ac00080 0x7c5c0a9ff6c0 0x1000c185b0 "ChanL Old Worker"
+0x7c5c0b200080 0x7c5c0afff6c0 0x1000c18640 "ChanL Old Worker"
+0x7c5c0b800080 0x7c5c0b5ff6c0 0x1000c186d0 "ChanL Old Worker"
+0x7c5c0be00080 0x7c5c0bbff6c0 0x1000c18760 "ChanL Old Worker"
+0x7c5c14800080 0x7c5c145ff6c0 0x1000c18800 "ChanL Old Worker"
+0x7c5c14e00080 0x7c5c14bff6c0 0x1000c18890 "ChanL Old Worker"
+0x7c5c15400080 0x7c5c151ff6c0 0x1000c38920 "ChanL Old Worker"
+0x7c5c15a00080 0x7c5c157ff6c0 0x1000c18920 "ChanL Old Worker"
+0x7c5c16000080 0x7c5c15dff6c0 0x1000c189b0 "ChanL Old Worker"
+0x7c5c16600080 0x7c5c163ff6c0 0x1000c18a40 "ChanL Old Worker"
+0x7c5c16c00080 0x7c5c169ff6c0 0x1000c18ad0 "ChanL Old Worker"
+0x7c5c17200080 0x7c5c16fff6c0 0x1000c18b60 "ChanL Old Worker"
+0x7c5c17800080 0x7c5c175ff6c0 0x1000c18c00 "ChanL Old Worker"
+0x7c5c17e00080 0x7c5c17bff6c0 0x1000c18c90 "ChanL Old Worker"
+0x7c5c1c800080 0x7c5c1c5ff6c0 0x1000c18d20 "ChanL Old Worker"
+0x7c5c1d400080 0x7c5c1d1ff6c0 0x1000c18db0 "ChanL Old Worker"
+0x7c5c1e600080 0x7c5c1e3ff6c0 0x1000c18e40 "ChanL Old Worker"
+0x7c5bfec00080 0x7c5bfe9ff6c0 0x1000c18ed0 "ChanL Old Worker"
+0x7c5c1ce00080 0x7c5c1cbff6c0 0x1000c18f60 "ChanL Old Worker"
+0x7c5c1e000080 0x7c5c1ddff6c0 0x1000b99090 "repl-thread"
+0x7c5c1ec00080 0x7c5c1e9ff6c0 0x1000b99120 "auto-flush-thread"
+0x7c5c1f200080 0x7c5c1efff6c0 0x1000b991b0 "swank-indentation-cache-thread"
+0x7c5c1f800080 0x7c5c1f5ff6c0 0x1000b99240 "reader-thread"
+0x7c5c1fe00080 0x7c5c1fbff6c0 0x1003ae5c90 "control-thread"
+0x7c5c24600080 0x7c5c243ff6c0 0x1000b992d0 "Swank 7654"
+0x7c5c24c00080 0x7c5c249ff6c0 0x1000b99360 "finalizer"
+0x7c5c25200080 0x7c5c2541a740 0x1000b99400 "main thread"
+ldb> backtrace
+Backtrace:
+   0: fp=0x7c5c0a3fe068 pc=0xb800f60fde JSON::READ-JSON-NUMBER-TOKEN
+   1: fp=0x7c5c0a3fe090 pc=0xb800f63997 JSON::DECODE-JSON
+   2: fp=0x7c5c0a3fe130 pc=0xb800f64c20 JSON::DECODE-JSON-ARRAY
+   3: fp=0x7c5c0a3fe1d0 pc=0xb800f64c20 JSON::DECODE-JSON-ARRAY
+   4: fp=0x7c5c0a3fe270 pc=0xb800f65784 JSON::DECODE-JSON-OBJECT
+   5: fp=0x7c5c0a3fe328 pc=0xb800f63d1d JSON::DECODE-JSON-FROM-STRING
+   6: fp=0x7c5c0a3fe390 pc=0xb80121837f SCALPL.UTIL::READ-JSON
+   7: fp=0x7c5c0a3fe480 pc=0xb80123b8a8 SCALPL.BIT2C::BIT2C-REQUEST
+   8: fp=0x7c5c0a3fe4e8 pc=0xb80123e5cf (SB-PCL::FAST-METHOD SCALPL.EXCHANGE::GET-BOOK (SCALPL.BIT2C::BIT2C-MARKET))
+   9: fp=0x7c5c0a3fe520 pc=0xb80121f63f (SB-PCL::FAST-METHOD SCALPL.ACTOR::PERFORM (SCALPL.EXCHANGE::BOOK-FETCHER))
+  10: fp=0x7c5c0a3fe570 pc=0xb801244a64 (SB-PCL::EMF SCALPL.ACTOR::PERFORM)
+  11: fp=0x7c5c0a3fe670 pc=0xb80121aee5 (SB-PCL::FAST-METHOD SCALPL.ACTOR::PERFORM :AROUND (SCALPL.ACTOR::ACTOR))
+  12: fp=0x7c5c0a3fe6d0 pc=0xb80121aa5d (LAMBDA () :IN SCALPL.ACTOR::ENQUEUE)
+  13: fp=0x7c5c0a3fe748 pc=0xb800f4f488 (LAMBDA (&OPTIONAL CHANL::_) :IN CHANL::PCALL)
+  14: fp=0x7c5c0a3fe890 pc=0xb800f4d6e2 (LAMBDA () :IN CHANL::WORKER-FUNCTION)
+  15: fp=0x7c5c0a3fe910 pc=0xb800cd04a9 (LABELS BORDEAUX-THREADS::%BINDING-DEFAULT-SPECIALS-WRAPPER
+                                         :IN BORDEAUX-THREADS::BINDING-DEFAULT-SPECIALS)
+  16: fp=0x7c5c0a3fea00 pc=0xb80070bb4b (FLET SB-UNIX::BODY :IN SB-THREAD::RUN)
+  17: fp=0x7c5c0a3feaf0 pc=0xb80070c294 (FLET "WITHOUT-INTERRUPTS-BODY-" :IN SB-THREAD::RUN)
+  18: fp=0x7c5c0a3fec48 pc=0xb80070b6fb (FLET SB-UNIX::BODY :IN SB-THREAD::RUN)
+  19: fp=0x7c5c0a3fed38 pc=0xb80070c443 (FLET "WITHOUT-INTERRUPTS-BODY-" :IN SB-THREAD::RUN)
+  20: fp=0x7c5c0a3fee28 pc=0xb80070b4d9 SB-THREAD::RUN
+  21: fp=0x7c5c0a3fee60 pc=0x5e68b5e32671 Foreign function call_into_lisp_
