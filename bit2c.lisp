@@ -332,10 +332,10 @@ the good folks at your local Gambler's Anonymous.")
                                          (/ (abs price) dec-al)))))
         (with-json-slots
             ((response "OrderResponse") (echo "NewOrder")) json
-          (let ((message (getjso "Error" response)))
+          (let ((now (now)) (message (getjso "Error" response)))
             (cond
               ((search " 30% " message)
-               (warn "~&Exceeded 30% price range~%~A" message))
+               (warn "~&Exceeded 30% price range ~A~%~A" now message))
               ((null complaint)
                (atypecase (getjso "id" echo)
                  ((integer 1)
