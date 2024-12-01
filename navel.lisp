@@ -348,7 +348,8 @@ their reserved balances will be modified.")
 (defun report-health (&optional comment (webhook *slack-url*))
   (slack-webhook webhook
                  (concatenate
-                  'string (format () "I have ~D bots loaded; [~{~D~^ ~}]"
+                  'string (format () "~A has ~D bots loaded; [~{~D~^ ~}]"
+				  (name *charioteer*)
                                   (length (horses *charioteer*))
                                   (pool-health))
                   (when comment (format () " // comment: ~A" comment)))))
@@ -382,17 +383,16 @@ their reserved balances will be modified.")
     (values (with-output-to-string (*standard-output*)
               (format t "~&  Market  Bids Asks Staleness exh/_hr")
               (format t "~&~:{~8A  ~4o ~4o ~:[unknown~;~:*~3,9,'_r~] ~7,7R~%~}"
-                      offerings)
-              (format t (string :|endpoint_lDOGE1doge^shit_5417 -- ;hangup| )))
+                      offerings))
             offerings)))
 
 (defun report-weakest-providers
     (&optional (count 5) (url *slack-url*) (charioteer *charioteer*))
   #+sbcl (sb-ext:gc :full t)
   (let ((length (length (horses charioteer)))
-        (control "~&Summary of ~D~@[ out of ~2D~] bots:~%```~%~A~%```"))
+        (control "~&~A has ~D~@[ out of ~2D~] bots:~%```~%~A~%```"))
     (if (eq count t) (setf count length))
-    (let ((report (format nil control count
+    (let ((report (format nil control (name charioteer) count
                           (unless (= count length) length)
                           (weakest-providers count charioteer))))
       (if url (slack-webhook url report) report))))
@@ -411,13 +411,15 @@ their reserved balances will be modified.")
                                           (remove nil trades))
                                   #'timestamp<)))
            (report (if (null earliest)
-                       (format () "~&Zero trades since ~A~%"
-                               (format-timestring () earliest :format
+                       (format () "~&~A had zero trades until ~A~%"
+			       (name charioteer)
+                               (format-timestring () (now) :format
                                                   '(:short-weekday #\@
                                                     (:hour 2) #\: (:min 2))))
-                       (format () "~&Net effect of ~D trades since ~A: $~$~%"
+                       (format () "~&~A had ~D trades until ~A: $~$~%"
+			       (name charioteer)
                                (reduce #'+ (mapcar 'length trades))
-                               (format-timestring () earliest :format
+                               (format-timestring () (now) :format
                                                   '(:short-weekday #\@
                                                     (:hour 2) #\: (:min 2)))
                                (net-activity charioteer)))))
