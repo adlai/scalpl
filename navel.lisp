@@ -71,20 +71,13 @@
                            60 60 24))
                 (volume (reduce #'+ (mapcar #'volume it))))
             (when (trades-profits it)
-              (let ((profit (* (1- (profit-margin (vwap "buy") (vwap "sell")))
-                               volume)) ; TODO: grade by depth magnitudes
-                    (total (total (funds primary) (funds counter))))
+              (let ((total (total (funds primary) (funds counter))))
                 (format t "~&Looked across past   ~7@F days ~A~
                            ~%where account traded ~7@F ~(~A~),~
-                           ~%expected turnover of ~7@F days;~
-                           ~%chudloadic exkrmnt:  ~3@$~%"
+                           ~%expected turnover of ~7@F days;~%"
                         updays (now) volume (name primary)
-                        (/ (* total updays 2) volume) ; times now
-                        ;; ignores compounding, du'e! ; make diff
-                        (realpart (/ (log (/ (* 100 profit) (/ updays 30)
-                                             total updays))  ; eventually,
-                                     (- pi))))
-		it))))))))              ; MAKE THE MONODROMY USEFUL !!!!!!
+                        (/ (* total updays 2) volume))
+		it))))))))
 
 (defun windowed-report (maker &optional (length 1) (unit :day))
   (flet ((window (start trades)
