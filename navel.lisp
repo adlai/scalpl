@@ -70,14 +70,13 @@
                             now (timestamp (first (last it))))
                            60 60 24))
                 (volume (reduce #'+ (mapcar #'volume it))))
-            (when (trades-profits it)
-              (let ((total (total (funds primary) (funds counter))))
-                (format t "~&Looked across past   ~7@F days ~A~
-                           ~%where account traded ~7@F ~(~A~),~
-                           ~%expected turnover of ~7@F days;~%"
-                        updays (now) volume (name primary)
-                        (/ (* total updays 2) volume))
-		it))))))))
+            (let ((total (total (funds primary) (funds counter))))
+              (format t "~&Looked across past   ~7@F days ~A~
+                         ~%where account traded ~7@F ~(~A~),~
+                         ~%expected turnover of ~7@F days;~%"
+                      updays (now) volume (name primary)
+                      (/ (* total updays 2) volume))
+	      it)))))))
 
 (defun windowed-report (maker &optional (length 1) (unit :day))
   (flet ((window (start trades)
