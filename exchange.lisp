@@ -785,8 +785,11 @@
 
 (defmethod perform ((tracker execution-tracker) &key)
   (with-slots (buffer trades bases control delegates) tracker
-    (select ((recv buffer next) (update-bases tracker next) (push next trades)
-             (send (slot-reduce (car delegates) control) (list (oid next))))
+    (select ((recv buffer next)
+	     (unless (find (txid next) trades :key #'txid :test #'string=)
+	       (update-bases tracker next) (push next trades)
+               (send (slot-reduce (car delegates) control)
+		     (list (oid next)))))
             ((recv control command) (execute tracker command))
             ((send buffer (first trades))) (t (sleep 0.2)))))
 
