@@ -810,7 +810,8 @@
 ;;;   aq - that you wish to give
 ;;; Who calls it?
 ;;;   update-bases, to compute the remaining basis for a given asset
-;;;   ope-spreader (TODO), to check whether a certain offer is profitable
+;;;   ope-spreader, to check whether a certain offer is profitable
+;;;                 calls indirectly, via generic function #'bases-for
 
 (defun bases-without (bases given)
   (handler-case
