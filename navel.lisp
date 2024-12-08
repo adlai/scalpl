@@ -153,6 +153,7 @@ their reserved balances will be modified.")
       (assert (find (market horse) markets)))))
 
 (defmethod shared-initialize :after ((charioteer charioteer) (names t) &key)
+  (mapc 'ensure-running (markets charioteer))
   (with-slots (gate horses) charioteer
     (unless (slot-boundp charioteer 'gate)
       (setf gate (slot-reduce (first horses) gate)))))
