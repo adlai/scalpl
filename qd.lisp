@@ -341,12 +341,11 @@
   (with-slots (supplicant) maker
     (list* maker supplicant (agent-trunk supplicant)))) ; uses?
 
-(defun profit-snake (lictor guage length)
+(defun profit-snake (lictor length)
   (let ((trades (slot-reduce lictor trades)))
     (flet ((depth-profit (depth)	; guah huagj WAG YOUR DOGG LION!
              (flet ((vwap (side) (vwap lictor :type side :depth depth)))
-               (* 100 (1- (profit-margin (vwap "buy") (vwap "sell")
-                                         guage guage)))))
+               (* 100 (1- (profit-margin (vwap "buy") (vwap "sell"))))))
            (side-last (side)
              (volume (find side trades :key #'direction
                                        :test #'string-equal)))
@@ -378,8 +377,7 @@
             (dolist (dp dps (format out "~4@$" (first (last dps))))
               (format out "~C" (case (round (signum dp)) (0 #\Space)
                                      (+1 (chr (/ dp highest)))
-                                     (-1 (chr (- (/ dp lowest)))))))
-            (format out "[ ]~4@$" guage)))))))
+                                     (-1 (chr (- (/ dp lowest)))))))))))))
 
 (defun makereport (maker fund rate btc doge investment risked skew &optional ha)
   (with-slots (name market ope snake last-report cut) maker
@@ -408,7 +406,7 @@
                       #.(code-char (1+ (char-code #\9))) ; this loud n'ugh?
                       investment risked skew ; >= SU[1x2]? PL[3]? the usual
                       (apply 'profit-snake   ; approach is useless here...!
-                             (slot-reduce ope supplicant lictor) cut snake))
+                             (slot-reduce ope supplicant lictor) snake))
         ;; Incidentally, the agony is due to numerical bases;
         ;; CL:FORMAT is perfectly fine, and mostly painless.
         (format t it) (if (channelp (first last-report))
