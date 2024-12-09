@@ -815,22 +815,24 @@
 
 (defun bases-without (bases given)
   (handler-case
-      (loop for basis = (pop bases) for (bp baq other) = basis
-         for acc = baq then (aq+ acc baq) for vwab-sum = other
-         then (aq+ vwab-sum other) sum (* (price bp) (quantity baq)) into pwa
-         when (> (quantity acc) (quantity given)) return
-           (let* ((excess (aq- acc given))
-                  (other (cons-aq (asset other)
-                                  (* (quantity other)
-                                     (/ (quantity excess) (quantity baq)))))
-                  (recur (aq- vwab-sum other)))
-             (values (cons (list bp excess other) bases)
-                     (cons-mp (market bp)
-                              (/ (- pwa (* (price bp) (quantity excess)))
-                                 (quantity given)))
-                     recur))
-         when (null bases) return
-           (values nil (aq/ vwab-sum acc) vwab-sum))
+      (loop
+        for basis = (pop bases) for (bp baq other) = basis
+        for acc = baq then (aq+ acc baq)
+        for vwab-sum = other then (aq+ vwab-sum other)
+        sum (* (price bp) (quantity baq)) into pwa
+        when (> (quantity acc) (quantity given))
+          return (let* ((excess (aq- acc given))
+                        (other (cons-aq (asset other)
+                                        (* (quantity other)
+                                           (/ (quantity excess)
+                                              (quantity baq)))))
+                        (recur (aq- vwab-sum other)))
+                   (values (cons (list bp excess other) bases)
+                           (cons-mp (market bp)
+                                    (/ (- pwa (* (price bp) (quantity excess)))
+                                       (quantity given)))
+                           recur))
+        when (null bases) return (values nil (aq/ vwab-sum acc) vwab-sum))
     ((or division-by-zero arithmetic-error) ())))
 
 (defun update-bases (tracker trade)
