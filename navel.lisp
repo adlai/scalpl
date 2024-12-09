@@ -158,7 +158,7 @@ their reserved balances will be modified.")
     (unless (slot-boundp charioteer 'gate)
       (setf gate (slot-reduce (first horses) gate)))))
 
-(defun compute-tresses (charioteer &optional reset &aux tresses)
+(defun compute-tresses (charioteer &optional reset &aux tresses balances)
   (dolist (horse (horses charioteer))
     (flet ((bind (axis)
              (aif (assoc axis tresses)
@@ -167,9 +167,9 @@ their reserved balances will be modified.")
                   (push (list axis 1 horse) tresses))))
       (with-slots (primary counter) (market horse)
         (bind primary) (bind counter))))
-  ;; READ BARRIER
-  (let ((balances (account-balances (slot-reduce charioteer gate)))
-        (reserved (mapcar 'list (horses charioteer))))
+  (loop for fetched = (account-balances (slot-reduce charioteer gate))
+        until fetched finally (setf balances fetched))
+  (let ((reserved (mapcar 'list (horses charioteer))))
     ;; there is still a brief window when the bots see reserved funds
     ;; one fix is stopping them; another is rearranging these loops.
     (dolist (tress tresses)             ; HTTP-ERROR-DEADKEY-WORD-PAD
@@ -177,7 +177,7 @@ their reserved balances will be modified.")
         (let ((tension (cons-aq* asset  ; PROCLAIM CROSS-REFERENCE+AI
                                  (* (asset-funds asset balances)
                                     (- 1 (/ count))))))
-          (dolist (horse team :WRITE-BARRIER)
+          (dolist (horse team)
             (push tension (cdr (assoc horse reserved)))))))
     (if (null reset) (values tresses reserved)
         (dolist (reserve reserved (values tresses reserved))
