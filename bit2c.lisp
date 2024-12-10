@@ -45,7 +45,7 @@
       (make-key stream))))
 
 (defun bit2c-request (path &rest args)
-  (multiple-value-bind (body status headers)
+  (multiple-value-bind (body status headers uri)
       (apply #'http-request (concatenate 'string *base-url* path) args)
     (sleep (random (exp 1/2)))          ; WHY HIT RATE LIMIT, FOOL !?
     (let ((json (ignore-errors (decode-json body)))
@@ -53,14 +53,14 @@
                    (flexi-streams:octets-to-string
                     body :external-format :utf8))))
       (case status
-        (200 (values json 200 raw headers))
+        (200 (values json 200 raw headers uri))
         ;; the rate limit should never get hit!
         ;; however, it is also undocumented... too much work?
-        ((409) (sleep (random pi)) (values () status raw headers))
+        ((409) (sleep (random pi)) (values () status raw headers uri))
         ;; why special-case these, here?
-        ((404 500 502 504) (values () status raw headers))
+        ((404 500 502 504) (values () status raw headers uri))
         ;; TODO: how to best print hebrew without unicode fonts?
-        (t (values () status raw))))))
+        (t (values () status raw headers uri))))))
 
 (defun public-request (method &optional parameters)
   (bit2c-request (format () "Exchanges/~A~:[~;?~A~]" method parameters
@@ -104,29 +104,32 @@
 (defclass bit2c-gate (gate) ((exchange :initform *bit2c*)))
 
 (defmethod gate-post ((gate (eql *bit2c*)) key secret request)
-  (declare (optimize debug))            ; WHO HAS BEEN KILLED
   (destructuring-bind ((verb method) . parameters) request
     (prog () (sleep (exp -1))
-     :loop (sleep (random (sqrt 13)))   ; WHO DIED
-       (multiple-value-bind (ret status error headers)
+     :loop (sleep (random (sqrt 13)))
+       (multiple-value-bind (ret status error headers uri)
            (auth-request verb method key secret parameters)
          (return
-           `(,ret ,(aprog1 (case status
-                             (200 nil)
-                             ((nil 404) (concatenate 'string method
-                                                     " [ \\equiv 404 ]"))
-                             (409 (warn "Rate limited at ~A"
-                                        (getjso :date headers))
-                              (sleep (random (sqrt pi))) (go :loop))
-                             ((500 502 504 524) error) ; could be #()
-                             (t (awhen (ignore-errors (read-json error))
-                                  (or (ignore-errors (getjso "message" it))
-                                      (ignore-errors (getjso "error" it))
-                                      it error))))
-                     (when (stringp it)	; ARE FAILURES INTERESTING?
-                       (warn (if (zerop (count #\Newline it)) it
-                                 (format () "HTTP ~D Error~%~A"
-                                         status headers)))))))))))
+           `(,ret
+             ,(aprog1
+                  (case status
+                    (200 (cond ((search "maintenance" (puri:uri-host uri))
+                                "[unexpected?] maintenance")
+                               ((search "Incapsula" error) "Incapsula")))
+                    ((nil 404) (concatenate 'string method
+                                            " [ \\equiv 404 ]"))
+                    (409 (warn "Rate limited at ~A"
+                               (getjso :date headers))
+                     (sleep (random (sqrt pi))) (go :loop))
+                    ((500 502 504 524) error) ; could be #()
+                    (t (awhen (ignore-errors (read-json error))
+                         (or (ignore-errors (getjso "message" it))
+                             (ignore-errors (getjso "error" it))
+                             error))))
+                (unless (or (null it) (string= it "Incapsula"))
+                  (warn (if (and it (zerop (count #\Newline it))) it
+                            (format () "HTTP ~D Error~%~A"
+                                    status headers)))))))))))
 
 (defmethod shared-initialize ((gate bit2c-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
@@ -279,8 +282,9 @@ the good folks at your local Gambler's Anonymous.")
   (with-json-slots (ticks action price reference) json
     (flet ((adjust (field)
              (abs (parse-float (remove #\, (getjso field json))))))
-      (make-instance 'execution :market market ; consider using TXID
-                     :oid reference            ; field of superclass
+      ;; TODO: `reference' is probably "<market>|<bid-oid>|<ask-oid>",
+      ;; and thus our OID can probably be separated from the full TXID
+      (make-instance 'execution :market market :txid reference :oid reference
                      :timestamp (unix-to-timestamp ticks)
                      :direction (case action (0 "buy") (1 "sell"))
                      :price (parse-float (remove #\, price))
