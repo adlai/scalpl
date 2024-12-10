@@ -348,7 +348,8 @@ the good folks at your local Gambler's Anonymous.")
                  ((eql 0) (cerror "Proceed" "Break-point one")
                   (warn "FIXME! Balance guard possibly failed..."))))
               (t (cerror "Proceed" "Break-point two")
-                 (warn "~S" (or (getjso "Message" response) message))))))))))
+                 (warn "~S" (or (getjso "Message" response)
+                                message complaint))))))))))
 
 (defmethod cancel-offer ((gate bit2c-gate) (offer offered))
   (with-slots (oid) offer
