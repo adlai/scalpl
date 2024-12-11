@@ -138,6 +138,10 @@ their reserved balances will be modified.")
    (markets :reader markets :initform nil
             :documentation "all crosses from `axes'")))
 
+;;; put this in your pipe and smoke it
+;; (delete-duplicates       ; THAT BOOK IS DEDUP METHOD COMBINATION FUGLY
+;;  (cons *charioteer* (mapcan 'agent-trunk (horses *charioteer*))))
+
 (defvar *charioteer*)
 
 (defmethod initialize-instance :after ((charioteer charioteer) &key)
