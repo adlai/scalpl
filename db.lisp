@@ -3,9 +3,11 @@
 
 (in-package #:scalpl.db)
 
+;;; general DB interfacing utils
+
 (defun sql (db sql &rest args &aux rows)
   (let ((query (apply #'format nil sql args)))
-    ;; (format t "~&~A" query)
+    (format t "~&~A" query)
     (let ((ret (dbi:execute (dbi:prepare db query))))
       (loop (aif (dbi:fetch ret) (push it rows)
                  (return (reverse rows)))))))
@@ -19,6 +21,8 @@
            (progn (cerror "Clobber existing table" "Table already exists")
                   (sql db "DROP TABLE ~A" table) (go :retry))
            (error error))))))
+
+;;; old crap
 
 (defparameter *executions-columns*
   `(("time"       "timestamp not null")
@@ -60,3 +64,8 @@
 (defun insert-executions (db table executions)
   (sql db "INSERT INTO ~A VALUES ~{(~{~A~#[~:;, ~]~})~#[~:;, ~]~};" table
        (mapcar #'sqlize-execution executions)))
+
+;;; now that Mito exists, maybe another theme song can be
+;;; WAIT-ing FOR the wORMs . . .. ... ..... by tHe PiNk FlOyD ?
+
+;;; seriously though, how about _The_Thin_Ice_ !?
