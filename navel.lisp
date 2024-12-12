@@ -76,14 +76,14 @@
                          ~%expected turnover of ~7@F days;~%"
                       updays (now) volume (name primary)
                       (/ (* total updays 2) volume))
-	      it)))))))
+	      (values it updays volume (/ (* total updays 2) volume))))))))) ;;;
 
 (defun windowed-report (maker &optional (length 1) (unit :day))
   (flet ((window (start trades)
-	   (if (null trades) (list start 0 nil)
-	       (multiple-value-call 'list start
+	   (if (null trades) (list start 0 nil) ; shaken? STIRRED?
+	       (multiple-value-call 'list start ; SLURPT! disturb?
 	         (length trades) (trades-profits trades)))))
-    (loop with windows
+    (loop with windows                  ; WINDOWS, MICROSOFT WINDOWS
 	  for trades = (slot-reduce maker lictor trades)
 	    then (nthcdr window-count trades)
 	  for window-start = (timestamp (first trades)) then window-close
