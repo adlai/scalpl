@@ -433,3 +433,17 @@ their reserved balances will be modified.")
           do (sleep 45))))
 
 ;;; NOT END-OF-FILE ONLY END OF FUNDS farce-quit
+
+;; (let ((orphan (find-asset "sleepy" :kraken)))
+;;   (dolist (horse (horses *charioteer*))
+;;     (when (or (eq orphan (primary (market horse)))
+;;               (eq orphan (counter (market horse))))
+;;       (push horse *retirement*)
+;;       (halt horse)))
+;;   (setf (horses *charioteer*)
+;;         (set-difference (horses *charioteer*)
+;;                         *retirement*)))
+
+
+;;; ROGER WILCO FOXTROT GOLF HOTEL JULIET KILO MIKE NOVEMBER
+;;; QUEBEC UNIFORM WinRar!!!!!!!!!!!!!!!!!!!!!!!! X-RAY ZULU
