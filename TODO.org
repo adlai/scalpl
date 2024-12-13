@@ -67,6 +67,8 @@ works with current price scalars, only due to them being integer
 *** TODO separate registry
 it is not obvious that assets and markets are different things; cf lisp1
 ** TODO create give/take directly in each exchange API
+probably DONEable, although not enforced; why bother enforcing ?
+see exchange.lisp/(find-method #'shared-initialize '(:after) '(offer t))
 ** TODO consider imod*exp(jarg) instead of ix+jy
 determine whether resolution is sufficient at compile and/or load time
 * TODO Basis Tracking aka planar fund coloring

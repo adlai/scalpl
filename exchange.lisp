@@ -110,7 +110,7 @@
 (defclass registered-unit ()
   ((index :initform (length *unit-registry*) :reader index)))
 
-(defmethod index ((null null)) 0)
+(defmethod index ((null null)) 0)       ; now, if scalpl were in PHP
 
 (defmethod initialize-instance :after ((unit registered-unit) &key)
   (push (cons (index unit) unit) *unit-registry*))
