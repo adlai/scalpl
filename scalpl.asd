@@ -34,7 +34,7 @@
 (defsystem #:scalpl/bit2c
   :description "api client for bit2c"
   :depends-on (#:scalpl)
-  :components ((:file "bit2c"))
+  :components ((:file "venues/bit2c"))
   :perform (load-op (no book)
              (declare (ignore no book))
              (use-package (find-package :scalpl.bit2c)
@@ -44,7 +44,7 @@
   :license "public domain"
   :description "WIP api client for binance"
   :depends-on (#:scalpl)        ; let's pretend this improved anything!
-  :components ((:file "binance"))
+  :components ((:file "venues/binance"))
   :perform (load-op (no book)
              (use-package (find-package :scalpl.binance)
                           (find-package :scalpl.qd))))
@@ -52,7 +52,7 @@
   :license "public domain"
   :description "api client for bybit"
   :depends-on (#:scalpl #:websocket-driver-client)
-  :components ((:file "bybit"))
+  :components ((:file "venues/bybit"))
   :perform (load-op (no book)
              (use-package (find-package :scalpl.bybit)
                           (find-package :scalpl.qd))))
@@ -60,7 +60,7 @@
   :license "public domain"
   :description "api client for kraken"
   :depends-on (#:scalpl #:websocket-driver-client)
-  :components ((:file "kraken"))
+  :components ((:file "venues/kraken"))
   :perform (load-op (no book)
              (use-package (find-package :scalpl.kraken)
                           (find-package :scalpl.qd))))
@@ -68,7 +68,7 @@
   :license "public domain"
   :description "api client for bitmex"
   :depends-on (#:scalpl #:websocket-driver-client)
-  :components ((:file "bitmex"))
+  :components ((:file "venues/bitmex"))
   :perform (load-op (no book)
              (use-package (find-package :scalpl.bitmex)
                           (find-package :scalpl.qd))))
@@ -76,7 +76,7 @@
   :license "public domain"
   :description "api client for bitfinex"
   :depends-on (#:scalpl)
-  :components ((:file "bitfinex"))
+  :components ((:file "venues/bitfinex"))
   :perform (load-op (no book)
              (use-package (find-package :scalpl.bitfinex)
                           (find-package :scalpl.qd))))
@@ -84,7 +84,7 @@
   :license "public domain"
   :description "api client for poloniex"
   :depends-on (#:scalpl)
-  :components ((:file "poloniex"))
+  :components ((:file "venues/poloniex"))
   :perform (load-op (no book)
              (use-package (find-package :scalpl.poloniex)
                           (find-package :scalpl.qd))))
