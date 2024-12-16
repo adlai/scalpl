@@ -322,7 +322,8 @@
    (resilience-factor :initarg :resilience :initform 1)
    (targeting-factor :initarg :targeting :initform (random 1.0))
    (skew-factor :initarg :skew-factor :initform 1)
-   (cut :initform 0 :initarg :cut) ope (supplicant :initarg :supplicant)
+   (cut :initform 0 :initarg :cut) ope
+   (supplicant :initarg :supplicant :initform *supplicant*)
    (snake :initform (list 43))
    (print-args :initform '(:market t :ours t :wait () :count 7))
    (abbrev :initform "maker" :allocation :class)
