@@ -1,2 +1,4 @@
 # Is there a trailing newline?", doctor
 !*.lsp
+# /scalpl (git)-[cohort] %  file hotfails/helpfoul.dat
+# hotfails/helpfoul.dat: ASCII text, with very long lines
