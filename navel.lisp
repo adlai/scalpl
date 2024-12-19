@@ -78,6 +78,12 @@
                       (/ (* total updays 2) volume))
 	      it)))))))
 
+;; (let ((trades (slot-reduce *wbtcr* lictor trades)))
+;;   (subseq (sort (reduce 'mapcar '(abs price)
+;; 			:from-end t :initial-value trades)
+;; 		#'<)
+;; 	  0 (isqrt (length trades))))
+
 (defun windowed-report (maker &optional (length 1) (unit :day))
   (flet ((window (start trades)
 	   (if (null trades) (list start 0 nil)
