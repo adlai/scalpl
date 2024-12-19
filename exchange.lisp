@@ -775,6 +775,10 @@
   (with-slots (gate market) tracker
     (format nil "~A ~A" (name gate) (name market))))
 
+(defmethod execute ((tracker execution-tracker) (command (eql :sort)))
+  (with-slots (trades) tracker
+    (setf trades (sort (copy-list trades) 'timestamp> :key 'timestamp))))
+
 (defmethod execute ((tracker execution-tracker) (command (eql :flush)))
   (setf (slot-reduce tracker bases) nil))
 
