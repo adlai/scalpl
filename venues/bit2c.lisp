@@ -114,8 +114,9 @@
              ,(aprog1
                   (case status
                     (200 (cond ((search "maintenance" (puri:uri-host uri))
-                                "[unexpected?] maintenance")
-                               ((search "Incapsula" error) "Incapsula")))
+                                "[unexpected?] maintenance") ; Complain!!
+                               ((search "Incapsula" error) ; Complain...?
+                                (sleep (random (sqrt 97))) "Incapsula")))
                     ((nil 404) (concatenate 'string method
                                             " [ \\equiv 404 ]"))
                     (409 (warn "Rate limited at ~A"
@@ -345,10 +346,13 @@ the good folks at your local Gambler's Anonymous.")
                  ((integer 1)
                   (change-class offer 'offered
                                 :oid (prin1-to-string it)))
-                 ((eql 0) (cerror "Proceed" "Break-point one")
-                  (warn "FIXME! Balance guard possibly failed..."))))
+                 ((eql 0) ;; (cerror "Proceed" "Break-point one")
+                  (warn "~A Balance guard possibly failed..." (now)))))
+              ((string= complaint "Incapsula") (sleep 37))
               (t (cerror "Proceed" "Break-point two")
-                 (warn "~S" (or (getjso "Message" response) message))))))))))
+                 (warn "~A ~S" (now)
+                     (or (getjso "Message" response)
+                         message complaint))))))))))
 
 (defmethod cancel-offer ((gate bit2c-gate) (offer offered))
   (with-slots (oid) offer
@@ -407,3 +411,44 @@ the good folks at your local Gambler's Anonymous.")
                   ("Reference" . ,(format () "~S" comment))
                   ("IsDeposit" . "false"))))
 
+;;; Adjacent Cohort Genotypes, from view-source://bit2c.co.il/home/api#Examples
+;; <h2 class="mb-4" id="Examples">Examples</h2>
+;; <div class="mx-3">
+;;     <div class="table-responsive">
+;;         <table class="table">
+;;             <thead>
+;;                 <tr><th>Language</th><th>Link</th></tr>
+;;             </thead>
+;;             <tbody>
+;;                 <tr><th>JS/PHP/Python</th><td><a
+;; href="https://github.com/ccxt/ccxt" target="blank">Code</a> by CCXT</td></tr>
+;;                 <tr><th>C#</th><td><a
+;; href="https://github.com/macdasi/Bit2C.ApiClient/tree/master"
+;; target="_blank">Code</a> by Hadar Macdasi</td></tr>
+;;                 <tr>
+;;                     <th>Java</th>
+;;                     <td>
+;;                         Version A - <a
+;; href="https://bitbucket.org/IPeeBlood/bit2cjavaapi/src/master/"
+;; target="_blank">Code</a> by Ilan Arengauz<br>
+;;                         Version B - <a
+;; href="https://github.com/sagyeli/Bit2cJavaAPI"
+;; target="_blank">Code</a> by Eli Sagy<br>
+;;                         Version C - <a
+;; href="https://github.com/Amitabitbul/Bit2c.co.il_Java"
+;; target="_blank">Code</a> by Amit Abutbul
+;;                     </td>
+;;                 </tr>
+;;                 <tr><th>PHP</th><td><a
+;; href="https://github.com/Amitabitbul/Bit2c.co.il_PHP"
+;; target="blank">Code</a> by Amit Abutbul</td></tr>
+;;                 <tr><th>Python</th><td><a
+;; href="https://github.com/Amitabitbul/Bit2c.co.il.API.Python"
+;; target="_blank">Code</a> by Amit Abutbul</td></tr>
+;;                 <tr><th>Node.js</th><td><a
+;; href="https://github.com/OferE/bit2c"
+;; target="_blank">Code</a> by Ofer Eliassaf</td></tr>
+;;             </tbody>
+;;         </table>
+;;     </div>
+;; </div>
