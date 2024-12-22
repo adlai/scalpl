@@ -19,6 +19,7 @@
 ;;                   :components ((:file "rpc-client") (:file "api")
 ;;                                (:file "raw-parser")))
 ;; ;;                 (:file "hunt" :depends-on ("bitcoin"))
+                         ;; (:file "fx-feed")
                          (:file "qd")   ; FIXME POSTHASTE SELLPHONE
                          (:file "navel")))
 
@@ -51,7 +52,7 @@
 (defsystem #:scalpl/bybit
   :license "public domain"
   :description "api client for bybit"
-  :depends-on (#:scalpl #:websocket-driver-client)
+  :depends-on (#:scalpl)
   :components ((:file "venues/bybit"))
   :perform (load-op (no book)
              (use-package (find-package :scalpl.bybit)
@@ -59,7 +60,7 @@
 (defsystem #:scalpl/kraken
   :license "public domain"
   :description "api client for kraken"
-  :depends-on (#:scalpl #:websocket-driver-client)
+  :depends-on (#:scalpl)
   :components ((:file "venues/kraken"))
   :perform (load-op (no book)
              (use-package (find-package :scalpl.kraken)
@@ -67,7 +68,7 @@
 (defsystem #:scalpl/bitmex
   :license "public domain"
   :description "api client for bitmex"
-  :depends-on (#:scalpl #:websocket-driver-client)
+  :depends-on (#:scalpl)
   :components ((:file "venues/bitmex"))
   :perform (load-op (no book)
              (use-package (find-package :scalpl.bitmex)
