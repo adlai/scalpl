@@ -19,7 +19,8 @@
     (list (pprint-logical-block (*standard-output* json :prefix "{" :suffix "}")
             (loop for (key . value) = (pop json) while key do
                  (pprint-logical-block (*standard-output* ())
-                   (format t "\"~(~A~)\": ~@_" key)
+                   (format t "\"~A\": ~@_" key)
+                   ;; (format t "\"~(~A~)\": ~@_" key)
                    (pprint-json *standard-output* value))
                  (when json (format t ", ") (pprint-newline :fill)))))
     (string (format t "~S" json))
