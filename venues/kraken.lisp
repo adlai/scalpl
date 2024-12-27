@@ -229,6 +229,7 @@
 (defmethod placed-offers ((gate kraken-gate) &optional market)
   (awhen (gate-request gate "OpenOrders")
     (remove market
+            ;; FIXME: This interns each OID and is thus a memory leak!
             (mapcar-jso (lambda (id data)
                           (with-json-slots (descr vol oflags) data
                             (with-json-slots (pair type price order) descr
@@ -253,6 +254,7 @@
          (remove market it :key #'market :test-not #'eq)
          (awhen (gate-request gate "OpenOrders")
            (let ((placed (mapcar-jso
+                          ;; FIXME: This interns each OID and is thus a memory leak!
                           (lambda (id data)
                             (with-json-slots (descr vol oflags) data
                               (with-json-slots (pair type price order) descr
@@ -328,6 +330,7 @@
 
 (defmethod execution-since ((gate kraken-gate) (market market) since)
   (awhen (ignore-errors (raw-executions gate :start since))
+    ;; FIXME: This interns each OID and is thus a memory leak!
     (remove market (mapcar-jso #'parse-execution it)
             :key #'market :test-not #'eq)))
 
@@ -345,6 +348,7 @@
                  :test-not #'eq :key #'market)
          (progn
            (let ((raw (raw-executions gate :start (or (car cache) since))))
+             ;; FIXME: This interns each OID and is thus a memory leak!
              (dolist (execution (mapcar-jso #'parse-execution raw))
                (pushnew execution cache :key #'txid :test #'string=)))
            (reverse (remove market
