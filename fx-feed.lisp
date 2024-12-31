@@ -2,7 +2,7 @@
   (:use #:cl #:chanl #:string-case #:anaphora #:local-time
         #:scalpl.util #:scalpl.actor
         #:scalpl.net #:scalpl.exchange)
-  (:export #:forex-feed #:tiingo-feed #:feed-table))
+  (:export #:forex-feed #:tiingo-feed #:feed-table #:market-ticker))
 
 (in-package #:scalpl.fx-feed)
 
@@ -120,9 +120,14 @@
                                       ("tickers" . ,tickers))))))
   client)
 
-;; ;;; Normalizing Market Name (currently only tested for Kraken)
+;;; Normalizing Market Name (currently only tested for Kraken and Tiingo)
 
-;; (defun tiingo-name (market)
-;;   (flet ((trim (string &optional (size 3) &aux (length (length string)))
-;;            (subseq string (- length size))))
-;;     ))
+(defgeneric market-ticker (market feed)
+  (:method ((market market) (feed tiingo-feed))
+    (with-slots (primary counter) market
+      (flet ((trim-prefix (string)
+               (if (char= #\Z (char string 0))
+                   (subseq string 1) string)))
+        (string-downcase (concatenate 'string
+                                      (trim-prefix (name primary))
+                                      (trim-prefix (name counter))))))))
