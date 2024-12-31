@@ -514,8 +514,9 @@
   (with-slots (supplicant prioritizer) (slot-reduce maker ope)
     (with-slots (treasurer lictor) supplicant
       (flet ((maybe-kill (actor)
-               (awhen (task-thread (first (slot-reduce actor tasks)))
-                 (kill it))))
+               (awhen (first (slot-reduce actor tasks))
+                 (aand (task-thread it) (thread-alive-p it)
+                       (kill it)))))
         (mapc #'maybe-kill
               (list maker prioritizer supplicant treasurer lictor
                     (slot-reduce lictor fetcher)
