@@ -254,7 +254,7 @@ external format EXTERNAL-FORMAT."
            (or (ignore-errors (parse-decimal-number string))
                ;; (warn "CL:IGNORE-ERRORS CONSIDERED HARMFUL")
                (parse-float string :type 'rational))))
-        (json:*json-array-type* 'vector)
+        ;; (json:*json-array-type* 'vector) ; breaks lots of things!
         ;; this prevents memory leaks from random JSON keys
         (json:*json-identifier-name-to-lisp* 'identity))
     (ctypecase in
