@@ -249,15 +249,17 @@ external format EXTERNAL-FORMAT."
 ;;; json
 
 (defun read-json (in)
-  (let ((cl-json:*real-handler*
+  (let ((json:*real-handler*
          (lambda (string)
            (or (ignore-errors (parse-decimal-number string))
                ;; (warn "CL:IGNORE-ERRORS CONSIDERED HARMFUL")
                (parse-float string :type 'rational))))
-        (cl-json:*json-identifier-name-to-lisp* 'identity))
+        (json:*json-array-type* 'vector)
+        ;; this prevents memory leaks from random JSON keys
+        (json:*json-identifier-name-to-lisp* 'identity))
     (ctypecase in
-      (string (cl-json:decode-json-from-string in))
-      (stream (cl-json:decode-json in)))))
+      (string (json:decode-json-from-string in))
+      (stream (json:decode-json in)))))
 
 (defun decode-json (arg)
   (read-json (flexi-streams:octets-to-string arg :external-format :utf8)))
