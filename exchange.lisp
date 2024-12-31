@@ -529,7 +529,9 @@
 (defmethod perform ((tracker book-tracker) &key)
   (with-slots (buffer book output) tracker
     (select ((recv buffer next)
+             ;; this punting of network failures is suboptimal
              (unless (or (null (car next)) (null (cdr next)))
+               ;; this order swap is incredibly unintuitive!
                (setf book (cons (cdr next) (car next)))))
             ((send output book)) (t (sleep 0.2)))))
 

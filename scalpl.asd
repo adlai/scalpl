@@ -15,12 +15,8 @@
                          (:file "actor")
                          (:file "net")
                          (:file "exchange")
-;;                  (:module "bitcoin" :depends-on ("config") :serial t
-;;                   :components ((:file "rpc-client") (:file "api")
-;;                                (:file "raw-parser")))
-;; ;;                 (:file "hunt" :depends-on ("bitcoin"))
                          (:file "fx-feed")
-                         (:file "qd")   ; FIXME POSTHASTE SELLPHONE
+                         (:file "qd")
                          (:file "navel")))
 
 ;;; Contact email for the author has been removed from this file!

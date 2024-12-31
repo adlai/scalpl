@@ -58,43 +58,48 @@
 ;;; 2) profitable spread - already does (via ecase spaghetti)
 ;;; 3) profit vs recent cost basis - done, shittily - TODO parametrize depth
 
+(defgeneric filter (filter)
+  (:method ((filter filter))
+    (with-slots (supplicant book-cache cut) filter
+      (let ((unstunk (cons (car book-cache) (cdr book-cache))))
+        (with-slots (stink-tolerances) filter
+          (when stink-tolerances
+            (flet ((ignore-stink (book ratio)
+                     (subseq book 0
+                             (position (* ratio (price (first book)))
+                                       book :key #'price :test #'<))))
+              (macrolet ((trim-side (side stink)
+                           `(when ,stink
+                              (setf (,side unstunk)
+                                    (ignore-stink (,side unstunk) ,stink)))))
+                (destructuring-bind (fear . greed) stink-tolerances
+                  (trim-side car fear) (trim-side cdr greed)))))
+          (with-slots (offered fee) supplicant
+            (destructuring-bind (bid . ask) (recv (slot-reduce fee output))
+              (loop with rudder = (phase cut) with scale = (abs rudder)
+                    for i from 0 for j = (1+ (floor (* i (- 1 (/ scale pi)))))
+                    for a = (if (plusp rudder) j i)
+                    for b = (if (plusp rudder) i j)
+                    ;; do (break)
+                    until (let ((offer-a (nth a (car unstunk)))
+                                (offer-b (nth b (cdr unstunk))))
+                            (or (null offer-a) (null offer-b)
+                                (< (/ (realpart cut) 100)
+                                   (1- (profit-margin (price offer-a)
+                                                      (price offer-b)
+                                                      bid ask)))))
+                    finally (return (values
+                                     (ignore-offers (nthcdr a (car unstunk))
+                                                    offered)
+                                     (ignore-offers (nthcdr b (cdr unstunk))
+                                                    offered)))))))))))
+
 (defmethod perform ((filter filter) &key)
-  (declare (optimize debug))
-  (with-slots (market book-cache bids asks frequency supplicant cut) filter
+  (with-slots (market book-cache bids asks frequency) filter
     (let ((book (recv (slot-reduce market book))))
       (unless (eq book book-cache)
         (setf book-cache book)
-        (let ((unstunk (cons (car book-cache) (cdr book-cache))))
-          (with-slots (stink-tolerances) filter
-            (when stink-tolerances
-              (flet ((ignore-stink (book ratio)
-                       (subseq book 0
-                               (position (* ratio (price (first book)))
-                                         book :key #'price :test #'<))))
-                (macrolet ((trim-side (side stink)
-                             `(when ,stink
-                                (setf (,side unstunk)
-                                      (ignore-stink (,side unstunk) ,stink)))))
-                  (destructuring-bind (fear . greed) stink-tolerances
-                    (trim-side car fear) (trim-side cdr greed)))))
-            (with-slots (offered fee) supplicant
-              (destructuring-bind (bid . ask) (recv (slot-reduce fee output))
-                (loop with rudder = (phase cut) with scale = (abs rudder)
-                      for i from 0 for j = (1+ (floor (* i (- 1 (/ scale pi)))))
-                      for a = (if (plusp rudder) j i)
-                      for b = (if (plusp rudder) i j)
-                      ;; do (break)
-                      until (let ((offer-a (nth a (car unstunk)))
-                                  (offer-b (nth b (cdr unstunk))))
-                              (or (null offer-a) (null offer-b)
-                                  (< (/ (realpart cut) 100)
-                                     (1- (profit-margin (price offer-a)
-                                                        (price offer-b)
-                                                        bid ask)))))
-                      finally (setf bids (ignore-offers (nthcdr a (car unstunk))
-                                                        offered)
-                                    asks (ignore-offers (nthcdr b (cdr unstunk))
-                                                        offered)))))))))
+        (setf (values bids asks) (filter filter))))
     (sleep (/ frequency))))
 
 ;;; TODO ... "PERSPECTIVES"
