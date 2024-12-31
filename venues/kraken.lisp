@@ -60,7 +60,7 @@
                  ((cons string null)
                   (cerror "LGTM" (first error)))
                  (list (warn (format () "~A" error)))))
-             (values result error headers)))
+             (values result (unless (zerop (length error)) error) headers)))
       (404 (with-json-slots (result error)
                (read-json (map 'string 'code-char body))
              (format t "~&Aborting after 404...~%")
