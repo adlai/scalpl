@@ -43,7 +43,7 @@
 (defun http-request (path &rest keys &key (backoff 1) &allow-other-keys)
   (loop (handler-case                   ; est sed nihil potestandum erat
             (return (apply #'drakma:http-request path
-                           :user-agent "scalpl_drakma^fuszen"
+                           :user-agent "scalpl_drakma"
                            (alexandria:remove-from-plist keys :backoff)))
           ((or simple-error drakma::drakma-simple-error
             usocket:socket-condition	; most specific superclass...
