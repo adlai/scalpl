@@ -1,5 +1,5 @@
-(defpackage #:scalpl.abuse
-  ;; (:nicknames #:mathematical #:abuse)
+(defpackage #:scalpl.numerics
+  (:nicknames #:scalpl.mathematics #:scalpl.abuse #:abuse)
   (:use #:cl #:chanl #:anaphora #:local-time ; #:abuse
 	;; #:scalpl.util #:scalpl.actor #:scalpl.net
         )
@@ -51,6 +51,9 @@
 ;;; The compile- and load-time magic must, in such a situation, occur in
 ;;; a (:method initialize-instance :after (exchange)) near the beginning
 ;;; of each exchange's file.
+
+;;; FIXME
+;;; the above comment block was composed before the venues/ directory...
 
 (defvar *exchanges* (make-hash-table))
 
@@ -106,6 +109,7 @@
 ;;;
 
 ;;; https://en.wikipedia.org/wiki/Scalar_(physics)#Physical_quantity
+;;; TODO read that entire article again, and then read the Talk page
 
 (defvar *unit-registry* '(()))          ; Mathematicians HATE him!
 
@@ -183,6 +187,21 @@
 ;; (subtypep (upgraded-complex-part-type 'unsigned-byte)
 ;;           (upgraded-complex-part-type 'integer))
 
+;;; TODO: overengineer the space of ANSI-compliance even further
+;;; without depending upon the X3J13 bus factor; sadly, that one
+;;; decreases monotonically across time, universal and internal!
+
+;;; I composed the following code so long ago, it's probably banned
+;;; from /r/copypasta by now:
+;; (let #1=(types conditions)
+;;   (do-external-symbols (symbol :COMMON-LISP (values . #1#))
+;;     (multiple-value-bind (subtypep typep)
+;;         (ignore-errors (subtypep symbol 'condition))
+;;       (when typep
+;;         (if subtypep
+;;             (push symbol conditions)
+;;             (push symbol types))))))
+
 (defun asset (aq) (cdr (assoc (imagpart aq) *unit-registry*)))
 (defun quantity (aq) (realpart aq))
 (defun scaled-quantity (aq) (/ (realpart aq) (expt 10 (decimals (asset aq)))))
@@ -191,6 +210,7 @@
 (defun cons-aq (asset quantity) (complex (round quantity) (index asset)))
 (defun cons-aq* (asset quantity)
   (cons-aq asset (* quantity (expt 10 (decimals asset)))))
+;;; ... normalized? unprefixed? hehnerised? naturalised?
 
 (defun aq+ (aq1 aq2 &rest aqs)
   (cond
@@ -209,6 +229,10 @@
     ((zerop aq1) (cons-aq (asset aq2) (- (quantity aq2))))
     ((zerop aq2) aq1)
     (t (error "assets ~A and ~A don't match" aq1 aq2))))
+
+;;; exercise for CL learners:
+;;; compose a toplevel comment block explaining why neither of the above
+;;; functions are generic functions, nor toplevel defmethod orphans ...!
 
 ;;;
 ;;; Markets
@@ -254,7 +278,7 @@
 (defmethod direction ((mp complex)) (if (plusp (realpart mp)) 'ask 'bid))
 (defun scalp (mp) (1- mp))              ; this is actually good news!
 
-(defgeneric  aq/ (given taken)
+(defgeneric aq/ (given taken)
   (:method ((given complex) (taken complex)
             &aux (ag (asset given)) (at (asset taken)))
     ;; ideally, the following becomes declaration followed by typecase
@@ -273,3 +297,7 @@
     (cond ((eq (asset aq) primary) (cons-aq* counter (* q p)))
           ((eq (asset aq) counter) (cons-aq* primary (/ q p)))
           (t (error "~A not traded in ~A" (asset aq) (market mp))))))
+
+;;; exercise for CL learners:
+;;; compose a toplevel comment block explaining why only one of the above
+;;; functions is a generic function, without any toplevel defmethod forms
