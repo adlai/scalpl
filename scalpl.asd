@@ -13,6 +13,7 @@
                #:method-combination-utilities #:drakma)
   :serial t :components ((:file "util")
                          (:file "actor")
+                         (:file "numerics")
                          (:file "net")
                          (:file "exchange")
                          (:file "fx-feed")

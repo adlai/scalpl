@@ -1,6 +1,6 @@
 (defpackage #:scalpl.fx-feed
   (:use #:cl #:chanl #:string-case #:anaphora #:local-time
-        #:scalpl.util #:scalpl.actor
+        #:scalpl.util #:scalpl.actor #:scalpl.numerics
         #:scalpl.net #:scalpl.exchange)
   (:export #:forex-feed #:tiingo-feed #:feed-table #:market-ticker))
 

@@ -1,7 +1,7 @@
 (defpackage #:scalpl.numerics
-  (:nicknames #:scalpl.mathematics #:scalpl.abuse #:abuse)
-  (:use #:cl #:chanl #:anaphora #:local-time ; #:abuse
-	;; #:scalpl.util #:scalpl.actor #:scalpl.net
+  (:nicknames #:scalpl.mathematics #:scalpl.abuse)
+  (:use #:cl #:chanl #:anaphora #:local-time #:parse-float
+        #:scalpl.util #:scalpl.actor    ; #:scalpl.net ?
         )
   (:export #:enable-pretty-printer-abuse
            #:exchange #:name #:assets #:markets #:parse-timestamp
