@@ -4,6 +4,9 @@
 
 (swank:create-server :dont-close t :port 54321)
 
+(when (y-or-n-p ";; #?(ENABLE-PRETTY-PRINTER-ABUSE)")
+  (enable-pretty-printer-abuse))
+
 (destructuring-bind (pubkey secret)
     (directory "secrets/accounts/kraken.*")
   (defvar *gate* (make-instance 'kraken-gate :pubkey pubkey :secret secret)))
