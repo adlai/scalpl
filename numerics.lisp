@@ -8,6 +8,10 @@
            #:*exchanges* #:find-exchange #:fetch-exchange-data
            #:gate #:gate-post #:gate-request #:output #:input #:cache
 
+           ;; FIXME the following symbol belongs in a processing layer
+           ;; beyond the data model that is the domain of this file
+           #:market-timestamp-sensitivity
+
            #:*unit-registry* #:asset #:find-asset #:asset-quantity
            #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
            #:market #:tick #:decimals #:primary #:counter #:find-market
@@ -39,6 +43,13 @@
 ;;; This file MIGHT sketch an interface that some venues implement.
 ;;; Each client file could then instantiate objects consuming that,
 ;;; and specialize methods on generic functions that MUST follow...
+
+;;; FIXME
+;;; "Numerics" is not the best name, because things like venues and
+;;; exchanges are not considered a scalar dimension or combination of
+;;; simpler dimensions; and the fact that venues might change their
+;;; set of listed symbols means that they could not be defined as some
+;;; join or outer product on the set of initially listed symbols.
 
 ;;;
 ;;; Exchanges

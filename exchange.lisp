@@ -1,16 +1,16 @@
 (defpackage #:scalpl.exchange
   (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.abuse ;; #:abuse !!!!!!!!!
 	#:scalpl.util #:scalpl.actor #:scalpl.net)
-  (:export ;; #:enable-pretty-printer-abuse
-           ;; #:exchange #:name #:assets #:markets #:parse-timestamp
-           ;; #:*exchanges* #:find-exchange #:fetch-exchange-data
-           ;; #:gate #:gate-post #:gate-request #:output #:input #:cache
+  (:export #:enable-pretty-printer-abuse
+           #:exchange #:name #:assets #:markets #:parse-timestamp
+           #:*exchanges* #:find-exchange #:fetch-exchange-data
+           #:gate #:gate-post #:gate-request #:output #:input #:cache
 
-           ;; #:*unit-registry* #:asset #:find-asset #:asset-quantity
-           ;; #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
-           ;; #:market #:tick #:decimals #:primary #:counter #:find-market
-           ;; #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/ #:aq*
-           ;?
+           #:*unit-registry* #:asset #:find-asset #:asset-quantity
+           #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
+           #:market #:tick #:decimals #:primary #:counter #:find-market
+           #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/ #:aq*
+
            #:offer #:bid #:ask #:offered #:taken #:given
            #:volume #:price #:placed #:oid #:consumed-asset #:cutoff
            #:gate #:gate-post #:gate-request #:output #:input #:cache
@@ -28,7 +28,7 @@
            #:post-offer #:cancel-offer #:supplicant #:lictor #:treasurer
            #:order-slots #:response #:supplicate #:bases-for #:reserved
            #:squash-reservations #:sufficiently-different?
-           ;!!
+
            #:describe-account #:respawn-syncer))
 
 (in-package #:scalpl.exchange)
