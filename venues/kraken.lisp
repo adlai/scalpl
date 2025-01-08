@@ -118,12 +118,14 @@
     ("Ledgers" 2) ("QueryLedgers" 2)
     ("TradesHistory" 2) ("QueryTrades" 2)))
 
+;;; FIXME these belong within kraken-gate, as the limits are per-account
 (defclass token-minter (actor)
   ((abbrev :allocation :class :initform "token minter")))
 
 (defmethod perform ((minter token-minter) &key)
   (with-slots (mint delay) minter (send mint 1) (sleep delay)))
 
+;;; FIXME these belong within kraken-gate, as the limits are per-account
 (defclass token-handler (actor)
   ((count :initform 0) (abbrev :allocation :class :initform "token handler")))
 
@@ -135,6 +137,7 @@
                      ((send tokens t) (incf count))
                      (t (sleep 0.2)))))))
 
+;;; FIXME these belong within kraken-gate, as the limits are per-account
 (defclass token-mixin (exchange parent)
   ((delay :initform 9/8 :initarg :delay)
    (tokens :initform (make-instance 'channel))
@@ -146,6 +149,8 @@
                                       (format nil "api ~A for ~A" role name)))))
     (mapcar #'make '(token-minter token-handler) '("minter" "counter"))))
 
+;;; FIXME removing token-mixin from this object's precedence list should not
+;;; cause the subsequent behavior to violate any remaining IP-based limiting
 (defvar *kraken* (make-instance 'token-mixin :name :kraken :sensitivity 0.3))
 
 (defmethod fetch-exchange-data ((exchange (eql *kraken*)))

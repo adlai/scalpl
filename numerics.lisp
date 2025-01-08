@@ -6,7 +6,6 @@
   (:export #:enable-pretty-printer-abuse
            #:exchange #:name #:assets #:markets #:parse-timestamp
            #:*exchanges* #:find-exchange #:fetch-exchange-data
-           #:gate #:gate-post #:gate-request #:output #:input #:cache
 
            ;; FIXME the following symbol belongs in a processing layer
            ;; beyond the data model that is the domain of this file
@@ -17,10 +16,11 @@
            #:market #:tick #:decimals #:primary #:counter #:find-market
            #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/ #:aq*
 
-           ;; #:offer #:bid #:ask #:offered #:taken #:given
-           ;; #:volume #:price #:placed #:oid #:consumed-asset #:cutoff
-           ;; #:gate #:gate-post #:gate-request #:output #:input #:cache
-           ;; #:trade #:cost #:direction #:txid #:tracked-market
+           ;; TODO decide whether these belong in this file's data model
+           #:offer #:bid #:ask #:offered #:taken #:given
+           #:volume #:price #:placed #:oid #:consumed-asset #:cutoff
+           #:gate #:gate-post #:gate-request #:output #:input #:cache
+           #:trade #:cost #:direction #:txid #:tracked-market
 
            ;; #:agent-trunk #:delay #:fetcher
 
