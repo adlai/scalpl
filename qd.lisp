@@ -353,7 +353,7 @@
   ((fund-factor :initarg :fund-factor :initform 1)
    (resilience-factor :initarg :resilience :initform 1)
    (targeting-factor :initarg :targeting :initform (random 1.0))
-   (skew-factor :initarg :skew-factor :initform 1)
+   (skew-exponent :initarg :skew-factor :initform 1)
    (cut :initform 0 :initarg :cut) ope (supplicant :initarg :supplicant)
    (snake :initform (list 43))
    (print-args :initform '(:market t :ours t :wait () :count 7))
@@ -451,7 +451,7 @@
 (defmethod perform ((maker maker) &key)
   (declare (optimize debug))
   (call-next-method maker :blockp ())   ; memento, du musste mori!
-  (with-slots (fund-factor resilience-factor targeting-factor skew-factor
+  (with-slots (fund-factor resilience-factor targeting-factor skew-exponent
                market name ope cut supplicant) maker
     (with-slots (control response) supplicant
       (send control '(:sync)) (recv response))
@@ -495,14 +495,14 @@
               ;; ;; "Yeah, science!" - King of the Universe, Right Here
               ;; (when (= (signum skew) (signum (log targeting-factor)))
               ;;   (setf targeting-factor (/ targeting-factor)))
-              (flet ((f (g h) `((,g . ,(* cut (max 0 (* skew-factor h)))))))
+              (flet ((f (g h) `((,g . ,(* cut (max 0 (* skew-exponent h)))))))
                 (send (slot-reduce ope input)
                       (list (f (* 2/3 total-btc) skew)
                             (f (* 2/3 total-doge) (- skew))
                             (* resilience-factor
                                (reduce #'max (mapcar #'volume trades)
                                        :initial-value 0))
-                            (expt (exp skew) skew-factor)))
+                            (expt (exp skew) skew-exponent)))
                 (recv (slot-reduce ope output)))
               ;; print more obnoxious untabulated numeroscopy
               (makereport maker total-fund doge/btc total-btc total-doge

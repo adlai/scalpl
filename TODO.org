@@ -112,7 +112,7 @@ Currently, `slot-reduce ope epsilon` configures several limits:
 - smallest amount[s] to actually offer, on each side.
 Document the computations, and split the configurations apart.
 *** TODO skew
-Currently, `slot-reduce maker skew-factor` does two things:
+Currently, `slot-reduce maker skew-exponent` does two things:
 - adjusts the relative sizes of the minimal bid and ask; and
 - adjusts the trader's velocity of money, i.e. how much larger
   than the minimal possible amount should the bid and ask be.
