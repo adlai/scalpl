@@ -98,7 +98,11 @@
     (wsd:start-connection socket)
     (if (slot-boundp feed 'tickers)
         (subscribe-auth socket token (coerce tickers 'vector))
-        (subscribe-auth socket token))))
+        (prog2 (yes-or-no-p "Are you prepared for high bandwidth consumption?")
+            (subscribe-auth socket token)
+          ;; FIXME format controls within `CL:WARN` should use pprint newlines!
+          (warn "Subscribed to all available Tiingo FX feeds!~%~
+Please keep an eye on https://www.tiingo.com/account/api/usage")))))
 
 (defun subscribe-tickers (client token id &optional (tickers #("*")))
   (wsd:send client (build-websocket-json
