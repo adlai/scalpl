@@ -184,6 +184,8 @@ their reserved balances will be modified.")
           (destructuring-bind (horse &rest tensions) reserve
             (setf (slot-reduce horse treasurer reserved) tensions))))))
 
+(defvar *slack-url* ())
+
 (defmethod perform ((charioteer charioteer) &key)
   (with-slots (previous-update horses) charioteer
     (loop for horse in horses
@@ -336,8 +338,6 @@ their reserved balances will be modified.")
                   "https://hooks.slack.com/services/"))))))
 ;;; "I hate your monad sofa king much, Archimedes" - Idogenese
 
-(defvar *slack-url*)
-
 (defun report-health (&optional comment (webhook *slack-url*))
   (slack-webhook webhook
                  (concatenate
@@ -390,7 +390,7 @@ their reserved balances will be modified.")
                           (weakest-providers count charioteer))))
       (if url (slack-webhook url report) report))))
 
-(defvar *slack-pnl-url*)
+(defvar *slack-pnl-url* ())
 
 (defun report-net-activity
     (&optional (url *slack-pnl-url*) (charioteer *charioteer*))
