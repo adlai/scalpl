@@ -115,19 +115,27 @@
   ;; (declare (optimize debug))
   (with-slots (market feed ticker) filter
     (let ((multiplier (expt 10 (decimals market))))
-     (destructuring-bind
-         (timestamp bid-volume bid-price mid-price ask-volume ask-price)
-         (gethash ticker (feed-table feed))
-       (declare (ignore timestamp bid-volume mid-price ask-volume))
-       (let ((scaled-bid (* multiplier bid-price))
-             (scaled-ask (* multiplier ask-price)))
-         ;; (format t "~&;; Feed: ~D ~D" scaled-bid scaled-ask)
-         (multiple-value-bind (bids asks) (call-next-method)
-           ;; (format t " Book: ~A ~A~%"
-           ;;         (price (first bids)) (price (first asks)))
-           ;; (break)
-           (values (member (- scaled-ask) bids :key 'price :test '<)
-                   (member scaled-bid asks :key 'price :test '<))))))))
+      ;; this test fails when connecting to dormant feeds,
+      ;; e.g. during the weekend between FX sessions. it's
+      ;; still a reasonable situation, you should be ready
+      ;; for when the feed resumes when the session begins
+      (unless (zerop (hash-table-count (feed-table feed)))
+        (destructuring-bind
+            (timestamp bid-volume bid-price mid-price ask-volume ask-price)
+            (gethash ticker (feed-table feed))
+          ;; the `timestamp' should be used for determining relevance;
+          ;; some feed table could include stale data from a feed that
+          ;; is no longer subscribed... or you compare multiple feeds?
+          (declare (ignore timestamp bid-volume mid-price ask-volume))
+          (let ((scaled-bid (* multiplier bid-price))
+                (scaled-ask (* multiplier ask-price)))
+            ;; (format t "~&;; Feed: ~D ~D" scaled-bid scaled-ask)
+            (multiple-value-bind (bids asks) (call-next-method)
+              ;; (format t " Book: ~A ~A~%"
+              ;;         (price (first bids)) (price (first asks)))
+              ;; (break)
+              (values (member (- scaled-ask) bids :key 'price :test '<)
+                      (member scaled-bid asks :key 'price :test '<)))))))))
 
 ;;; TODO ... "PERSPECTIVES"
 ;;; distantly related to &environment except within trading context
