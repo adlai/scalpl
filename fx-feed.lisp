@@ -53,9 +53,23 @@
           (*print-right-margin* 67))
       (pprint-json *standard-output* json))))
 
+(defvar *websocket-recording-file* ()
+  "File stream for copying websocket messages")
+
+;;; TODO: support reopening a previously-closed log file
+(defun enable-websocket-recording (filename)
+  (setf *websocket-recording-file* (open filename :direction :output)))
+
+;;; this doesn't delete the reference to the closed stream
+(defun disable-websocket-recording (filename)
+  (close *websocket-recording-file*))
+
 (defun raw-websocket-handler (feed)
   (lambda (raw &aux (json (read-json raw)))
     (with-json-slots (data response (type "messageType")) json
+      (when (and (streamp *websocket-recording-file*)
+                 (open-stream-p *websocket-recording-file*))
+        (write-line raw *websocket-recording-file*))
       (case (char type 0)
         (#\H (format t "~&;; ~A WS Heartbeat~%" (now)))
         (#\I (when (= 200 (getjso "code" response))
@@ -103,6 +117,10 @@
           ;; FIXME format controls within `CL:WARN` should use pprint newlines!
           (warn "Subscribed to all available Tiingo FX feeds!~%~
 Please keep an eye on https://www.tiingo.com/account/api/usage")))))
+
+;;; the following two functions are for modifying subscriptions without
+;;; reconnecting to the server; they SHOULD work for an existing socket
+;;; without any interruption to the data for unmodified tickers.
 
 (defun subscribe-tickers (client token id &optional (tickers #("*")))
   (wsd:send client (build-websocket-json
