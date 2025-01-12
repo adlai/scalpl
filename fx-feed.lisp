@@ -61,7 +61,7 @@
   (setf *websocket-recording-file* (open filename :direction :output)))
 
 ;;; this doesn't delete the reference to the closed stream
-(defun disable-websocket-recording (filename)
+(defun disable-websocket-recording ()
   (close *websocket-recording-file*))
 
 (defun raw-websocket-handler (feed)
