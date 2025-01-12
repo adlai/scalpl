@@ -65,27 +65,27 @@
   (close *websocket-recording-file*))
 
 (defun raw-websocket-handler (feed)
-  (lambda (raw &aux (json (read-json raw)))
+  (lambda (raw &aux (json (read-json raw)) (now (now)))
     (with-json-slots (data response (type "messageType")) json
       (when (and (streamp *websocket-recording-file*)
                  (open-stream-p *websocket-recording-file*))
-        (write-line raw *websocket-recording-file*))
+        (format *websocket-recording-file* "~&~A ~A~%" now raw))
       (case (char type 0)
-        (#\H (format t "~&;; ~A WS Heartbeat~%" (now)))
+        (#\H (format t "~&;; ~A WS Heartbeat~%" now))
         (#\I (when (= 200 (getjso "code" response))
                (awhen (getjso "subscriptionId" data)
                  (setf (subscription-id feed) it))
                (awhen (getjso "tickers" data)
                  (aand (coerce it 'list)
                        (setf (slot-value feed 'tickers) it))))
-         (format t "~&;; ~A WS Info~%~A~%~A" (now)
+         (format t "~&;; ~A WS Info~%~A~%~A" now
                  (arrange-json data)
                  (arrange-json response)))
         (#\A (setf (gethash (elt data 1) (feed-table feed)) (subseq data 2))
-         ;; (format t "~&;; ~A WS Data~%~A" (now)
+         ;; (format t "~&;; ~A WS Data~%~A" now
          ;;             (arrange-json data))
          )
-        (#\E (format t "~&;; ~A WS Error~%~A" (now)
+        (#\E (format t "~&;; ~A WS Error~%~A" now
                      (arrange-json response)))
         (t (error "Unexpected WebSocket Response:~%~A" json))))))
 
