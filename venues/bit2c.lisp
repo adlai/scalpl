@@ -225,6 +225,24 @@ the good folks at your local Gambler's Anonymous.")
               next-taker next-maker users-fee (now)))))
 ;;; consider arguing (format nil "~/signum/" EV), professionally ;)
 
+;;; compare the volume returned by the above endpoint against these...
+;; (let (aggregator)
+;;   (dolist (maker (horses *charioteer*))
+;;     (let ((list (remove (timestamp- (now) 30 :day)
+;;                         (slot-reduce maker lictor trades)
+;;                         :test-not 'timestamp< :key 'timestamp))
+;;           (accumulator 0))
+;;       (dolist (execution list)
+;;         (incf accumulator (* (volume execution) (price execution))))
+;;       (push (cons (market maker)
+;;                   (cons-aq* (counter (market maker)) accumulator))
+;;             aggregator)))
+;;   (acons (mapcar 'car aggregator)
+;;          (reduce 'aq+ (mapcar 'cdr aggregator))
+;;          aggregator))
+;;; the detailed data is the beginning of optimising allocation between
+;;; the various traded markets, for the goal of keeping fee tier status 
+
 ;;;
 ;;; Private Data API
 ;;;
