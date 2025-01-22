@@ -105,15 +105,16 @@
 
 (defclass feed-filter (filter)
   ((feed :initarg :feed)
-   (ticker :reader ticker)))
+   (ticker :reader ticker)
+   (reciprocalp :reader reciprocalp)))
 
 (defmethod shared-initialize :after ((filter feed-filter) names &key)
-  (with-slots (feed market ticker) filter
-    (setf ticker (market-ticker market feed))))
+  (with-slots (feed market ticker reciprocalp) filter
+    (setf (values ticker reciprocalp) (market-ticker market feed))))
 
 (defmethod filter ((filter feed-filter))
   ;; (declare (optimize debug))
-  (with-slots (market feed ticker) filter
+  (with-slots (market feed ticker reciprocalp) filter
     (let ((multiplier (expt 10 (decimals market))))
       ;; this test fails when connecting to dormant feeds,
       ;; e.g. during the weekend between FX sessions. it's
@@ -127,13 +128,13 @@
             ;; some feed table could include stale data from a feed that
             ;; is no longer subscribed... or you compare multiple feeds?
             (declare (ignore timestamp bid-volume mid-price ask-volume))
-            (let ((scaled-bid (* multiplier bid-price))
-                  (scaled-ask (* multiplier ask-price)))
-              ;; (format t "~&;; Feed: ~D ~D" scaled-bid scaled-ask)
+            (let ((scaled-bid (if (not reciprocalp)
+                                  (* multiplier bid-price)
+                                  (/ multiplier ask-price)))
+                  (scaled-ask (if (not reciprocalp)
+                                  (* multiplier ask-price)
+                                  (/ multiplier bid-price))))
               (multiple-value-bind (bids asks) (call-next-method)
-                ;; (format t " Book: ~A ~A~%"
-                ;;         (price (first bids)) (price (first asks)))
-                ;; (break)
                 (values (member (- scaled-ask) bids :key 'price :test '<)
                         (member scaled-bid asks :key 'price :test '<)))))))))
 

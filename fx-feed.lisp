@@ -143,13 +143,22 @@ Please keep an eye on https://www.tiingo.com/account/api/usage"))))))
   client)
 
 ;;; Normalizing Market Name (currently only tested for Kraken and Tiingo)
+;;; for some markets, (e.g. Bybit's USDTEUR), the ticker is reciprocal...
 
 (defgeneric market-ticker (market feed)
   (:method ((market market) (feed tiingo-feed))
     (with-slots (primary counter) market
-      (flet ((trim-prefix (string)
-               (if (char= #\Z (char string 0))
-                   (subseq string 1) string)))
-        (string-downcase (concatenate 'string
-                                      (trim-prefix (name primary))
-                                      (trim-prefix (name counter))))))))
+      (flet ((stub (asset &aux (name (name asset)))
+               ;; in a sufficiently powerful system, these relationships
+               ;; aren't hardcoded thus; instead they are "sniffed" from
+               ;; correlations automatically and then confirmed manually
+               (cond ((string-equal "usd" (subseq name 0 3)) "usd")
+                     ((char= #\Z (char name 0)) (subseq name 1))
+                     (t name))))
+        (flet ((ticker (numerator denominator)
+                 (format () "~(~A~A~)" (stub numerator) (stub denominator))))
+          ;; TODO this should use a cache of nested alists, rather
+          ;; than constructing one symbol, and then its reciprocal
+          (let ((ticker (ticker primary counter)))
+            (if (gethash ticker (feed-table feed)) (values ticker ())
+                (values (ticker counter primary) t))))))))
