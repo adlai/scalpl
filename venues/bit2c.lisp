@@ -16,6 +16,7 @@
                          (progn (format *query-io* #1#) (read-line))))
            (string= #2="~&Explain why you use it as a bank:~%"
                     (progn (format *query-io* #2#) (read-line)))
+           (yes-or-no-p "Have you obtained any copies of 978148426133?")
            (and (not (yes-or-no-p "... do you ever read source code?"))
                 (cerror "Continue, having traded warranty for sympathy."
                         "A terrible habit, indeed! More lies than files."))))
