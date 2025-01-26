@@ -723,7 +723,10 @@
                  (setf timestamp (now))
                  (setf offered (set-difference offered arg :key #'oid
                                               :test #'string=))))
-      (:sync (send response (setf offered (placed-offers gate market))))
+      ;; FIXME `placed-offers' should use a second return value; the edge case
+      ;; of the response containing no orders is not handled correctly by this
+      (:sync (send response (awhen (placed-offers gate market)
+                              (setf offered it))))
       (t (setf offered (remove it offered :test #'string= :key #'oid))))))
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
