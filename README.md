@@ -137,3 +137,8 @@ level due to the misfortunes of others, a weekly sustain has yet to be witnessed
           (push (cons-aq* (primary market) 1/538) reserved))))
 (0.00185874 USDT 0.00000538 USDT)
 ```
+
+... oh, you're still paying attention to my project? that is not logical!
+```elisp
+(apropos "https://archive.is/MZiU2")
+```

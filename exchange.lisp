@@ -165,12 +165,15 @@
      (with-slots (counter decimals) market
        (cons-aq* counter (* volume (abs price)))))))
 
+;;; FIXME undocumented behavior `read' `write' `cl-loop'
 (defmethod print-object ((trade trade) stream)
+  ;; FIXME `(apropos "*print-" "COMMON-LISP" :common-lisp)'
   (print-unreadable-object (trade stream :identity nil)
-    (with-slots (market volume price timestamp direction) trade
+    (with-slots (market volume price direction) trade
       (with-slots (primary decimals) market
-        (format stream "~A ~A at ~V$: ~V$" timestamp
-                direction decimals price (decimals primary) volume)))))
+        (format stream "~A ~A at ~V$: ~V$" (timestamp trade)
+                direction decimals price
+                (decimals primary) volume)))))
 
 (defclass trades-fetcher (actor) ())
 
