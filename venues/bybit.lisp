@@ -575,40 +575,41 @@
                                 balances)
                           (push (cons-aq* counter fund)
                                 balances)))))))))))
-  (awhen (gate-request gate '(:get "account/wallet-balance")
-                       '(("accountType" . "contract")))
-    (with-json-slots (coin) (first (getjso "list" it))
-      (awhen (find "BTC" coin :test #'string= :key (getjso "coin"))
-        (let ((equity (parse-float (getjso "equity" it))))
-          (dolist (market (remove "inverse"
-                                  (remove "BTC" (markets *bybit*)
-                                          :test-not #'search :key #'name)
-                                  :test-not #'string= :key #'category))
-            (with-slots (name primary counter category) market
-              (when (string= "inverse" category)
-                (with-json-slots
-                    ((mark "markPrice"))
-                    (car (getjso "list" (public-request "market/tickers"
-                                                        `(("category" . "inverse")
-                                                          ("symbol" . ,name)))))
-                  (multiple-value-bind (position json)
-                      (account-position gate market)
-                    (if position
-                        (let ((fund (* equity
-                                       (alet (getjso "leverage" json)
-                                         (if (string= it "") 1
-                                             (parse-float it))))))
-                          (push (aq+ (cons-aq* primary fund)
-                                     (second position))
-                                balances)
-                          (push (aq+ (cons-aq* counter
-                                               (* fund (parse-float mark)))
-                                     (third position))
-                                balances))
-                        (progn
-                          (push (cons-aq* primary equity) balances)
-                          (push (cons-aq* counter (* equity (parse-float mark)))
-                                balances))))))))))))
+  ;; ;; the following code was obsoleted in early 2025
+  ;; (awhen (gate-request gate '(:get "account/wallet-balance")
+  ;;                      '(("accountType" . "contract")))
+  ;;   (with-json-slots (coin) (first (getjso "list" it))
+  ;;     (awhen (find "BTC" coin :test #'string= :key (getjso "coin"))
+  ;;       (let ((equity (parse-float (getjso "equity" it))))
+  ;;         (dolist (market (remove "inverse"
+  ;;                                 (remove "BTC" (markets *bybit*)
+  ;;                                         :test-not #'search :key #'name)
+  ;;                                 :test-not #'string= :key #'category))
+  ;;           (with-slots (name primary counter category) market
+  ;;             (when (string= "inverse" category)
+  ;;               (with-json-slots
+  ;;                   ((mark "markPrice"))
+  ;;                   (car (getjso "list" (public-request "market/tickers"
+  ;;                                                       `(("category" . "inverse")
+  ;;                                                         ("symbol" . ,name)))))
+  ;;                 (multiple-value-bind (position json)
+  ;;                     (account-position gate market)
+  ;;                   (if position
+  ;;                       (let ((fund (* equity
+  ;;                                      (alet (getjso "leverage" json)
+  ;;                                        (if (string= it "") 1
+  ;;                                            (parse-float it))))))
+  ;;                         (push (aq+ (cons-aq* primary fund)
+  ;;                                    (second position))
+  ;;                               balances)
+  ;;                         (push (aq+ (cons-aq* counter
+  ;;                                              (* fund (parse-float mark)))
+  ;;                                    (third position))
+  ;;                               balances))
+  ;;                       (progn
+  ;;                         (push (cons-aq* primary equity) balances)
+  ;;                         (push (cons-aq* counter (* equity (parse-float mark)))
+  ;;                               balances))))))))))))
   balances)
 
 ;;; This horror can be avoided via the actor-delegate mechanism.
