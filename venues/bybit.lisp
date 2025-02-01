@@ -275,6 +275,7 @@
                         ((20001 30032 30037 170213)) ; order already filled
                         ;; ((170130))      ; FIXME minimum order size
                         ((30076) it)          ; failures to replace
+                        ((170137) (break))
                         (t status))     ; by default, echo the error text
                 (typecase it
                   ((eql 170213) "let's not spam this")
