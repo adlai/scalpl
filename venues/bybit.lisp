@@ -193,7 +193,7 @@
 					    :type 'rational))
                          (quote (parse-float (getjso "quotePrecision" lot)
 					     :type 'rational))
-                         (epsilon (parse-float (getjso "minOrderAmt" lot)
+                         (epsilon (parse-float (getjso "minOrderQty" lot)
 					       :type 'rational)))
                      (push (make-instance
                             'spot-market :name name :fee 0.1 :tick tick
