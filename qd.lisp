@@ -138,6 +138,22 @@
                 (values (member (- scaled-ask) bids :key 'price :test '<)
                         (member scaled-bid asks :key 'price :test '<)))))))))
 
+(defclass static-filter (filter)
+  ((bid-cutoff :initarg :bid-cutoff)
+   (ask-cutoff :initarg :ask-cutoff)))
+
+(defmethod filter ((filter static-filter))
+  ;; (declare (optimize debug))
+  (let ((multiplier (expt 10 (decimals (market filter)))))
+    (flet ((cutoff-beyond (offers cutoff)
+	     (member (* multiplier cutoff) offers :key 'price :test '<)))
+      (macrolet ((maybe-cutoff (side slot)
+		   `(if (not (slot-boundp filter ',slot)) ,side
+			(cutoff-beyond ,side (slot-value filter ',slot)))))
+	(multiple-value-bind (bids asks) (call-next-method)
+	  (values (maybe-cutoff bids bid-cutoff)
+		  (maybe-cutoff asks ask-cutoff)))))))
+
 ;;; TODO ... "PERSPECTIVES"
 ;;; distantly related to &environment except within trading context
 ;;; so rather than compile, load, and run being the possible times,
