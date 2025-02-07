@@ -143,10 +143,9 @@
    (ask-cutoff :initarg :ask-cutoff)))
 
 (defmethod filter ((filter static-filter))
-  ;; (declare (optimize debug))
   (let ((multiplier (expt 10 (decimals (market filter)))))
-    (flet ((cutoff-beyond (offers cutoff)
-	     (member (* multiplier cutoff) offers :key 'price :test '<)))
+    (flet ((cutoff-beyond (offers config)
+             (member (* multiplier config) offers :key 'price :test '<)))
       (macrolet ((maybe-cutoff (side slot)
 		   `(if (not (slot-boundp filter ',slot)) ,side
 			(cutoff-beyond ,side (slot-value filter ',slot)))))
