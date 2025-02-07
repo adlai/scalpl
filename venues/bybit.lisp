@@ -726,25 +726,27 @@
 
 (defmethod post-offer ((gate bybit-gate) (offer offer))
   (with-slots (market volume price) offer
-    (let ((factor (expt 10 (decimals market))))
-      (multiple-value-bind (json complaint)
-          (post-limit gate market
-                      (multiple-value-bind (int dec)
-                          (floor (abs (/ (floor price 1/2) 2)) factor)
-                        (format nil "~D.~V,'0D"
-                                int (max 1 (decimals market)) dec))
-                      (if (string= (category market) "inverse")
-                          (floor (* volume (if (minusp price) 1
-                                               (- (/ price factor)))))
-                          (/ volume (if (minusp price)
-                                        (/ (abs price) factor)
-                                        -1))))
-        (with-json-slots ((oid "orderId") (urid "orderLinkId")) json
-          (if (and json oid urid)
-              (change-class offer 'placed :oid oid :urid urid)
-              ;; TODO dispatch upon complaint before warning?
-              (warn "Failed placing: ~S~%~A" offer complaint)
-              ))))))
+    (let* ((factor (expt 10 (decimals market)))
+           (size (if (string= (category market) "inverse")
+                     (floor (* volume (if (minusp price) 1
+                                          (- (/ price factor)))))
+                     (/ volume (if (minusp price)
+                                   (/ (abs price) factor)
+                                   -1)))))
+      (unless (> size (slot-reduce market epsilon))
+        (multiple-value-bind (json complaint)
+            (post-limit gate market
+                        (multiple-value-bind (int dec)
+                            (floor (abs (/ (floor price 1/2) 2)) factor)
+                          (format nil "~D.~V,'0D"
+                                  int (max 1 (decimals market)) dec))
+                        size)
+          (with-json-slots ((oid "orderId") (urid "orderLinkId")) json
+            (if (and json oid urid)
+                (change-class offer 'placed :oid oid :urid urid)
+                ;; TODO dispatch upon complaint before warning?
+                (warn "Failed placing: ~S~%~A" offer complaint)
+                )))))))
 
 (defmethod amend-offer ((gate bybit-gate) (old offered) (new offer))
   (with-slots (market oid) old
