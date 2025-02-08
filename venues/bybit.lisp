@@ -733,7 +733,7 @@
                      (/ volume (if (minusp price)
                                    (/ (abs price) factor)
                                    -1)))))
-      (unless (> size (slot-reduce market epsilon))
+      (unless (> (slot-reduce market epsilon) (abs size))
         (multiple-value-bind (json complaint)
             (post-limit gate market
                         (multiple-value-bind (int dec)
