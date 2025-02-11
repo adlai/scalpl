@@ -71,7 +71,15 @@
                  (open-stream-p *websocket-recording-file*))
         (format *websocket-recording-file* "~&~A ~A~%" now raw))
       (case (char type 0)
-        (#\H (format t "~&;; ~A WS Heartbeat~%" now))
+        (#\H (format t "~&;; ~A WS Heartbeat~%" now)
+         ;; the following code evicts stale feeds, for weekends and
+         ;; disconnections from tickers no longer interesting.
+         ;; it doesn't fix the situation where the socket itself has
+         ;; disconnected... although so far they've been reliable...
+         (loop for ticker being each hash-key of (feed-table feed)
+               using (hash-value old-data)
+               if (> (timestamp-difference now (car old-data)) 300)
+                 do (remhash ticker (feed-table feed))))
         (#\I (when (= 200 (getjso "code" response))
                (awhen (getjso "subscriptionId" data)
                  (setf (subscription-id feed) it))
@@ -81,7 +89,9 @@
          (format t "~&;; ~A WS Info~%~A~%~A" now
                  (arrange-json data)
                  (arrange-json response)))
-        (#\A (setf (gethash (elt data 1) (feed-table feed)) (subseq data 2))
+        (#\A (setf (gethash (elt data 1) (feed-table feed))
+                   (destructuring-bind (timestring . rest) (subseq data 2)
+                     (cons (parse-timestring timestring) rest)))
          ;; (format t "~&;; ~A WS Data~%~A" now
          ;;             (arrange-json data))
          )
