@@ -292,6 +292,7 @@ the good folks at your local Gambler's Anonymous.")
     (24 . :RefundFeeWithdrawal)
     (26 . :DepositFee)
     (27 . :RefundDepositFee)            ; OM NOM NOMM MLEM MLEM FF
+    (30 . :ReverseInterest)             ; Found after erroneous 31
     (31 . :DepositInterest)))           ; RIBA RIBA RIBA RIBA RIBA
 
 (defparameter *bit2c-timestamp*
