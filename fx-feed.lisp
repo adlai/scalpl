@@ -172,3 +172,18 @@ Please keep an eye on https://www.tiingo.com/account/api/usage"))))))
           (let ((ticker (ticker primary counter)))
             (if (gethash ticker (feed-table feed)) (values ticker ())
                 (values (ticker counter primary) t))))))))
+
+#+ (or) (and (y-or-n-p "fail-safe? ")
+             (drakma:http-request (concatenate 'string "https://www"
+                                               ".tiingo.com/"
+                                               "documentation/"
+                                               "general/changelog")
+                                  :method :head))
+
+#- (or) (pprint (drakma:http-request (concatenate 'string "https://www"
+                                                  ".tiingo.com/"
+                                                  "documentation/"
+                                                  "general/changelog")
+                                     :method :head))
+
+#+ (and) (warn "please swap chairs with your pairs!")
