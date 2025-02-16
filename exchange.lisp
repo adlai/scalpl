@@ -707,10 +707,13 @@
 
 (defun sufficiently-different? (new old &optional market) ; someday dispatch
   (declare (optimize (compilation-speed 0) speed)) ; smoke your rationaletous
-  (let ((stale (the integer (quantity (given old)))))
-    (or (zerop stale)
-        (< (or market 0.213456)  ; poor man's DECLARE IGNORABLE ... !!
-           (abs (log (/ (quantity (given new)) stale)))))))
+  (let ((stale (the integer (quantity (given old))))
+        (fresh (the integer (quantity (given new)))))
+    (unless (zerop fresh)
+      (or (zerop stale)
+          (< (or market 0.213456) ; poor man's DECLARE IGNORABLE ... !!
+             (abs (log (/ (quantity (given new))
+                          (+ #.(* pi short-float-epsilon) stale)))))))))
 
 ;;; FIXME: disambiguate placement from offerage, and redichotomise the book
 (defmethod placed-offers ((supplicant supplicant) &optional market)

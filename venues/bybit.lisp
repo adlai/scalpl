@@ -272,6 +272,22 @@
       `(,ret ,(awhen1 (acase code
                         ((0)) ; C-style, no error
                         ((10001))       ; THANK YOU FOR NOT SPOOFING
+                        ((10002) ; Timestamp exceeded X-BAPI-RECV-WINDOW
+                         (warn "~A #~D ~A" (now) code status)
+;; (ppcre:register-groups-bind (req server)
+;;     ("req_timestamp\\[(\\d+)\\],server_timestamp\\[(\\d+)\\]" status)
+;;   (list req server))
+;;                          (awhen (search "req_timestamp" status)
+;;                            (flet ((parse-time (start offset)
+;;                                     (awhen (parse-integer
+;;                                             status :start (+ start offset)
+;;                                                    :junk-allowed t)
+;;                                       (multiple-value-bind (unix nsec)
+;;                                           (floor it 1000)
+;;                                         (unix-to-timestamp
+;;                                          unix :nsec (* nsec (expt 10 6)))))))
+;;                              (warn "req_timestamp:")))
+                         )
                         ((20001 30032 30037 170213)) ; order already filled
                         ;; ((170130))      ; FIXME minimum order size
                         ((30076) it)          ; failures to replace
@@ -279,7 +295,7 @@
                         (t status))     ; by default, echo the error text
                 (typecase it
                   ((eql 170213) "let's not spam this")
-                  (string #|(break)|# (warn "#~D ~A" code it))))))))
+                  (string #|(break)|# (warn "~A #~D ~A" (now) code it))))))))
 
 (defmethod shared-initialize ((gate bybit-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
