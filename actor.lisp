@@ -142,3 +142,13 @@
       (setf tasks (remove :terminated tasks :key #'task-status))))
   (:method :after ((actor actor) &optional ignore) (declare (ignore ignore))
     (push (enqueue actor) (slot-value actor 'tasks))))
+
+;; (labels ((nth-fibonacci (n &rest fibonaccis)
+;;            (case n
+;;              (0 1)
+;;              (1 1)
+;;              (t (+ (nth-fibonacci (1- n) (pop fibonaccis))
+;;                    (nth-fibonacci (- n 2) (pop fibonaccis)))))))
+;;   (dotimes (n 137)
+;;     (when (ignore-errors (zerop (mod (nth-fibonacci n) n)))
+;;       (format t "~&~3D is an exceptionally fibonacci number.~%" n))))
