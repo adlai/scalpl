@@ -1,0 +1,51 @@
+QD> (mapcar 'name (markets *binance*))
+QD> (mapcar 'name (assets *binance*))
+QD> (trace http-request) (HTTP-REQUEST)
+QD> (find-asset "WBTC" *binance*)
+#<WBTC on #<BINANCE>>
+QD> (find (find-asset "WBTC" *binance*) (markets *binance*) :key 'primary)
+#<WBTCUSDT on #<BINANCE>>
+QD> (find (find-asset "WBTC" *binance*) (markets *binance*) :key 'counter)
+NIL
+QD> (untrace) T
+QD> (binance::public-request "exchangeInfo" ())
+
+;;    (:|defaultSelfTradePreventionMode| . \"EXPIRE_MAKER\")
+;;    (:|allowedSelfTradePreventionModes| \"EXPIRE_TAKER\"
+;;     \"EXPIRE_MAKER\" \"EXPIRE_BOTH\"))))" :REPL-RESULT)
+;; dispatch-event: (:RETURN #<SB-THREAD:THREAD "repl-thread"
+                                RUNNING {100BAF3403}>
+                    (:OK ("(public-request ===> path <=== parameters)" T))
+                    113)
+;; encode-message
+;; close-connection: The value 17483861 is not of type
+                       (UNSIGNED-BYTE 24) when binding COMMON-LISP:LENGTH ...
+;; ;; Event history end.
+;; ;; Backtrace:
+;; 0: (SWANK/RPC::WRITE-HEADER #<SB-SYS:FD-STREAM for
+                                   "socket 127.0.0.1:45329,
+                                     peer: 127.0.0.1:48444" {100B39FC83}>
+                               17483861) [external]
+;; 1: (SWANK/RPC:WRITE-MESSAGE
+       (:WRITE-STRING "((:|timezone| . \"UTC\")
+                        (:|serverTime| . 1740068076348) ..)
+;; 2: (SWANK::ENCODE-MESSAGE
+       (:WRITE-STRING "((:|timezone| . \"UTC\")
+                        (:|serverTime| . 1740068076348) ..)
+;; 3: (SWANK::DISPATCH-LOOP #<SWANK::MULTITHREADED-CONNECTION {100B3A80A3}>)
+;; 4: (SWANK::CONTROL-THREAD #<SWANK::MULTITHREADED-CONNECTION {100B3A80A3}>)
+;; 5: ((FLET SB-UNIX::BODY :IN SB-THREAD::RUN))
+;; 6: ((FLET "WITHOUT-INTERRUPTS-BODY-11" :IN SB-THREAD::RUN))
+;; 7: ((FLET SB-UNIX::BODY :IN SB-THREAD::RUN))
+;; 8: ((FLET "WITHOUT-INTERRUPTS-BODY-4" :IN SB-THREAD::RUN))
+;; 9: (SB-THREAD::RUN)
+;; 10: ("foreign function: call_into_lisp_")
+;; 11: ("foreign function: funcall1")
+;; ;; Connection to Emacs lost. [
+;; ;;  condition: The value
+;;   17483861
+;; is not of type
+;;   (UNSIGNED-BYTE 24)
+;; when binding LENGTH
+;; ;;  type: SWANK::SWANK-ERROR
+;; ;;  style: :SPAWN]
