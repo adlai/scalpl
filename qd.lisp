@@ -62,7 +62,7 @@
 (defgeneric filter (filter)
   (:method ((filter filter))
     (with-slots (supplicant book-cache cut) filter
-      (let ((unstunk (cons (car book-cache) (cdr book-cache))))
+      (let ((unstunk (cons (cdar book-cache) (cddr book-cache))))
         (with-slots (stink-tolerances) filter
           (when stink-tolerances
             (flet ((ignore-stink (book ratio)
