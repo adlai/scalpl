@@ -342,7 +342,7 @@
       ((cache (gethash "TradesHistory" (slot-reduce gate recent-responses))))
     (aif (aand cache (when (> 15 (timestamp-difference
                                   (now) (timestamp (car it))))
-                       it))
+                       (and *error-breakpoints* (break)) it))
          (remove market
                  (if (null since) it
                      (remove (timestamp since) it
@@ -350,7 +350,8 @@
                  :test-not #'eq :key #'market)
          (progn
            (let ((raw (raw-executions gate :start (or (car cache) since))))
-             (dolist (execution (mapcar-jso #'parse-execution raw))
+             (dolist (execution (mapcar-jso #'parse-execution raw)
+				(and *error-breakpoints* (break)))
                (pushnew execution cache :key #'txid :test #'string=)))
            (reverse (remove market
                             (if (null since) cache
