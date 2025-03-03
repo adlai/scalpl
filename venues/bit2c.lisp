@@ -114,10 +114,11 @@
            `(,ret
              ,(aprog1
                   (case status
-                    (200 (cond ((search "maintenance" (puri:uri-host uri))
-                                "[unexpected?] maintenance") ; Complain!!
-                               ((search "Incapsula" error) ; Complain...?
-                                (sleep (random (sqrt 97))) "Incapsula")))
+                    ((200 503)
+                     (cond ((search "maintenance" (puri:uri-host uri))
+                            "[unexpected?] maintenance") ; Complain!!
+                           ((search "Incapsula" error) ; Complain...?
+                            (sleep (random (sqrt 97))) "Incapsula")))
                     ((nil 404) (concatenate 'string method
                                             " [ \\equiv 404 ]"))
                     (409 (warn "Rate limited at ~A"
