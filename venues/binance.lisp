@@ -197,6 +197,8 @@
 ;; ;;; Private Data API
 ;; ;;;
 
+(defclass placed (offered) ((unique-request-identifier :initarg :urid)))
+
 (defmethod market-placed ((gate binance-gate) (market tracked-market))
   (market-placed gate (slot-value market 'scalpl.exchange::%market)))
 
@@ -206,14 +208,17 @@
         (gate-request gate `(:get ,url) `(("symbol" . ,(name market))))
       (unless error
         (dolist (json result)
-          (with-json-slots (side price (oid "orderId") (qty "origQty")) json
+          (with-json-slots (side price (oid "orderId") (qty "origQty")
+			    (urid "clientOrderId"))
+	      json
             (let* ((price (parse-price price (decimals market)))
                    (volume (parse-float qty :type 'rational))
                    (oid (format () "~D" oid)))
-              (pushnew (make-instance 'offered :oid oid :market market
-                                               :volume volume :price
-                                               (if (string= side "SELL")
-                                                   price (- price)))
+              (pushnew (make-instance 'placed :oid oid :urid urid
+					      :market market
+                                              :volume volume :price
+                                              (if (string= side "SELL")
+                                                  price (- price)))
                        offers :test #'string= :key 'oid))))))
     offers))
 
@@ -297,24 +302,13 @@
     (post-limit gate (slot-value market 'scalpl.exchange::%market) price size))
   (:method ((gate binance-gate) (market binance-market) price size)
     (gate-request gate '(:post "order")
-                  (with-slots (name category epsilon) market
+                  (with-slots (name epsilon) market
                     `(("type" . "LIMIT_MAKER")
                       ("symbol" . ,name) ("price" . ,price)
                       ("side" . ,(if (plusp size) "BUY" "SELL"))
                       ("quantity" . ,(format () "~V$"
                                              (abs (floor (log epsilon 10)))
                                              (abs size))))))))
-
-;; (defun amend-limit (gate market oid price size) ; &optional considered harmful?
-;;   (gate-request gate '(:post "order/amend")
-;;                 (with-slots (name category epsilon) market
-;;                   `(("category" . ,category) ("symbol" . ,name)
-;;                     ("orderId" .,oid) ("price" . ,price)
-;;                     ("qty" . ,(format () "~V$"
-;;                                       (abs (floor (log epsilon 10)))
-;;                                       (abs size)))))))
-
-(defclass placed (offered) ((unique-request-identifier :initarg :urid)))
 
 (defmethod post-offer ((gate binance-gate) (offer offer))
   (with-slots (market volume price) offer
@@ -330,34 +324,41 @@
                                     -1)))
         (with-json-slots ((oid "orderId") (urid "clientOrderId")) json
           (if (and json oid urid)
-              (change-class offer 'placed :oid (format () "~D" oid)
-                                          :urid (format () "~D" urid))
+              (change-class offer 'placed :oid (format () "~D" oid) :urid urid)
               (warn "Failed placing: ~S~%~A" offer complaint)))))))
 
-;; (defmethod amend-offer ((gate binance-gate) (old offered) (new offer))
-;;   (with-slots (market oid) old
-;;     (with-slots (volume price) new
-;;       (let* ((factor (expt 10 (decimals market))))
-;;         (multiple-value-bind (json complaint)
-;;             (amend-limit gate market oid
-;;                          (unless (= (realpart price) (realpart (price old)))
-;;                            (multiple-value-bind (int dec)
-;;                                (floor (abs (/ (floor price 1/2) 2)) factor)
-;;                              (format () "~D.~V,'0D" int
-;;                                      (max 1 (decimals market)) (* 10 dec))))
-;;                          (if (string= (category market) "inverse")
-;;                              (floor (* volume (if (minusp price) 1
-;;                                                   (/ price factor))))
-;;                              (/ volume (if (minusp price)
-;;                                            (/ (abs price) factor)
-;;                                            -1))))
-;;           (if complaint
-;;               (unless (string= "Order does not exist" complaint)
-;;                 (warn (format () "~A was not modified to ~A" old new)))
-;;               (with-json-slots ((returned-oid "orderId")) json
-;;                 (if (string= returned-oid oid) ; how can this test fail?
-;;                     (reinitialize-instance     ; not rhetoric, enumerate
-;;                      old :volume volume :price price))))))))) ; or don't
+(defun amend-limit (gate market oid price size) ; &optional considered harmful?
+  (gate-request gate '(:post "order/cancelReplace")
+                (with-slots (name epsilon) market
+                  `(("type" . "LIMIT_MAKER")
+		    ("cancelReplaceMode" . "STOP_ON_FAILURE")
+		    ("cancelOrderId" . ,oid)
+                    ("symbol" . ,name) ("price" . ,price)
+                    ("side" . ,(if (plusp size) "BUY" "SELL"))
+                    ("quantity" . ,(format () "~V$"
+                                           (abs (floor (log epsilon 10)))
+                                           (abs size)))))))
+
+(defmethod amend-offer ((gate binance-gate) (old offered) (new offer))
+  (with-slots (market oid) old
+    (with-slots (volume price) new
+      (let ((factor (expt 10 (decimals market))))
+        (multiple-value-bind (json complaint)
+            (amend-limit gate market oid
+                         (multiple-value-bind (int dec)
+                             (floor (abs (/ (floor price 1/2) 2)) factor)
+                           (format () "~D.~V,'0D" int
+                                   (max 1 (decimals market)) (* 10 dec)))
+                         (/ volume (if (minusp price)
+                                       (/ (abs price) factor)
+                                       -1)))
+	  (with-json-slots ((oid "orderId") (urid "clientOrderId"))
+	      (getjso "newOrderResponse" json)
+	    (if (and (null complaint) json oid urid)
+		(reinitialize-instance old :volume volume :price price
+					   :oid (format () "~D" oid) :urid urid)
+		(warn (format () "~A was not modified to ~A~%~A"
+			      old new complaint)))))))))
 
 (defmethod cancel-offer ((gate binance-gate) (offer offered))
   (multiple-value-bind (ret err)
@@ -366,25 +367,25 @@
                       `(("symbol" . ,name) ("orderId" . ,(oid offer)))))
     (or ret (= (getjso "code" err) -2011) (values nil err))))
 
-;; (defclass binance-prioritizer (prioritizer) ())
+(defclass binance-prioritizer (prioritizer) ())
 
-;; (defmethod prioriteaze ((ope binance-prioritizer) target placed
-;;                         &aux to-add (excess placed))
-;;   (flet ((frob (add pop &aux (max (max (length add) (length pop))))
-;;            (with-slots (expt) ope
-;;              (let* ((n (expt (random (expt max (/ expt))) expt))
-;;                     (add (nth (floor n) add))
-;;                     (pop (nth (- max (ceiling n)) pop)))
-;;                (if (and add pop)
-;;                    (amend-offer (slot-reduce ope supplicant gate) pop add)
-;;                    (if add (ope-place ope add) (ope-cancel ope pop)))))))
-;;     (aif (dolist (new target (sort to-add #'< :key #'price))
-;;            (aif (find (price new) excess :key #'price :test #'=)
-;;                 (setf excess (remove it excess)) (push new to-add)))
-;;          (frob it (reverse excess))   ; which of these is worst?
-;;          (if excess (frob () excess)  ; choose the lesser weevil
-;;              (and target placed (= (length target) (length placed))
-;;                   (loop for new in target and old in placed
-;;                      when (sufficiently-different? new old)
-;;                      collect new into news and collect old into olds
-;;                      finally (when news (frob news olds))))))))
+(defmethod prioriteaze ((ope binance-prioritizer) target placed
+                        &aux to-add (excess placed))
+  (flet ((frob (add pop &aux (max (max (length add) (length pop))))
+           (with-slots (expt) ope
+             (let* ((n (expt (random (expt max (/ expt))) expt))
+                    (add (nth (floor n) add))
+                    (pop (nth (- max (ceiling n)) pop)))
+               (if (and add pop)
+                   (amend-offer (slot-reduce ope supplicant gate) pop add)
+                   (if add (ope-place ope add) (ope-cancel ope pop)))))))
+    (aif (dolist (new target (sort to-add #'< :key #'price))
+           (aif (find (price new) excess :key #'price :test #'=)
+                (setf excess (remove it excess)) (push new to-add)))
+         (frob it (reverse excess))   ; which of these is worst?
+         (if excess (frob () excess)  ; choose the lesser weevil
+             (and target placed (= (length target) (length placed))
+                  (loop for new in target and old in placed
+                     when (sufficiently-different? new old)
+                     collect new into news and collect old into olds
+                     finally (when news (frob news olds))))))))
