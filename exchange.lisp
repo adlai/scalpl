@@ -420,6 +420,12 @@
 (defgeneric agent-trunk (agent)          ; CORNELIUS ? BABAR !
   (:method-combination append))
 
+;;; (define-method-combination ..?)
+;;; probably worse ideas have been published...
+;;; consider furthering the portability survey,
+;;; before something as silly as merge combiner
+;;; `git stash pop` -> adlai dreams of sorting.
+
 (defgeneric placed-offers (gate &optional market))
 (defgeneric account-balances (gate))
 
