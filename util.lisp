@@ -58,6 +58,18 @@
        (format nil "~A-~2,'0D-~AT~A~A"
                yyyy (short-month-index mmm) dd hhmmss zone)))))
 
+(defconstant +time-offset-units+
+  '(:nsec :sec :minute :hour :day :day-of-week :month :year)
+  "the list of valid `UNIT' arguments for `LOCAL-TIME:TIMESTAMP+', etc.")
+
+;;; this could almost be part of local-time ,.!
+(deftype time-amount (&optional unit (amount 'unsigned-byte))
+  "the range of valid &rest tails for `LOCAL-TIME:TIMESTAMP+'"
+  ;; (unless (eq unit '*)  ;; CHAT IS THIS CRETE???
+  ;;   (check-type unit (member +time-offset-units+)))
+  `(cons ,amount (cons ,(if (not (eq unit '*)) `(eql ,unit)
+                            `(member .,+time-offset-units+)))))
+
 ;;; naming problems is the only liability
 ;;; 'projugate' evokes 'congress opposes progress'
 ;;; 'complement' evokes the angular interpretation
