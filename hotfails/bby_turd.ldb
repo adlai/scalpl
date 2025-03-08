@@ -1,0 +1,18 @@
+Heap exhausted during garbage collection: 144 bytes available, 208 requested.
+        Immobile Object Counts
+ Gen layout fdefn symbol   code  Boxed   Cons    Raw   Code  SmMix  Mixed  LgRaw LgCode  LgMix Waste%       Alloc        Trig   Dirty GCs Mem-age
+  3      0      0      0      0  40095   5143  48080      0      4    124      0      0      0    0.2  3054696800  1774462296   93446   1  1.3260
+  4   1037  13537   2648  11189  51137   8860  47807     14     73    211     65      0     45    0.2  3537397888     2000000   75975   0  0.6200
+  5      0      0      0      0      0      0      0      0      0      0      0      0      0    0.0           0     2000000       0   0  0.0000
+  6    730  15690  26670  17517    350    139     41      3     14      9      0      0     58    2.2    19673712     2000000      13   0  0.0000
+Tot   1767  29227  29318  28706  91582  14142  95928     17     91    344     65      0    103    0.2  6611768400 [99.8% of 6628048896 max]
+GC control variables:
+   *GC-INHIBIT* = true
+   *GC-PENDING* = true
+   *STOP-FOR-GC-PENDING* = false
+fatal error encountered in SBCL pid 1283345 tid 1442850:
+Heap exhausted, game over.
+
+Welcome to LDB, a low-level debugger for the Lisp runtime environment.
+(GC in progress, oldspace=3, newspace=4)
+ldb> "OK Google, kill me now." -- Andrew Carnegie, Rotten Melon, and the most common nominal impediment

@@ -698,7 +698,7 @@
   (awhen (raw-executions gate :kind (category market)
                               :pair (name market)
                               :from (if since (timestamp since)
-                                        (timestamp- (now) 3 :hour)))
+                                        (timestamp- (now) 3 :day)))
     (mapcar #'parse-execution
             (if (null since) it
                 (let ((found (position (txid since) it
