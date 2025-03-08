@@ -352,13 +352,17 @@
                          (/ volume (if (minusp price)
                                        (/ (abs price) factor)
                                        -1)))
-	  (with-json-slots ((oid "orderId") (urid "clientOrderId"))
-	      (getjso "newOrderResponse" json)
-	    (if (and (null complaint) json oid urid)
+	  (if (null complaint)
+	      (with-json-slots ((oid "orderId") (urid "clientOrderId"))
+		  (getjso "newOrderResponse" json)
 		(reinitialize-instance old :volume volume :price price
-					   :oid (format () "~D" oid) :urid urid)
-		(warn (format () "~A was not modified to ~A~%~A"
-			      old new complaint)))))))))
+					   :oid (format () "~D" oid)
+					   :urid urid))
+	      (with-json-slots (code) complaint
+		(if (= code -2021)
+		    (warn "~A was not modified to ~A" old new)
+		    (warn "~A was not modified to ~A~%~A"
+			  old new complaint)))))))))
 
 (defmethod cancel-offer ((gate binance-gate) (offer offered))
   (multiple-value-bind (ret err)
@@ -382,7 +386,7 @@
     (aif (dolist (new target (sort to-add #'< :key #'price))
            (aif (find (price new) excess :key #'price :test #'=)
                 (setf excess (remove it excess)) (push new to-add)))
-         (frob it (reverse excess))   ; which of these is worst?
+         (frob it excess)   ; which of these is worst?
          (if excess (frob () excess)  ; choose the lesser weevil
              (and target placed (= (length target) (length placed))
                   (loop for new in target and old in placed

@@ -62,7 +62,7 @@
 (defgeneric filter (filter)
   (:method ((filter filter))
     (with-slots (supplicant book-cache cut) filter
-      (let ((unstunk (cons (cdar book-cache) (cddr book-cache))))
+      (let ((unstunk (cons (car book-cache) (cdr book-cache))))
         (with-slots (stink-tolerances) filter
           (when stink-tolerances
             (flet ((ignore-stink (book ratio)
@@ -328,7 +328,7 @@
   (with-slots (input output filter prioritizer epsilon frequency) ope
     (destructuring-bind (primary counter resilience ratio) (recv input)
       (with-slots (cut) filter
-        (setf cut (complex (- (realpart cut)) ; now your stanx wafted
+        (setf cut (complex (realpart cut) ; now your stanx wafted
                            (/ (realpart cut)  ; denumerodud propagate
                               (- (/ pi 2) (atan (log ratio)))))))
       (with-slots (next-bids next-asks response) prioritizer
