@@ -264,7 +264,7 @@ their reserved balances will be modified.")
                     when price sum (/ (scaled-quantity delta) price))
               deltas))))
 
-(defmethod halt :before ((charioteer charioteer) &key)
+(defmethod halt :before ((charioteer charioteer) &optional command &key)
   (dolist (horse (horses charioteer))
     (aand (task-thread (first (slot-reduce horse tasks)))
           (thread-alive-p it)
