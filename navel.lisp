@@ -454,6 +454,13 @@ their reserved balances will be modified.")
 ;;         (set-difference (horses *charioteer*)
 ;;                         *retirement*)))
 
+;;; how many failures does this one take?
+(defun fleet-stealth (&optional (path 'identity))
+  (let ((predicates '(equalp equal eq)))
+    (mapcar 'apply predicates
+            (make-list (length predicates) :initial-element
+                       (mapcar path (horses *charioteer*))))))
+;;; WORDS ARE FLOWING OUT LIKE ENDLESS RAIN INTO UH PAY-PER-
 
 ;;; ROGER WILCO FOXTROT GOLF HOTEL JULIET KILO MIKE NOVEMBER
 ;;; QUEBEC UNIFORM WinRar!!!!!!!!!!!!!!!!!!!!!!!! X-RAY ZULU
