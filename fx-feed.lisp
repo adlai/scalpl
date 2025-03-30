@@ -180,10 +180,10 @@ Please keep an eye on https://www.tiingo.com/account/api/usage"))))))
                                                "general/changelog")
                                   :method :head))
 
-#- (or) (pprint (drakma:http-request (concatenate 'string "https://www"
+#+ (or) (pprint (drakma:http-request (concatenate 'string "https://www"
                                                   ".tiingo.com/"
                                                   "documentation/"
                                                   "general/changelog")
                                      :method :head))
 
-#+ (and) (warn "please swap chairs with your pairs!")
+#- (and) (warn "please swap chairs with your pairs!")

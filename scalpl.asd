@@ -16,7 +16,7 @@
                          (:file "numerics")
                          (:file "net")
                          (:file "exchange")
-                         ;; (:file "fx-feed")
+                         (:file "fx-feed")
                          (:file "qd")
                          (:file "navel")))
 

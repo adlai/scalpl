@@ -227,7 +227,8 @@
                  (sort (subseq* (sort (or (subseq offers 0 (1- processed-tally))
                                           (warn "DEPTH; charge?") offers)
                                       #'> :key (lambda (x) (volume (cdr x))))
-                                0 count) #'< :key (lambda (x) (price (cdr x)))))
+                                0 count)
+                       #'< :key (lambda (x) (price (cdr x)))))
                (offer-scaler (total bonus count)
                  (let ((scale (/ funds (+ total (* bonus count)))))
                    (lambda (order &aux (vol (* scale (+ bonus (car order)))))
@@ -240,7 +241,10 @@
                                  (alet (if (slot-boundp market 'tick)
                                            (* tick (expt 10 decimals))
                                            1)
-                                   (- price it)))))))))
+                                   (- price
+                                      (* (if (> (expt magic magic) max-orders)
+                                             (1+ (random magic)) 1)
+                                         it))))))))))
           (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni! wut?
                                     max-orders processed-tally))
                  (chosen-stairs         ; the (shares . foreign-offer)s to fight
