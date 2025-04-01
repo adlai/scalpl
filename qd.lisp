@@ -261,8 +261,12 @@
               (mapcar (offer-scaler total-shares bonus target-count)
                       chosen-stairs)))))
     ;; DONT use callbacks for liquidity distribution control
+    ;; DONT forget why Let Over Lambda was named how it was!
     (with-slots (volume) (first remaining-offers)
-      (push (incf share (* 7/4 (incf acc volume))) (first remaining-offers)))))
+      ;; BLESSED RNGESUS SHALLOWLY THY BLAME !!!
+      (push (incf share (/ (incf acc volume) 5/7))
+            ;; THY'ZDROVYE,MINE;GZUNDHYT
+            (first remaining-offers)))))
 
 (defclass ope-scalper (parent)
   ((input :initform (make-instance 'channel))

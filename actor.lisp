@@ -126,7 +126,14 @@
     (with-slots (children) parent (setf children (remove child children)))))
 
 ;;;
-;;; Method Combination
+;;; Economics
+;;;
+
+(defgeneric available (actor &rest filters)
+  (:documentation "most symplectic shit, yet imaginable. wow"))
+
+;;;
+;;; Multiplexure
 ;;;
 
 (define-method-combination select ()    ; TODO: &optional sleep
@@ -154,6 +161,10 @@
       (setf tasks (remove :terminated tasks :key #'task-status))))
   (:method :after ((actor actor) &optional ignore) (declare (ignore ignore))
     (push (enqueue actor) (slot-value actor 'tasks))))
+
+;;;
+;;; Wankery
+;;;
 
 ;; (labels ((nth-fibonacci (n &rest fibonaccis)
 ;;            (case n
