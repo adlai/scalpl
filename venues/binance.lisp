@@ -303,7 +303,9 @@
   (:method ((gate binance-gate) (market binance-market) price size)
     (gate-request gate '(:post "order")
                   (with-slots (name epsilon) market
-                    `(("type" . "LIMIT_MAKER")
+                    `(;; ("type" . "LIMIT")
+		      ("type" . "LIMIT_MAKER")
+		      ;; ("timeInForce" . "GTC")
                       ("symbol" . ,name) ("price" . ,price)
                       ("side" . ,(if (plusp size) "BUY" "SELL"))
                       ("quantity" . ,(format () "~V$"
@@ -375,6 +377,7 @@
 
 (defmethod prioriteaze ((ope binance-prioritizer) target placed
                         &aux to-add (excess placed))
+;;; TODO confirm that this works strictly better than the default
   (flet ((frob (add pop &aux (max (max (length add) (length pop))))
            (with-slots (expt) ope
              (let* ((n (expt (random (expt max (/ expt))) expt))
