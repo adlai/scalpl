@@ -242,7 +242,7 @@
                                            (* tick (expt 10 decimals))
                                            1)
                                    (- price
-                                      (* (if (> (expt magic magic) max-orders)
+                                      (* (if (> max-orders (expt magic magic))
                                              (1+ (random magic)) 1)
                                          it))))))))))
           (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni! wut?
