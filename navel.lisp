@@ -10,6 +10,10 @@
 
 (defmethod describe-object :before ((maker maker) (stream t))
   (with-aslots (market) (slot-reduce maker supplicant)
+    ;; (case (count :alive (slot-reduce maker tasks) :key 'task-status)
+    ;;   (0 (setf (getf (slot-reduce maker print-args) :wait) ())) (1)
+    ;;   (t (mapc 'kill (pooled-threads))  ; consider (signal 'DEATH) ;
+    ;;    ))
     (handler-case (terpri)
       (describe-account (it) (exchange market) stream it)
       (simple-error () (continue)))))
