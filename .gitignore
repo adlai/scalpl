@@ -7,6 +7,7 @@
 *~/*~
 */*/*~
 # ABORT
-##>>>>> zaiac/failures
 hotfails/*
 captures/*
+scripts/unshared/*
+# ENDoFILE
