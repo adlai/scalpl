@@ -1,0 +1,44 @@
+$ sbcl --load scripts/binance.lisp
+This was SBCL, an implementation of ANSI Common Lisp.
+It is mostly in the public domain; some portions are provided under
+BSD-style COPYING ... X86-64 AMD multi-Core
+To load "swank":
+  Load 1 ASDF system:
+    swank
+; Loading "swank"
+.
+To load "scalpl/binance":
+  Load 1 ASDF system:
+    scalpl/binance
+; Loading "scalpl/binance"
+.............................
+NIL
+;; Swank started at port: {}.
+WARNING: Incomplete;! c.f. `CL:*print-miser-width*'
+  0: (SCALPL.QD:PRIORITEAZE #<SCALPL.BINANCE::BINANCE-PRIORITIZER #<> WBTCBTC {}> (#<SCALPL.NUMERICS:OFFER ..> ..) (..))
+  0: PRIORITEAZE returned #<>
+WARNING: Binance 409 [-2021]
+URI: https://api.binance.com/api/v3/order/cancelReplace?type=LIMIT_MAKER&cancelReplaceMode=STOP_ON_FAILURE&..
+WARNING: Binance 400 [-1021]
+URI: https://api.binance.com/api/v3/order/cancelReplace?type=LIMIT_MAKER&cancelReplaceMode=STOP_ON_FAILURE&..
+((code . -1021)
+ (msg . Timestamp for this request is outside of the recvWindow.))
+WARNING: Binance 400 [-1021]
+URI: https://api.binance.com/api/v3/openOrders?symbol=WBTCBTC&timestamp=1743552636801&..
+WARNING: Binance 400 [-1021]
+URI: https://api.binance.com/api/v3/account/commission?symbol=WBTCBTC&timestamp=1743917404065&..
+Heap exhausted during garbage collection: 144 bytes available, 160 requested.
+        Immobile Object Counts
+ Gen layout fdefn symbol   code  Boxed   Cons    Raw   Code  SmMix  Mixed  LgRaw LgCode  LgMix Waste%       Alloc        Trig   Dirty GCs Mem-age
+  3      0      0      0      0   4854    693   6606      0      0    109      0      0      0    0.6   399302912   249519530   12262   1  1.3978
+  4   1033  13464   2601  11148   8192   1606   9651     14     71    280     33      0     45    0.7   647030464    49857194   13197   1  0.8860
+  5      0      0      0      0      0      0      0      0      0      0      0      0      0    0.0           0     2000000       0   0  0.0000
+  6    730  15690  26670  17517    350    139     41      3     14      9      0      0     58    2.2    19673712     2000000      12   0  0.0000
+Tot   1763  29154  29271  28665  13396   2438  16298     17     85    398     33      0    103    0.7  1066007088 [99.3% of 1073741824 max]
+GC control variables:
+   *GC-INHIBIT* = true
+   *GC-PENDING* = true
+   *STOP-FOR-GC-PENDING* = false
+fatal error encountered in SBCL pid 3221 tid 3707:
+Heap exhausted, game over.
+(GC in progress, oldspace=3, newspace=4)
