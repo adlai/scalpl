@@ -1,4 +1,4 @@
-(mapc 'ql:quickload "swank" "scalpl/kraken")
+(mapc 'ql:quickload '("swank" "scalpl/kraken"))
 
 (in-package :scalpl.qd) (use-package :scalpl.kraken)
 
