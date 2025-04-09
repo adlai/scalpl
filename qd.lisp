@@ -5,6 +5,7 @@
   (:export #:ope-placed #:ope-place #:ope-cancel
            #:prioritizer #:prioriteaze
            #:next-bids #:next-asks
+           #:estimated-profit
            #:maker #:restart-maker #:profit-margin #:print-args))
 
 (in-package #:scalpl.qd)
@@ -147,11 +148,11 @@
     (flet ((cutoff-beyond (offers config)
              (member (* multiplier config) offers :key 'price :test '<)))
       (macrolet ((maybe-cutoff (side slot)
-		   `(if (not (slot-boundp filter ',slot)) ,side
-			(cutoff-beyond ,side (slot-value filter ',slot)))))
-	(multiple-value-bind (bids asks) (call-next-method)
-	  (values (maybe-cutoff bids bid-cutoff)
-		  (maybe-cutoff asks ask-cutoff)))))))
+                   `(if (not (slot-boundp filter ',slot)) ,side
+                        (cutoff-beyond ,side (slot-value filter ',slot)))))
+        (multiple-value-bind (bids asks) (call-next-method)
+          (values (maybe-cutoff bids bid-cutoff)
+                  (maybe-cutoff asks ask-cutoff)))))))
 
 ;;; TODO ... "PERSPECTIVES"
 ;;; distantly related to &environment except within trading context
@@ -443,6 +444,16 @@
                                      (+1 (chr (/ dp highest)))
                                      (-1 (chr (- (/ dp lowest)))))))))))))
 
+(defun estimated-profit (maker)
+  (multiple-value-bind (vwap taken given)
+      (trades-profits (slot-reduce maker lictor trades))
+    (declare (ignore vwap))
+    (with-slots (market) maker
+      (let ((current-price (cons-mp* market (vwap market :since (timestamp- (now) 1 :day)))))
+        (if (eq (primary market) (asset taken))
+            (aq+ taken (aq* current-price given))
+            (aq+ given (aq* current-price taken)))))))
+
 (defun makereport (maker fund rate btc doge investment risked skew &optional ha)
   (with-slots (name market ope snake last-report cut) maker
     (unless ha
@@ -478,6 +489,9 @@
         ;; If I ever have to see three consecutive tildes, remind me that
         ;; I am not supposed to live beyond one third of a dozen decades.
         )))
+  ;; Some deployments might need the following form uncommented...
+  ;; (format *debug-io* "~&Estimated total profit: ~A~%"
+  ;;         (estimated-profit maker))
   (force-output))
 
 (defmethod perform ((maker maker) &key)

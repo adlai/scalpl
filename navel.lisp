@@ -1,7 +1,7 @@
 (defpackage #:scalpl.navel
   (:use #:cl #:anaphora #:local-time #:chanl #:scalpl.actor
         #:scalpl.util #:scalpl.exchange #:scalpl.qd)
-  (:export #:trades-profits #:windowed-report #:yank
+  (:export #:windowed-report #:yank
            #:charioteer #:*charioteer*
            #:*slack-url* #:*slack-pnl-url*
            #:axes #:markets #:horses #:net-worth #:net-activity))
@@ -34,21 +34,6 @@
     (handler-case (describe-account it (exchange market) stream)
       (simple-error () (continue)))))
 
-;;; more lifts from quick dirty scrip scribbles
-
-(defun trades-profits (trades)
-  (flet ((side-trades (side)
-           (remove side trades :test-not #'string-equal :key #'direction))
-         (side-sum (side-trades asset)
-           (aif side-trades (mapreduce asset #'aq+ side-trades) 0)))
-    (let ((buys (side-trades "buy")) (sells (side-trades "sell")))
-      (let ((aq1 (aq- (side-sum buys  #'taken) (side-sum sells #'given)))
-            (aq2 (aq- (side-sum sells #'taken) (side-sum buys  #'given))))
-        (ecase (- (signum (quantity aq1)) (signum (quantity aq2)))
-             ((0 1 -1) (values nil aq1 aq2))
-             (-2 (values (aq/ (projugate aq1) aq2) aq2 aq1))
-             (+2 (values (aq/ (projugate aq2) aq1) aq1 aq2)))))))
-
 (defun maker-volumes (&optional maker rfc3339-datestring) ;_; ;_; ;_; !
   ;; Cloudflare makes me want to slit my wrists wide open ;_; ;_; ;_; !
   (flet ((think (&optional (arm #'timestamp<) ; CODE DEAD ;_; ;_; ;_; !
@@ -80,32 +65,32 @@
                          ~%expected turnover of ~7@F days;~%"
                       updays (now) volume (name primary)
                       (/ (* total updays 2) volume))
-	      it)))))))
+              it)))))))
 
 ;; (let ((trades (slot-reduce *wbtcr* lictor trades)))
 ;;   (subseq (sort (reduce 'mapcar '(abs price)
-;; 			:from-end t :initial-value trades)
-;; 		#'<)
-;; 	  0 (isqrt (length trades))))
+;;                      :from-end t :initial-value trades)
+;;              #'<)
+;;        0 (isqrt (length trades))))
 
 (defun windowed-report (maker &optional (length 1) (unit :day))
   (flet ((window (start trades)
-	   (if (null trades) (list start 0 nil)
-	       (multiple-value-call 'list start
-	         (length trades) (trades-profits trades)))))
+           (if (null trades) (list start 0 nil)
+               (multiple-value-call 'list start
+                 (length trades) (trades-profits trades)))))
     (loop with windows
-	  for trades = (slot-reduce maker lictor trades)
-	    then (nthcdr window-count trades)
-	  for window-start = (timestamp (first trades)) then window-close
-	  for window-close = (timestamp- window-start length unit)
-	  for window-count = (position window-close trades
-				       :key #'timestamp
-				       :test #'timestamp>=)
-	  for window = (window window-start
-			       (if (null window-count) trades
-			           (subseq trades 0 window-count)))
-	  while window-count do (push window windows)
-	  finally (return (cons window windows)))))
+          for trades = (slot-reduce maker lictor trades)
+            then (nthcdr window-count trades)
+          for window-start = (timestamp (first trades)) then window-close
+          for window-close = (timestamp- window-start length unit)
+          for window-count = (position window-close trades
+                                       :key #'timestamp
+                                       :test #'timestamp>=)
+          for window = (window window-start
+                               (if (null window-count) trades
+                                   (subseq trades 0 window-count)))
+          while window-count do (push window windows)
+          finally (return (cons window windows)))))
 
 ;; (defmethod describe-account :after
 ;;     (supplicant exchange stream)
@@ -352,7 +337,7 @@ their reserved balances will be modified.")
   (slack-webhook webhook
                  (concatenate
                   'string (format () "~A has ~D bots loaded; [~{~D~^ ~}]"
-				  (name *charioteer*)
+                                  (name *charioteer*)
                                   (length (horses *charioteer*))
                                   (pool-health))
                   (when comment (format () " // comment: ~A" comment)))))
@@ -415,12 +400,12 @@ their reserved balances will be modified.")
                                   #'timestamp<)))
            (report (if (null earliest)
                        (format () "~&~A had zero trades until ~A~%"
-			       (name charioteer)
+                               (name charioteer)
                                (format-timestring () (now) :format
                                                   '(:short-weekday #\@
                                                     (:hour 2) #\: (:min 2))))
                        (format () "~&~A had ~D trades until ~A: $~$~%"
-			       (name charioteer)
+                               (name charioteer)
                                (reduce #'+ (mapcar 'length trades))
                                (format-timestring () (now) :format
                                                   '(:short-weekday #\@
@@ -437,8 +422,8 @@ their reserved balances will be modified.")
     (unless (zerop (+ (mod 60 activity) (mod 60 staleness)))
       (warn "entering unexplored territory"))
     (loop for hour = (timestamp-hour (now))
-	  for minute = (timestamp-minute (now))
-	  for compound = (+ (* 60 hour) minute)
+          for minute = (timestamp-minute (now))
+          for compound = (+ (* 60 hour) minute)
           for activity? = (zerop (mod compound activity))
           for staleness? = (zerop (mod compound staleness))
           do (when activity? (report-net-activity))
