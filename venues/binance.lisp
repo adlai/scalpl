@@ -43,6 +43,14 @@
       ((429) (warn "RATE LIMIT HIT~%URI: ~A~%~A" uri headers)
        (sleep (or (cdr (assoc :retry-after headers)) 1))
        (values () status body))
+      ;; <head><title>500 Internal Server Error</title></head>
+      (500 (let* ((code-string (write-to-string status))
+                  (code-start (search code-string body))
+                  (message-start (+ code-start (length code-string) 1))
+                  (message (subseq body message-start
+                                   (position #'< body :start message-start))))
+             (warn "Binance ~D [~A]~%URI: ~A" status message uri)))
+      ;; don't (ignore-errors (decode-json ..)) before further study
       (t (let ((reply (decode-json body)))
            (warn "Binance ~D~@[ [~A]~]~%URI: ~A" status
                  (getjso "code" reply) uri)
@@ -190,7 +198,7 @@
                              `(("symbol" . ,name)))
         (let ((trades (mapcar #'parse it)))
           (if (null from) trades
-              (member (timestamp from) trades 
+              (member (timestamp from) trades
                       :key 'timestamp :test 'timestamp<)))))))
 
 ;; ;;;
@@ -209,13 +217,13 @@
       (unless error
         (dolist (json result)
           (with-json-slots (side price (oid "orderId") (qty "origQty")
-			    (urid "clientOrderId"))
-	      json
+                            (urid "clientOrderId"))
+              json
             (let* ((price (parse-price price (decimals market)))
                    (volume (parse-float qty :type 'rational))
                    (oid (format () "~D" oid)))
               (pushnew (make-instance 'placed :oid oid :urid urid
-					      :market market
+                                              :market market
                                               :volume volume :price
                                               (if (string= side "SELL")
                                                   price (- price)))
@@ -304,8 +312,8 @@
     (gate-request gate '(:post "order")
                   (with-slots (name epsilon) market
                     `(;; ("type" . "LIMIT")
-		      ("type" . "LIMIT_MAKER")
-		      ;; ("timeInForce" . "GTC")
+                      ("type" . "LIMIT_MAKER")
+                      ;; ("timeInForce" . "GTC")
                       ("symbol" . ,name) ("price" . ,price)
                       ("side" . ,(if (plusp size) "BUY" "SELL"))
                       ("quantity" . ,(format () "~V$"
@@ -333,8 +341,8 @@
   (gate-request gate '(:post "order/cancelReplace")
                 (with-slots (name epsilon) market
                   `(("type" . "LIMIT_MAKER")
-		    ("cancelReplaceMode" . "STOP_ON_FAILURE")
-		    ("cancelOrderId" . ,oid)
+                    ("cancelReplaceMode" . "STOP_ON_FAILURE")
+                    ("cancelOrderId" . ,oid)
                     ("symbol" . ,name) ("price" . ,price)
                     ("side" . ,(if (plusp size) "BUY" "SELL"))
                     ("quantity" . ,(format () "~V$"
@@ -354,17 +362,17 @@
                          (/ volume (if (minusp price)
                                        (/ (abs price) factor)
                                        -1)))
-	  (if (null complaint)
-	      (with-json-slots ((oid "orderId") (urid "clientOrderId"))
-		  (getjso "newOrderResponse" json)
-		(reinitialize-instance old :volume volume :price price
-					   :oid (format () "~D" oid)
-					   :urid urid))
-	      (with-json-slots (code) complaint
-		(if (= code -2021)
-		    (warn "~A was not modified to ~A" old new)
-		    (warn "~A was not modified to ~A~%~A"
-			  old new complaint)))))))))
+          (if (null complaint)
+              (with-json-slots ((oid "orderId") (urid "clientOrderId"))
+                  (getjso "newOrderResponse" json)
+                (reinitialize-instance old :volume volume :price price
+                                           :oid (format () "~D" oid)
+                                           :urid urid))
+              (with-json-slots (code) complaint
+                (if (= code -2021)
+                    (warn "~A was not modified to ~A" old new)
+                    (warn "~A was not modified to ~A~%~A"
+                          old new complaint)))))))))
 
 (defmethod cancel-offer ((gate binance-gate) (offer offered))
   (multiple-value-bind (ret err)
