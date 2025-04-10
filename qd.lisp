@@ -173,6 +173,7 @@
 
 (defgeneric prioriteaze (ope target placed)
   (:method ((ope prioritizer) target placed &aux to-add (excess placed))
+    ;; (declare (optimize debug)) (break)
     (flet ((frob (add pop &aux (max (max (length add) (length pop))))
              (with-slots (expt) ope   ; Siri, what is Graham's number?
                (let ((n (expt (random (expt max (/ expt))) expt)))
@@ -310,6 +311,7 @@
   (:method ((ope ope-scalper) book resilience funds epsilon side)
     (let ((slots (/ (slot-reduce ope supplicant order-slots) 2)))
       (flet ((dunk (book funds count &optional (start epsilon))
+	       ;; (declare (optimize debug)) (break)
                (and book (dumbot-offers book resilience (caar funds)
                                         start (floor count)
                                         (slot-reduce ope magic)))))
@@ -344,6 +346,7 @@
         (macrolet ((do-side (amount side chan epsilon)
                      #+ () "can't I write documentation for local macros?"
                      `(let ((,side (copy-list (slot-value filter ',side))))
+			;; (break)
                         (unless (or (zerop (caar ,amount)) (null ,side))
                           ;; bookmark dumb_bot hierarchies colimit responses
                           (send ,chan (ope-spreader ope ,side resilience
