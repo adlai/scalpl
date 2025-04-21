@@ -1,35 +1,47 @@
 (defpackage #:scalpl.exchange
-  (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.abuse ;; #:abuse !!!!!!!!!
+  (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.abuse ;
+; #:abuse !!!!!!!!!
         #:scalpl.util #:scalpl.actor #:scalpl.net)
   (:export #:enable-pretty-printer-abuse
-           #:exchange #:name #:assets #:markets #:parse-timestamp
-           #:*exchanges* #:find-exchange #:fetch-exchange-data
-           #:gate #:gate-post #:gate-request #:output #:input #:cache
+           #:exchange #:name #:assets #:markets
+           #:parse-timestamp #:fetch-exchange-data
+           #:*exchanges* #:find-exchange
 
-           #:*unit-registry* #:asset #:find-asset #:asset-quantity
-           #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
-           #:market #:tick #:decimals #:primary #:counter #:find-market
-           #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/ #:aq*
+           #:gate #:gate-post #:gate-request
+           #:output #:input #:cache
 
-           #:offer #:bid #:ask #:offered #:taken #:given
-           #:volume #:price #:placed #:oid #:consumed-asset #:cutoff
-           #:gate #:gate-post #:gate-request #:output #:input #:cache
-           #:trade #:cost #:direction #:txid #:tracked-market
+           #:*unit-registry* #:asset #:market
+           #:find-asset #:find-market #:asset-quantity
+           #:quantity #:scaled-quantity
+           #:cons-aq #:cons-aq* #:aq+ #:aq- #:aq/ #:aq*
+           #:tick #:decimals #:primary #:counter
+           #:scaled-price #:cons-mp #:cons-mp* #:scalp
+
+           #:offer #:bid #:ask #:taken #:given #:oid
+           #:volume #:price #:consumed-asset
+           #:cutoff #:offered #:placed #:txid
+           #:trade #:cost #:direction
+           #:tracked-market
 
            #:agent-trunk #:delay #:fetcher
 
-           #:trades-tracker #:trades #:trades-since #:vwap #:book
-           #:book-tracker #:bids #:asks #:get-book #:get-book-keys
-           #:balance-tracker #:balances #:sync #:print-book #:asset-funds
+           #:trades-tracker #:trades #:trades-since #:vwap
+           #:book #:book-tracker #:bids #:asks
+           #:get-book #:get-book-keys #:print-book
+           #:balance-tracker #:balances #:sync #:asset-funds
 
            #:placed-offers #:account-balances #:market-fee
-           #:execution #:fee #:net-cost #:net-volume #:fee-tracker
-           #:execution-tracker #:execution-since #:bases #:bases-without
-           #:post-offer #:cancel-offer #:supplicant #:lictor #:treasurer
-           #:order-slots #:response #:supplicate #:bases-for #:reserved
+           #:execution #:net-cost #:net-volume
+           #:fee-tracker #:fee
+           #:execution-tracker #:execution-since
+           #:bases #:bases-without #:bases-for #:reserved
+           #:post-offer #:cancel-offer #:supplicant
+           #:lictor #:treasurer #:describe-account
+           #:order-slots #:response #:supplicate
            #:squash-reservations #:sufficiently-different?
 
-           #:describe-account #:respawn-syncer #:trades-profits))
+           #:respawn-syncer #:trades-profits
+           ))                           ;} */ --> END OF LINE
 
 (in-package #:scalpl.exchange)
 
