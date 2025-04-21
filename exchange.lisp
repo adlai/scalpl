@@ -95,9 +95,9 @@
 ;;;
 
 (defclass gate (actor)
-  ;; Had I a time machine, this would be named "turnstile";
-  ;; it does a bit more than merely rate-limiting, credential
-  ;; storage, cache invalidation, and occasional race conditions.
+ 	;; Had I a time machine, this would be named "turnstile";
+ 	;; it does a bit more than merely rate-limiting, credential
+	;; storage, cache invalidation, and occasional race conditions.
   ((exchange :initarg :exchange :initform (error "EI4NI") :reader exchange)
    (pubkey :initarg :pubkey :initform (error "gate requires API pubkey"))
    (secret :initarg :secret :initform (error "gate requires API secret"))
@@ -394,7 +394,6 @@
 ;; #<1651675524 127.76 Nis @ 3.36>     #<ASK  10086.18000000 Usdc @ 3.60>
 ;; #<1389509474 730.71 Nis @ 0.09> #<1389508943 32.87402000 Usdc @ 78.99>
 ;;       #<BID  730.71 Nis @ 0.09>     #<ASK  1000.00000000 Usdc @ 79.00>
-
                       (or bs (pop bids)) (or as (pop asks))))))
             ;; WHY IS THAT BUG'S LIFE EXPECTANCY LONGER THAN MINE !?
             (flet ((shit (shy nola)     ; so es dreht...
