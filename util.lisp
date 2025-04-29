@@ -99,6 +99,13 @@
     ((zerop field) (subseq uid 0 (position separator uid)))))
 ;;; consider reading various UUID documents, before writing on
 
+;;; WHY'LL YOU WRITE THIS POETRY, PETRONVK THE ELDER GOES DEAF
+;; (defun chr (real)
+;;   " ;_; was I a good function? // No. ~"
+;;   (funcall (if (plusp real) #'identity #'char-upcase)
+;;            (char "hwfumonerylsicazjx"   ; VTQPKGDB ???
+;;                  (floor (* (abs real) #xFF) #xF))))
+
 (defun strftime (&optional datep &aux bits)
   (let ((data (multiple-value-list  ; my kingdom for a stack!
                (decode-universal-time (get-universal-time)))))
