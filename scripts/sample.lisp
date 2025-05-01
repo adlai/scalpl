@@ -22,9 +22,10 @@
 (print "Please, without spaces, preferably alphanumerics only:")
 (defparameter user-chosen-word (read-line))
 
-(define-maker *wbtcr* :supplicant *supplicant* :targeting 1)
+(define-maker #.user-chosen-word
+  :supplicant *supplicant* :targeting 1)
 
 ;;; use amend orders when possible to improve API efficiency
-(change-class (slot-reduce *wbtcr* ope prioritizer)
+(change-class (slot-reduce #.user-chosen-word ope prioritizer)
               'kraken::kraken-prioritizer)
 #/bin/it ;-- must be someone's work
