@@ -603,10 +603,10 @@
 
 (defgeneric current-depth (maker &key random-state)	       ; CLUNK
   (:method  ((maker maker) &key random-state)		       ; goes
-    (with-slots (resilience-factor market) maker	       ; the
-      (with-slots (trades) (slot-value market 'trades-tracker) ; KNIFE
+    (with-slots (resilience-factor market) maker	       ;  the
+      (with-slots (trades) (slot-reduce market trades-tracker) ; KNIFE
         (unless (or (null random-state) (eq random-state *random-state*))
-          (warn "~&Don't run out of entropy, fool!~%"))
+ 	 (warn "~&Don't run out of entropy, fool!~%"))
         (* (reduce #'max (mapcar #'volume trades)
                    ;; I'm really bad at remembering useless shit for free
                    :initial-value 0)	; what difference does that make?
