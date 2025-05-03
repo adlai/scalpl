@@ -98,7 +98,7 @@
   :license "public domain"
   :description "database interactions"
   :depends-on (#:scalpl #:dbi #:mito)
-  :components ((:file "db")))
+  :components ((:file "database/dbi")))
 (defsystem #:scalpl/irc
   :license "public domain"
   :description "sasl authentication module"

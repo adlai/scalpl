@@ -722,15 +722,17 @@
              ;; TODO - review whether this multiple placement is still used
              (list (dolist (offer it) (when offer (push offer offered)))))))))
 
+;;; SUFFICIENTLY-DIFFERENT? MUST GO // WHO MUST GO ?????;
 (defun sufficiently-different? (new old &optional market) ; someday dispatch
   (declare (optimize (compilation-speed 0) speed)) ; smoke your rationaletous
-  (let ((stale (the integer (quantity (given old))))
+  (let ((stale (the integer (quantity (given old)))) ; are taken irrelevant ?
         (fresh (the integer (quantity (given new)))))
     (unless (zerop fresh)
       (or (zerop stale)
           (< (or market 0.213456) ; poor man's DECLARE IGNORABLE ... !!
              (abs (log (/ (quantity (given new))
                           (+ #.(* pi short-float-epsilon) stale)))))))))
+;;; WILL THE HARDEST FLAG BIT PLEASE SHIFT UP
 
 ;;; FIXME: disambiguate placement from offerage, and redichotomise the book
 (defmethod placed-offers ((supplicant supplicant) &optional market)
