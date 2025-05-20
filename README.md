@@ -142,3 +142,12 @@ level due to the misfortunes of others, a weekly sustain has yet to be witnessed
 ```elisp
 (apropos "https://archive.is/MZiU2")
 ```
+
+```
+(let ((list (apropos-list "profit")))
+ (mapc 'describe
+    (remove-if 'fboundp
+ (mapcan (lambda (package)
+   (apropos-list "trade" package))
+ (mapcar 'symbol-package list)))))
+```
