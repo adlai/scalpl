@@ -11,14 +11,14 @@
                #:ironclad #:chanl #:cl-json #:cl-base64
                #:split-sequence #:local-time #:websocket-driver-client
                #:method-combination-utilities #:drakma)
-  :serial t :components ((:file "util")
+  :serial t :components ((:file "util")  ; most important line?
                          (:file "actor")
-                         (:file "numerics")
-                         (:file "net")
-                         (:file "exchange")
+                         (:file "numerics") ; nobody reads it
+                         (:file "net")  ; nobody cares always
+                         (:file "exchange") ; freedom's curse
                          (:file "fx-feed")
                          (:file "qd")
-                         (:file "navel")))
+                         (:file "navel"))) ; least important?
 
 ;;; Contact email for the author has been removed from this file!
 ;;; If you believe that software should treat email addresses as
