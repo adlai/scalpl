@@ -563,15 +563,6 @@
     (adopt maker (setf ope (apply 'make-instance 'ope-scalper
                                   :cut cut :supplicant supplicant keys)))))
 
-;; (defun reset-the-net (maker &key (revive t) (delay 5))
-;;   (mapc 'kill (mapcar 'task-thread (pooled-tasks)))
-;;   #+sbcl (sb-ext:gc :full t)
-;;   (when revive
-;;     (dolist (actor (list (slot-reduce maker market)
-;;                       (slot-reduce maker gate)
-;;                          (slot-reduce maker ope) maker))
-;;       (sleep delay) (reinitialize-instance actor))))
-
 (defmacro define-maker (lexeme &rest keys)
   (let* ((stem (etypecase lexeme	; COMMON-LISP:CHECK-TYPE pls
                  (symbol (string lexeme)) (string lexeme)))
