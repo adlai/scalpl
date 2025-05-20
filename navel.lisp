@@ -41,7 +41,8 @@
          (remove side trades :test-not #'string-equal :key #'direction))
        (side-sum (side-trades asset)
          (aif side-trades (mapreduce asset #'aq+ side-trades) 0)))
-  (defun trades-profits (trades)
+  (defun trades-profits (trades &optional garbage &rest refused
+                         &key &allow-other-keys) ; by popular demand
     (let ((buys (side-trades "buy" trades))
           (sells (side-trades "sell" trades)))
       (let ((aq1 (aq- (side-sum buys  #'taken) (side-sum sells #'given)))
