@@ -17,6 +17,13 @@ a set of numerical parameters representing
 tool for evaluating statistical queries on market events, past and present
 ** Network                                             :WIP:
 decentralized multimodal swarm optimization of the above guidelines
+* TODO PLEASE COMMENT
+the cohorts need some disambiguation;
+** TODO PLEASE DISAMBIGUATE ...
+there are several circumstances where...
+*** TODO PLEASE ADVISE!
+**** TODO PLEASE FORMAT ...
+outer product of join[ advisory contices & numerics ]
 * Overview of Current Capabilities
 ** what it is / how it acts
 *** acts upon an exchange account
