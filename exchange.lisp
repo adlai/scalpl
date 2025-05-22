@@ -575,6 +575,21 @@
     (setf bases nil) (dolist (next (reverse trades)) ; &a-o-k ?
                        (update-bases tracker next))))
 
+;;; CSV header: oid timestamp price volume cost
+;;; CSV separator: single space character
+(defmethod execute
+    ((lictor execution-tracker) (command (eql :|database/tradelog|)))
+  "synchronize any trade log files"
+  (with-slots (trades) lictor
+    (with-simple-restart (continue "fail silently")
+      (with-open-file
+	  (file #p"database/tradelog.csv"
+		:direction :output :if-exists :append)
+	(dolist (trade (remove (timestamp- (now) 1 :day) trades
+			       :key #'timestamp :test #'timestamp<))
+	  (with-slots #1=(oid timestamp price volume cost) trade
+	    (format file "~&~A ~A ~$ ~8$ ~$~%" . #1#)))))))
+
 (defmethod perform ((tracker execution-tracker) &key)
   (with-slots (buffer trades bases control delegates) tracker
     (select ((recv buffer next)
