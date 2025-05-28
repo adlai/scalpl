@@ -70,7 +70,7 @@
       (flet ((funds (symbol)		; prepare to explain any name
                (asset-funds symbol (slot-reduce treasurer balances)))
              (total (btc doge)		; especially if works people!
-               (+ btc (/ doge (vwap #1# :depth 50 :type :buy))))
+               (+ btc (/ doge (vwap #1#)))) ; ewap ?
              (vwap (side) (vwap lictor :type side :market #1# :depth depth)))
         (awhen (slot-reduce lictor trades)
           (let ((updays (/ (timestamp-difference
