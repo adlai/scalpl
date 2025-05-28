@@ -372,8 +372,8 @@ the good folks at your local Gambler's Anonymous.")
                   (change-class offer 'offered
                                 :oid (prin1-to-string it)))
                  ((eql 0) ;; (cerror "Proceed" "Break-point one")
-                  (warn "~&~A~%Balance guard failed [ ~A ]"
-                        (now) (given offer)))))
+                  (warn "~&~A~%Please reduce order-slots [ ~A ]"
+                        (now) (market offer)))))
               ((string= complaint "Incapsula") (sleep 37))
               (t (cerror "Proceed" "Break-point two")
                  (warn "~A ~S" (now)
