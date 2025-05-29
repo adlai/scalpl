@@ -585,10 +585,10 @@
       (with-open-file
 	  (file #p"database/tradelog.csv"
 		:direction :output :if-exists :append)
-	(dolist (trade (remove (timestamp- (now) 1 :day) trades
-			       :key #'timestamp :test #'timestamp<))
+	(dolist (trade (reverse (remove (timestamp- (now) 1 :day) trades
+					:key #'timestamp :test #'timestamp<)))
 	  (with-slots #1=(oid timestamp price volume cost) trade
-	    (format file "~&~A ~A ~$ ~8$ ~$~%" . #1#)))))))
+	    (format file "~&\"~A\",\"~A\",\"~$\",\"~8$\",\"~$\"~%" . #1#)))))))
 
 (defmethod perform ((tracker execution-tracker) &key)
   (with-slots (buffer trades bases control delegates) tracker
