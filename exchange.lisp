@@ -825,18 +825,3 @@
   (:method ((supplicant t) (exchange exchange) (stream t))
     (cerror "DONT" "I don't tame lions; do you expect me to balance books?"))
   (:documentation "summarize how things are going, profit-wise"))
-
-;;; more lifts from quick dirty scrip scribbles
-
-(defun trades-profits (trades)
-  (flet ((side-trades (side)
-           (remove side trades :test-not #'string-equal :key #'direction))
-         (side-sum (side-trades asset)
-           (aif side-trades (mapreduce asset #'aq+ side-trades) 0)))
-    (let ((buys (side-trades "buy")) (sells (side-trades "sell")))
-      (let ((aq1 (aq- (side-sum buys  #'taken) (side-sum sells #'given)))
-            (aq2 (aq- (side-sum sells #'taken) (side-sum buys  #'given))))
-        (ecase (- (signum (quantity aq1)) (signum (quantity aq2)))
-             ((0 1 -1) (values nil aq1 aq2))
-             (-2 (values (aq/ (projugate aq1) aq2) aq2 aq1))
-             (+2 (values (aq/ (projugate aq2) aq1) aq1 aq2)))))))
