@@ -375,7 +375,7 @@ the good folks at your local Gambler's Anonymous.")
                   (warn "~&~A~%Please reduce order-slots [ ~A ]"
                         (now) (market offer)))))
               ((string= complaint "Incapsula") (sleep 37))
-              (t (cerror "Proceed" "Break-point two")
+              (t ;; (cerror "Proceed" "Break-point two")
                  (warn "~A ~S" (now)
                      (or (getjso "Message" response)
                          message complaint))))))))))
