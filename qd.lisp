@@ -533,6 +533,7 @@
                         (slot-reduce maker treasurer)
                       (recv (send sync sync))
                       balances))
+          ;; TODO: perhaps it's time for Exponentially Decaying Average?
           (doge/btc (vwap market :depth (* 789 (current-depth maker)))))
       (flet ((total-of (btc doge) (float (+ btc (/ doge doge/btc)))))
         (let* ((total-btc (asset-funds (primary market) balances))
@@ -572,9 +573,7 @@
                 (send (slot-reduce ope input)
                       (list (f (* 2/3 total-btc) skew)
                             (f (* 2/3 total-doge) (- skew))
-                            (* resilience-factor
-                               (reduce #'max (mapcar #'volume trades)
-                                       :initial-value 0))
+                            (current-depth maker)
                             (expt (exp skew) skew-exponent)))
                 (recv (slot-reduce ope output)))
               ;; print more obnoxious untabulated numeroscopy
@@ -624,11 +623,9 @@
     (with-slots (resilience-factor market) maker	       ;  the
       (with-slots (trades) (slot-reduce market trades-tracker) ; KNIFE
         (unless (or (null random-state) (eq random-state *random-state*))
- 	 (warn "~&Don't run out of entropy, fool!~%"))
-        (* (reduce #'max (mapcar #'volume trades)
-                   ;; I'm really bad at remembering useless shit for free
-                   :initial-value 0)	; what difference does that make?
-           (+ (random 1.0) resilience-factor))))))
+          (warn "~&Don't run out of entropy, fool!~%"))
+        (* (reduce #'max (mapcar #'volume trades) :initial-value 0)
+           (+ (random (exp resilience-factor)) resilience-factor))))))
 
 ;;; the most important stage in AMNIOTE [chordate?] life is gastrulation
 
