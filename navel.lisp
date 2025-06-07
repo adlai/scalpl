@@ -126,6 +126,36 @@
 ;;         (multiple-value-call 'format stream "~&~@{~A~#[~:; ~]~}~%" name
 ;;           (trades-profits day))))))
 
+;; this runs on (slot-reduce maker lictor trades) or CSV tradelog
+;; (let (skipped (trades (sort * '> :key 'volume)))
+;;   (loop
+;;     (multiple-value-bind (price took paid) (trades-profits trades)
+;;       (if (null price)
+;; 	  (return (values took paid trades skipped))
+;; 	  (format t "~&~A ~A ~A" price took paid))
+;;       (if (plusp (price price))
+;; 	  (let ((sells (remove "sell" trades
+;; 			       :key 'direction
+;; 			       :test-not 'string-equal)))
+;; 	    (let ((candidate (find-if (lambda (trade)
+;; 					(<= (quantity (taken trade))
+;; 					    (quantity took)))
+;; 				      sells)))
+;; 	      (if (null candidate) (return)
+;; 		  (setf skipped (cons candidate skipped)
+;; 			trades (remove candidate trades)))))
+;; 	  (let ((buys (remove "buy" trades
+;; 			      :key 'direction
+;; 			      :test-not 'string-equal)))
+;; 	    (let ((candidate (find-if (lambda (trade)
+;; 					(<= (quantity (taken trade))
+;; 					    (quantity took)))
+;; 				      buys)))
+;; 	      (if (null candidate) (return)
+;; 		  (setf skipped (cons candidate skipped)
+;; 			trades (remove candidate trades)))))))))
+;; WARNING: it neither fails gracefully nor provably terminates!
+
 (defmacro do-makers ((maker &optional (stem "MAKER*")) &body body)
   (warn "expanding do-things macro lacking functional implementation")
   `(dolist (,maker (mapcar 'symbol-value (apropos-list ,stem)))

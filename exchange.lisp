@@ -600,6 +600,20 @@
 	      ;; these hardcoded precisions were only good for Bit2C BtcNis
 	      (format file "~&~A,~A,~A,~$,~8$,~8$,~8$~%" . #1#))))))))
 
+;; FIXME: this is only good enough for single-market deployments
+;; (mapcar (let ((market (find-market "BtcNis" :bit2c)))
+;; 	  (lambda (row)
+;; 	    (destructuring-bind
+;; 		(timestamp txid direction price volume cost fee) row
+;; 	      (make-instance 'execution
+;; 			     :market market :txid txid :oid txid
+;; 	     	             :timestamp (parse-timestring timestamp)
+;; 			     :direction direction :price (parse-float price)
+;; 			     :net-cost (parse-float cost)
+;; 			     :fee (parse-float fee)
+;; 			     :net-volume (parse-float volume)))))
+;; 	(cdr (cl-csv:read-csv tradelog)))
+
 (defmethod perform ((tracker execution-tracker) &key)
   (with-slots (buffer trades bases control delegates) tracker
     (select ((recv buffer next)
