@@ -318,6 +318,7 @@ the good folks at your local Gambler's Anonymous.")
                               (case action
                                 (1 (adjust "feeAmount")) (0 0) (t 0)))
                      :net-cost (adjust "secondAmount")
+                     :fee (adjust "feeAmount")
                      :volume (adjust "firstAmount")
                      :net-volume (adjust "firstAmount")))))
 

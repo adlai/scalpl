@@ -575,20 +575,30 @@
     (setf bases nil) (dolist (next (reverse trades)) ; &a-o-k ?
                        (update-bases tracker next))))
 
-;;; CSV header: oid timestamp price volume cost
-;;; CSV separator: single space character
+;;; CSV header: timestamp,txid,direction,price,volume,cost,fee
+;;; CSV separator: comma
 (defmethod execute
     ((lictor execution-tracker) (command (eql :|database/tradelog|)))
   "synchronize any trade log files"
   (with-slots (trades) lictor
     (with-simple-restart (continue "fail silently")
-      (with-open-file
-	  (file #p"database/tradelog.csv"
-		:direction :output :if-exists :append)
-	(dolist (trade (reverse (remove (timestamp- (now) 1 :day) trades
-					:key #'timestamp :test #'timestamp<)))
-	  (with-slots #1=(oid timestamp price volume cost) trade
-	    (format file "~&\"~A\",\"~A\",\"~$\",\"~8$\",\"~$\"~%" . #1#)))))))
+      (let (last-txid)
+	(with-open-file
+	    (file #p"database/tradelog.csv" :direction :input)
+	  (read-line file)		; skip header
+	  (loop for line = (read-line file nil nil) while line
+		for start = (position #\, line)
+		for end = (position #\, line :start (1+ start))
+		do (setf last-txid (subseq line (1+ start) end))))
+	(with-open-file
+	    (file #p"database/tradelog.csv"
+		  :direction :output :if-exists :append)
+	  ;; FIXME this doesn't write anything if there is no overlap
+	  (dolist (trade (cdr (member last-txid (reverse trades)
+				      :key 'txid :test 'string=)))
+	    (with-slots #1=(timestamp txid direction price volume cost fee) trade
+	      ;; these hardcoded precisions were only good for Bit2C BtcNis
+	      (format file "~&~A,~A,~A,~$,~8$,~8$,~8$~%" . #1#))))))))
 
 (defmethod perform ((tracker execution-tracker) &key)
   (with-slots (buffer trades bases control delegates) tracker
