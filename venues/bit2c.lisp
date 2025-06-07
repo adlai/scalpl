@@ -321,7 +321,23 @@ the good folks at your local Gambler's Anonymous.")
                      :volume (adjust "firstAmount")
                      :net-volume (adjust "firstAmount")))))
 
-;; (defmethod execution-until ...)
+;;; this isn't too useful, as the API endpoint seems to only
+;;; have access to the last 30 days of data ...
+(defmethod execution-until ((gate bit2c-gate) market until)
+  (awhen (gate-request gate '(:GET "Order/OrderHistory")
+                       `(("pair" . ,(name market))
+                         ,@(when until
+                             `(("toTime"
+                                . ,(format-timestring
+                                    () (timestamp until)
+                                    :format *bit2c-timestamp*))))))
+    (when (eq :|error| (caar it)) (return-from execution-until ()))
+    (let ((executions (remove 2 (reverse it)
+                              :key (getjso "action") :test #'<=)))
+      (mapcar (lambda (json) (parse-execution json market))
+              (if (null until) executions
+                  (remove (timestamp-to-unix (timestamp until)) executions
+                          :key (getjso "ticks") :test #'=))))))
 
 (defmethod execution-since ((gate bit2c-gate) market since)
   (awhen (gate-request gate '(:GET "Order/OrderHistory")
