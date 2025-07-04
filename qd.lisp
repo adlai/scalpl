@@ -586,6 +586,9 @@
               ;; (throw :up (gensym "BARF"))
               )))))))
 
+(defmethod perform :after ((maker maker) &key)
+  #+sbcl (sb-ext:gc))
+
 (defmethod initialize-instance :after
     ((maker maker) &rest keys &key &allow-other-keys)
   (with-slots (supplicant ope delegates cut) maker

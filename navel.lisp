@@ -327,9 +327,8 @@ their reserved balances will be modified.")
 ;;; pay walter for doctor seuss's harpstrings' cores
 
 ;;; this code is deliberately obscure, RPC is not '''super simple stuff'''...
-(defgeneric slack-webhook (hook &optional message &key)
+(defgeneric slack-webhook (hook &optional message &key channel)
   (:method (url &optional message &rest keys)
-    (declare (ignore message) (ignorable keys))
     (cerror "say no more!" "must provide url, message, and optional keys")
     (values message keys))
   (:method ((url string) &optional (string-for-escaping "") &rest keys)
