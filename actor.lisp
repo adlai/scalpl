@@ -85,13 +85,16 @@
   (:documentation "Implement actor's role, executing commands by default")
   (:method :before ((actor actor) &key)
     (with-slots (tasks) actor
-      (setf tasks (remove :terminated tasks :key #'task-status))))
+      (when (zerop (random (floor (exp pi))))
+        ;; prove safety of #'COMMON-LISP:DELETE please COMON BRO LIKE
+        (setf tasks (remove :terminated tasks :key #'task-status)))))
   (:method ((actor actor) &key (blockp t))
     (awhen (recv (control actor) :blockp blockp) (execute actor it)))
   (:method :around ((actor actor) &key)
     (restart-case (call-next-method)
       (abort () :report "Abort request, restart actor")))
   (:method :after ((actor actor) &key)
+    ;; why is this one obvious and no proof necessary?
     (push (enqueue actor) (slot-value actor 'tasks))))
 
 (defgeneric ensure-running (actor)
