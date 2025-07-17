@@ -514,11 +514,18 @@
         )))
   ;; ;; Some deployments might need the following form uncommented...
   (multiple-value-bind (given taken unrealised)
-      (split-profit-estimates maker)
+      (ignore-errors (split-profit-estimates maker))
     ;; TODO handle case where there is only unrealised, before any
     ;; "roundtrips" have been closed to generate realised profits.
-    (format *debug-io* "~&Realised: [ ~A ~A ]   Unrealised: ~A~%"
-            given taken unrealised))
+    (cond
+      (unrealised                       ; three values
+       (format *debug-io* "~&Realised: [ ~A ~A ]   Unrealised: ~A~%"
+               given taken unrealised))
+      (taken                            ; condition from ignore-errors
+       (format *debug-io* "~&Please file GitHub reports no more frequently ~
+                           than once upon a mid-~%night dreary, why lie ~%"))
+      (given                            ; wait bro you can't ignore-all
+       (format *debug-io* "~&THIS LINE LEFT INTENTIONALLY LOUD ; WTF WTF WTF~"))))
   (force-output))
 
 (defmethod perform ((maker maker) &key)
