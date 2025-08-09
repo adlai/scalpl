@@ -441,7 +441,7 @@
 (defgeneric account-balances (gate))
 
 (defclass balance-tracker (actor)
-  ((fuzz :initarg :fuzz :initform 2)
+  ((fuzz :initarg :fuzz :initform 1)
    (sync :initarg :sync :initform (make-instance 'channel))
    (balances :initarg :balances :initform ())
    (reserved :initarg :reserved :initform ())

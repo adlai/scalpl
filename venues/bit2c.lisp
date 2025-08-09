@@ -48,7 +48,7 @@
 (defun bit2c-request (path &rest args)
   (multiple-value-bind (body status headers uri)
       (apply #'http-request (concatenate 'string *base-url* path) args)
-    (sleep (random (exp 1)))          ; WHY HIT RATE LIMIT, FOOL !?
+    ;; (sleep (random (exp 1)))          ; WHY HIT RATE LIMIT, FOOL !?
     (let ((json (ignore-errors (decode-json body)))
           (raw (if (stringp body) body
                    (flexi-streams:octets-to-string
@@ -107,8 +107,8 @@
 
 (defmethod gate-post ((gate (eql *bit2c*)) key secret request)
   (destructuring-bind ((verb method) . parameters) request
-    (prog () (sleep (exp 1.618))   ; ``signum quod runlevel'' dafuq?!?
-     :loop (sleep (random (sqrt 17)))
+    (prog () (sleep (exp 0))   ; ``signum quod runlevel'' dafuq?!?
+     :loop (sleep (random (sqrt pi)))
        (multiple-value-bind (ret status error headers uri)
            (auth-request verb method key secret parameters)
          (return
