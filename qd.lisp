@@ -461,17 +461,20 @@
   ;; quite possibly the worst code written in my life, SO FAR ...
   (multiple-value-bind (rtaken rgiven utaken ugiven)
       (loop for skip = nil then (cons (car tail) skip)
-	    and tail on (slot-reduce maker lictor trades)
+	    and tail on (sort (copy-list (slot-reduce maker lictor trades))
+                              #'< :key #'volume) ; 4 14 32 461 512 537 OMG ...
 	    for net-range-effect = (multiple-value-list (trades-profits tail))
 	    when (null (first net-range-effect))
 	      return (multiple-value-call 'values
 		       (apply 'values (cdr net-range-effect))
 		       (apply 'values (cdr (multiple-value-list
-					    (trades-profits skip))))))
+					    (trades-profits skip)))))
+            finally (return-from split-profit-estimates
+                      (with-slots (primary counter) (market maker)
+                        (values (cons-aq primary 0) (cons-aq counter 0)
+                                (estimated-profit maker)))))
     (with-slots (market) maker
-      (let ((current-price (cons-mp* market
-				     (vwap market :since (timestamp- (now)
-								     1 :day)))))
+      (let ((current-price (cons-mp* market (vwap market)))) ; default
         (values rtaken rgiven
 		(if (eq (primary market) (asset utaken))
 		    (aq+ utaken (aq* current-price ugiven))
@@ -512,20 +515,13 @@
         ;; If I ever have to see three consecutive tildes, remind me that
         ;; I am not supposed to live beyond one third of a dozen decades.
         )))
-  ;; ;; Some deployments might need the following form uncommented...
-  (multiple-value-bind (given taken unrealised)
-      (ignore-errors (split-profit-estimates maker))
+  ;; Some deployments might need the following form uncommented...
+  (multiple-value-bind (primary counter unrealised)
+      (split-profit-estimates maker)
     ;; TODO handle case where there is only unrealised, before any
     ;; "roundtrips" have been closed to generate realised profits.
-    (cond
-      (unrealised                       ; three values
-       (format *debug-io* "~&Realised: [ ~A ~A ]   Unrealised: ~A~%"
-               given taken unrealised))
-      (taken                            ; condition from ignore-errors
-       (format *debug-io* "~&Please file GitHub reports no more frequently ~
-                           than once upon a mid-~%night dreary, why lie ~%"))
-      (given                            ; wait bro you can't ignore-all
-       (format *debug-io* "~&THIS LINE LEFT INTENTIONALLY LOUD ; WTF WTF WTF~"))))
+    (format *debug-io* "~&Realised: [ ~A ~A ]   Unrealised: ~A~%"
+            primary counter unrealised))
   (force-output))
 
 (defmethod perform ((maker maker) &key)
@@ -541,7 +537,7 @@
                       (recv (send sync sync))
                       balances))
           ;; TODO: perhaps it's time for Exponentially Decaying Average?
-          (doge/btc (vwap market :depth (* 789 (current-depth maker)))))
+          (doge/btc (vwap market)))     ; NEVER LINK CHAT ARCHIVE die !!
       (flet ((total-of (btc doge) (float (+ btc (/ doge doge/btc)))))
         (let* ((total-btc (asset-funds (primary market) balances))
                (total-doge (asset-funds (counter market) balances))
