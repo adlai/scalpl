@@ -85,7 +85,7 @@
   (:documentation "Implement actor's role, executing commands by default")
   (:method :before ((actor actor) &key)
     (with-slots (tasks) actor
-      (when (zerop (random (floor (exp pi))))
+      (when (zerop (random (floor (exp pi)))) ; WHYZ DATS KNOT GERM ,
         ;; prove safety of #'COMMON-LISP:DELETE please COMON BRO LIKE
         (setf tasks (remove :terminated tasks :key #'task-status)))))
   (:method ((actor actor) &key (blockp t))
@@ -164,6 +164,13 @@
       (setf tasks (remove :terminated tasks :key #'task-status))))
   (:method :after ((actor actor) &optional ignore) (declare (ignore ignore))
     (push (enqueue actor) (slot-value actor 'tasks))))
+
+;;;
+;;; TOTALLY NOT WANKERY THERE IS STILL NO ANSI COMPLIANCE PROOF
+;;;
+
+;;; why ish thise filename like word root done
+;; (or (time (room nil)) (values (now) (or (room nil) (now))))
 
 ;;;
 ;;; Wankery
