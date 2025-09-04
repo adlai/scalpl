@@ -288,6 +288,7 @@
 ;;                                          unix :nsec (* nsec (expt 10 6)))))))
 ;;                              (warn "req_timestamp:")))
                          )
+			(10006 (sleep 23)) ; rate limited
                         ((20001 30032 30037 170213)) ; order already filled
                         ;; ((170130))      ; FIXME minimum order size
                         ((30076) it)          ; failures to replace
