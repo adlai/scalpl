@@ -275,6 +275,10 @@
                    (cons (now) placed))
              (remove market placed :key #'market :test-not #'eq))))))
 
+(defmethod find-asset (designator (venue (eql *kraken*)))
+  (if (string= designator "XBT.F") (find-asset "XXBT" venue)
+      (call-next-method)))
+
 (defmethod account-balances ((gate kraken-gate))
   (remove-if #'zerop
              ;; TODO: this signals !(typep () 'jso) on communication failure
