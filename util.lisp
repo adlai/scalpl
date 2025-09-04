@@ -59,7 +59,8 @@
                yyyy (short-month-index mmm) dd hhmmss zone)))))
 
 (defconstant +time-offset-units+
-  '(:nsec :sec :minute :hour :day :day-of-week :month :year)
+  (load-time-value
+   '(:nsec :sec :minute :hour :day :day-of-week :month :year))
   "the list of valid `UNIT' arguments for `LOCAL-TIME:TIMESTAMP+', etc.")
 
 ;;; this could almost be part of local-time ,.!
