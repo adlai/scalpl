@@ -107,7 +107,7 @@
 
 (defmethod gate-post ((gate (eql *bit2c*)) key secret request)
   (destructuring-bind ((verb method) . parameters) request
-    (prog () (sleep (exp 0))   ; ``signum quod runlevel'' dafuq?!?
+    (prog () (sleep (1+ (random (exp 1))))   ; ``signum quod runlevel'' dafuq?!?
      :loop (sleep (random (sqrt pi)))
        (multiple-value-bind (ret status error headers uri)
            (auth-request verb method key secret parameters)
@@ -382,7 +382,8 @@ the good folks at your local Gambler's Anonymous.")
           (let ((now (now)) (message (getjso "Error" response)))
             (cond
               ((search " 30% " message)
-               (warn "~&Exceeded 30% price range ~A~%~A" now message))
+               (warn "~&Exceeded 30% price range ~A ~D~%~A"
+                     now price message))
               ((null complaint)
                (atypecase (getjso "id" echo)
                  ((integer 1)

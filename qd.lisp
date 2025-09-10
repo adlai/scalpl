@@ -62,6 +62,7 @@
 
 (defgeneric filter (filter)
   (:method ((filter filter))
+    ;; (declare (optimize (space 0) debug safety (speed 0)))
     (with-slots (supplicant book-cache cut) filter
       (let ((unstunk (cons (car book-cache) (cdr book-cache))))
         (with-slots (stink-tolerances) filter

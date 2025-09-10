@@ -107,10 +107,10 @@ thus expect rudeness and flippancy, unless you pay for a consultation.
 configured parameters: for example, the most profitable targeting for a market
 which trends sideways will be equal allocation.
 
-* Allocation too far in the "wrong" direction other results in the harvester
-accumulating the asset unloaded by other market participants, eventually getting
-"run over": the portfolio is sufficiently imbalanced to prevent further market
-making. One can either wait for the trend to reverse, or rebalance at a loss.
+* Allocation too far in the "wrong" direction results in accumulation of
+the asset unloaded by other market participants, eventually getting "run over":
+the portfolio is sufficiently imbalanced to prevent further market making.
+One can either wait for the trend to reverse, or rebalance at a loss.
 
 * Poorly calibrated resilience also weakens returns: if the resilience is too
 high compared to current market activity, execution volume suffers; too low, and
