@@ -465,7 +465,7 @@
 	    and tail on (sort (copy-list (slot-reduce maker lictor trades))
                               #'< :key #'volume) ; 4 14 32 461 512 537 OMG ...
 	    for net-range-effect = (multiple-value-list (trades-profits tail))
-	    when (null (first net-range-effect))
+	    while skip when (null (first net-range-effect))
 	      return (multiple-value-call 'values
 		       (apply 'values (cdr net-range-effect))
 		       (apply 'values (cdr (multiple-value-list
