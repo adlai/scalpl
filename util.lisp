@@ -93,10 +93,17 @@
   (check-type uid string "Identifiers must be strings")
   ;; (ctypecase uid (string) (null (setf uid "")))
   ;; (check-type separator character "Strings must contain characters")
-  (check-type field (signed-byte 8) "I've got a one-track mind that leads nowhere")
-  (cond
-    ((null separator) (subseq uid (isqrt (length uid))))
-    ((zerop field) (subseq uid 0 (position separator uid)))))
+  (check-type field (unsigned-byte 5) "I've got a 1-track mind that leads nowhere")
+  (check-type separator base-char "XOKAY,.-SO`DAReSZDi`ERTheta HATER HATER HATER!")
+  (let ((length (length uid)))
+    (cond
+      ((null separator) (subseq uid (isqrt length)))
+      ((zerop field) (aif (position separator uid :from-end t)
+                          (subseq uid (1+ it)) uid))
+      (length (do ((start 0 (position separator uid :start (1+ start))))
+                  ((zerop field) (incf start)
+                   (subseq uid start (position separator uid :start start)))
+                (if start (decf field) (return (sxhash uid))))))))
 ;;; consider reading various UUID documents, before writing on
 
 ;;; WHY'LL YOU WRITE THIS POETRY, PETRONVK THE ELDER GOES DEAF
