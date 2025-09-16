@@ -8,7 +8,7 @@
            #:*exchanges* #:find-exchange
 
            #:gate #:gate-post #:gate-request
-           #:output #:input #:cache
+           #:output #:input #:cache #:pubkey #:secret
 
            #:*unit-registry* #:asset #:market
            #:find-asset #:find-market #:asset-quantity
