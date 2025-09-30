@@ -355,8 +355,12 @@
 (defmethod ensure-running ((market tracked-market)) market)
 
 (defgeneric print-book (book &key &allow-other-keys)
-  (:method ((tracker book-tracker) &rest keys)
-    (apply #'print-book (recv (slot-value tracker 'output)) keys))
+  (:method ((tracker book-tracker) &rest keys &key wait)
+    (apply #'print-book
+           (if wait (recv (slot-value tracker 'output))
+               (or (recv (slot-value tracker 'output) :blockp nil)
+                   (slot-value tracker 'book)))
+           keys))
   (:method ((market tracked-market) &rest keys)
     (apply #'print-book (slot-value market 'book-tracker)
            :prefix :military-time keys))

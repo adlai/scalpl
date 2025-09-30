@@ -453,7 +453,7 @@
       (trades-profits (slot-reduce maker lictor trades))
     (declare (ignore vwap))
     (with-slots (market) maker
-      (let ((current-price (cons-mp* market (vwap market :since (timestamp- (now) 1 :day)))))
+      (let ((current-price (cons-mp* market (vwap market :since (timestamp- (now) 7 :day)))))
         (if (eq (primary market) (asset taken))
             (aq+ taken (aq* current-price given))
             (aq+ given (aq* current-price taken)))))))
