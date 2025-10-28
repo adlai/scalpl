@@ -380,9 +380,15 @@ the good folks at your local Gambler's Anonymous.")
         (with-json-slots
             ((response "OrderResponse") (echo "NewOrder")) json
           (let ((now (now)) (message (getjso "Error" response)))
-            (cond
-              ((search " 30% " message)
-               (warn "~&Exceeded 30% price range ~A ~D~%~A"
+            (acond
+              ((aand (search "% " message)
+                     (numberp (or (parse-integer message
+                                                 :end it :start (- it 2)
+                                                 :junk-allowed t)
+                                  (parse-integer message
+                                                 :end it :start (1- it)
+                                                 :junk-allowed t))))
+               (warn "~&Exceeded linear price clamp ~A ~D~%~A"
                      now price message))
               ((null complaint)
                (atypecase (getjso "id" echo)
