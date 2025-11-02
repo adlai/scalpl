@@ -117,14 +117,21 @@
                   (case status
                     ((200 503)
                      (cond ((search "maintenance" (puri:uri-host uri))
-                            "[unexpected?] maintenance") ; Complain!!
-                           ((search "Incapsula" error) ; Complain...?
-                            (sleep (random (sqrt 97))) "Incapsula")))
+                            ;; these sometimes happen without warning,
+                            ;; and because they might well occur along
+                            ;; with significant market moves, activity
+                            ;; must resume as soon as maintenance ends
+                            "[unexpected?] maintenance") ; Complain!?
+                           ((search "Incapsula" error) ; I hate them!!
+                            ;; this obnoxious piece of shit should not
+                            ;; be stepped on multiple times; ideally,
+                            ;; it should never be stepped on, at all.
+                            (break "Incapsula") "Incapsula")))
                     ((nil 404) (concatenate 'string method
                                             " [ \\equiv 404 ]"))
                     (409 (warn "Rate limited at ~A"
                                (getjso :date headers))
-                     (sleep (random (sqrt pi))) (go :loop))
+                     (sleep (1+ (random (sqrt pi)))) (go :loop))
                     ((500 502 504 524) error) ; could be #()
                     (t (awhen (ignore-errors (read-json error))
                          (or (ignore-errors (getjso "message" it))
