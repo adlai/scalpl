@@ -461,19 +461,20 @@
 (defun split-profit-estimates (maker)
   ;; quite possibly the worst code written in my life, SO FAR ...
   (multiple-value-bind (rtaken rgiven utaken ugiven)
-      (loop for skip = nil then (cons (car tail) skip)
-	    and tail on (sort (copy-list (slot-reduce maker lictor trades))
-                              #'< :key #'volume) ; 4 14 32 461 512 537 OMG ...
-	    for net-range-effect = (multiple-value-list (trades-profits tail))
-	    while skip when (null (first net-range-effect))
+      (let ((sorted (sort (copy-list (slot-reduce maker lictor trades))
+                          #'< :key #'volume)))
+        (loop for skip = (list (car sorted)) then (cons (car tail) skip)
+              and tail on (cdr sorted)
+	      for net-range-effect = (multiple-value-list (trades-profits tail))
+	      while skip when (null (first net-range-effect))
 	      return (multiple-value-call 'values
 		       (apply 'values (cdr net-range-effect))
 		       (apply 'values (cdr (multiple-value-list
 					    (trades-profits skip)))))
-            finally (return-from split-profit-estimates
-                      (with-slots (primary counter) (market maker)
-                        (values (cons-aq primary 0) (cons-aq counter 0)
-                                (estimated-profit maker)))))
+              finally (return-from split-profit-estimates
+                        (with-slots (primary counter) (market maker)
+                          (values (cons-aq primary 0) (cons-aq counter 0)
+                                  (estimated-profit maker))))))
     (with-slots (market) maker
       (let ((current-price (cons-mp* market (vwap market)))) ; default
         (values rtaken rgiven

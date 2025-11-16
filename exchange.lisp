@@ -79,13 +79,24 @@
 (defmethod initialize-instance ((bid bid) &rest keys &key price)
   (apply #'call-next-method bid :price (- (abs price)) keys))
 
+;;; RESOURCE ALLOCATION IS not INITIALIZATION !?! ? !?!?! ??  ...
 (defmethod shared-initialize :after ((offer offer) (names t) &key)
   (with-slots (market taken given volume price) offer
+    (cond                               ; ANAPHORA LEADS TO BLINDNESS!!
+      ((slot-boundp offer 'market)
+       (check-type market market))     ; should :type be declared ...?
+      ((or given taken)
+       (let ((lot (or given taken)))
+         (check-type lot asset-quantity)
+         (setf market (market (asset lot)))))
+      (t (slot-unbound 'offer offer 'market)))
     (macrolet ((do-slot (slot aside primary bside counter)
-                 `(unless (slot-boundp offer ',slot)
-                    (setf ,slot (if (plusp price)
-                                    (cons-aq* (,aside market) ,primary)
-                                    (cons-aq* (,bside market) ,counter))))))
+                 `(if (slot-boundp offer ',slot)
+                      (unless (slot-boundp offer 'volume)
+                        (slot-unbound 'offer offer 'volume))
+                      (setf ,slot (if (plusp price)
+                                      (cons-aq* (,aside market) ,primary)
+                                      (cons-aq* (,bside market) ,counter))))))
       (let ((factor (/ (abs price) (expt 10 (decimals market)))))
         (do-slot given primary volume counter (* volume factor))
         (do-slot taken counter (* volume factor) primary volume)))))
