@@ -178,6 +178,7 @@
     (flet ((frob (add pop &aux (max (max (length add) (length pop))))
              (with-slots (expt) ope   ; Siri, what is Graham's number?
                (let ((n (expt (random (expt max (/ expt))) expt)))
+                 ;; gonna use long-form define-method-combination again ?!
                  (awhen (nth (- max (ceiling n)) pop) (ope-cancel ope it))
                  (awhen (nth (floor n) add) (ope-place ope it))))))
       (aif (dolist (new target (sort to-add #'< :key #'price))
@@ -228,7 +229,9 @@
                  (> processed-tally max-orders))) ; AND: at maximal order count
         (flet ((pick (count offers)
                  (sort (subseq* (sort (or (subseq offers 0 (1- processed-tally))
-                                          (warn "DEPTH; charge?") offers)
+                                          (warn ";;DEPTH; charge? [ ~A ]"
+                                                (cdar (last offers)))
+                                          offers)
                                       #'> :key (lambda (x) (volume (cdr x))))
                                 0 count)
                        #'< :key (lambda (x) (price (cdr x)))))
