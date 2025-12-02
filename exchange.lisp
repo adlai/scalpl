@@ -19,7 +19,7 @@
 
            #:offer #:bid #:ask #:taken #:given #:oid
            #:volume #:price #:consumed-asset
-           #:cutoff #:offered #:placed #:txid
+           #:cutoff #:offered #:posted #:placed #:txid
            #:trade #:cost #:direction
            #:tracked-market
 
@@ -70,7 +70,10 @@
 (defgeneric oid (offer) (:method ((offer offer)) ""))
 
 (defclass offered (offer)
-  ((oid    :initarg :oid    :reader oid)))
+  ((oid    :initarg :oid    :reader oid)
+   ;; the following is more specific than `timestamp';
+   ;; theoretically, includes trading engine delay ...
+   (posted :initform (now)  :reader posted)))
 
 (defclass bid (offer) ()) (defclass ask (offer) ())
 
@@ -804,8 +807,13 @@
                                               :test #'string=))))
       ;; FIXME `placed-offers' should use a second return value; the edge case
       ;; of the response containing no orders is not handled correctly by this
-      (:sync (send response (awhen (placed-offers gate market)
-                              (setf offered it))))
+      (:sync (send response
+                   (awhen (placed-offers gate market)
+                     (dolist (new it)
+                       (aif (find (oid new) offered :key 'oid :test 'equal)
+                            (setf (slot-reduce new posted) (posted it))
+                            (warn "~A inexplicably ~A" (posted new) new)))
+                     (setf offered it))))
       (t (setf offered (remove it offered :test #'string= :key #'oid))))))
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
