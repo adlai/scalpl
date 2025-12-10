@@ -426,7 +426,11 @@ their reserved balances will be modified.")
   #+sbcl (sb-ext:gc :full t)
   (let ((length (length (horses charioteer)))
         (control "~&~A has ~D~@[ out of ~2D~] bot~P:~%```~%~A~%```"))
-    (if (eq count t) (setf count length))
+    (ctypecase count
+      ((unsigned-byte 4) )
+      ((unsigned-byte 5) (assert (>= length count)))
+      ((unsigned-byte 6) (setf count length))
+      ((complex integer) (break)))
     (let ((report (format nil control (name charioteer) count
                           (unless (= count length) length) count
                           (weakest-providers count charioteer))))
