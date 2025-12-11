@@ -28,7 +28,11 @@
 ;;; CLtL4 committee; for although I can't predict what
 ;;; will be standardized by CLtL3...
 
-
+(defsystem #:scalpl/ln-markets
+  :description "apictest for LN Markets"
+  :depends-on (#:scalpl)
+  :components ((:file "venues/lnm_shop"))
+  :license "__LAG_PL")
 (defsystem #:scalpl/bit2c
   :description "api client for bit2c"
   :depends-on (#:scalpl)
