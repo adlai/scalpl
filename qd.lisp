@@ -500,6 +500,7 @@
             (if (channelp (first last-report))
                 (setf (cdr last-report) new-report)
                 (setf last-report new-report)))))
+    (fresh-line)
     (labels ((sastr (side amount) ; TODO factor out aqstr
                (format nil "~V,,V$" (decimals (slot-value market side))
                        0 (float amount 0d0))))
@@ -539,8 +540,7 @@
                market name ope cut supplicant) maker
     (with-slots (control response) supplicant
       (send control '(:sync)) (recv response))
-    (let ((trades (recv (slot-reduce market trades)))
-          (balances (with-slots (sync balances)
+    (let ((balances (with-slots (sync balances)
                         (slot-reduce maker treasurer)
                       (recv (send sync sync))
                       balances))

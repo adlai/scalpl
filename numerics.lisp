@@ -15,6 +15,7 @@
            #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
            #:market #:tick #:decimals #:primary #:counter #:find-market
            #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/ #:aq*
+           #:contract #:currency
 
            ;; TODO decide whether these belong in this file's data model
            #:offer #:bid #:ask #:offered #:taken #:given
@@ -215,7 +216,14 @@
 
 (defun asset (aq) (cdr (assoc (imagpart aq) *unit-registry*)))
 (defun quantity (aq) (realpart aq))
-(defun scaled-quantity (aq) (/ (realpart aq) (expt 10 (decimals (asset aq)))))
+(defun scale-tensor (tensor)
+  (etypecase tensor
+    (real tensor)                       ; this code path is needed once;
+    (physical-quantity                  ; recompile, to inline after the
+     (/ (realpart tensor)               ; "world of finance" is baked...
+        (expt 10 (decimals (asset tensor)))))
+    (complex (error "call IT"))))
+(defun scaled-quantity (aq) (scale-tensor aq))
 
 ;;; what mnemonic, possibly allowing renames, for not conflating these?
 (defun cons-aq (asset quantity) (complex (round quantity) (index asset)))
@@ -270,6 +278,10 @@
   (:method (designator (name symbol))
     (find-market designator (find-exchange name))))
 
+(defclass contract (market)
+  ((currency :initarg :currency :reader currency))
+  (:documentation "contract for profit and loss in one currency"))
+
 ;;;
 ;;; Market Prices
 ;;;
@@ -305,8 +317,10 @@
 
 (defun aq* (mp aq &aux (q (scaled-quantity aq)) (p (scaled-price mp)))
   (with-slots (primary counter) (market mp)
-    (cond ((eq (asset aq) primary) (cons-aq* counter (* q p)))
-          ((eq (asset aq) counter) (cons-aq* primary (/ q p)))
+    (cond ((eq (asset aq) primary)
+           (cons-aq* counter (* q p)))
+          ((eq (asset aq) counter)
+           (cons-aq* primary (/ q p)))
           (t (error "~A not traded in ~A" (asset aq) (market mp))))))
 
 ;;; exercise for CL learners:

@@ -381,13 +381,14 @@ their reserved balances will be modified.")
 ;;; "I hate your monad sofa king much, Archimedes" - Idogenese
 
 (defun report-health (&optional comment (webhook *slack-url*))
-  (slack-webhook webhook
-                 (concatenate
-                  'string (format () "~A has ~D bots loaded; [~{~D~^ ~}]"
-                                  (name *charioteer*)
-                                  (length (horses *charioteer*))
-                                  (pool-health))
-                  (when comment (format () " // comment: ~A" comment)))))
+  (let ((string (concatenate
+                 'string (format () "~A has ~D bots loaded; [~{~D~^ ~}]"
+                                 (name *charioteer*)
+                                 (length (horses *charioteer*))
+                                 (pool-health))
+                 (when comment (format () " // comment: ~A" comment)))))
+    (multiple-value-call 'values string
+      (and webhook (slack-webhook webhook string)))))
 
 ;;; This needs to be refactored; the general idea is that any function
 ;;; communicating to Slack should have an option that doesn't communicate,
@@ -399,7 +400,7 @@ their reserved balances will be modified.")
       (loop for offer in (slot-reduce horse offered)
             for buy = (minusp (price offer))
             count buy into bids count (not buy) into asks
-            finally (push (list (name horse) bids asks
+            finally (push (list (name (market horse)) bids asks
                                 (awhen (ignore-errors
                                         (slot-reduce horse timestamp))
                                   (floor (timestamp-difference (now) it)))
@@ -422,7 +423,7 @@ their reserved balances will be modified.")
             offerings)))
 
 (defun report-weakest-providers
-    (&optional (count 5) (url *slack-url*) (charioteer *charioteer*))
+    (&optional (count 1) (url *slack-url*) (charioteer *charioteer*))
   #+sbcl (sb-ext:gc :full t)
   (let ((length (length (horses charioteer)))
         (control "~&~A has ~D~@[ out of ~2D~] bot~P:~%```~%~A~%```"))
@@ -430,7 +431,7 @@ their reserved balances will be modified.")
       ((unsigned-byte 4) )
       ((unsigned-byte 5) (assert (>= length count)))
       ((unsigned-byte 6) (setf count length))
-      ((complex integer) (break)))
+      (complex (setf count 1)))
     (let ((report (format nil control (name charioteer) count
                           (unless (= count length) length) count
                           (weakest-providers count charioteer))))
@@ -464,7 +465,7 @@ their reserved balances will be modified.")
                                (net-activity charioteer)))))
       (if url (slack-webhook url report) report))))
 
-(defun start-reporter (&optional count (staleness 10) (activity 60))
+(defun start-reporter (&optional count (staleness 3) (activity 5))
   (pexec (:name "slack autoreporter"
           :initial-bindings `((*slack-url* ,*slack-url*)
                               (*slack-pnl-url* ,*slack-pnl-url*)))
@@ -478,9 +479,15 @@ their reserved balances will be modified.")
           for activity? = (zerop (mod compound activity))
           for staleness? = (zerop (mod compound staleness))
           do (when activity? (report-net-activity))
-             (when staleness? (report-weakest-providers (or count t)))
-             (when (or activity? staleness?) (sleep 30))
-          do (sleep 45))))
+             (when staleness? (report-weakest-providers (or count 1)))
+             ;; 29 = (1- 60/2), 89 = (1- (- (* 60 2) 60/2))
+             (when (or activity? staleness?) (sleep 89)
+               (report-health (with-output-to-string (*standard-output*)
+                                (format *standard-output* "~%```~%")
+                                (unwind-protect ; FROM ALL REGARDS. QUACK. QUACK?
+                                  (mapc 'describe (horses *charioteer*))
+                                  (format *standard-output* "~%```")))))
+          do (sleep 29))))
 
 ;;; NOT END-OF-FILE ONLY END OF FUNDS farce-quit
 

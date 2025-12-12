@@ -100,7 +100,10 @@
                       (setf ,slot (if (plusp price)
                                       (cons-aq* (,aside market) ,primary)
                                       (cons-aq* (,bside market) ,counter))))))
-      (let ((factor (/ (abs price) (expt 10 (decimals market)))))
+      (let ((factor (if (or (typep market 'contract)
+                            (and (typep market 'tracked-market)
+                                 (typep (slot-value market '%market) 'contract)))
+                        1 (/ (abs price) (expt 10 (decimals market))))))
         (do-slot given primary volume counter (* volume factor))
         (do-slot taken counter (* volume factor) primary volume)))))
 
@@ -189,7 +192,8 @@
            (setf taken (if butterfingerp counter primary)))))
      (cons-aq* (primary market) volume)
      (with-slots (counter decimals) market
-       (cons-aq* counter (* volume (abs price)))))))
+       (cons-aq* counter (* volume (if (typep market 'contract) 1
+                                       (abs price))))))))
 
 ;;; FIXME undocumented behavior `read' `write' `cl-loop'
 (defmethod print-object ((trade trade) stream)
@@ -244,8 +248,9 @@
                        (make-instance 'trades-fetcher :delegates `(,tracker)))))
 
 (defgeneric vwap (tracker &key &allow-other-keys)
-  (:method :around ((tracker t) &key)
-    (handler-case (float (call-next-method) 0s0) (division-by-zero () 0)))
+  ;; (:method :around ((tracker t) &key)
+  ;;   (handler-case (float (call-next-method) 0s0)
+  ;;     (division-by-zero () (exp (- (random 1s0) 1/2)))))
   (:method ((tracker trades-tracker) &key since depth type)
     (let ((trades (slot-value tracker 'trades)))
       (when since (setf trades (remove since trades
@@ -455,7 +460,10 @@
 ;;; before something as silly as merge combiner
 ;;; `git stash pop` -> adlai dreams of sorting.
 
-(defgeneric placed-offers (gate &optional market))
+(defgeneric placed-offers (gate &optional market)
+  (:method :around (gate &optional market)
+    (if (not (typep market 'tracked-market)) (call-next-method)
+        (call-next-method gate (slot-value market '%market)))))
 (defgeneric account-balances (gate))
 
 (defclass balance-tracker (actor)
@@ -639,8 +647,9 @@
                (update-bases tracker next)
                (setf trades (merge 'list `(,next) trades
                                    'timestamp> :key 'timestamp))
-               (send (slot-reduce (car delegates) control)
-                     (list (oid next)))))
+               (when (slot-boundp next 'oid)
+                 (send (slot-reduce (car delegates) control)
+                       (list (oid next))))))
             ((recv control command) (execute tracker command))
             ((send buffer (first trades))) (t (sleep 0.2)))))
 
@@ -785,10 +794,13 @@
   (let ((stale (the integer (quantity (given old)))) ; are taken irrelevant ?
         (fresh (the integer (quantity (given new)))))
     (unless (zerop fresh)
-      (or (zerop stale)
-          (< (or market 0.213456) ; poor man's DECLARE IGNORABLE ... !!
-             (abs (log (/ (quantity (given new))
-                          (+ #.(* pi short-float-epsilon) stale)))))))))
+      (or (zerop stale)                 ; let's have some notes, SBCL !
+          (ctypecase market             ; please, lots of compilation ;
+            (market (break))            ; `PRICE' ... `projugate' ... ?
+            (null (< 0.198237           ; (`integer-length' `MOST-\;' |
+                     (abs (- (log (the unsigned-byte ; load venues/ ...
+                                       (quantity (given new)))) 3))))
+            (t (error "`market' was not anything quotable")))))))
 ;;; WILL THE HARDEST FLAG BIT PLEASE SHIFT UP
 
 ;;; FIXME: disambiguate placement from offerage, and redichotomise the book

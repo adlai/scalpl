@@ -1,7 +1,8 @@
 (defpackage #:scalpl.actor
   (:use #:cl #:anaphora #:local-time #:scalpl.util #:chanl)
-  (:export #:actor #:perform #:halt #:name #:control #:execute #:abbrev #:tasks
-           #:ensure-running #:parent #:children #:adopt #:christen #:delegates))
+  (:export #:actor #:perform #:halt #:name #:control #:abbrev
+           #:execute #:tasks #:ensure-running #:parent
+           #:adopt #:children #:christen #:delegates))
 
 (in-package #:scalpl.actor)
 
@@ -9,16 +10,18 @@
 ;;; Actor
 ;;;
 
-;;; HALT YOUR STRESSORS, READER; THIS FILE HAS SOME DENSE CODE
-;;; AND IS BEST CONSUMED WITH MINIMAL DISTRACTIONS AND STIMULANTS
+;;; HALT YOUR STRESSORS, READER; THIS FILE , SOME DENSE CODE;
+;;;  IS BEST CONSUMED WITH MINIMAL DISTRACTIONS + STIMULANTS!
 ;;; trivial-garbage/b3af9c0c25d4d4c27/master/trivial-garbage.asd#L10
 
-;;; JOBSECURITY garbage collected when there are no more purposes
-;;; DONT: Incorporate references and finalizers into the whole CSPSM model
+;;; ONCE garbage collected how TREE claims no more purposes
+;;; DONT: Incorporate references and finalizers
+;;;         into the whole CSPSM model; c.f. go
 
-;;; actor afterthought - maybe actors should be explicit, channels just an
-;;; implementation detail? "API methods" on the actor object serve as the
-;;; client, and state machine on the channel side serves as the server
+;;; actor afterthought - maybe actors should be explicit,
+;;; channels just an implementation detail? "API methods"
+;;; on the actor object serve as the client, and state
+;;; machine on the channel side serves as the server
 
 (defclass actor ()
   ((abbrev :initform () :allocation :class)
@@ -92,7 +95,10 @@
     (awhen (recv (control actor) :blockp blockp) (execute actor it)))
   (:method :around ((actor actor) &key)
     (restart-case (call-next-method)
-      (abort () :report "Abort request; cleanly unqueues actor")))
+      (abort (&optional condition) :report "Abort request; [unqueues actor]"
+        (declare (ignorable condition))
+        (format *debug-io* "~&;; WARNING ~A unqueued ~S~%" (now) actor)
+        #+nil (push (enqueue actor) (slot-value actor 'tasks)))))
   (:method :after ((actor actor) &key)
     ;; why is this one obvious and no proof necessary?
     (push (enqueue actor) (slot-value actor 'tasks))))
