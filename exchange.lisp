@@ -307,8 +307,8 @@
 
 (defmethod perform ((fetcher book-fetcher) &key)
   (with-slots (buffer delay market get-book-keys) fetcher
-    (send buffer (multiple-value-call 'cons
-                   (apply #'get-book market get-book-keys)))
+    (multiple-value-bind (asks bids) (apply #'get-book market get-book-keys)
+      (when (or asks bids) (send buffer (cons asks bids))))
     (sleep delay)))
 
 (defclass book-tracker (parent)
@@ -375,9 +375,9 @@
                (or (recv (slot-value tracker 'output) :blockp nil)
                    (slot-value tracker 'book)))
            keys))
-  (:method ((market tracked-market) &rest keys)
+  (:method ((market tracked-market) &rest keys &key (prefix :military-time))
     (apply #'print-book (slot-value market 'book-tracker)
-           :prefix :military-time keys))
+           :prefix prefix keys))
   (:method ((book cons) &key count prefix ours)
     ;; (declare (optimize debug))
     (when (eq prefix :military-time)
@@ -398,6 +398,7 @@
                             (values (max (width bids) (width my-bids))
                                     (max (width asks) (width my-asks))))))))
           (flet ((line (bid ask) (format t ctrl prefix bid ask)))
+            (fresh-line)
             (if (atom ours)
                 (do ((bids bids (rest bids)) (asks asks (rest asks)))
                     ((or (and (null bids) (null asks))
@@ -435,7 +436,6 @@
                                  decimals                            ; $V
                                  (abs (/ (price (first (last shy)))  ; ~$
                                          (expt 10 decimals))))))))
-              (format t "~&Totals:~%")
               (line (shit bids #\>) (shit asks #\<))))))))
   (:method ((tracker book-tracker) &rest keys)
     (apply #'print-book (recv (slot-value tracker 'output)) keys))
