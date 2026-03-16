@@ -9,7 +9,9 @@
 ;;                                      "suchsecretmuchwow"))
 ;;              :connection-type 'irc::sasl-connection)
 
-(in-package :irc)
+(cl:cerror "Go ahead and monkey-patch it..." "CL-IRC does not support SASL")
+
+(cl:in-package :cl-irc)
 
 (defclass sasl-connection (connection) ())
 
@@ -20,7 +22,6 @@
 (pushnew '(903 :rpl_saslsuccess) *reply-names* :test #'equal)
 
 (defmethod pass ((connection sasl-connection) (password string))
-  (send-irc-message connection "CAP REQ" "sasl")
   (add-hook connection 'irc-cap-message
             (lambda (message)
               (assert (equal (arguments message) '("*" "ACK" "sasl")))
@@ -31,4 +32,5 @@
               (send-irc-message
                connection (format () "AUTHENTICATE ~A" password))))
   (add-hook connection 'irc-rpl_saslsuccess-message
-            (lambda (message) (send-irc-message connection "CAP END"))))
+            (lambda (message) (send-irc-message connection "CAP END")))
+  (send-irc-message connection "CAP REQ" "sasl"))

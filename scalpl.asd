@@ -104,7 +104,7 @@
   :depends-on (#:scalpl #:dbi #:mito)
   :components ((:file "database/dbi")))
 (defsystem #:scalpl/irc
-  :license "public domain"
-  :description "sasl authentication module"
+  :license "public domain" :description "irc utilities"
   :depends-on (#:scalpl #:cl-irc)
-  :components ((:file "sasl")))
+  :components ((:file "sasl")           ; monkey-patch !
+               (:file "irc")))
