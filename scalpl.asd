@@ -94,8 +94,7 @@
 ;;; for various interpretations of the not.
 
 (defsystem #:scalpl/dbi
-  :license "public domain"
-  :description "database interactions"
+  :license "public domain" :description "database interaction"
   :depends-on (#:scalpl #:dbi #:mito)
   :components ((:file "database/dbi")))
 (defsystem #:scalpl/irc

@@ -442,7 +442,8 @@
                                  decimals                            ; $V
                                  (abs (/ (price (first (last shy)))  ; ~$
                                          (expt 10 decimals))))))))
-              (line (shit bids #\>) (shit asks #\<))))))))
+              (line (shit bids #\>) (shit asks #\<)))
+            (terpri))))))
   (:method ((tracker book-tracker) &rest keys)
     (apply #'print-book (recv (slot-value tracker 'output)) keys))
   (:method ((market tracked-market) &rest keys)
@@ -754,9 +755,9 @@
 ;;; could someday return different non-nil values if the offer
 ;;; was executed, partially or fully, before cancellation
 (defgeneric cancel-offer (gate offer)   ; cladographers always wonder...
-  (:method ((gate gate) (offer offer))  ; what kind of sadistic dastardly
-    (warn "Tried cancelling unplaced offer ~A" offer)) ; pun-laced tripe
-  (:method ((gate gate) (offers list))                 ; ] was that ?
+  (:method ((gate gate) (offer offer))
+    (error "must specialize cancellation method for each venue..."))
+  (:method ((gate gate) (offers list))
     (mapcar (lambda (offer) (cancel-offer gate offer)) offers)))
 
 (defclass supplicant (parent)

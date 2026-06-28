@@ -9,9 +9,21 @@
 ;;                                      "suchsecretmuchwow"))
 ;;              :connection-type 'irc::sasl-connection)
 
-(cl:cerror "Go ahead and monkey-patch it..." "CL-IRC does not support SASL")
+;; (cl:cerror "Go ahead and monkey-patch it..." "CL-IRC does not support SASL")
 
-(cl:in-package :cl-irc)
+;; (defpackage #:scalpl.irc+sasl
+;;   (:use #:scalpl.irc))
+
+;; (in-package :scalpl.irc+sasl)
+
+(in-package :scalpl.irc)
+
+;; (defpackage #:scalpl.actor
+;;   (:use #:cl #:anaphora #:local-time #:scalpl.util #:chanl)
+;;   (:export #:actor #:perform #:halt #:name #:control #:execute #:abbrev #:tasks
+;;            #:ensure-running #:parent #:children #:adopt #:christen #:delegates))
+
+;; (in-package #:scalpl.actor)
 
 (defclass sasl-connection (connection) ())
 
