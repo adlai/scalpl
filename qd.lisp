@@ -480,7 +480,8 @@
               finally (return-from split-profit-estimates
                         (with-slots (primary counter) (market maker)
                           (values (cons-aq primary 0) (cons-aq counter 0)
-                                  (estimated-profit maker))))))
+                                  (if sorted (estimated-profit maker)
+                                      (cons-aq primary 0)))))))
     (with-slots (market) maker
       (let ((current-price (cons-mp* market (vwap market)))) ; default
         (values rtaken rgiven
