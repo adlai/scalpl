@@ -28,11 +28,6 @@
 ;;; CLtL4 committee; for although I can't predict what
 ;;; will be standardized by CLtL3...
 
-(defsystem #:scalpl/ln-markets
-  :description "apictest for LN Markets"
-  :depends-on (#:scalpl)
-  :components ((:file "venues/lnm_shop"))
-  :license "__LAG_PL")
 (defsystem #:scalpl/bit2c
   :description "api client for bit2c"
   :depends-on (#:scalpl)
@@ -105,6 +100,12 @@
   :components ((:file "database/dbi")))
 (defsystem #:scalpl/irc
   :license "public domain" :description "irc utilities"
-  :depends-on (#:scalpl #:cl-irc)
-  :components ((:file "sasl")           ; monkey-patch !
-               (:file "irc")))
+  :depends-on (#:chanl #:cl-irc #:scalpl) :serial t
+  :components ((:file "irc") (:file "sasl")))
+
+(defsystem #:scalpl/ln-markets
+  :description "apexthzd for LN Markets"
+  :depends-on (#:scalpl #:scalpl/irc)
+  :components ((:file "venues/lnmarkets")
+               (:static-file "venues/lnmarkets-v3.json"))
+  :license "__LAG_PL")
