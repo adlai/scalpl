@@ -150,6 +150,7 @@
       (setf cache request) (gate-post . #1#) (send output cache))))
 
 (defun gate-request (gate path &optional options &aux (id (cons path options)))
+  ;; declare maybe-unreliable options
   (let ((output (make-instance 'channel)))
     (send (slot-reduce gate input) (list* output id path options))
     (destructuring-bind (data &optional excuses condition) (cdr (recv output))
