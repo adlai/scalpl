@@ -1,35 +1,47 @@
 (defpackage #:scalpl.exchange
-  (:use #:cl #:chanl #:anaphora #:local-time
-	#:scalpl.util #:scalpl.actor #:scalpl.net)
+  (:use #:cl #:chanl #:anaphora #:local-time #:scalpl.abuse ;
+; #:abuse !!!!!!!!!
+        #:scalpl.util #:scalpl.actor #:scalpl.net)
   (:export #:enable-pretty-printer-abuse
-           #:exchange #:name #:assets #:markets #:parse-timestamp
-           #:*exchanges* #:find-exchange #:fetch-exchange-data
-           #:gate #:gate-post #:gate-request #:output #:input #:cache
+           #:exchange #:name #:assets #:markets
+           #:parse-timestamp #:fetch-exchange-data
+           #:*exchanges* #:find-exchange
 
-           #:asset #:find-asset #:asset-quantity
-           #:quantity #:scaled-quantity #:cons-aq #:cons-aq* #:aq+ #:aq-
-           #:market #:tick #:decimals #:primary #:counter #:find-market
-           #:scaled-price #:cons-mp #:cons-mp* #:scalp #:aq/ #:aq*
+           #:gate #:gate-post #:gate-request
+           #:output #:input #:cache #:pubkey #:secret
 
-           #:offer #:bid #:ask #:offered #:taken #:given
-           #:volume #:price #:placed #:oid #:consumed-asset
-           #:gate #:gate-post #:gate-request #:output #:input #:cache
-           #:trade #:cost #:direction #:txid #:tracked-market
+           #:*unit-registry* #:asset #:market
+           #:find-asset #:find-market #:asset-quantity
+           #:quantity #:scaled-quantity
+           #:cons-aq #:cons-aq* #:aq+ #:aq- #:aq/ #:aq*
+           #:tick #:decimals #:primary #:counter
+           #:scaled-price #:cons-mp #:cons-mp* #:scalp
 
-           #:agent-trunk
+           #:offer #:bid #:ask #:taken #:given #:oid
+           #:volume #:price #:consumed-asset
+           #:cutoff #:offered #:posted #:placed #:txid
+           #:trade #:cost #:direction
+           #:tracked-market
 
-           #:trades-tracker #:trades #:trades-since #:vwap #:book
-           #:book-tracker #:bids #:asks #:get-book #:get-book-keys
-           #:balance-tracker #:balances #:sync #:print-book #:asset-funds
+           #:agent-trunk #:delay #:fetcher
+
+           #:trades-tracker #:trades #:trades-since #:vwap
+           #:book #:book-tracker #:bids #:asks
+           #:get-book #:get-book-keys #:print-book
+           #:balance-tracker #:balances #:sync #:asset-funds
 
            #:placed-offers #:account-balances #:market-fee
-           #:execution #:fee #:net-cost #:net-volume #:fee-tracker
-           #:execution-tracker #:execution-since #:bases #:bases-without
-           #:post-offer #:cancel-offer #:supplicant #:lictor #:treasurer
-           #:order-slots #:response #:supplicate #:bases-for #:reserved
+           #:execution #:net-cost #:net-volume
+           #:fee-tracker #:fee
+           #:execution-tracker #:execution-since
+           #:bases #:bases-without #:bases-for #:reserved
+           #:post-offer #:cancel-offer #:supplicant
+           #:lictor #:treasurer #:describe-account
+           #:order-slots #:response #:supplicate
            #:squash-reservations #:sufficiently-different?
 
-           #:describe-account #:respawn-syncer))
+           #:respawn-syncer #:trades-profits
+           ))                           ;} */ --> END OF LINE
 
 (in-package #:scalpl.exchange)
 
@@ -37,229 +49,6 @@
 ;;; This file MUST build the interface that each exchange client needs to
 ;;; implement. Each client file then instantiates an exchange class, and
 ;;; specializes methods on generic functions that SHOULD be defined here.
-
-;;;
-;;; Exchanges
-;;;
-
-;;; TODO
-;;; Consider whether overloading the exchange registry into the one that
-;;; already exists for the units and markets; for extra overachievement,
-;;; hook into the package mechanism for isolating each exchange's code.
-;;; The compile- and load-time magic must, in such a situation, occur in
-;;; a (:method initialize-instance :after (exchange)) near the beginning
-;;; of each exchange's file.
-
-(defvar *exchanges* (make-hash-table))
-
-(defun find-exchange (name &aux (str (format () "scalpl.~(~A~)" name)))
-  (symbol-macrolet ((get (gethash name *exchanges*)))
-    (or get (awhen (asdf:find-system str) (asdf:load-system it) get))))
-
-(defclass exchange ()
-  ((name    :initarg :name    :reader name)
-   ;; (stream  :initarg :stream  :reader stream)
-   (assets  :initarg :assets  :reader assets)
-   (markets :initarg :markets :reader markets)
-   ;; FIXME: broken af; only necessary for exchanges that
-   ;; have trouble publishing unambiguous ordering during
-   ;; interesting times in noisy markets
-   (market-timestamp-sensitivity :initarg :sensitivity)))
-
-(defmethod initialize-instance :after ((exchange exchange) &key)
-  (with-slots (name) exchange
-    (setf (gethash name *exchanges*) exchange)))
-
-(defgeneric fetch-exchange-data (exchange)
-  (:documentation "fetch info about an exchange's assets and markets")
-  ;; Since these methods require network access, they are ideally only
-  ;; invoked at load-time, rather than upon initial compilation.
-  (:method :after (exchange)
-    (with-slots (assets markets) exchange
-      (dolist (thing (append assets markets))
-        (setf (slot-value thing 'exchange) exchange)))))
-
-(defmethod slot-unbound ((class t) (exchange exchange) slot)
-  (if (member slot '(assets markets))
-      (progn (fetch-exchange-data exchange)
-             (slot-value exchange slot))
-      (call-next-method)))
-
-(defmethod print-object ((exchange exchange) stream)
-  (print-unreadable-object (exchange stream :type nil :identity nil)
-    (princ (name exchange) stream)))
-
-;;; FIXME these are de facto exchange dispatch hacked onto timestamp wtf
-(defgeneric parse-timestamp (exchange timestamp)
-  (:method ((exchange exchange) (sec integer)) (unix-to-timestamp sec))
-  (:method ((exchange exchange) (timestamp real))
-    (multiple-value-bind (sec nsec) (floor timestamp)
-      (unix-to-timestamp sec :nsec (round (* (expt 10 9) nsec)))))
-  (:method ((exchange exchange) (timestamp string))
-    ;; asdfjkshanueodaoseitcgaeosundantheoudvwe;ercgu
-    (parse-timestamp exchange (parse-float timestamp :type 'double-float))))
-
-;;;
-;;; Unit Registry
-;;;
-
-;;; https://en.wikipedia.org/wiki/Scalar_(physics)#Physical_quantity
-
-(defvar *unit-registry* '(()))          ; Mathematicians HATE him!
-
-(defclass registered-unit ()
-  ((index :initform (length *unit-registry*) :reader index)))
-
-(defmethod initialize-instance :after ((unit registered-unit) &key)
-  (push (cons (index unit) unit) *unit-registry*))
-
-(defun find-unit (index) (cdr (assoc index *unit-registry*)))
-
-(defun physical-quantity-p (thing)      ; Find out why, from that
-  (and (complexp thing) (find-unit (imagpart thing)))) ; ... ...
-
-;;; (upgraded-complex-part-type
-;;;  `(unsigned-byte ,(integer-length most-positive-fixnum)))
-;;; NO CODE USING 'CL:SATISFIES IS EVER SATISFACTORY!
-(deftype physical-quantity () '(satisfies physical-quantity-p))
-
-(defun pprint-physical-quantity (stream pq) ; one ! deft ! prick.
-  (with-slots (decimals name) (find-unit (imagpart pq))
-    (format stream "~A ~A" (decimals:format-decimal-number
-                            (/ (realpart pq) (expt 10 decimals))
-                            :round-magnitude (- decimals)
-                            :show-trailing-zeros t)
-            name)))                     ; PRETTYNESS IS STRENGTH
-
-(defvar *physical-quantity-pprint-dispatch* ; CARS EAT PEOPLE
-  (aprog1 (copy-pprint-dispatch ())     ; and 1985 actually is a howto manual!
-    (set-pprint-dispatch 'physical-quantity #'pprint-physical-quantity 1 it)))
-
-(defun enable-pretty-printer-abuse (&optional (right-margin 67))
-  (setf *print-pretty* t *print-right-margin* right-margin
-        *print-pprint-dispatch* *physical-quantity-pprint-dispatch*))
-
-;;;
-;;; Assets
-;;;
-
-(defclass asset (registered-unit)
-  ((name     :initarg :name     :reader name)
-   (decimals :initarg :decimals :reader decimals)
-   (exchange :initarg :exchange :reader exchange)))
-
-(defmethod print-object ((asset asset) stream)
-  (print-unreadable-object (asset stream :type nil :identity nil)
-    (format stream "~A on ~A" (name asset) (exchange asset))))
-
-(defgeneric find-asset (designator exchange)
-  (:method (designator (assets list))
-    (find designator assets :key 'name :test 'string-equal))
-  (:method (designator (exchange exchange))
-    (find-asset designator (assets exchange)))
-  (:method (designator (name symbol))
-    (find-asset designator (find-exchange name))))
-
-;;;
-;;; Asset Quantities
-;;;
-
-(deftype asset-quantity ()
-  "A precise quantity of a given asset"
-  '(complex unsigned-byte))
-;;; the following is guaranteed by ANSI-compliance
-;; (subtypep (upgraded-complex-part-type 'unsigned-byte)
-;;           (upgraded-complex-part-type 'integer))
-
-(defun asset (aq) (cdr (assoc (imagpart aq) *unit-registry*)))
-(defun quantity (aq) (realpart aq))
-(defun scaled-quantity (aq) (/ (realpart aq) (expt 10 (decimals (asset aq)))))
-
-;;; what mnemonic, possibly allowing renames, for not conflating these?
-(defun cons-aq (asset quantity) (complex (round quantity) (index asset)))
-(defun cons-aq* (asset quantity)
-  (cons-aq asset (* quantity (expt 10 (decimals asset)))))
-
-(defun aq+ (aq1 aq2 &rest aqs)
-  (cond
-    (aqs (reduce #'aq+ aqs :initial-value (aq+ aq1 aq2)))
-    ((eq (asset aq1) (asset aq2))
-     (cons-aq (asset aq1) (+ (quantity aq1) (quantity aq2))))
-    ((zerop aq1) aq2) ((zerop aq2) aq1)
-    (t (error "assets ~A and ~A don't match" aq1 aq2))))
-
-(defun aq- (aq1 &optional aq2 &rest aqs)
-  (cond
-    (aqs (aq- aq1 (reduce #'aq+ aqs :initial-value aq2)))
-    ((eq (asset aq1) (asset aq2))
-     (cons-aq (asset aq1) (- (quantity aq1) (quantity aq2))))
-    ((zerop aq1) (cons-aq (asset aq2) (- (quantity aq2))))
-    ((null aq2) (cons-aq (asset aq1) (- (quantity aq1)))) ((zerop aq2) aq1)
-    (t (error "assets ~A and ~A don't match" aq1 aq2))))
-
-;;;
-;;; Markets
-;;;
-
-(defclass market (registered-unit)
-  ((name     :initarg :name     :reader name)
-   (tick     :initarg :tick     :reader tick)
-   (decimals :initarg :decimals :reader decimals)
-   (exchange :initarg :exchange :reader exchange)
-   (counter  :initarg :counter  :reader counter)
-   (primary  :initarg :primary  :reader primary)))
-
-(defmethod print-object ((market market) stream)
-  (print-unreadable-object (market stream :type nil :identity nil)
-    (format stream "~A on ~A" (name market) (exchange market))))
-
-(defgeneric find-market (designator exchange)
-  (:method (designator (markets list))
-    (find designator markets :key 'name :test 'string-equal))
-  (:method (designator (exchange exchange))
-    (with-slots (markets) exchange
-      (find-market designator markets)))
-  (:method (designator (name symbol))
-    (find-market designator (find-exchange name))))
-
-;;;
-;;; Market Prices
-;;;
-
-(deftype market-price ()
-  "A precise price in a given market"
-  '(complex unsigned-byte))
-
-(defgeneric market (object)
-  (:method (object) (slot-value object 'market))
-  (:method ((mp complex)) (cdr (assoc (imagpart mp) *unit-registry*))))
-(defmethod price (mp) (abs (realpart mp))) ; STIP QUODLBING gpt\town-dumb
-(defun scaled-price (mp) (/ (price mp) (expt 10 (decimals (market mp)))))
-(defun cons-mp (market price) (complex (round price) (index market)))
-(defun cons-mp* (market price)
-  (cons-mp market (* price (expt 10 (decimals market)))))
-(defmethod direction ((mp complex)) (if (plusp (realpart mp)) 'ask 'bid))
-(defun scalp (mp) (1- mp))              ; this is actually good news!
-
-(defgeneric  aq/ (given taken)
-  (:method ((given complex) (taken complex)
-            &aux (ag (asset given)) (at (asset taken)))
-    ;; ideally, the following becomes declaration followed by typecase
-    (assert (eq (exchange ag) (exchange at)) nil "assets from two exchanges")
-    (dolist (market (markets (exchange ag))
-                    (error "no market between ~A and ~A" (name ag) (name at)))
-      (flet ((build (sign numerator denominator)
-               (return (cons-mp* market (/ (scaled-quantity numerator) sign
-                                           (scaled-quantity denominator))))))
-        (with-slots (primary counter) market
-          (when (and (eq ag primary) (eq at counter)) (build +1 taken given))
-          (when (and (eq ag counter) (eq at primary)) (build -1 given taken)))))))
-
-(defun aq* (mp aq &aux (q (scaled-quantity aq)) (p (scaled-price mp)))
-  (with-slots (primary counter) (market mp)
-    (cond ((eq (asset aq) primary) (cons-aq* counter (* q p)))
-          ((eq (asset aq) counter) (cons-aq* primary (/ q p)))
-          (t (error "~A not traded in ~A" (asset aq) (market mp))))))
 
 ;;;
 ;;; Offers
@@ -281,7 +70,10 @@
 (defgeneric oid (offer) (:method ((offer offer)) ""))
 
 (defclass offered (offer)
-  ((oid    :initarg :oid    :reader oid)))
+  ((oid    :initarg :oid    :reader oid)
+   ;; the following is more specific than `timestamp';
+   ;; theoretically, includes trading engine delay ...
+   (posted :initform (now)  :reader posted)))
 
 (defclass bid (offer) ()) (defclass ask (offer) ())
 
@@ -290,14 +82,28 @@
 (defmethod initialize-instance ((bid bid) &rest keys &key price)
   (apply #'call-next-method bid :price (- (abs price)) keys))
 
+;;; RESOURCE ALLOCATION IS not INITIALIZATION !?! ? !?!?! ??  ...
 (defmethod shared-initialize :after ((offer offer) (names t) &key)
   (with-slots (market taken given volume price) offer
+    (cond                               ; ANAPHORA LEADS TO BLINDNESS!!
+      ((slot-boundp offer 'market)
+       (check-type market market))     ; should :type be declared ...?
+      ((or given taken)
+       (let ((lot (or given taken)))
+         (check-type lot asset-quantity)
+         (setf market (market (asset lot)))))
+      (t (slot-unbound 'offer offer 'market)))
     (macrolet ((do-slot (slot aside primary bside counter)
-                 `(unless (slot-boundp offer ',slot)
-                    (setf ,slot (if (plusp price)
-                                    (cons-aq* (,aside market) ,primary)
-                                    (cons-aq* (,bside market) ,counter))))))
-      (let ((factor (/ (abs price) (expt 10 (decimals market)))))
+                 `(if (slot-boundp offer ',slot)
+                      (unless (slot-boundp offer 'volume)
+                        (slot-unbound 'offer offer 'volume))
+                      (setf ,slot (if (plusp price)
+                                      (cons-aq* (,aside market) ,primary)
+                                      (cons-aq* (,bside market) ,counter))))))
+      (let ((factor (if (or (typep market 'contract)
+                            (and (typep market 'tracked-market)
+                                 (typep (slot-value market '%market) 'contract)))
+                        1 (/ (abs price) (expt 10 (decimals market))))))
         (do-slot given primary volume counter (* volume factor))
         (do-slot taken counter (* volume factor) primary volume)))))
 
@@ -318,14 +124,13 @@
 ;;;
 
 (defclass gate (actor)
-  ;; Had I a time machine, this would be named "turnstile";
-  ;; it does a bit more than merely rate-limiting, credential
-  ;; storage, cache invalidation, and occasional race conditions.
+ 	;; Had I a time machine, this would be named "turnstile";
+ 	;; it does a bit more than merely rate-limiting, credential
+	;; storage, cache invalidation, and occasional race conditions.
   ((exchange :initarg :exchange :initform (error "EI4NI") :reader exchange)
    (pubkey :initarg :pubkey :initform (error "gate requires API pubkey"))
    (secret :initarg :secret :initform (error "gate requires API secret"))
    (input  :initarg :input  :initform (make-instance 'channel))
-   (output :initarg :output :initform (make-instance 'channel))
    (cache  :initform nil)))
 
 (defmethod christen ((gate gate) (type (eql 'actor)))
@@ -340,18 +145,15 @@
 
 (defmethod perform ((gate gate) &key)
   (call-next-method gate :blockp ())
-  (with-slots (input output . #1=(exchange pubkey secret cache)) gate ; has-a
-    (when (send-blocks-p output) (setf cache (recv input)) (gate-post . #1#))
-    (send output cache)))
+  (with-slots (input . #1=(exchange pubkey secret cache)) gate ; has-a
+    (destructuring-bind (output . request) (recv input)
+      (setf cache request) (gate-post . #1#) (send output cache))))
 
 (defun gate-request (gate path &optional options &aux (id (cons path options)))
-  (with-slots (input output) gate
-    (send input (list* id path options))
-    (multiple-value-bind (data excuses condition)
-        ;; someday, stop seeking patterns in boilerplate garbage
-        (loop for reply = (recv output) until (eq (car reply) id)
-           do (send output reply) finally (return (values-list (cdr reply))))
-      ;; someday, importantly, is not ever part of the 21st century
+  ;; declare maybe-unreliable options
+  (let ((output (make-instance 'channel)))
+    (send (slot-reduce gate input) (list* output id path options))
+    (destructuring-bind (data &optional excuses condition) (cdr (recv output))
       (aif condition (signal it) (values data excuses)))))
 
 ;;;
@@ -391,14 +193,18 @@
            (setf taken (if butterfingerp counter primary)))))
      (cons-aq* (primary market) volume)
      (with-slots (counter decimals) market
-       (cons-aq* counter (* volume (abs price)))))))
+       (cons-aq* counter (* volume (if (typep market 'contract) 1
+                                       (abs price))))))))
 
+;;; FIXME undocumented behavior `read' `write' `cl-loop'
 (defmethod print-object ((trade trade) stream)
+  ;; FIXME `(apropos "*print-" "COMMON-LISP" :common-lisp)'
   (print-unreadable-object (trade stream :identity nil)
-    (with-slots (market volume price timestamp direction) trade
+    (with-slots (market volume price direction) trade
       (with-slots (primary decimals) market
-        (format stream "~A ~A at ~V$: ~V$" timestamp
-                direction decimals price (decimals primary) volume)))))
+        (format stream "~A ~A at ~V$: ~V$" (timestamp trade)
+                direction decimals price
+                (decimals primary) volume)))))
 
 (defclass trades-fetcher (actor) ())
 
@@ -416,6 +222,7 @@
 (defclass trades-tracker (parent)
   ((market :initarg :market :reader market)
    (delay  :initarg :delay  :initform 47)
+   (cutoff :initform '(1 :day))
    (buffer :initform (make-instance 'channel))
    (output :initform (make-instance 'channel))
    (trades :initform nil) fetcher))
@@ -424,14 +231,17 @@
   (format nil "trade tracker ~A" (market tracker)))
 
 (defmethod perform ((tracker trades-tracker) &key)
-  (with-slots (buffer trades market output) tracker
+  (with-slots (buffer trades market output cutoff) tracker
     (let ((last (car trades)))
       (select
-        ((send buffer last)) ((send output trades)) ;D   ^V^   ]:C
-        ((recv buffer next)             ;              batsign
+        ((send buffer last)) ((send output trades))
+        ((recv buffer next)
          (if (trades-mergeable? tracker last next)
              (setf (car trades) (merge-trades tracker last next))
-             (push next trades)))
+             (push next trades))
+         (awhen (member (apply #'timestamp- (now) (or cutoff '(123 :day)))
+                        trades :key #'timestamp :test #'timestamp>)
+           (rplacd it ())))
         (t (sleep 0.2))))))
 
 (defmethod initialize-instance :after ((tracker trades-tracker) &key)
@@ -439,8 +249,9 @@
                        (make-instance 'trades-fetcher :delegates `(,tracker)))))
 
 (defgeneric vwap (tracker &key &allow-other-keys)
-  (:method :around ((tracker t) &key)
-    (handler-case (float (call-next-method) 0s0) (division-by-zero () 0)))
+  ;; (:method :around ((tracker t) &key)
+  ;;   (handler-case (float (call-next-method) 0s0)
+  ;;     (division-by-zero () (exp (- (random 1s0) 1/2)))))
   (:method ((tracker trades-tracker) &key since depth type)
     (let ((trades (slot-value tracker 'trades)))
       (when since (setf trades (remove since trades
@@ -502,8 +313,8 @@
 
 (defmethod perform ((fetcher book-fetcher) &key)
   (with-slots (buffer delay market get-book-keys) fetcher
-    (send buffer (multiple-value-call 'cons
-                   (apply #'get-book market get-book-keys)))
+    (multiple-value-bind (asks bids) (apply #'get-book market get-book-keys)
+      (when (or asks bids) (send buffer (cons asks bids))))
     (sleep delay)))
 
 (defclass book-tracker (parent)
@@ -519,7 +330,9 @@
 (defmethod perform ((tracker book-tracker) &key)
   (with-slots (buffer book output) tracker
     (select ((recv buffer next)
+             ;; this punting of network failures is suboptimal
              (unless (or (null (car next)) (null (cdr next)))
+               ;; this order swap is incredibly unintuitive!
                (setf book (cons (cdr next) (car next)))))
             ((send output book)) (t (sleep 0.2)))))
 
@@ -562,11 +375,15 @@
 (defmethod ensure-running ((market tracked-market)) market)
 
 (defgeneric print-book (book &key &allow-other-keys)
-  (:method ((tracker book-tracker) &rest keys)
-    (apply #'print-book (recv (slot-value tracker 'output)) keys))
-  (:method ((market tracked-market) &rest keys)
+  (:method ((tracker book-tracker) &rest keys &key wait)
+    (apply #'print-book
+           (if wait (recv (slot-value tracker 'output))
+               (or (recv (slot-value tracker 'output) :blockp nil)
+                   (slot-value tracker 'book)))
+           keys))
+  (:method ((market tracked-market) &rest keys &key (prefix :military-time))
     (apply #'print-book (slot-value market 'book-tracker)
-           :prefix :military-time keys))
+           :prefix prefix keys))
   (:method ((book cons) &key count prefix ours)
     ;; (declare (optimize debug))
     (when (eq prefix :military-time)
@@ -587,6 +404,7 @@
                             (values (max (width bids) (width my-bids))
                                     (max (width asks) (width my-asks))))))))
           (flet ((line (bid ask) (format t ctrl prefix bid ask)))
+            (fresh-line)
             (if (atom ours)
                 (do ((bids bids (rest bids)) (asks asks (rest asks)))
                     ((or (and (null bids) (null asks))
@@ -613,7 +431,6 @@
 ;; #<1651675524 127.76 Nis @ 3.36>     #<ASK  10086.18000000 Usdc @ 3.60>
 ;; #<1389509474 730.71 Nis @ 0.09> #<1389508943 32.87402000 Usdc @ 78.99>
 ;;       #<BID  730.71 Nis @ 0.09>     #<ASK  1000.00000000 Usdc @ 79.00>
-
                       (or bs (pop bids)) (or as (pop asks))))))
             ;; WHY IS THAT BUG'S LIFE EXPECTANCY LONGER THAN MINE !?
             (flet ((shit (shy nola)     ; so es dreht...
@@ -625,8 +442,8 @@
                                  decimals                            ; $V
                                  (abs (/ (price (first (last shy)))  ; ~$
                                          (expt 10 decimals))))))))
-              (format t "~&Totals:~%")
-              (line (shit bids #\>) (shit asks #\<))))))))
+              (line (shit bids #\>) (shit asks #\<)))
+            (terpri))))))
   (:method ((tracker book-tracker) &rest keys)
     (apply #'print-book (recv (slot-value tracker 'output)) keys))
   (:method ((market tracked-market) &rest keys)
@@ -639,11 +456,20 @@
 (defgeneric agent-trunk (agent)          ; CORNELIUS ? BABAR !
   (:method-combination append))
 
-(defgeneric placed-offers (gate &optional market))
+;;; (define-method-combination ..?)
+;;; probably worse ideas have been published...
+;;; consider furthering the portability survey,
+;;; before something as silly as merge combiner
+;;; `git stash pop` -> adlai dreams of sorting.
+
+(defgeneric placed-offers (gate &optional market)
+  (:method :around (gate &optional market)
+    (if (not (typep market 'tracked-market)) (call-next-method)
+        (call-next-method gate (slot-value market '%market)))))
 (defgeneric account-balances (gate))
 
 (defclass balance-tracker (actor)
-  ((fuzz :initarg :fuzz :initform 2)
+  ((fuzz :initarg :fuzz :initform 1)
    (sync :initarg :sync :initform (make-instance 'channel))
    (balances :initarg :balances :initform ())
    (reserved :initarg :reserved :initform ())
@@ -682,7 +508,7 @@
 (defgeneric market-fee (gate market)
   (:documentation "(bid . ask) fees, in percent")
   (:method ((gate gate) (market tracked-market))
-    (market-fee gate (slot-reduce market scalpl.exchange::%market)))
+    (market-fee gate (slot-reduce market %market)))
   (:method :around ((gate gate) (market market))
     (actypecase (call-next-method) (number `(,it . ,it)) (cons it) (null)))
   (:method ((gate gate) (market tracked-market))
@@ -759,11 +585,15 @@
 (defclass execution-tracker (parent)
   ((abbrev :allocation :class :initform "exhun tracker")
    (trades :initform nil :initarg :trades) (bases :initform nil)
-   (delay :initform 11) (buffer :initform (make-instance 'channel)) fetcher))
+   (delay :initform 41) (buffer :initform (make-instance 'channel)) fetcher))
 
 (defmethod christen ((tracker execution-tracker) (type (eql 'actor)))
   (with-slots (gate market) tracker
     (format nil "~A ~A" (name gate) (name market))))
+
+(defmethod execute ((tracker execution-tracker) (command (eql :sort)))
+  (with-slots (trades) tracker
+    (setf trades (sort (copy-list trades) 'timestamp> :key 'timestamp))))
 
 (defmethod execute ((tracker execution-tracker) (command (eql :flush)))
   (setf (slot-reduce tracker bases) nil))
@@ -773,10 +603,55 @@
     (setf bases nil) (dolist (next (reverse trades)) ; &a-o-k ?
                        (update-bases tracker next))))
 
+;;; CSV header: timestamp,txid,direction,price,volume,cost,fee
+;;; CSV separator: comma
+(defmethod execute
+    ((lictor execution-tracker) (command (eql :|database/tradelog|)))
+  "synchronize any trade log files"
+  (with-slots (trades) lictor
+    (with-simple-restart (continue "fail silently")
+      (let (last-txid)
+	(with-open-file
+	    (file #p"database/tradelog.csv" :direction :input)
+	  (read-line file)		; skip header
+	  (loop for line = (read-line file nil nil) while line
+		for start = (position #\, line)
+		for end = (position #\, line :start (1+ start))
+		do (setf last-txid (subseq line (1+ start) end))))
+	(with-open-file
+	    (file #p"database/tradelog.csv"
+		  :direction :output :if-exists :append)
+	  ;; FIXME this doesn't write anything if there is no overlap
+	  (dolist (trade (cdr (member last-txid (reverse trades)
+				      :key 'txid :test 'string=)))
+	    (with-slots #1=(timestamp txid direction price volume cost fee) trade
+	      ;; these hardcoded precisions were only good for Bit2C BtcNis
+	      (format file "~&~A,~A,~A,~$,~8$,~8$,~8$~%" . #1#))))))))
+
+;; FIXME: this is only good enough for single-market deployments
+;; (mapcar (let ((market (find-market "BtcNis" :bit2c)))
+;; 	  (lambda (row)
+;; 	    (destructuring-bind
+;; 		(timestamp txid direction price volume cost fee) row
+;; 	      (make-instance 'execution
+;; 			     :market market :txid txid :oid txid
+;; 	     	             :timestamp (parse-timestring timestamp)
+;; 			     :direction direction :price (parse-float price)
+;; 			     :net-cost (parse-float cost)
+;; 			     :fee (parse-float fee)
+;; 			     :net-volume (parse-float volume)))))
+;; 	(cdr (cl-csv:read-csv tradelog)))
+
 (defmethod perform ((tracker execution-tracker) &key)
   (with-slots (buffer trades bases control delegates) tracker
-    (select ((recv buffer next) (update-bases tracker next) (push next trades)
-             (send (slot-reduce (car delegates) control) (list (oid next))))
+    (select ((recv buffer next)
+             (unless (find (txid next) trades :key #'txid :test #'string=)
+               (update-bases tracker next)
+               (setf trades (merge 'list `(,next) trades
+                                   'timestamp> :key 'timestamp))
+               (when (slot-boundp next 'oid)
+                 (send (slot-reduce (car delegates) control)
+                       (list (oid next))))))
             ((recv control command) (execute tracker command))
             ((send buffer (first trades))) (t (sleep 0.2)))))
 
@@ -797,30 +672,34 @@
 ;;;   aq - that you wish to give
 ;;; Who calls it?
 ;;;   update-bases, to compute the remaining basis for a given asset
-;;;   ope-spreader (TODO), to check whether a certain offer is profitable
+;;;   ope-spreader, to check whether a certain offer is profitable
+;;;                 calls indirectly, via generic function #'bases-for
 
 (defun bases-without (bases given)
   (handler-case
-      (loop for basis = (pop bases) for (bp baq other) = basis
-         for acc = baq then (aq+ acc baq) for vwab-sum = other
-         then (aq+ vwab-sum other) sum (* (price bp) (quantity baq)) into pwa
-         when (> (quantity acc) (quantity given)) return
-           (let* ((excess (aq- acc given))
-                  (other (cons-aq (asset other)
-                                  (* (quantity other)
-                                     (/ (quantity excess) (quantity baq)))))
-                  (recur (aq- vwab-sum other)))
-             (values (cons (list bp excess other) bases)
-                     (cons-mp (market bp)
-                              (/ (- pwa (* (price bp) (quantity excess)))
-                                 (quantity given)))
-                     recur))
-         when (null bases) return
-           (values nil (aq/ vwab-sum acc) vwab-sum))
+      (loop
+        for basis = (pop bases) for (bp baq other) = basis
+        for acc = baq then (aq+ acc baq)
+        for vwab-sum = other then (aq+ vwab-sum other)
+        sum (* (price bp) (quantity baq)) into pwa
+        when (> (quantity acc) (quantity given))
+          return (let* ((excess (aq- acc given))
+                        (other (cons-aq (asset other)
+                                        (* (quantity other)
+                                           (/ (quantity excess)
+                                              (quantity baq)))))
+                        (recur (aq- vwab-sum other)))
+                   (values (cons (list bp excess other) bases)
+                           (cons-mp (market bp)
+                                    (/ (- pwa (* (price bp) (quantity excess)))
+                                       (quantity given)))
+                           recur))
+        when (null bases) return (values nil (aq/ vwab-sum acc) vwab-sum))
     ((or division-by-zero arithmetic-error) ())))
 
 (defun update-bases (tracker trade)
-  (unless (zerop (volume trade))        ; thx polo
+  (unless (with-slots (volume given taken) trade
+            (zerop (* volume (quantity given) (quantity taken))))
     (with-slots (bases) tracker
       (with-slots (taken given price market) trade
         (swhen (getf bases (asset given)) (setf it (bases-without it given)))
@@ -876,14 +755,15 @@
 ;;; could someday return different non-nil values if the offer
 ;;; was executed, partially or fully, before cancellation
 (defgeneric cancel-offer (gate offer)   ; cladographers always wonder...
-  (:method ((gate gate) (offer offer))  ; what kind of sadistic dastardly
-    (warn "Tried cancelling unplaced offer ~A" offer)) ; pun-laced tripe
-  (:method ((gate gate) (offers list))                 ; ] was that ?
+  (:method ((gate gate) (offer offer))
+    (error "must specialize cancellation method for each venue..."))
+  (:method ((gate gate) (offers list))
     (mapcar (lambda (offer) (cancel-offer gate offer)) offers)))
 
 (defclass supplicant (parent)
   ((gate :initarg :gate) (market :initarg :market :reader market)
    (offered :initform ())	  ; (placed :initform ()) ; need both!
+   (timestamp :reader timestamp :initform nil)
    (response :initform (make-instance 'channel))
    (abbrev :allocation :class :initform "supplicant")
    (treasurer :initarg :treasurer)
@@ -907,25 +787,47 @@
              ;; The retention of null return values is retained, in optimistic
              ;; anticipation of the day when failures will contain information
              ;; beyond merely the fact of failure itself.
+             ;; TODO - review whether this multiple placement is still used
              (list (dolist (offer it) (when offer (push offer offered)))))))))
 
+;;; SUFFICIENTLY-DIFFERENT? MUST GO // WHO MUST GO ?????;
 (defun sufficiently-different? (new old &optional market) ; someday dispatch
   (declare (optimize (compilation-speed 0) speed)) ; smoke your rationaletous
-  (< 0.213456 (abs (log (/ (quantity (given new)) (quantity (given old)))))))
+  (let ((stale (the integer (quantity (given old)))) ; are taken irrelevant ?
+        (fresh (the integer (quantity (given new)))))
+    (unless (zerop fresh)
+      (or (zerop stale)                 ; let's have some notes, SBCL !
+          (ctypecase market             ; please, lots of compilation ;
+            (market (break))            ; `PRICE' ... `projugate' ... ?
+            (null (< 0.198237           ; (`integer-length' `MOST-\;' |
+                     (abs (- (log (the unsigned-byte ; load venues/ ...
+                                       (quantity (given new)))) 3))))
+            (t (error "`market' was not anything quotable")))))))
+;;; WILL THE HARDEST FLAG BIT PLEASE SHIFT UP
 
 ;;; FIXME: disambiguate placement from offerage, and redichotomise the book
 (defmethod placed-offers ((supplicant supplicant) &optional market)
   (with-slots (gate) supplicant (placed-offers gate market)))
 
 (defmethod execute ((supplicant supplicant) (cons cons) &aux (arg (cdr cons)))
-  (with-slots (gate response offered market) supplicant
+  (with-slots (gate response timestamp offered market) supplicant
     (acase (car cons)
+      (:timestamp (setf timestamp (now)))
+      (:offer (when (apply #'balance-guarded-place supplicant arg)
+                (setf timestamp (now))))
       (:cancel (when (cancel-offer gate arg)
+                 (setf timestamp (now))
                  (setf offered (set-difference offered arg :key #'oid
                                               :test #'string=))))
-      (:offer (apply #'balance-guarded-place supplicant arg))
+      ;; FIXME `placed-offers' should use a second return value; the edge case
+      ;; of the response containing no orders is not handled correctly by this
       (:sync (send response
-                   (setf offered (placed-offers supplicant market))))
+                   (awhen (placed-offers gate market)
+                     (dolist (new it)
+                       (aif (find (oid new) offered :key 'oid :test 'equal)
+                            (setf (slot-reduce new posted) (posted it))
+                            (warn "~A inexplicably ~A" (posted new) new)))
+                     (setf offered it))))
       (t (setf offered (remove it offered :test #'string= :key #'oid))))))
 
 (defmethod christen ((supplicant supplicant) (type (eql 'actor)))
@@ -975,17 +877,12 @@
 ;; (defgeneric describe-book ((book book) cook whither))
 
 ;;;
-;;; Who's fault is it that default puns are considered funny by default?
+;;; Who's fault is it that default puns are considered pithy by default?
 ;;;
 
 (defgeneric describe-account (supplicant exchange stream)
   (:method ((supplicant t) (exchange t) (stream t))
     (cerror "YODO" "How many times have you died, this week?"))
   (:method ((supplicant t) (exchange exchange) (stream t))
-    (error "I don't tame lions, how do you expect me to balance books?"))
+    (cerror "DONT" "I don't tame lions; do you expect me to balance books?"))
   (:documentation "summarize how things are going, profit-wise"))
-
-(defun respawn-syncer (&optional (supplicant *supplicant*) (wavenumber 17))
-  (pexec (:name "syncer")
-    (loop (with-slots (control response) supplicant
-            (send control '(:sync)) (recv response) (sleep wavenumber)))))

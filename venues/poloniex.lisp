@@ -140,6 +140,7 @@
   (mapcan (lambda (pair)
             (let ((market (find-market (car pair) :poloniex)))
               (mapcar (lambda (order)
+                        ;; the following limited usage is NOT a memory leak
                         (flet ((key (key) (getjso key order)))
                           (let ((bidp (string= "buy" (key "type")))
                                 (rate (* (expt 10 (decimals market))

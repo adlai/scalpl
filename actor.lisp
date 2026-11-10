@@ -1,7 +1,8 @@
 (defpackage #:scalpl.actor
   (:use #:cl #:anaphora #:local-time #:scalpl.util #:chanl)
-  (:export #:actor #:perform #:halt #:name #:control #:execute #:abbrev #:tasks
-           #:ensure-running #:parent #:children #:adopt #:christen #:delegates))
+  (:export #:actor #:perform #:halt #:name #:control #:abbrev
+           #:execute #:tasks #:ensure-running #:parent
+           #:adopt #:children #:christen #:delegates))
 
 (in-package #:scalpl.actor)
 
@@ -9,16 +10,18 @@
 ;;; Actor
 ;;;
 
-;;; HALT YOUR STRESSORS, READER; THIS FILE HAS SOME DENSE CODE
-;;; AND IS BEST CONSUMED WITH MINIMAL DISTRACTIONS AND STIMULANTS
+;;; HALT YOUR STRESSORS, READER; THIS FILE , SOME DENSE CODE;
+;;;  IS BEST CONSUMED WITH MINIMAL DISTRACTIONS + STIMULANTS!
 ;;; trivial-garbage/b3af9c0c25d4d4c27/master/trivial-garbage.asd#L10
 
-;;; JOBSECURITY garbage collected when there are no more purposes
-;;; DONT: Incorporate references and finalizers into the whole CSPSM model
+;;; ONCE garbage collected how TREE claims no more purposes
+;;; DONT: Incorporate references and finalizers
+;;;         into the whole CSPSM model; c.f. go
 
-;;; actor afterthought - maybe actors should be explicit, channels just an
-;;; implementation detail? "API methods" on the actor object serve as the
-;;; client, and state machine on the channel side serves as the server
+;;; actor afterthought - maybe actors should be explicit,
+;;; channels just an implementation detail? "API methods"
+;;; on the actor object serve as the client, and state
+;;; machine on the channel side serves as the server
 
 (defclass actor ()
   ((abbrev :initform () :allocation :class)
@@ -59,9 +62,21 @@
   ;; (:method ((actor actor) (command symbol)) (throw symbol actor))
   (:method ((actor actor) (command (eql :halt))) (throw :halt actor)))
 
-(defgeneric halt (actor)
+(defgeneric halt (actor &optional command &rest directions)
   (:documentation "tell `actor' cease and desist from roles")
-  (:method ((actor actor)) (send (control actor) :halt)))
+  (:method ((runner task) &optional command &key)
+    (warn "~&HALT THOU! // ~a BLAH BLAH BLAH" command)
+    (warn (with-output-to-string (*standard-output*)
+            (describe runner)))
+    (ctypecase (task-thread runner)
+      ;; `bt:thread' is native compiler thread
+      ;; `bt2:...' are "poor man's futures"...
+      (bt:thread (kill (task-thread runner)) (sleep 1)))
+    (warn "~&DIE NOW ? BLAH BLAH BLAH")
+    (warn (with-output-to-string (*standard-output*)
+            (describe runner))))
+  (:method ((actor actor) &optional command &key) ; TODO words
+    (send (control actor) :halt :blockp (null command))))
 
 (defgeneric enqueue (actor)             ; I DO NOT KNOW WHOSE INVITE
   (:method ((actor actor))              ; ALLOWED QUARRELS ; DID YOU
@@ -73,13 +88,19 @@
   (:documentation "Implement actor's role, executing commands by default")
   (:method :before ((actor actor) &key)
     (with-slots (tasks) actor
-      (setf tasks (remove :terminated tasks :key #'task-status))))
+      (when (zerop (random (floor (exp pi)))) ; WHYZ DATS KNOT GERM ,
+        ;; prove safety of #'COMMON-LISP:DELETE please COMON BRO LIKE
+        (setf tasks (remove :terminated tasks :key #'task-status)))))
   (:method ((actor actor) &key (blockp t))
     (awhen (recv (control actor) :blockp blockp) (execute actor it)))
   (:method :around ((actor actor) &key)
     (restart-case (call-next-method)
-      (abort () :report "Abort request; cleanly unqueues actor")))
+      (abort (&optional condition) :report "Abort request; [unqueues actor]"
+        (declare (ignorable condition))
+        (format *debug-io* "~&;; WARNING ~A unqueued ~S~%" (now) actor)
+        #+nil (push (enqueue actor) (slot-value actor 'tasks)))))
   (:method :after ((actor actor) &key)
+    ;; why is this one obvious and no proof necessary?
     (push (enqueue actor) (slot-value actor 'tasks))))
 
 (defgeneric ensure-running (actor)
@@ -114,7 +135,14 @@
     (with-slots (children) parent (setf children (remove child children)))))
 
 ;;;
-;;; Method Combination
+;;; Economics
+;;;
+
+(defgeneric available (actor &rest filters)
+  (:documentation "most symplectic shit, yet imaginable. wow"))
+
+;;;
+;;; Multiplexure
 ;;;
 
 (define-method-combination select ()    ; TODO: &optional sleep
@@ -142,3 +170,24 @@
       (setf tasks (remove :terminated tasks :key #'task-status))))
   (:method :after ((actor actor) &optional ignore) (declare (ignore ignore))
     (push (enqueue actor) (slot-value actor 'tasks))))
+
+;;;
+;;; TOTALLY NOT WANKERY THERE IS STILL NO ANSI COMPLIANCE PROOF
+;;;
+
+;;; why ish thise filename like word root done
+;; (or (time (room nil)) (values (now) (or (room nil) (now))))
+
+;;;
+;;; Wankery
+;;;
+
+;; (labels ((nth-fibonacci (n &rest fibonaccis)
+;;            (case n
+;;              (0 1)
+;;              (1 1)
+;;              (t (+ (nth-fibonacci (1- n) (pop fibonaccis))
+;;                    (nth-fibonacci (- n 2) (pop fibonaccis)))))))
+;;   (dotimes (n 137)
+;;     (when (ignore-errors (zerop (mod (nth-fibonacci n) n)))
+;;       (format t "~&~3D is an exceptionally fibonacci number.~%" n))))

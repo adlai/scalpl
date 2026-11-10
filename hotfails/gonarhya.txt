@@ -1,0 +1,1133 @@
+This is SBCL 2.4.9, an implementation of ANSI Common Lisp.
+More information about SBCL is available at <http://www.sbcl.org/>.
+
+SBCL is free software, provided as is, with absolutely no warranty.
+It is mostly in the public domain; some portions are provided under
+BSD-style licenses.  See the CREDITS and COPYING files in the
+distribution for more information.
+STYLE-WARNING:
+   The new FTYPE proclamation for SWANK/BACKEND:GETPID
+     (FUNCTION NIL (VALUES (SIGNED-BYTE 32) &OPTIONAL))
+   does not match the derived return type
+     (FUNCTION NIL *)
+WARNING:
+   redefining EMACS-INSPECT (#<SB-PCL:SYSTEM-CLASS COMMON-LISP:T>) in DEFMETHOD
+;; Swank started at port: 7654.
+* WARNING: redefining SWANK::SYMBOL-INDENTATION in DEFUN
+WARNING: redefining SWANK::MACRO-INDENTATION in DEFUN
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-trace-dialog.lisp
+; in: DEFCLASS TRACE-ENTRY
+;     (SWANK-TRACE-DIALOG::USEFUL-BACKTRACE)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-TRACE-DIALOG::USEFUL-BACKTRACE
+;
+; compilation unit finished
+;   Undefined function:
+;     USEFUL-BACKTRACE
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-trace-dialog.lisp
+; in: DEFSLIMEFUN DIALOG-TRACE
+;     (SWANK-TRACE-DIALOG:DIALOG-TRACED-P SWANK-TRACE-DIALOG::SPEC)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-TRACE-DIALOG:DIALOG-TRACED-P
+
+;     (SWANK-TRACE-DIALOG:DIALOG-UNTRACE SWANK-TRACE-DIALOG::SPEC)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-TRACE-DIALOG:DIALOG-UNTRACE
+;
+; compilation unit finished
+;   Undefined functions:
+;     DIALOG-TRACED-P DIALOG-UNTRACE
+;   caught 2 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-trace-dialog.lisp
+; in: DEFSLIMEFUN DIALOG-TOGGLE-TRACE
+;     (SWANK-TRACE-DIALOG:DIALOG-TRACED-P SWANK-TRACE-DIALOG::SPEC)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-TRACE-DIALOG:DIALOG-TRACED-P
+;
+; compilation unit finished
+;   Undefined function:
+;     DIALOG-TRACED-P
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-repl.lisp
+; in: DEFUN OPEN-STREAMS
+;     (SWANK-REPL::MAKE-OUTPUT-FUNCTION SWANK::CONNECTION)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-REPL::MAKE-OUTPUT-FUNCTION
+
+;     (SWANK-REPL::OPEN-DEDICATED-OUTPUT-STREAM SWANK::CONNECTION
+;      (GETF SWANK-REPL::PROPERTIES :CODING-SYSTEM))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-REPL::OPEN-DEDICATED-OUTPUT-STREAM
+
+;     (SWANK-REPL::READ-USER-INPUT-FROM-EMACS)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-REPL::READ-USER-INPUT-FROM-EMACS
+;
+; compilation unit finished
+;   Undefined functions:
+;     MAKE-OUTPUT-FUNCTION OPEN-DEDICATED-OUTPUT-STREAM READ-USER-INPUT-FROM-EMACS
+;   caught 3 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-repl.lisp
+; in:
+;      DEFMETHOD THREAD-FOR-EVALUATION (MULTITHREADED-CONNECTION (EQL :FIND-EXISTING))
+;     (SWANK-REPL::FIND-REPL-THREAD SWANK::CONNECTION)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-REPL::FIND-REPL-THREAD
+;
+; compilation unit finished
+;   Undefined function:
+;     FIND-REPL-THREAD
+;   caught 1 STYLE-WARNING condition
+WARNING:
+   redefining THREAD-FOR-EVALUATION (#<STRUCTURE-CLASS SWANK::MULTITHREADED-CONNECTION>
+                                     #<SB-MOP:EQL-SPECIALIZER :FIND-EXISTING>) in DEFMETHOD
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-repl.lisp
+; in:
+;      DEFMETHOD THREAD-FOR-EVALUATION (MULTITHREADED-CONNECTION (EQL :REPL-THREAD))
+;     (SWANK-REPL::FIND-REPL-THREAD SWANK::CONNECTION)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-REPL::FIND-REPL-THREAD
+;
+; compilation unit finished
+;   Undefined function:
+;     FIND-REPL-THREAD
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-repl.lisp
+; in: DEFUN FIND-REPL-THREAD
+;     (SWANK-REPL::SPAWN-REPL-THREAD SWANK::CONNECTION "new-repl-thread")
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-REPL::SPAWN-REPL-THREAD
+;
+; compilation unit finished
+;   Undefined function:
+;     SPAWN-REPL-THREAD
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-repl.lisp
+; in: DEFUN SPAWN-REPL-THREAD
+;     (SWANK-REPL::REPL-LOOP SWANK::CONNECTION)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-REPL::REPL-LOOP
+;
+; compilation unit finished
+;   Undefined function:
+;     REPL-LOOP
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-repl.lisp
+; in: DEFSLIMEFUN CREATE-REPL
+;     (SWANK-REPL::INITIALIZE-STREAMS-FOR-CONNECTION SWANK-REPL::CONN
+;      `(:CODING-SYSTEM ,SWANK-REPL::CODING-SYSTEM))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-REPL::INITIALIZE-STREAMS-FOR-CONNECTION
+
+;     (SWANK-REPL::MAYBE-REDIRECT-GLOBAL-IO SWANK-REPL::CONN)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-REPL::MAYBE-REDIRECT-GLOBAL-IO
+;
+; compilation unit finished
+;   Undefined functions:
+;     INITIALIZE-STREAMS-FOR-CONNECTION MAYBE-REDIRECT-GLOBAL-IO
+;   caught 2 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-repl.lisp
+; in: DEFSLIMEFUN LISTENER-GET-VALUE
+;     (SWANK-REPL::LISTENER-EVAL
+;      (LET ((*PACKAGE* (FIND-PACKAGE :KEYWORD)))
+;        (WRITE-TO-STRING 'SWANK-REPL::*LISTENER-SAVED-VALUE*)))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-REPL::LISTENER-EVAL
+;
+; compilation unit finished
+;   Undefined function:
+;     LISTENER-EVAL
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-repl.lisp
+; in: DEFUN REPL-EVAL
+;     (SWANK-REPL::TRACK-PACKAGE
+;      (LAMBDA ()
+;        (MULTIPLE-VALUE-BIND (VALUES SWANK-REPL::LAST-FORM)
+;            (SWANK::EVAL-REGION STRING)
+;          (SETQ *** **
+;                ** *
+;                * #
+;                /// //
+;                // /
+;                / VALUES
+;                ...)
+;          (FUNCALL SWANK-REPL:*SEND-REPL-RESULTS-FUNCTION* VALUES))))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-REPL::TRACK-PACKAGE
+;
+; compilation unit finished
+;   Undefined function:
+;     TRACK-PACKAGE
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-repl.lisp
+; in: DEFUN SETUP-STREAM-INDIRECTION
+;     (SWANK-REPL::PREFIXED-VAR '#:CURRENT SWANK-REPL::STREAM-VAR)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-REPL::PREFIXED-VAR
+;
+; compilation unit finished
+;   Undefined function:
+;     PREFIXED-VAR
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-presentations.lisp
+; in: DEFUN MENU-CHOICES-FOR-PRESENTATION-ID
+;     (SWANK::MENU-CHOICES-FOR-PRESENTATION SWANK::OB)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::MENU-CHOICES-FOR-PRESENTATION
+;
+; compilation unit finished
+;   Undefined function:
+;     MENU-CHOICES-FOR-PRESENTATION
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-macrostep.lisp
+; in: DEFSLIMEFUN MACROSTEP-EXPAND-1
+;     (SWANK-MACROSTEP::COLLECT-FORM-POSITIONS SWANK-MACROSTEP::EXPANSION
+;      SWANK-MACROSTEP::PRETTY-EXPANSION SWANK-MACROSTEP::ALL-MACROS)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-MACROSTEP::COLLECT-FORM-POSITIONS
+
+;     (SWANK-MACROSTEP::COLLECT-MACRO-FORMS-IN-CONTEXT SWANK-MACROSTEP::EXPANSION
+;      SWANK-MACROSTEP::CONTEXT)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-MACROSTEP::COLLECT-MACRO-FORMS-IN-CONTEXT
+
+;     (SWANK-MACROSTEP::EXPAND-FORM-ONCE SWANK-MACROSTEP::FORM
+;      SWANK-MACROSTEP::COMPILER-MACROS? SWANK-MACROSTEP::CONTEXT)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-MACROSTEP::EXPAND-FORM-ONCE
+
+;     (SWANK-MACROSTEP::PPRINT-TO-STRING SWANK-MACROSTEP::EXPANSION)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-MACROSTEP::PPRINT-TO-STRING
+;
+; compilation unit finished
+;   Undefined functions:
+;     COLLECT-FORM-POSITIONS COLLECT-MACRO-FORMS-IN-CONTEXT EXPAND-FORM-ONCE PPRINT-TO-STRING
+;   caught 4 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-macrostep.lisp
+; in: DEFUN EXPAND-FORM-ONCE
+;     (SWANK-MACROSTEP::MACROEXPAND-1-IN-CONTEXT SWANK-MACROSTEP::FORM
+;      SWANK-MACROSTEP::CONTEXT)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-MACROSTEP::MACROEXPAND-1-IN-CONTEXT
+;
+; compilation unit finished
+;   Undefined function:
+;     MACROEXPAND-1-IN-CONTEXT
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-macrostep.lisp
+; in: DEFSLIMEFUN MACRO-FORM-P
+;     (SWANK-MACROSTEP::MACRO-FORM-TYPE SWANK-MACROSTEP::FORM
+;      SWANK-MACROSTEP::COMPILER-MACROS? SWANK-MACROSTEP::CONTEXT)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-MACROSTEP::MACRO-FORM-TYPE
+;
+; compilation unit finished
+;   Undefined function:
+;     MACRO-FORM-TYPE
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-macrostep.lisp
+; in: DEFUN MACRO-FORM-TYPE
+;     (SWANK-MACROSTEP::MACROEXPAND-1-IN-CONTEXT SWANK-MACROSTEP::FORM
+;      SWANK-MACROSTEP::CONTEXT)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-MACROSTEP::MACROEXPAND-1-IN-CONTEXT
+;
+; compilation unit finished
+;   Undefined function:
+;     MACROEXPAND-1-IN-CONTEXT
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-macrostep.lisp
+; in: DEFUN MACROEXPAND-1-IN-CONTEXT
+;     (SWANK-MACROSTEP::MACROEXPAND-AND-CATCH
+;      `(SWANK-MACROSTEP::THROW-EXPANSION ,SWANK-MACROSTEP::FORM)
+;      SWANK-MACROSTEP::CONTEXT)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-MACROSTEP::MACROEXPAND-AND-CATCH
+;
+; compilation unit finished
+;   Undefined function:
+;     MACROEXPAND-AND-CATCH
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-macrostep.lisp
+; in: DEFUN COLLECT-MACRO-FORMS-IN-CONTEXT
+;     (SWANK-MACROSTEP::MACROEXPAND-AND-CATCH
+;      `(SWANK-MACROSTEP::THROW-COLLECTED-MACRO-FORMS ,SWANK-MACROSTEP::FORM)
+;      SWANK-MACROSTEP::CONTEXT)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-MACROSTEP::MACROEXPAND-AND-CATCH
+;
+; compilation unit finished
+;   Undefined function:
+;     MACROEXPAND-AND-CATCH
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-macrostep.lisp
+; in: DEFUN MACROEXPAND-AND-CATCH
+;     (SWANK-MACROSTEP::ENCLOSE-FORM-IN-CONTEXT SWANK-MACROSTEP::FORM
+;      SWANK-MACROSTEP::CONTEXT)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-MACROSTEP::ENCLOSE-FORM-IN-CONTEXT
+;
+; compilation unit finished
+;   Undefined function:
+;     ENCLOSE-FORM-IN-CONTEXT
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-macrostep.lisp
+; in: DEFUN COLLECT-FORM-POSITIONS
+;     (SWANK-MACROSTEP::COLLECT-MARKER-POSITIONS
+;      (SWANK-MACROSTEP::PPRINT-TO-STRING SWANK-MACROSTEP::EXPANSION
+;                                         (SWANK-MACROSTEP::MAKE-TRACKING-PPRINT-DISPATCH
+;                                          SWANK-MACROSTEP::FORMS))
+;      (LENGTH SWANK-MACROSTEP::FORMS))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-MACROSTEP::COLLECT-MARKER-POSITIONS
+
+;     (SWANK-MACROSTEP::FIND-NON-WHITESPACE-POSITION
+;      SWANK-MACROSTEP::PRINTED-EXPANSION SWANK-MACROSTEP::START)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-MACROSTEP::FIND-NON-WHITESPACE-POSITION
+
+;     (SWANK-MACROSTEP::MAKE-TRACKING-PPRINT-DISPATCH SWANK-MACROSTEP::FORMS)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK-MACROSTEP::MAKE-TRACKING-PPRINT-DISPATCH
+;
+; compilation unit finished
+;   Undefined functions:
+;     COLLECT-MARKER-POSITIONS FIND-NON-WHITESPACE-POSITION MAKE-TRACKING-PPRINT-DISPATCH
+;   caught 3 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-c-p-c.lisp
+; in: DEFSLIMEFUN COMPLETIONS
+;     (SWANK::LONGEST-COMPOUND-PREFIX SWANK::COMPLETION-SET)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::LONGEST-COMPOUND-PREFIX
+
+;     (SWANK::MAKE-COMPOUND-PREFIX-MATCHER '(#\. #\-))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::MAKE-COMPOUND-PREFIX-MATCHER
+
+;     (SWANK::PACKAGE-COMPLETION-SET SWANK::NAME PACKAGE-NAME PACKAGE
+;      SWANK::INTERNAL-P (SWANK::MAKE-COMPOUND-PREFIX-MATCHER '(#\. #\-)))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::PACKAGE-COMPLETION-SET
+
+;     (SWANK::PARSE-COMPLETION-ARGUMENTS STRING SWANK::DEFAULT-PACKAGE-NAME)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::PARSE-COMPLETION-ARGUMENTS
+
+;     (SWANK::SYMBOL-COMPLETION-SET SWANK::NAME PACKAGE-NAME PACKAGE
+;      SWANK::INTERNAL-P (SWANK::MAKE-COMPOUND-PREFIX-MATCHER #\-))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::SYMBOL-COMPLETION-SET
+;
+; compilation unit finished
+;   Undefined functions:
+;     LONGEST-COMPOUND-PREFIX MAKE-COMPOUND-PREFIX-MATCHER PACKAGE-COMPLETION-SET PARSE-COMPLETION-ARGUMENTS SYMBOL-COMPLETION-SET
+;   caught 5 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-c-p-c.lisp
+; in: DEFUN SYMBOL-COMPLETION-SET
+;     (SWANK::COMPLETION-OUTPUT-SYMBOL-CONVERTER SWANK::NAME)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::COMPLETION-OUTPUT-SYMBOL-CONVERTER
+
+;     (SWANK::FIND-MATCHING-SYMBOLS SWANK::NAME PACKAGE
+;      (AND (NOT SWANK::INTERNAL-P) PACKAGE-NAME) SWANK::MATCHP)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::FIND-MATCHING-SYMBOLS
+;
+; compilation unit finished
+;   Undefined functions:
+;     COMPLETION-OUTPUT-SYMBOL-CONVERTER FIND-MATCHING-SYMBOLS
+;   caught 2 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-c-p-c.lisp
+; in: DEFUN PACKAGE-COMPLETION-SET
+;     (SWANK::COMPLETION-OUTPUT-PACKAGE-CONVERTER SWANK::NAME)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::COMPLETION-OUTPUT-PACKAGE-CONVERTER
+
+;     (SWANK::FIND-MATCHING-PACKAGES SWANK::NAME SWANK::MATCHP)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::FIND-MATCHING-PACKAGES
+;
+; compilation unit finished
+;   Undefined functions:
+;     COMPLETION-OUTPUT-PACKAGE-CONVERTER FIND-MATCHING-PACKAGES
+;   caught 2 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-c-p-c.lisp
+; in: DEFUN FIND-MATCHING-SYMBOLS
+;     (SWANK::COMPLETION-OUTPUT-SYMBOL-CONVERTER STRING)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::COMPLETION-OUTPUT-SYMBOL-CONVERTER
+;
+; compilation unit finished
+;   Undefined function:
+;     COMPLETION-OUTPUT-SYMBOL-CONVERTER
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-c-p-c.lisp
+; in: DEFUN FIND-MATCHING-SYMBOLS-IN-LIST
+;     (SWANK::COMPLETION-OUTPUT-SYMBOL-CONVERTER STRING)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::COMPLETION-OUTPUT-SYMBOL-CONVERTER
+;
+; compilation unit finished
+;   Undefined function:
+;     COMPLETION-OUTPUT-SYMBOL-CONVERTER
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-c-p-c.lisp
+; in: DEFUN FIND-MATCHING-PACKAGES
+;     (SWANK::COMPLETION-OUTPUT-PACKAGE-CONVERTER SWANK::NAME)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::COMPLETION-OUTPUT-PACKAGE-CONVERTER
+;
+; compilation unit finished
+;   Undefined function:
+;     COMPLETION-OUTPUT-PACKAGE-CONVERTER
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-c-p-c.lisp
+; in: DEFUN COMPLETION-OUTPUT-CASE-CONVERTER
+;     (SWANK::DETERMINE-CASE SWANK::OUTPUT)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::DETERMINE-CASE
+;
+; compilation unit finished
+;   Undefined function:
+;     DETERMINE-CASE
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-c-p-c.lisp
+; in: DEFUN COMPLETION-OUTPUT-SYMBOL-CONVERTER
+;     (SWANK::DETERMINE-CASE SWANK::STR)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::DETERMINE-CASE
+;
+; compilation unit finished
+;   Undefined function:
+;     DETERMINE-CASE
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-c-p-c.lisp
+; in: DEFUN LONGEST-COMPOUND-PREFIX
+;     (SWANK::TOKENIZE-COMPLETION STRING SWANK::DELIMITER)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::TOKENIZE-COMPLETION
+
+;     (SWANK::TRANSPOSE-LISTS (MAPCAR #'SWANK::TOKENIZER SWANK:COMPLETIONS))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::TRANSPOSE-LISTS
+
+;     (SWANK::UNTOKENIZE-COMPLETION
+;      (LOOP SWANK::FOR SWANK::TOKEN-LIST SWANK::IN (SWANK::TRANSPOSE-LISTS
+;                                                    (MAPCAR #'SWANK::TOKENIZER
+;                                                            SWANK:COMPLETIONS))
+;            IF (NOTEVERY #'STRING= SWANK::TOKEN-LIST (REST SWANK::TOKEN-LIST))
+;            SWANK::COLLECT (SWANK::LONGEST-COMMON-PREFIX SWANK::TOKEN-LIST)
+;            AND
+;            DO (LOOP-FINISH) ...)
+;      SWANK::DELIMITER)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::UNTOKENIZE-COMPLETION
+;
+; compilation unit finished
+;   Undefined functions:
+;     TOKENIZE-COMPLETION TRANSPOSE-LISTS UNTOKENIZE-COMPLETION
+;   caught 3 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fuzzy.lisp
+; in: DEFSLIMEFUN FUZZY-COMPLETIONS
+;     (SWANK::FUZZY-COMPLETION-SET STRING SWANK::DEFAULT-PACKAGE-NAME :LIMIT
+;      SWANK::LIMIT :TIME-LIMIT-IN-MSEC SWANK::TIME-LIMIT)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::FUZZY-COMPLETION-SET
+;
+; compilation unit finished
+;   Undefined function:
+;     FUZZY-COMPLETION-SET
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fuzzy.lisp
+; in: DEFUN FUZZY-COMPLETION-SET
+;     (SWANK::FUZZY-GENERATE-MATCHINGS STRING SWANK::DEFAULT-PACKAGE-NAME
+;      SWANK::TIME-LIMIT-IN-MSEC)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::FUZZY-GENERATE-MATCHINGS
+;
+; compilation unit finished
+;   Undefined function:
+;     FUZZY-GENERATE-MATCHINGS
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fuzzy.lisp
+; in: DEFUN FUZZY-GENERATE-MATCHINGS
+;     (SWANK::%GUESS-SORT-DURATION (LENGTH SWANK::SYMBOLS))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::%GUESS-SORT-DURATION
+
+;     (SWANK::%MAKE-DUPLICATE-SYMBOLS-FILTER SWANK::PACKAGE-MATCHING
+;      SWANK::SYMBOL-PACKAGES SWANK::DEDUP-TABLE)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::%MAKE-DUPLICATE-SYMBOLS-FILTER
+
+;     (SWANK::FUZZY-FIND-MATCHING-PACKAGES SWANK::DESIGNATOR :TIME-LIMIT-IN-MSEC
+;      SWANK::TIME-LIMIT)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::FUZZY-FIND-MATCHING-PACKAGES
+
+;     (SWANK::FUZZY-FIND-MATCHING-SYMBOLS SWANK::DESIGNATOR PACKAGE
+;      :TIME-LIMIT-IN-MSEC SWANK::TIME-LIMIT :EXTERNAL-ONLY (NOT SWANK::INTERNAL-P)
+;      :FILTER (OR SWANK::FILTER #'IDENTITY))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::FUZZY-FIND-MATCHING-SYMBOLS
+
+;     #'SWANK::FUZZY-MATCHING-GREATERP
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::FUZZY-MATCHING-GREATERP
+;
+; compilation unit finished
+;   Undefined functions:
+;     %GUESS-SORT-DURATION %MAKE-DUPLICATE-SYMBOLS-FILTER FUZZY-FIND-MATCHING-PACKAGES FUZZY-FIND-MATCHING-SYMBOLS FUZZY-MATCHING-GREATERP
+;   caught 5 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fuzzy.lisp
+; in: DEFUN FUZZY-FIND-MATCHING-SYMBOLS
+;     (SWANK::COMPUTE-HIGHEST-SCORING-COMPLETION STRING
+;      SWANK::CONVERTED-SYMBOL-NAME)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::COMPUTE-HIGHEST-SCORING-COMPLETION
+;
+; compilation unit finished
+;   Undefined function:
+;     COMPUTE-HIGHEST-SCORING-COMPLETION
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fuzzy.lisp
+; in: DEFUN FUZZY-FIND-MATCHING-PACKAGES
+;     (SWANK::COMPUTE-HIGHEST-SCORING-COMPLETION SWANK::NAME SWANK::CONVERTED-NAME)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::COMPUTE-HIGHEST-SCORING-COMPLETION
+;
+; compilation unit finished
+;   Undefined function:
+;     COMPUTE-HIGHEST-SCORING-COMPLETION
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fuzzy.lisp
+; in: DEFUN COMPUTE-HIGHEST-SCORING-COMPLETION
+;     (SWANK::COMPUTE-MOST-COMPLETIONS SWANK::SHORT SWANK::FULL)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::COMPUTE-MOST-COMPLETIONS
+
+;     (SWANK::SCORE-COMPLETION SWANK::RESULT SWANK::SHORT SWANK::FULL)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::SCORE-COMPLETION
+;
+; compilation unit finished
+;   Undefined functions:
+;     COMPUTE-MOST-COMPLETIONS SCORE-COMPLETION
+;   caught 2 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fuzzy.lisp
+; in: DEFUN COMPUTE-MOST-COMPLETIONS
+;     (SWANK::RECURSIVELY-COMPUTE-MOST-COMPLETIONS SWANK::SHORT SWANK::FULL 0 0 NIL
+;      NIL NIL T)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::RECURSIVELY-COMPUTE-MOST-COMPLETIONS
+;
+; compilation unit finished
+;   Undefined function:
+;     RECURSIVELY-COMPUTE-MOST-COMPLETIONS
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fancy-inspector.lisp
+; in: DEFMETHOD EMACS-INSPECT (SYMBOL)
+;     (SWANK::DOCSTRING-ISPEC "Documentation" SYMBOL 'VARIABLE)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::DOCSTRING-ISPEC
+
+;     (SWANK::INSPECT-TYPE-SPECIFIER SYMBOL)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::INSPECT-TYPE-SPECIFIER
+;
+; compilation unit finished
+;   Undefined functions:
+;     DOCSTRING-ISPEC INSPECT-TYPE-SPECIFIER
+;   caught 2 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fancy-inspector.lisp
+; in: DEFUN INSPECT-TYPE-SPECIFIER
+;     (SWANK::DOCSTRING-ISPEC "Type-specifier documentation" SYMBOL 'TYPE)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::DOCSTRING-ISPEC
+
+;     (SWANK::INSPECTOR-PRINC SWANK/BACKEND:ARGLIST)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::INSPECTOR-PRINC
+;
+; compilation unit finished
+;   Undefined functions:
+;     DOCSTRING-ISPEC INSPECTOR-PRINC
+;   caught 2 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fancy-inspector.lisp
+; in: DEFUN INSPECT-FUNCTION
+;     (SWANK::INSPECTOR-PRINC (SWANK/BACKEND:ARGLIST SWANK::F))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::INSPECTOR-PRINC
+;
+; compilation unit finished
+;   Undefined function:
+;     INSPECTOR-PRINC
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fancy-inspector.lisp
+; in: DEFMETHOD EMACS-INSPECT (STANDARD-OBJECT)
+;     (SWANK::ALL-SLOTS-FOR-INSPECTOR SWANK::OBJECT)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::ALL-SLOTS-FOR-INSPECTOR
+;
+; compilation unit finished
+;   Undefined function:
+;     ALL-SLOTS-FOR-INSPECTOR
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fancy-inspector.lisp
+; in: DEFMETHOD ALL-SLOTS-FOR-INSPECTOR (STANDARD-OBJECT)
+;     (SWANK::LIST-ALL-SLOTS-BY-INHERITANCE SWANK::CHECKLIST SWANK::OBJECT CLASS
+;      SWANK::EFFECTIVE-SLOTS SWANK::DIRECT-SLOTS SWANK::LONGEST-SLOT-NAME-LENGTH)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::LIST-ALL-SLOTS-BY-INHERITANCE
+
+;     (SWANK::MAKE-SLOT-LISTING SWANK::CHECKLIST SWANK::OBJECT CLASS
+;      SWANK::EFFECTIVE-SLOTS SWANK::DIRECT-SLOTS SWANK::LONGEST-SLOT-NAME-LENGTH)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::MAKE-SLOT-LISTING
+
+;     (SWANK::QUERY-AND-SET-SLOT CLASS SWANK::OBJECT
+;      (NTH SWANK::IDX SWANK::EFFECTIVE-SLOTS))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::QUERY-AND-SET-SLOT
+
+;     (SWANK::STABLE-SORT-BY-INHERITANCE SWANK::SORTED-SLOTS CLASS
+;      SWANK::SORT-PREDICATE)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::STABLE-SORT-BY-INHERITANCE
+;
+; compilation unit finished
+;   Undefined functions:
+;     LIST-ALL-SLOTS-BY-INHERITANCE MAKE-SLOT-LISTING QUERY-AND-SET-SLOT STABLE-SORT-BY-INHERITANCE
+;   caught 4 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fancy-inspector.lisp
+; in: DEFUN LIST-ALL-SLOTS-BY-INHERITANCE
+;     (SWANK::MAKE-SLOT-LISTING SWANK::CHECKLIST SWANK::OBJECT CLASS
+;      (NREVERSE SWANK::CURRENT-SLOTS) SWANK::DIRECT-SLOTS
+;      SWANK::LONGEST-SLOT-NAME-LENGTH)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::MAKE-SLOT-LISTING
+
+;     (SWANK::SLOT-HOME-CLASS-USING-CLASS SWANK::SLOT CLASS)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::SLOT-HOME-CLASS-USING-CLASS
+;
+; compilation unit finished
+;   Undefined functions:
+;     MAKE-SLOT-LISTING SLOT-HOME-CLASS-USING-CLASS
+;   caught 2 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fancy-inspector.lisp
+; in: DEFUN MAKE-SLOT-LISTING
+;     (SWANK::INSPECTOR-PRINC (SB-MOP:SLOT-DEFINITION-NAME SWANK::EFFECTIVE-SLOT))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::INSPECTOR-PRINC
+
+;     (SWANK::SLOT-VALUE-FOR-INSPECTOR CLASS SWANK::OBJECT SWANK::EFFECTIVE-SLOT)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::SLOT-VALUE-FOR-INSPECTOR
+;
+; compilation unit finished
+;   Undefined functions:
+;     INSPECTOR-PRINC SLOT-VALUE-FOR-INSPECTOR
+;   caught 2 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fancy-inspector.lisp
+; in: DEFMETHOD EMACS-INSPECT (STANDARD-GENERIC-FUNCTION)
+;     (SWANK::INSPECTOR-PRINC (CDR (SWANK::METHOD-FOR-INSPECT-VALUE METHOD)))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::INSPECTOR-PRINC
+;
+; compilation unit finished
+;   Undefined function:
+;     INSPECTOR-PRINC
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fancy-inspector.lisp
+; in: DEFMETHOD EMACS-INSPECT (STANDARD-METHOD)
+;     (SWANK::INSPECTOR-PRINC
+;      (SB-MOP:GENERIC-FUNCTION-NAME (SB-MOP:METHOD-GENERIC-FUNCTION METHOD)))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::INSPECTOR-PRINC
+;
+; compilation unit finished
+;   Undefined function:
+;     INSPECTOR-PRINC
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fancy-inspector.lisp
+; in: DEFMETHOD EMACS-INSPECT (STANDARD-CLASS)
+;     (SWANK::COMMON-SEPERATED-SPEC (SB-MOP:CLASS-DIRECT-SUPERCLASSES CLASS))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::COMMON-SEPERATED-SPEC
+
+;     (SWANK::INSPECTOR-PRINC (SB-MOP:SLOT-DEFINITION-NAME SWANK::SLOT))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::INSPECTOR-PRINC
+;
+; compilation unit finished
+;   Undefined functions:
+;     COMMON-SEPERATED-SPEC INSPECTOR-PRINC
+;   caught 2 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-fancy-inspector.lisp
+; in: DEFMETHOD EMACS-INSPECT (PACKAGE)
+;     (SWANK::COMMON-SEPERATED-SPEC PACKAGE-NICKNAMES)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::COMMON-SEPERATED-SPEC
+;
+; compilation unit finished
+;   Undefined function:
+;     COMMON-SEPERATED-SPEC
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFUN MAKE-KEYWORD-ARG
+;     (SWANK::CANONICALIZE-DEFAULT-ARG SWANK::DEFAULT-ARG)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::CANONICALIZE-DEFAULT-ARG
+;
+; compilation unit finished
+;   Undefined function:
+;     CANONICALIZE-DEFAULT-ARG
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFUN MAKE-OPTIONAL-ARG
+;     (SWANK::CANONICALIZE-DEFAULT-ARG SWANK::DEFAULT-ARG)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::CANONICALIZE-DEFAULT-ARG
+;
+; compilation unit finished
+;   Undefined function:
+;     CANONICALIZE-DEFAULT-ARG
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFUN PRINT-DECODED-ARGLIST
+;     (SWANK::PRINT-ARG SWANK::OPERATOR)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::PRINT-ARG
+
+;     (SWANK::REMOVE-GIVEN-ARGS SWANK/BACKEND:ARGLIST SWANK::PROVIDED-ARGS)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::REMOVE-GIVEN-ARGS
+;
+; compilation unit finished
+;   Undefined functions:
+;     PRINT-ARG REMOVE-GIVEN-ARGS
+;   caught 2 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFUN DECODE-REQUIRED-ARG
+;     (SWANK::DECODE-ARGLIST SWANK::ARG)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::DECODE-ARGLIST
+;
+; compilation unit finished
+;   Undefined function:
+;     DECODE-ARGLIST
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFUN ENCODE-REQUIRED-ARG
+;     (SWANK::ENCODE-ARGLIST SWANK::ARG)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::ENCODE-ARGLIST
+;
+; compilation unit finished
+;   Undefined function:
+;     ENCODE-ARGLIST
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFMETHOD EXTRA-KEYWORDS :AROUND (T T)
+;     (SWANK::SORT-EXTRA-KEYWORDS SWANK::KEYWORDS)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::SORT-EXTRA-KEYWORDS
+;
+; compilation unit finished
+;   Undefined function:
+;     SORT-EXTRA-KEYWORDS
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFUN KEYWORDS-OF-OPERATOR
+;     (SWANK::ARGLIST-FROM-FORM (SWANK::ENSURE-LIST SWANK::OPERATOR))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::ARGLIST-FROM-FORM
+;
+; compilation unit finished
+;   Undefined function:
+;     ARGLIST-FROM-FORM
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFUN ARGLIST-FROM-FORM
+;     (SWANK::ARGLIST-DISPATCH (CAR SWANK::FORM) (CDR SWANK::FORM))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::ARGLIST-DISPATCH
+;
+; compilation unit finished
+;   Undefined function:
+;     ARGLIST-DISPATCH
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFMETHOD ARGLIST-DISPATCH ((EQL 'DECLARE) T)
+;     (SWANK::ARGLIST-FOR-TYPE-DECLARATION DECLARATION)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::ARGLIST-FOR-TYPE-DECLARATION
+
+;     (SWANK::DECODED-ARGLIST-FOR-DECLARATION SWANK::DECL-IDENTIFIER
+;      SWANK::DECL-ARGS)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::DECODED-ARGLIST-FOR-DECLARATION
+
+;     (SWANK::DECODED-ARGLIST-FOR-TYPE-SPECIFIER SWANK::TYPESPEC)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::DECODED-ARGLIST-FOR-TYPE-SPECIFIER
+;
+; compilation unit finished
+;   Undefined functions:
+;     ARGLIST-FOR-TYPE-DECLARATION DECODED-ARGLIST-FOR-DECLARATION DECODED-ARGLIST-FOR-TYPE-SPECIFIER
+;   caught 3 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFUN ARGLIST-FOR-TYPE-DECLARATION
+;     (SWANK::DECODED-ARGLIST-FOR-TYPE-SPECIFIER SWANK::TYPESPEC)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::DECODED-ARGLIST-FOR-TYPE-SPECIFIER
+;
+; compilation unit finished
+;   Undefined function:
+;     DECODED-ARGLIST-FOR-TYPE-SPECIFIER
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFSLIMEFUN AUTODOC
+;     (SWANK::BOUNDP-AND-INTERESTING SWANK::OBJ-AT-CURSOR)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::BOUNDP-AND-INTERESTING
+
+;     (SWANK::FIND-SUBFORM-WITH-ARGLIST (SWANK::PARSE-RAW-FORM SWANK::RAW-FORM))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::FIND-SUBFORM-WITH-ARGLIST
+
+;     (SWANK::FORM-PATH-TO-ARGLIST-PATH SWANK::FORM-PATH SWANK::FORM
+;      SWANK/BACKEND:ARGLIST)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::FORM-PATH-TO-ARGLIST-PATH
+
+;     (SWANK::PARSE-RAW-FORM SWANK::RAW-FORM)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::PARSE-RAW-FORM
+
+;     (SWANK::PRINT-VARIABLE-TO-STRING SWANK::OBJ-AT-CURSOR)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::PRINT-VARIABLE-TO-STRING
+;
+; compilation unit finished
+;   Undefined functions:
+;     BOUNDP-AND-INTERESTING FIND-SUBFORM-WITH-ARGLIST FORM-PATH-TO-ARGLIST-PATH PARSE-RAW-FORM PRINT-VARIABLE-TO-STRING
+;   caught 5 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFSLIMEFUN COMPLETE-FORM
+;     (SWANK::FIND-IMMEDIATELY-CONTAINING-ARGLIST
+;      (SWANK::PARSE-RAW-FORM SWANK::RAW-FORM))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::FIND-IMMEDIATELY-CONTAINING-ARGLIST
+
+;     (SWANK::PARSE-RAW-FORM SWANK::RAW-FORM)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::PARSE-RAW-FORM
+;
+; compilation unit finished
+;   Undefined functions:
+;     FIND-IMMEDIATELY-CONTAINING-ARGLIST PARSE-RAW-FORM
+;   caught 2 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFSLIMEFUN COMPLETIONS-FOR-KEYWORD
+;     (SWANK::FIND-IMMEDIATELY-CONTAINING-ARGLIST
+;      (SWANK::PARSE-RAW-FORM SWANK::RAW-FORM))
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::FIND-IMMEDIATELY-CONTAINING-ARGLIST
+
+;     (SWANK::PARSE-RAW-FORM SWANK::RAW-FORM)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::PARSE-RAW-FORM
+;
+; compilation unit finished
+;   Undefined functions:
+;     FIND-IMMEDIATELY-CONTAINING-ARGLIST PARSE-RAW-FORM
+;   caught 2 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFUN FIND-SUBFORM-WITH-ARGLIST
+;     (SWANK::EXTRACT-CURSOR-MARKER SWANK::FORM)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::EXTRACT-CURSOR-MARKER
+
+;     (SWANK::EXTRACT-LOCAL-OP-ARGLISTS SWANK::OPERATOR SWANK::ARGS)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::EXTRACT-LOCAL-OP-ARGLISTS
+;
+; compilation unit finished
+;   Undefined functions:
+;     EXTRACT-CURSOR-MARKER EXTRACT-LOCAL-OP-ARGLISTS
+;   caught 2 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFGENERIC EXTRACT-LOCAL-OP-ARGLISTS
+;     (SWANK::%COLLECT-OP/ARGL-ALIST SWANK::DEFS)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::%COLLECT-OP/ARGL-ALIST
+;
+; compilation unit finished
+;   Undefined function:
+;     %COLLECT-OP/ARGL-ALIST
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFGENERIC EXTRACT-LOCAL-OP-ARGLISTS
+;     (SWANK::%COLLECT-OP/ARGL-ALIST SWANK::DEFS)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::%COLLECT-OP/ARGL-ALIST
+;
+; compilation unit finished
+;   Undefined function:
+;     %COLLECT-OP/ARGL-ALIST
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFUN FIND-IMMEDIATELY-CONTAINING-ARGLIST
+;     #'SWANK::ARGLIST-REF
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::ARGLIST-REF
+
+;     (SWANK::FORM-PATH-TO-ARGLIST-PATH SWANK::FORM-PATH SWANK::FORM
+;      SWANK/BACKEND:ARGLIST)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::FORM-PATH-TO-ARGLIST-PATH
+
+;     #'SWANK::PROVIDED-ARGUMENTS-REF
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::PROVIDED-ARGUMENTS-REF
+;
+; compilation unit finished
+;   Undefined functions:
+;     ARGLIST-REF FORM-PATH-TO-ARGLIST-PATH PROVIDED-ARGUMENTS-REF
+;   caught 3 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFUN FORM-PATH-TO-ARGLIST-PATH
+;     (SWANK::ARGLIST-INDEX SWANK::IDX SWANK::ARGS SWANK/BACKEND:ARGLIST)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::ARGLIST-INDEX
+
+;     (SWANK::ARGLIST-REF SWANK/BACKEND:ARGLIST SWANK::IDX*)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::ARGLIST-REF
+
+;     (SWANK::PROVIDED-ARGUMENTS-REF SWANK::ARGS SWANK/BACKEND:ARGLIST SWANK::IDX*)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::PROVIDED-ARGUMENTS-REF
+;
+; compilation unit finished
+;   Undefined functions:
+;     ARGLIST-INDEX ARGLIST-REF PROVIDED-ARGUMENTS-REF
+;   caught 3 STYLE-WARNING conditions
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFUN ARGLIST-INDEX
+;     (SWANK::POSITIONAL-ARGS-NUMBER SWANK/BACKEND:ARGLIST)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::POSITIONAL-ARGS-NUMBER
+;
+; compilation unit finished
+;   Undefined function:
+;     POSITIONAL-ARGS-NUMBER
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFUN PROVIDED-ARGUMENTS-REF
+;     (SWANK::POSITIONAL-ARGS-NUMBER SWANK/BACKEND:ARGLIST)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::POSITIONAL-ARGS-NUMBER
+;
+; compilation unit finished
+;   Undefined function:
+;     POSITIONAL-ARGS-NUMBER
+;   caught 1 STYLE-WARNING condition
+
+; file: /usr/share/common-lisp/source/swank/contrib/swank-arglists.lisp
+; in: DEFUN PARSE-RAW-FORM
+;     (SWANK::READ-CONVERSATIVELY SWANK::ELEMENT)
+;
+; caught STYLE-WARNING:
+;   undefined function: SWANK::READ-CONVERSATIVELY
+;
+; compilation unit finished
+;   Undefined function:
+;     READ-CONVERSATIVELY
+;   caught 1 STYLE-WARNING condition
+

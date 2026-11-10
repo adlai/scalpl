@@ -9,7 +9,21 @@
 ;;                                      "suchsecretmuchwow"))
 ;;              :connection-type 'irc::sasl-connection)
 
-(in-package :irc)
+;; (cl:cerror "Go ahead and monkey-patch it..." "CL-IRC does not support SASL")
+
+;; (defpackage #:scalpl.irc+sasl
+;;   (:use #:scalpl.irc))
+
+;; (in-package :scalpl.irc+sasl)
+
+(in-package :scalpl.irc)
+
+;; (defpackage #:scalpl.actor
+;;   (:use #:cl #:anaphora #:local-time #:scalpl.util #:chanl)
+;;   (:export #:actor #:perform #:halt #:name #:control #:execute #:abbrev #:tasks
+;;            #:ensure-running #:parent #:children #:adopt #:christen #:delegates))
+
+;; (in-package #:scalpl.actor)
 
 (defclass sasl-connection (connection) ())
 
@@ -20,10 +34,9 @@
 (pushnew '(903 :rpl_saslsuccess) *reply-names* :test #'equal)
 
 (defmethod pass ((connection sasl-connection) (password string))
-  (send-irc-message connection "CAP REQ" "sasl")
   (add-hook connection 'irc-cap-message
             (lambda (message)
-              (assert (equal (arguments message) '("*" "ACK" "sasl ")))
+              (assert (equal (arguments message) '("*" "ACK" "sasl")))
               (send-irc-message connection "AUTHENTICATE PLAIN")))
   (add-hook connection 'irc-authenticate-message
             (lambda (message)
@@ -31,4 +44,5 @@
               (send-irc-message
                connection (format () "AUTHENTICATE ~A" password))))
   (add-hook connection 'irc-rpl_saslsuccess-message
-            (lambda (message) (send-irc-message connection "CAP END"))))
+            (lambda (message) (send-irc-message connection "CAP END")))
+  (send-irc-message connection "CAP REQ" "sasl"))

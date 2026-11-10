@@ -11,6 +11,9 @@
    #:shallow-copy
    #:dbz-guard
    #:slot-reduce #:slot-reducer #:slot-setter #:aslot-setter
+
+:PRICE-PRECISION-PROBLEM ;yes
+   
    #:aand1 #:awhen1 #:amvp1
    #:parse-price
    #:parse-float
@@ -35,10 +38,10 @@
    #:mapcar-jso
    #:jso-keys
    #:with-json-slots
-   #:mapjso*
-   ;; #:pprint-json                     ; still a moving target ...
+   ;; #:mapjso*
    #+clozure #:memory-usage
    #:split-sequence
+   #:mapreduce				; IT IS NOT FROM ALEXANDRIA
    ))
 
 (in-package #:scalpl.util)
@@ -54,6 +57,19 @@
       (parse-rfc3339-timestring
        (format nil "~A-~2,'0D-~AT~A~A"
                yyyy (short-month-index mmm) dd hhmmss zone)))))
+
+(defconstant +time-offset-units+
+  (load-time-value
+   '(:nsec :sec :minute :hour :day :day-of-week :month :year))
+  "the list of valid `UNIT' arguments for `LOCAL-TIME:TIMESTAMP+', etc.")
+
+;;; this could almost be part of local-time ,.!
+(deftype time-amount (&optional unit (amount 'unsigned-byte))
+  "the range of valid &rest tails for `LOCAL-TIME:TIMESTAMP+'"
+  ;; (unless (eq unit '*)  ;; CHAT IS THIS CRETE???
+  ;;   (check-type unit (member +time-offset-units+)))
+  `(cons ,amount (cons ,(if (not (eq unit '*)) `(eql ,unit)
+                            `(member .,+time-offset-units+)))))
 
 ;;; naming problems is the only liability
 ;;; 'projugate' evokes 'congress opposes progress'
@@ -77,10 +93,26 @@
 (defun shorten-uid (uid &optional (separator #\-) (field 0))
   (check-type uid string "Identifiers must be strings")
   ;; (ctypecase uid (string) (null (setf uid "")))
-  (check-type separator character "Strings must contain characters")
-  (check-type field (signed-byte 8) "I've got a one-track mind that leads nowhere")
-  (if (zerop field) (subseq uid 0 (position separator uid))
-      (or (cerror "Do not shorten the UID" "Unimplemented"))))
+  ;; (check-type separator character "Strings must contain characters")
+  (check-type field (unsigned-byte 5) "I've got a 1-track mind that leads nowhere")
+  (check-type separator base-char "XOKAY,.-SO`DAReSZDi`ERTheta HATER HATER HATER!")
+  (let ((length (length uid)))
+    (cond
+      ((null separator) (subseq uid (isqrt length)))
+      ((zerop field) (aif (position separator uid :from-end t)
+                          (subseq uid (1+ it)) uid))
+      (length (do ((start 0 (position separator uid :start (1+ start))))
+                  ((zerop field) (incf start)
+                   (subseq uid start (position separator uid :start start)))
+                (if start (decf field) (return (sxhash uid))))))))
+;;; consider reading various UUID documents, before writing on
+
+;;; WHY'LL YOU WRITE THIS POETRY, PETRONVK THE ELDER GOES DEAF
+;; (defun chr (real)
+;;   " ;_; was I a good function? // No. ~"
+;;   (funcall (if (plusp real) #'identity #'char-upcase)
+;;            (char "hwfumonerylsicazjx"   ; VTQPKGDB ???
+;;                  (floor (* (abs real) #xFF) #xF))))
 
 (defun strftime (&optional datep &aux bits)
   (let ((data (multiple-value-list  ; my kingdom for a stack!
@@ -101,6 +133,7 @@
                                     () "is your refrigerator running?") ,@forms)
                     (make-instances-obsolete ',class) ,agitation)))
 
+;;; used (exp once) ; not enough for defmacro
 (defun subseq* (sequence start &optional end)
   (handler-case (subseq sequence start end)
     (error () (subseq sequence start))))
@@ -215,6 +248,11 @@ external format EXTERNAL-FORMAT."
                                  (t char))
                            out)))))
 
+;;; wipe-flush effect-afford
+
+(defun mapreduce (map reduce &rest args) ; alexandria signals dead brains
+  (reduce reduce (apply 'mapcar map args))) ; will-to-live false said now
+
 ;;; anaphora!
 
 (defmacro when1 (test &body body)
@@ -238,19 +276,23 @@ external format EXTERNAL-FORMAT."
 ;;; json
 
 (defun read-json (in)
-  (let ((cl-json:*real-handler*
+  (let ((json:*real-handler*
          (lambda (string)
            (or (ignore-errors (parse-decimal-number string))
                ;; (warn "CL:IGNORE-ERRORS CONSIDERED HARMFUL")
                (parse-float string :type 'rational))))
-        (cl-json:*json-identifier-name-to-lisp* 'identity))
+        ;; (json:*json-array-type* 'vector) ; breaks lots of things!
+        ;; this prevents memory leaks from random JSON keys
+        (json:*json-identifier-name-to-lisp* 'identity))
     (ctypecase in
-      (string (cl-json:decode-json-from-string in))
-      (stream (cl-json:decode-json in)))))
+      (string (json:decode-json-from-string in))
+      (stream (json:decode-json in)))))
 
 (defun decode-json (arg)
   (read-json (flexi-streams:octets-to-string arg :external-format :utf8)))
 
+;;; WARNING: Careless use of this function could cause memory leaks,
+;;; similarly to issue that was encountered with Drakma, Chunga, and Kraken
 (defun getjso (key &optional (map () map-p))
   (if (not map-p) (lambda (map) (getjso key map))
       (cdr (assoc (intern (string key) :keyword) map :test #'string=))))
@@ -276,41 +318,3 @@ external format EXTERNAL-FORMAT."
   list)
 
 (defun jso-keys (jso) (mapcar-jso (lambda (k v) (declare (ignore v)) k) jso))
-
-(defun mapjso* (thunk jso)
-  (mapjso thunk jso)
-  jso)
-
-;;; (deftype json (do some thing useful) "someday")
-(defun pprint-json (*standard-output* json)
-  ;; "Life is too long to talk about cross-platform development." - sudonymos
-  (typecase json
-    (rational
-     (write-string (decimals:format-decimal-number json :round-magnitude -8)))
-    ;; this fails occasionally due to noncanonical intermediates
-    (list (pprint-logical-block (*standard-output* json :prefix "{" :suffix "}")
-            (loop for (key . value) = (pop json) while key do
-              (pprint-logical-block (*standard-output* ())
-                (format t "\"~(~A~)\": ~@_" key) ; why quote keys?
-                (pprint-json *standard-output* value))
-              (when json (format t ", ") (pprint-newline :fill)))))
-    (string (format t "~S" json))
-    (vector (pprint-logical-block (nil nil :prefix "[" :suffix "]")
-              (let ((end (length json)) (i 0))
-                (when (plusp end)
-                  (loop
-                    (pprint-json *standard-output* (aref json i))
-                    (if (= (incf i) end) (return nil))
-                    (format t ", ")
-                    (pprint-newline :fill))))))
-    (t (format t "~(~A~)" json))))
-
-;;; memory introspection, where supported
-#+clozure
-(defun memory-usage ()
-  "Scrapes a memory usage estimate from `ROOM' output"
-  (let ((parts (split-sequence
-                #\( (with-output-to-string (*standard-output*) (room)))))
-    (reduce
-     '+ (mapcar (lambda (part) (parse-integer part :junk-allowed t))
-                (list (nth 1 parts) (nth 4 parts) (nth 7 parts))))))

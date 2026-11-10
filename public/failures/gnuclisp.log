@@ -1,0 +1,27 @@
+CL-USER> (describe #<SYSTEM::SIMPLE-FILE-ERROR #x00001000007F3261>)
+
+#<SYSTEM::SIMPLE-FILE-ERROR #x00001000007F30F1> is an instance of the CLOS
+class #1=#<STANDARD-CLASS SYSTEM::SIMPLE-FILE-ERROR>.
+Slots:
+  SYSTEM::$PATHNAME           =
+#P"~/.cache/common-lisp/clisp-2.4_~/src/_dump/_turd/impl-clisp.fas"
+  SYSTEM::$FORMAT-CONTROL     = "~S: A file with name ~A does not exist"
+  SYSTEM::$FORMAT-ARGUMENTS   =
+ (LOAD
+  #P"~/.cache/common-lisp/clisp-2.4_~/src/_dump/_turd/impl-clisp.fas")
+
+
+ #P"~/.cache/common-lisp/clisp-2.4_~/src/_dump/_turd/impl-clisp.fas" is 
+ a pathname, with the following components:
+ DIRECTORY =
+ (:ABSOLUTE "home" "adlai" ".cache" "common-lisp" "clisp-2.4_"
+  "src" "apiv1")
+ NAME = "impl-clisp"
+ TYPE = "fas"
+ VERSION = :NEWEST
+
+ "~S: A file with name ~A does not exist" is a simple 1 dimensional array
+ (vector) of CHARACTERs, of size 38 (a UCS-4 string).
+
+ (LOAD ...) is a list of length 2.
+; No value // 0 errors, 4 warnings

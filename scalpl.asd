@@ -11,12 +11,14 @@
                #:ironclad #:chanl #:cl-json #:cl-base64
                #:split-sequence #:local-time #:websocket-driver-client
                #:method-combination-utilities #:drakma)
-  :serial t :components ((:file "util")
+  :serial t :components ((:file "util")  ; most important line?
                          (:file "actor")
-                         (:file "net")
-                         (:file "exchange")
-                         (:file "qd")   ; FIXME POSTHASTE SELLPHONE
-                         (:file "navel")))
+                         (:file "numerics") ; nobody reads it
+                         (:file "net")  ; nobody cares always
+                         (:file "exchange") ; freedom's curse
+                         (:file "fx-feed")
+                         (:file "qd")
+                         (:file "navel"))) ; least important?
 
 ;;; Contact email for the author has been removed from this file!
 ;;; If you believe that software should treat email addresses as
@@ -26,13 +28,12 @@
 ;;; CLtL4 committee; for although I can't predict what
 ;;; will be standardized by CLtL3...
 
-
 (defsystem #:scalpl/bit2c
   :description "api client for bit2c"
   :depends-on (#:scalpl)
-  :components ((:file "bit2c"))
+  :components ((:file "venues/bit2c"))
   :perform (load-op (no book)
-             (declare (ignore no book)) ; SAY IT ALOUD
+             (declare (ignore no book))
              (use-package (find-package :scalpl.bit2c)
                           (find-package :scalpl.qd)))
   :license "public domain")
@@ -40,74 +41,50 @@
   :license "public domain"
   :description "WIP api client for binance"
   :depends-on (#:scalpl)        ; let's pretend this improved anything!
-  :components ((:file "binance"))
+  :components ((:file "venues/binance"))
   :perform (load-op (no book)
-             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
-             (format *debug-io* "~&~A~%"
-                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.BINANCE),SCALPL.QD]?")
-                         (use-package (find-package :scalpl.binance)
-                                      (find-package :scalpl.qd))
-                         "Relax, it's only an M-expression!"))))
+             (use-package (find-package :scalpl.binance)
+                          (find-package :scalpl.qd))))
 (defsystem #:scalpl/bybit
   :license "public domain"
   :description "api client for bybit"
-  :depends-on (#:scalpl #:websocket-driver-client)
-  :components ((:file "bybit"))
+  :depends-on (#:scalpl)
+  :components ((:file "venues/bybit"))
   :perform (load-op (no book)
-             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
-             (format *debug-io* "~&~A~%"
-                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.BYBIT),SCALPL.QD]?")
-                         (use-package (find-package :scalpl.bybit)
-                                      (find-package :scalpl.qd))
-                         "Relax, it's only an M-expression!"))))
+             (use-package (find-package :scalpl.bybit)
+                          (find-package :scalpl.qd))))
 (defsystem #:scalpl/kraken
   :license "public domain"
   :description "api client for kraken"
   :depends-on (#:scalpl)
-  :components ((:file "kraken"))
+  :components ((:file "venues/kraken"))
   :perform (load-op (no book)
-             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
-             (format *debug-io* "~&~A~%"
-                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.kraken),SCALPL.QD]?")
-                         (use-package (find-package :scalpl.kraken)
-                                      (find-package :scalpl.qd))
-                         "Relax, it's only an M-expression!"))))
+             (use-package (find-package :scalpl.kraken)
+                          (find-package :scalpl.qd))))
 (defsystem #:scalpl/bitmex
   :license "public domain"
   :description "api client for bitmex"
-  :depends-on (#:scalpl #:websocket-driver-client)
-  :components ((:file "bitmex"))
+  :depends-on (#:scalpl)
+  :components ((:file "venues/bitmex"))
   :perform (load-op (no book)
-             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
-             (format *debug-io* "~&~A~%"
-                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.BITMEX),SCALPL.QD]?")
-                         (use-package (find-package :scalpl.bitmex)
-                                      (find-package :scalpl.qd))
-                         "Relax, it's only an M-expression!"))))
+             (use-package (find-package :scalpl.bitmex)
+                          (find-package :scalpl.qd))))
 (defsystem #:scalpl/bitfinex
   :license "public domain"
   :description "api client for bitfinex"
   :depends-on (#:scalpl)
-  :components ((:file "bitfinex"))
+  :components ((:file "venues/bitfinex"))
   :perform (load-op (no book)
-             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
-             (format *debug-io* "~&~A~%"
-                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.BITFINEX),SCALPL.QD]?")
-                         (use-package (find-package :scalpl.bitfinex)
-                                      (find-package :scalpl.qd))
-                         "Relax, it's only an M-expression!"))))
+             (use-package (find-package :scalpl.bitfinex)
+                          (find-package :scalpl.qd))))
 (defsystem #:scalpl/poloniex
   :license "public domain"
   :description "api client for poloniex"
   :depends-on (#:scalpl)
-  :components ((:file "poloniex"))
+  :components ((:file "venues/poloniex"))
   :perform (load-op (no book)
-             (cerror "bucketp" 'parse-error) ;D   ``PROBLEM!?,, - d:
-             (format *debug-io* "~&~A~%"
-                     (if (y-or-n-p "USE-PACKAGE[(SCALPL.POLONIEX),SCALPL.QD]?")
-                         (use-package (find-package :scalpl.poloniex)
-                                      (find-package :scalpl.qd))
-                         "Relax, it's only an M-expression!"))))
+             (use-package (find-package :scalpl.poloniex)
+                          (find-package :scalpl.qd))))
 
 ;;; The above were ordered by date of last modification,
 ;;; and the ordering should not be taken as any sort of
@@ -117,12 +94,17 @@
 ;;; for various interpretations of the not.
 
 (defsystem #:scalpl/dbi
-  :license "public domain"
-  :description "database interactions"
+  :license "public domain" :description "database interaction"
   :depends-on (#:scalpl #:dbi #:mito)
-  :components ((:file "db")))
+  :components ((:file "database/dbi")))
 (defsystem #:scalpl/irc
-  :license "public domain"
-  :description "sasl authentication module"
-  :depends-on (#:scalpl #:cl-irc)
-  :components ((:file "sasl")))
+  :license "public domain" :description "irc utilities"
+  :depends-on (#:chanl #:cl-irc #:scalpl) :serial t
+  :components ((:file "irc") (:file "sasl")))
+
+(defsystem #:scalpl/ln-markets
+  :description "apexthzd for LN Markets"
+  :depends-on (#:scalpl #:scalpl/irc)
+  :components ((:file "venues/lnmarkets")
+               (:static-file "venues/lnmarkets-v3.json"))
+  :license "__LAG_PL")

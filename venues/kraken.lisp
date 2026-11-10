@@ -1,7 +1,8 @@
 (defpackage #:scalpl.kraken
-  (:nicknames #:kraken) (:export #:*kraken* #:kraken-gate)
+  (:nicknames #:kraken)
   (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
-        #:scalpl.actor #:scalpl.net #:scalpl.exchange))
+        #:scalpl.actor #:scalpl.net #:scalpl.exchange #:scalpl.qd)
+  (:export #:*kraken* #:kraken-gate #:caching-gate))
 
 (in-package #:scalpl.kraken)
 
@@ -45,29 +46,31 @@
     (with-open-file (stream path)
       (make-key stream))))
 
+(defvar *error-breakpoints* nil)
+
 (defun raw-request (path &rest keys)
-  (multiple-value-bind (body status)
+  (multiple-value-bind (body status headers)
       (apply #'http-request (concatenate 'string +base-path+ path) keys)
-          (case status
-            (200 (with-json-slots (result error)
-                     (read-json (map 'string 'code-char body))
-                   (when error
-                     (typecase error
-                       (string (warn error))
-                       ((cons string null) (warn (first error)))
-                       (list (warn (format () "~A" error)))))
-                   (values result error)))
-            (404 (with-json-slots (result error)
-                     (read-json (map 'string 'code-char body))
-                   (format t "~&Aborting after 404...~%")
-                   (describe error)
-                   (values result error))
-                 (values nil t))
-            ((400 409 500 502 503 504 520 522 524 525)
-             (format t "~&Retrying after ~D...~%" status)
-             (sleep 2) (apply #'raw-request path keys))
-            (t (cerror "Retry request" "HTTP Error ~D" status)
-               (apply #'raw-request path keys)))))
+    (case status
+      (200 (with-json-slots (result error)
+               (read-json (map 'string 'code-char body))
+             (when (and error *error-breakpoints*)
+               (typecase error
+                 (string (cerror "LGTM" error))
+                 ((cons string null)
+                  (cerror "LGTM" (first error)))
+                 (list (warn (format () "~A" error)))))
+             (values result (unless (zerop (length error)) error) headers)))
+      (404 (with-json-slots (result error)
+               (read-json (map 'string 'code-char body))
+             (format t "~&Aborting after 404...~%")
+             (describe error)
+	     (values nil (or error t) headers)))
+      ((400 409 500 502 503 504 520 522 524 525)
+       (format t "~&Retrying after ~D...~%" status)
+       (sleep 2) (apply #'raw-request path keys))
+      (t (cerror "Retry request" "HTTP Error ~D" status)
+       (apply #'raw-request path keys)))))
 
 (defun get-request (path &optional data)
   (raw-request (concatenate 'string "public/" path "?"
@@ -82,12 +85,12 @@
   (let ((path (concatenate 'string "/0/private/" method)))
     (push (cons "nonce" nonce) data)
     (raw-request (concatenate 'string "private/" method)
-                 :method :post
-                 :parameters data
-                 :additional-headers `(("API-Key"  . ,key)
-                                       ("API-Sign" . ,(base64:usb8-array-to-base64-string
-                                                       (funcall signer path data nonce)))
-                                       ("Content-Type" . "application/x-www-form-urlencoded")))))
+                 :method :post :parameters data
+                 :additional-headers
+                 `(("API-Key"  . ,key)
+                   ("API-Sign" . ,(base64:usb8-array-to-base64-string
+                                   (funcall signer path data nonce)))
+                   ("Content-Type" . "application/x-www-form-urlencoded")))))
 
 (defun get-assets ()
   (mapcar-jso (lambda (name data)
@@ -115,12 +118,14 @@
     ("Ledgers" 2) ("QueryLedgers" 2)
     ("TradesHistory" 2) ("QueryTrades" 2)))
 
+;;; FIXME these belong within kraken-gate, as the limits are per-account
 (defclass token-minter (actor)
   ((abbrev :allocation :class :initform "token minter")))
 
 (defmethod perform ((minter token-minter) &key)
   (with-slots (mint delay) minter (send mint 1) (sleep delay)))
 
+;;; FIXME these belong within kraken-gate, as the limits are per-account
 (defclass token-handler (actor)
   ((count :initform 0) (abbrev :allocation :class :initform "token handler")))
 
@@ -132,8 +137,9 @@
                      ((send tokens t) (incf count))
                      (t (sleep 0.2)))))))
 
+;;; FIXME these belong within kraken-gate, as the limits are per-account
 (defclass token-mixin (exchange parent)
-  ((delay :initform 10 :initarg :delay)
+  ((delay :initform 9/8 :initarg :delay)
    (tokens :initform (make-instance 'channel))
    (mint :initform (make-instance 'channel))))
 
@@ -143,6 +149,8 @@
                                       (format nil "api ~A for ~A" role name)))))
     (mapcar #'make '(token-minter token-handler) '("minter" "counter"))))
 
+;;; FIXME removing token-mixin from this object's precedence list should not
+;;; cause the subsequent behavior to violate any remaining IP-based limiting
 (defvar *kraken* (make-instance 'token-mixin :name :kraken :sensitivity 0.3))
 
 (defmethod fetch-exchange-data ((exchange (eql *kraken*)))
@@ -156,6 +164,9 @@
 
 (defclass kraken-gate (gate)
   ((exchange :initform *kraken* :allocation :class)))
+
+(defclass caching-gate (kraken-gate)
+  ((recent-responses :initform (make-hash-table :test 'equal))))
 
 (defmethod gate-post ((gate (eql *kraken*)) key secret request)
   (destructuring-bind (command . options) request
@@ -182,6 +193,8 @@
                      &aux (pair (name market)))
   (let ((decimals (slot-value market 'decimals)))
     (with-json-slots (bids asks)
+        ;; the following #'GETJSO call is not a memory leak, because the
+        ;; list of markets is loaded at startup or updated manually.
         (getjso pair (get-request "Depth" `(("pair" . ,pair)
                                             ("count" . ,(prin1-to-string count)))))
       (flet ((parser (class)
@@ -218,6 +231,9 @@
 ;;; Private Data API
 ;;;
 
+(defconstant +oflags+ (load-time-value '("oflags" . "post"))
+  "redefining this constant should take enough time that you")
+
 (defmethod placed-offers ((gate kraken-gate) &optional market)
   (awhen (gate-request gate "OpenOrders")
     (remove market
@@ -236,6 +252,36 @@
                         (getjso "open" it))
             :key #'market :test-not #'eq)))
 
+(defmethod placed-offers ((gate caching-gate) &optional market)
+  (with-slots (recent-responses) gate
+    (aif (aand (gethash "OpenOrders" recent-responses)
+               (destructuring-bind (timestamp . response) it
+                 (and (< (timestamp-difference (now) timestamp) 30)
+                      response)))
+         (remove market it :key #'market :test-not #'eq)
+         (awhen (gate-request gate "OpenOrders")
+           (let ((placed (mapcar-jso
+                          (lambda (id data)
+                            (with-json-slots (descr vol oflags) data
+                              (with-json-slots (pair type price order) descr
+                                (let* ((market (find-market pair *kraken*))
+                                       (decimals (slot-value market 'decimals))
+                                       (price-int (parse-price price decimals))
+                                       (volume (parse-float vol :type 'rational)))
+                                  (make-instance
+                                   'offered :oid id :market market
+                                   :price (if (string= type "buy")
+                                              (- price-int) price-int)
+                                   :volume volume)))))
+                          (getjso "open" it))))
+             (setf (gethash "OpenOrders" recent-responses)
+                   (cons (now) placed))
+             (remove market placed :key #'market :test-not #'eq))))))
+
+(defmethod find-asset (designator (venue (eql *kraken*)))
+  (if (string= designator "XBT.F") (find-asset "XXBT" venue)
+      (call-next-method)))
+
 (defmethod account-balances ((gate kraken-gate))
   (remove-if #'zerop
              ;; TODO: this signals !(typep () 'jso) on communication failure
@@ -246,8 +292,22 @@
                          (gate-request gate "Balance"))
              :key #'quantity))
 
+(defmethod account-balances ((gate caching-gate))
+  (with-slots (recent-responses) gate
+    (aif (aand (gethash "Balance" recent-responses)
+               (destructuring-bind (timestamp . response) it
+                 (and (< (timestamp-difference (now) timestamp) 30)
+                      response)))
+         it
+         (let ((balances (call-next-method)))
+           (setf (gethash "Balance" recent-responses)
+                 (cons (now) balances))
+           balances))))
+
 (defmethod market-fee ((gate kraken-gate) market &aux (pair (name market)))
   (awhen (gate-request gate "TradeVolume" `(("pair" . ,pair)))
+    ;; the following #'GETJSO call is arguably not a memory leak, because
+    ;; the list of markets is loaded at startup or updated manually.
     (read-from-string (getjso "fee" (getjso pair (getjso "fees" it))))))
 
 (defun parse-execution (txid json)
@@ -265,15 +325,46 @@
                                  ("sell" (- cost fee)))))))
 
 (defun raw-executions (gate &key start end)
-  (gate-request gate "TradesHistory"
-                `(,@(when start `(("start" . ,(txid start))))
-                  ,@(when end `(("end" . ,(txid end)))))))
+  (flet ((endpoint (thing)
+           (etypecase thing
+             (timestamp (prin1-to-string (timestamp-to-unix thing)))
+             (trade (txid thing)) (string thing))))
+    (let ((range `(,@(when start `(("start" . ,(endpoint start))))
+                   ,@(when end `(("end" . ,(endpoint end)))))))
+      (loop for offset from 0 by 50
+            for trades = (gate-request gate "TradesHistory"
+                                       `(("ofs" . ,(princ-to-string offset))
+                                         ,@range))
+            nconc (getjso "trades" trades) while trades
+            until (> offset (- (getjso "count" trades) 50))))))
 
 (defmethod execution-since ((gate kraken-gate) (market market) since)
-  (awhen (raw-executions gate :start since)
-    (with-json-slots (trades) it
-      (remove market (mapcar-jso #'parse-execution trades)
-              :key #'market :test-not #'eq))))
+  (awhen (ignore-errors (raw-executions gate :start since))
+    (remove market (mapcar-jso #'parse-execution it)
+            :key #'market :test-not #'eq)))
+
+(defmethod execution-since ((gate caching-gate) (market market) since)
+  (declare (optimize debug))
+  (symbol-macrolet
+      ((cache (gethash "TradesHistory" (slot-reduce gate recent-responses))))
+    (aif (aand cache (when (> 15 (timestamp-difference
+                                  (now) (timestamp (car it))))
+                       (and *error-breakpoints* (break)) it))
+         (remove market
+                 (if (null since) it
+                     (remove (timestamp since) it
+                             :key #'timestamp :test #'timestamp>=))
+                 :test-not #'eq :key #'market)
+         (progn
+           (let ((raw (raw-executions gate :start (or (car cache) since))))
+             (dolist (execution (mapcar-jso #'parse-execution raw)
+				(and *error-breakpoints* (break)))
+               (pushnew execution cache :key #'txid :test #'string=)))
+           (reverse (remove market
+                            (if (null since) cache
+                                (remove (timestamp since) cache
+                                        :key #'timestamp :test #'timestamp>=))
+                            :test-not #'eq :key #'market))))))
 
 #+nil
 (defun trades-history-chunk (tracker &key until since)
@@ -287,6 +378,7 @@
             (flet ((process (trades-jso)
                      (mapjso (lambda (tid data)
                                (map nil (lambda (key)
+					  ;; the following calls do not leak memory
                                           (setf (getjso key data)
                                                 (read-from-string (getjso key data))))
                                     '("price" "cost" "fee" "vol"))
@@ -319,13 +411,17 @@
 (defun post-limit (gate type market price volume decimals)
   (with-slots ((pair name) (vol-decimals decimals)) market
     (let ((price (/ price (expt 10d0 decimals))))
-      (when (string= type "sell") (setf volume (* volume price))) ; always viqc
+      (when (string= type "sell")
+        (setf volume (* volume price))) ; always viqc
       (multiple-value-bind (info errors)
-          (gate-request gate "AddOrder"
-                        `(("ordertype" . "limit")
-                          ("type" . ,type) ("pair" . ,pair)
-                          ("volume" . ,(format nil "~V$" vol-decimals volume))
-                          ("price" . ,(format nil "~V$" decimals price))))
+          (flet ((money (&rest args)
+                   (apply #'format nil "~V$" args)))
+            (gate-request gate "AddOrder"
+                          `(("type" . ,type)
+                            ("pair" . ,pair)
+			    ("volume" . ,(money vol-decimals volume))
+                            ("price" . ,(money decimals price))
+                            ,+oflags+ ("ordertype" . "limit"))))
         (unless errors
           ;; theoretically, we could get multiple oids here, (why "txid"!?)
           ;; but kraken's margin casino isn't open for visitors yet
@@ -335,15 +431,141 @@
   ;; (format t "~&place  ~A~%" offer)
   (with-slots (market volume price) offer
     (flet ((post (type)
-             (awhen (post-limit gate type market (abs price) volume
+             (awhen (post-limit gate type market
+                                (abs price) volume
                                 (slot-value market 'decimals))
                (change-class offer 'offered :oid it))))
       (if (< price 0) (post "buy") (post "sell")))))
+
+(defun amend-limit (gate type market txid price volume decimals)
+  (with-slots ((pair name) (vol-decimals decimals)) market
+    (let ((price (/ price (expt 10d0 decimals))))
+      (when (string= type "sell")
+        (setf volume (* volume price))) ; always viqc
+      (multiple-value-bind (info errors)
+          (flet ((money (&rest args)
+                   (apply #'format nil "~V$" args)))
+            (gate-request gate "AmendOrder"
+                          `(("txid" . ,txid)
+                            ("order_qty" . ,(money vol-decimals volume))
+                            ("limit_price" . ,(money decimals price))
+                            ("post_only" . "true"))))
+        (values (unless errors (getjso "amend_id" info)) errors)))))
+
+(defmethod amend-offer ((gate kraken-gate) (old offer) (new offer))
+  ;; (format t "~&amend  ~A~%" offer)
+  (with-slots (market volume price) new
+    (with-slots (oid old-market) old
+      (flet ((post (type)
+               (awhen (amend-limit gate type market
+                                   oid (abs price) volume
+                                   (slot-value market 'decimals))
+                 (change-class new 'offered :oid it))))
+        (if (< price 0) (post "buy") (post "sell"))))))
 
 (defun cancel-order (gate oid)
   (gate-request gate "CancelOrder" `(("txid" . ,oid))))
 
 (defmethod cancel-offer ((gate kraken-gate) (offer offered))
   ;; (format t "~&cancel ~A~%" offer)
-  (multiple-value-bind (ret err) (cancel-order gate (oid offer))
+  (multiple-value-bind (ret err)
+      (cancel-order gate (oid offer))
     (or ret (search "Unknown order" (car err)))))
+
+;;; Duplicate of bybit-proiritizer ; factor them out... someday
+
+(defun ope-amend (ope old new)
+  (amend-offer (slot-reduce ope supplicant gate) old new)
+  (send (slot-reduce ope supplicant control) '(:timestamp)))
+
+(defclass kraken-prioritizer (prioritizer) ())
+
+(defmethod prioriteaze ((ope kraken-prioritizer) target placed
+                        &aux to-add (excess placed))
+  (flet ((frob (add pop &aux (max (max (length add) (length pop))))
+           (with-slots (expt) ope
+             (let* ((n (expt (random (expt max (/ expt))) expt))
+                    (add (nth (floor n) add))
+                    (pop (nth (- max (ceiling n)) pop)))
+               (if (and add pop)
+                   (ope-amend ope pop add)
+                   (if add (ope-place ope add) (ope-cancel ope pop)))))))
+    (aif (dolist (new target (sort to-add #'< :key #'price))
+           (aif (find (price new) excess :key #'price :test #'=)
+                (setf excess (remove it excess)) (push new to-add)))
+         (frob it excess)   ; which of these is worst?
+         (if excess (frob () excess)  ; choose the lesser weevil
+             (and target placed (= (length target) (length placed))
+                  (loop for new in target and old in placed
+                     when (sufficiently-different? new old)
+                     collect new into news and collect old into olds
+                     finally (when news (frob news olds))))))))
+
+;;; Websocket
+
+(defun build-websocket-json (method &optional params)
+  (with-output-to-string (string)
+    (pprint-json string
+                 `(("method" . ,method)
+                   ,@(when params
+                       `(("params" . ,params)))))))
+
+(defun handle-websocket-raw (raw)
+  (let* ((json:*json-array-type* 'vector)
+         (json (read-json raw)))
+    (flet ((arrange-json (json)
+             (with-output-to-string (*standard-output*)
+               (let ((*print-pretty* t)
+                     (*print-right-margin* 67))
+                 (pprint-json *standard-output* json)))))
+      (case (caar json)
+        (:|channel|
+         (with-json-slots (channel data type) json
+           (string-case (channel)
+             ("heartbeat")
+             ("status" (format t "~&WS Connected: ~A~%"
+                               (arrange-json data)))
+             (t (format t "~&WS ~A ~A Data:~%~A~%"
+                        channel type (arrange-json data))))))
+        (:|method|)))))
+
+(defun create-public-websocket ()
+  (let ((client (wsd:make-client "wss://ws.kraken.com/v2")))
+    (wsd:on :message client 'handle-websocket-raw)
+    (wsd:start-connection client)
+    (wsd:send client (build-websocket-json "ping"))
+    client))
+
+(defun websocket-market-name (market)
+  (with-slots (primary counter) market
+    (flet ((fiat-name (asset &aux (string (name asset)))
+             (cond
+               ((char= (char string 0) #\Z)
+                (subseq string 1))
+               ((string= string "XXBT") "BTC")
+               (t string))))
+      (format nil "~A/~A" (fiat-name primary) (fiat-name counter)))))
+
+(defun subscribe-public-book (client market &optional depth)
+  (wsd:send client (build-websocket-json
+                    "subscribe"
+                    `(("channel" . "book")
+                      ("symbol" . #(,(websocket-market-name market)))
+                      ,@(when depth
+                          `(("depth" . ,(prin1-to-string depth)))))))
+  client)
+
+(defun subscribe-public-trades (client market)
+  (wsd:send client (build-websocket-json
+                    "subscribe"
+                    `(("channel" . "trade")
+                      ("symbol" . #(,(websocket-market-name market))))))
+  client)
+
+(defun subscribe-public-data (client market &optional depth)
+  (subscribe-public-trades client market)
+  (if (null depth) (subscribe-public-book client market)
+      (subscribe-public-book client market depth)))
+
+(defun private-websocket-token (gate)
+  (getjso "token" (gate-request gate "GetWebSocketsToken")))

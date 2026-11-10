@@ -43,7 +43,7 @@
 (defun v5-url (path)
   (concatenate 'string *base-url* "/v5/" path))
 
-(defun bybit-request (path &rest args)
+(defun bybit-request (path &rest args &aux (now (now)))
   (multiple-value-bind (body status headers uri stream close)
       ;; (if (and (slot-boundp *bybit* 'stream)
       ;;        (open-stream-p (slot-value *bybit* 'stream)))
@@ -64,9 +64,9 @@
       (200 (with-json-slots
                (result (code "retCode") (msg "retMsg")) (decode-json body)
              (values result code msg)))
-      ((403) (warn "RATE LIMIT HIT~%URI: ~A~%~A" uri headers)
+      ((403) (warn "~&~A HIT RATE LIMIT~%URI: ~A~%~A" now uri headers)
        (values () status body))
-      (t (warn "ByBit ~D~@[ [~A]~]~%URI: ~A" status body uri)
+      (t (warn "~&~A ByBit ~D~@[ [~A]~]~%URI: ~A" now status body uri)
        (values () status body)))))
 
 (defun public-request (path parameters)
@@ -171,7 +171,7 @@
                            markets)))))))
          (spot-parser ()
            (lambda (instrument)
-             (with-json-slots 
+             (with-json-slots
                  ((name "symbol") (delivery "deliveryTime")
                   (primary "baseCoin") (counter "quoteCoin")
                   (price "priceFilter") (lot "lotSizeFilter")
@@ -193,7 +193,7 @@
 					    :type 'rational))
                          (quote (parse-float (getjso "quotePrecision" lot)
 					     :type 'rational))
-                         (epsilon (parse-float (getjso "minOrderAmt" lot)
+                         (epsilon (parse-float (getjso "minOrderQty" lot)
 					       :type 'rational)))
                      (push (make-instance
                             'spot-market :name name :fee 0.1 :tick tick
@@ -272,11 +272,31 @@
       `(,ret ,(awhen1 (acase code
                         ((0)) ; C-style, no error
                         ((10001))       ; THANK YOU FOR NOT SPOOFING
+                        ((10002) ; Timestamp exceeded X-BAPI-RECV-WINDOW
+                         (warn "~A #~D ~A" (now) code status)
+;; (ppcre:register-groups-bind (req server)
+;;     ("req_timestamp\\[(\\d+)\\],server_timestamp\\[(\\d+)\\]" status)
+;;   (list req server))
+;;                          (awhen (search "req_timestamp" status)
+;;                            (flet ((parse-time (start offset)
+;;                                     (awhen (parse-integer
+;;                                             status :start (+ start offset)
+;;                                                    :junk-allowed t)
+;;                                       (multiple-value-bind (unix nsec)
+;;                                           (floor it 1000)
+;;                                         (unix-to-timestamp
+;;                                          unix :nsec (* nsec (expt 10 6)))))))
+;;                              (warn "req_timestamp:")))
+                         )
+			(10006 (sleep 23)) ; rate limited
                         ((20001 30032 30037 170213)) ; order already filled
+                        ;; ((170130))      ; FIXME minimum order size
                         ((30076) it)          ; failures to replace
+                        ((170137) (break))
                         (t status))     ; by default, echo the error text
                 (typecase it
-                  (string #|(break)|# (warn "#~D ~A" code it))))))))
+                  ((eql 170213) "let's not spam this")
+                  (string #|(break)|# (warn "~A #~D ~A" (now) code it))))))))
 
 (defmethod shared-initialize ((gate bybit-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
@@ -363,7 +383,8 @@
                              `(("symbol" . ,name) ("category" . "spot")))
         (let ((trades (nreverse (mapcar #'parse (getjso "list" it)))))
           (if (null from) trades
-              (cdr (member (txid from) trades :key 'txid :test '=))))))))
+              (remove (timestamp from) trades
+                      :key #'timestamp :test #'timestamp>=)))))))
 
 (defmethod trades-since ((market inverse-market) &optional from)
   (with-slots (name) market
@@ -571,40 +592,41 @@
                                 balances)
                           (push (cons-aq* counter fund)
                                 balances)))))))))))
-  (awhen (gate-request gate '(:get "account/wallet-balance")
-                       '(("accountType" . "contract")))
-    (with-json-slots (coin) (first (getjso "list" it))
-      (awhen (find "BTC" coin :test #'string= :key (getjso "coin"))
-        (let ((equity (parse-float (getjso "equity" it))))
-          (dolist (market (remove "inverse"
-                                  (remove "BTC" (markets *bybit*)
-                                          :test-not #'search :key #'name)
-                                  :test-not #'string= :key #'category))
-            (with-slots (name primary counter category) market
-              (when (string= "inverse" category)
-                (with-json-slots
-                    ((mark "markPrice"))
-                    (car (getjso "list" (public-request "market/tickers"
-                                                        `(("category" . "inverse")
-                                                          ("symbol" . ,name)))))
-                  (multiple-value-bind (position json)
-                      (account-position gate market)
-                    (if position
-                        (let ((fund (* equity
-                                       (alet (getjso "leverage" json)
-                                         (if (string= it "") 1
-                                             (parse-float it))))))
-                          (push (aq+ (cons-aq* primary fund)
-                                     (second position))
-                                balances)
-                          (push (aq+ (cons-aq* counter
-                                               (* fund (parse-float mark)))
-                                     (third position))
-                                balances))
-                        (progn
-                          (push (cons-aq* primary equity) balances)
-                          (push (cons-aq* counter (* equity (parse-float mark)))
-                                balances))))))))))))
+  ;; ;; the following code was obsoleted in early 2025
+  ;; (awhen (gate-request gate '(:get "account/wallet-balance")
+  ;;                      '(("accountType" . "contract")))
+  ;;   (with-json-slots (coin) (first (getjso "list" it))
+  ;;     (awhen (find "BTC" coin :test #'string= :key (getjso "coin"))
+  ;;       (let ((equity (parse-float (getjso "equity" it))))
+  ;;         (dolist (market (remove "inverse"
+  ;;                                 (remove "BTC" (markets *bybit*)
+  ;;                                         :test-not #'search :key #'name)
+  ;;                                 :test-not #'string= :key #'category))
+  ;;           (with-slots (name primary counter category) market
+  ;;             (when (string= "inverse" category)
+  ;;               (with-json-slots
+  ;;                   ((mark "markPrice"))
+  ;;                   (car (getjso "list" (public-request "market/tickers"
+  ;;                                                       `(("category" . "inverse")
+  ;;                                                         ("symbol" . ,name)))))
+  ;;                 (multiple-value-bind (position json)
+  ;;                     (account-position gate market)
+  ;;                   (if position
+  ;;                       (let ((fund (* equity
+  ;;                                      (alet (getjso "leverage" json)
+  ;;                                        (if (string= it "") 1
+  ;;                                            (parse-float it))))))
+  ;;                         (push (aq+ (cons-aq* primary fund)
+  ;;                                    (second position))
+  ;;                               balances)
+  ;;                         (push (aq+ (cons-aq* counter
+  ;;                                              (* fund (parse-float mark)))
+  ;;                                    (third position))
+  ;;                               balances))
+  ;;                       (progn
+  ;;                         (push (cons-aq* primary equity) balances)
+  ;;                         (push (cons-aq* counter (* equity (parse-float mark)))
+  ;;                               balances))))))))))))
   balances)
 
 ;;; This horror can be avoided via the actor-delegate mechanism.
@@ -657,25 +679,35 @@
   (macrolet ((params (&body body)
                `(append ,@(loop for (val key exp) in body
                              collect `(when ,val `((,,key . ,,exp)))))))
-    (awhen (gate-request gate '(:get "execution/list")
-                         (params (kind "category" kind)
+    (awhen (loop with cursor and executions do
+                 (awhen (gate-request
+                         gate '(:get "execution/list")
+                         (params (cursor "cursor" cursor)
+                                 (kind "category" kind)
                                  (pair "symbol" pair) (count "limit" count)
                                  (from "startTime"
                                        (princ-to-string
                                         (+ (* 1000 (timestamp-to-unix from))
                                            (floor (nsec-of from) 1000000))))))
-      (sort (getjso "list" it) #'string< :key (getjso "execTime")))))
+                   (setf executions (append executions (getjso "list" it)))
+                   (setf cursor (getjso "nextPageCursor" it)))
+                 until (or (null cursor) (string= cursor ""))
+                 finally (return executions))
+      (sort it #'string< :key (getjso "execTime")))))
 
 (defmethod execution-since ((gate bybit-gate) (market bybit-market) since)
   (awhen (raw-executions gate :kind (category market)
-                              :pair (name market) :count "100"
+                              :pair (name market)
                               :from (if since (timestamp since)
-                                        (timestamp- (now) 3 :hour)))
+                                        (timestamp- (now) 3 :day)))
     (mapcar #'parse-execution
             (if (null since) it
-                (subseq it (1+ (position (txid since) it
-                                         :test #'string=
-                                         :key (getjso "execId"))))))))
+                (let ((found (position (txid since) it
+                                       :test #'string=
+                                       :key (getjso "execId"))))
+                  (if (null found) it
+                      ;; code simply smells wrong
+                      (subseq it (1+ found))))))))
 
 (defgeneric post-limit (gate market price size &optional reduce-only)
   (:method (gate (market tracked-market) price size &optional reduce-only)
@@ -711,23 +743,27 @@
 
 (defmethod post-offer ((gate bybit-gate) (offer offer))
   (with-slots (market volume price) offer
-    (let ((factor (expt 10 (decimals market))))
-      (multiple-value-bind (json complaint)
-          (post-limit gate market
-                      (multiple-value-bind (int dec)
-                          (floor (abs (/ (floor price 1/2) 2)) factor)
-                        (format nil "~D.~V,'0D"
-                                int (max 1 (decimals market)) dec))
-                      (if (string= (category market) "inverse")
-                          (floor (* volume (if (minusp price) 1
-                                               (- (/ price factor)))))
-                          (/ volume (if (minusp price)
-                                        (/ (abs price) factor)
-                                        -1))))
-        (with-json-slots ((oid "orderId") (urid "orderLinkId")) json
-          (if (and json oid urid)
-              (change-class offer 'placed :oid oid :urid urid)
-              (warn "Failed placing: ~S~%~A" offer complaint)))))))
+    (let* ((factor (expt 10 (decimals market)))
+           (size (if (string= (category market) "inverse")
+                     (floor (* volume (if (minusp price) 1
+                                          (- (/ price factor)))))
+                     (/ volume (if (minusp price)
+                                   (/ (abs price) factor)
+                                   -1)))))
+      (unless (> (slot-reduce market epsilon) (abs size))
+        (multiple-value-bind (json complaint)
+            (post-limit gate market
+                        (multiple-value-bind (int dec)
+                            (floor (abs (/ (floor price 1/2) 2)) factor)
+                          (format nil "~D.~V,'0D"
+                                  int (max 1 (decimals market)) dec))
+                        size)
+          (with-json-slots ((oid "orderId") (urid "orderLinkId")) json
+            (if (and json oid urid)
+                (change-class offer 'placed :oid oid :urid urid)
+                ;; TODO dispatch upon complaint before warning?
+                (warn "Failed placing: ~S~%~A" offer complaint)
+                )))))))
 
 (defmethod amend-offer ((gate bybit-gate) (old offered) (new offer))
   (with-slots (market oid) old
@@ -772,6 +808,10 @@
                         ("category" . ,category))))
     (or ret (and (null err) (string= (oid offer) (getjso "orderId" ret))))))
 
+(defun ope-amend (ope old new)
+  (amend-offer (slot-reduce ope supplicant gate) old new)
+  (send (slot-reduce ope supplicant control) '(:timestamp)))
+
 (defclass bybit-prioritizer (prioritizer) ())
 
 (defmethod prioriteaze ((ope bybit-prioritizer) target placed
@@ -780,14 +820,15 @@
            (with-slots (expt) ope
              (let* ((n (expt (random (expt max (/ expt))) expt))
                     (add (nth (floor n) add))
-                    (pop (nth (- max (ceiling n)) pop)))
+                    (pop (nth (floor n) pop)))
                (if (and add pop)
-                   (amend-offer (slot-reduce ope supplicant gate) pop add)
+                   (ope-amend ope pop add)
                    (if add (ope-place ope add) (ope-cancel ope pop)))))))
     (aif (dolist (new target (sort to-add #'< :key #'price))
-           (aif (find (price new) excess :key #'price :test #'=)
+           (aif (aand (find (price new) excess :key #'price :test #'=)
+                      (not (sufficiently-different? new it)) it)
                 (setf excess (remove it excess)) (push new to-add)))
-         (frob it (reverse excess))   ; which of these is worst?
+         (frob it excess)   ; which of these is worst?
          (if excess (frob () excess)  ; choose the lesser weevil
              (and target placed (= (length target) (length placed))
                   (loop for new in target and old in placed
@@ -831,6 +872,7 @@
 ;;   (flet ((fetch-page ()
 ;;            (gate-request gate request
 ;;                          (acons "page" (format () "~D" number) options))))
+;;     ;; THE FOLLOWING USAGE OF #'GETJSO INTRODUCES A MEMORY LEAK!!!!!!!!!!
 ;;     (loop for page = (fetch-page) when page append (getjso data-key page)
 ;;        and if (aif (getjso "last_page" page)
 ;;                    (< (getjso "current_page" page) it)

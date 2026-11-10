@@ -33,17 +33,10 @@ have a bad time if you rely on the source code without reading it, aloud!
 ## PROCLAIMER REGARDING CONTINUITY
 Reports of roughness and density have been greatly adjagitated; thus, if you
 have suggestions for [theme](https://www.youtube.com/watch?v=NCIUf8eYPqA)
-<<<<<<< HEAD
-[songs](https://www.youtube.com/watch?v=6D6cw8Ob2sk), please speak, although
-you are [encouraged](https://www.youtube.com/watch?v=I7O_8atyl4U) to consider
-whether music is merely a part of nature, xor-the
-   imposition from without of order upon chaos.
-=======
 [songs](https://www.youtube.com/watch?v=6D6cw8Ob2sk), [please speak, and go
-softly?](youtube.com/watch?v=rGB9T17tBHo) now your professional commendation
-and you encourage me to reconsider whether music is only a part of nature;
-the imposition from without of order upon chaos.
->>>>>>> 145c131 (U THEME SONG README.md)
+softly?](https://youtube.com/watch?v=rGB9T17tBHo) now your professional
+commendation and you encourage me to reconsider whether music is only
+a part of nature; the imposition from without of order upon chaos.
 
 # Abstract
 
@@ -114,10 +107,10 @@ thus expect rudeness and flippancy, unless you pay for a consultation.
 configured parameters: for example, the most profitable targeting for a market
 which trends sideways will be equal allocation.
 
-* Allocation too far in the "wrong" direction other results in the harvester
-accumulating the asset unloaded by other market participants, eventually getting
-"run over": the portfolio is sufficiently imbalanced to prevent further market
-making. One can either wait for the trend to reverse, or rebalance at a loss.
+* Allocation too far in the "wrong" direction results in accumulation of
+the asset unloaded by other market participants, eventually getting "run over":
+the portfolio is sufficiently imbalanced to prevent further market making.
+One can either wait for the trend to reverse, or rebalance at a loss.
 
 * Poorly calibrated resilience also weakens returns: if the resilience is too
 high compared to current market activity, execution volume suffers; too low, and
@@ -136,3 +129,25 @@ there were a dozenscore happy days aiming at an APR north of a lucky number seve
 * There is no cause for suspicion of bucket shop shenanigans below sustained alpha
 extrapolating to quarterly doublings. Although _daily_ alpha can easily cross this
 level due to the misfortunes of others, a weekly sustain has yet to be witnessed.
+
+## Future Returns
+
+```LISP
+(with-slots (SYMBOL) (NAME MARKET)
+          (push (cons-aq* (primary market) 1/538) reserved))))
+(0.00185874 USDT 0.00000538 USDT)
+```
+
+... oh, you're still paying attention to my project? that is not logical!
+```elisp
+(apropos "https://archive.is/MZiU2")
+```
+
+```
+(let ((list (apropos-list "profit")))
+ (mapc 'describe
+    (remove-if 'fboundp
+ (mapcan (lambda (package)
+   (apropos-list "trade" package))
+ (mapcar 'symbol-package list)))))
+```

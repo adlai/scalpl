@@ -3,7 +3,7 @@
   (:export #:*bit2c* #:bit2c-gate #|#:+action-enum+|#)
   (:use #:cl #:base64 #:chanl #:anaphora #:local-time #:scalpl.util
         ;; #:|| #+(and) #-(or) #:\\require-X3J13 #:deterministic-gc
-        #:scalpl.net #:scalpl.actor #:scalpl.exchange))
+        #:scalpl.net #:scalpl.actor #:scalpl.abuse #:scalpl.exchange))
 
 (in-package #:scalpl.bit2c)
 
@@ -16,6 +16,7 @@
                          (progn (format *query-io* #1#) (read-line))))
            (string= #2="~&Explain why you use it as a bank:~%"
                     (progn (format *query-io* #2#) (read-line)))
+           (yes-or-no-p "Have you obtained any copies of 978148426133?")
            (and (not (yes-or-no-p "... do you ever read source code?"))
                 (cerror "Continue, having traded warranty for sympathy."
                         "A terrible habit, indeed! More lies than files."))))
@@ -45,22 +46,23 @@
       (make-key stream))))
 
 (defun bit2c-request (path &rest args)
-  (multiple-value-bind (body status headers)
+  (multiple-value-bind (body status headers uri)
       (apply #'http-request (concatenate 'string *base-url* path) args)
-    (sleep (random (exp 1/2)))          ; WHY HIT RATE LIMIT, FOOL !?
+    ;; (sleep (random (exp 1)))          ; WHY HIT RATE LIMIT, FOOL !?
     (let ((json (ignore-errors (decode-json body)))
           (raw (if (stringp body) body
                    (flexi-streams:octets-to-string
                     body :external-format :utf8))))
       (case status
-        (200 (values json 200 raw headers))
+        (200 (values json 200 raw headers uri))
         ;; the rate limit should never get hit!
         ;; however, it is also undocumented... too much work?
-        ((409) (sleep (random pi)) (values () status raw headers))
+        ((409) (sleep (random (+ pi pi)))
+         (values () status raw headers uri))
         ;; why special-case these, here?
-        ((404 500 502 504) (values () status raw headers))
+        ((404 500 502 504) (values () status raw headers uri))
         ;; TODO: how to best print hebrew without unicode fonts?
-        (t (values () status raw))))))
+        (t (values () status raw headers uri))))))
 
 (defun public-request (method &optional parameters)
   (bit2c-request (format () "Exchanges/~A~:[~;?~A~]" method parameters
@@ -104,29 +106,41 @@
 (defclass bit2c-gate (gate) ((exchange :initform *bit2c*)))
 
 (defmethod gate-post ((gate (eql *bit2c*)) key secret request)
-  (declare (optimize debug))            ; WHO HAS BEEN KILLED
   (destructuring-bind ((verb method) . parameters) request
-    (prog () :loop
-       (sleep (random (sqrt 17)))       ; WHO DIED
-       (multiple-value-bind (ret status error headers)
+    (prog () (sleep (1+ (random (exp 1))))   ; ``signum quod runlevel'' dafuq?!?
+     :loop (sleep (random pi))
+       (multiple-value-bind (ret status error headers uri)
            (auth-request verb method key secret parameters)
          (return
-           `(,ret ,(aprog1 (case status
-                             (200 nil)
-                             ((nil 404) (concatenate 'string method
-                                                     " [ \\equiv 404 ]"))
-                             (409 (warn "Rate limited at ~A"
-                                        (getjso :date headers))
-                              (sleep (random (sqrt pi))) (go :loop))
-                             ((500 502 504 524) error) ; could be #()
-                             (t (awhen (ignore-errors (read-json error))
-                                  (or (ignore-errors (getjso "message" it))
-                                      (ignore-errors (getjso "error" it))
-                                      it error))))
-                     (when (stringp it)	; ARE FAILURES INTERESTING?
-                       (warn (if (zerop (count #\Newline it)) it
-                                 (format () "HTTP ~D Error~%~A"
-                                         status headers)))))))))))
+           `(,ret
+             ,(aprog1
+                  (case status
+                    ((200 503)
+                     (cond ((search "maintenance" (puri:uri-host uri))
+                            ;; these sometimes happen without warning,
+                            ;; and because they might well occur along
+                            ;; with significant market moves, activity
+                            ;; must resume as soon as maintenance ends
+                            "[unexpected?] maintenance") ; Complain!?
+                           ((search "Incapsula" error) ; I hate them!!
+                            ;; this obnoxious piece of shit should not
+                            ;; be stepped on multiple times; ideally,
+                            ;; it should never be stepped on, at all.
+                            (break "Incapsula") "Incapsula")))
+                    ((nil 404) (concatenate 'string method
+                                            " [ \\equiv 404 ]"))
+                    (409 (warn "Rate limited at ~A"
+                               (getjso :date headers))
+                     (sleep (1+ (random (sqrt pi)))) (go :loop))
+                    ((500 502 504 524) error) ; could be #()
+                    (t (awhen (ignore-errors (read-json error))
+                         (or (ignore-errors (getjso "message" it))
+                             (ignore-errors (getjso "error" it))
+                             error))))
+                (unless (or (null it) (string= it "Incapsula"))
+                  (warn (if (and it (zerop (count #\Newline it))) it
+                            (format () "HTTP ~D Error~%~A"
+                                    status headers)))))))))))
 
 (defmethod shared-initialize ((gate bit2c-gate) names &key pubkey secret)
   (multiple-value-call #'call-next-method gate names
@@ -213,12 +227,34 @@ the good folks at your local Gambler's Anonymous.")
          (next-maker "nextfeeMaker") (next-taker "nextfeeTaker")
          (users-fee "usersFee") (volume "totalbalance"))
         (gate-request gate '(:GET "Funds/GetUsersFees") ())
-      (format t "~&~A~%You've traded ~2$ NIS within the window:~%~
+      (cond
+        ((and volume (null users-fee))
+         (format t "~&~A~%You've traded ~2$ NIS across 30 days;~%~
                  Current fees: ~$% taker [and ~$% maker]~%~
                  Next Tier: ~$% taker [and ~$% maker]~%~
                  Mystery 'Users Fee': ~A~%(NOW) > ,it = ~A~% //\\"
-              it volume current-taker current-maker
-              next-taker next-maker users-fee (now)))))
+                 it volume current-taker current-maker
+                 next-taker next-maker users-fee (now)))
+        (*features* (pprint "Please visit the venue's website."))))))
+;;; consider arguing (format nil "~/signum/" EV), professionally ;)
+
+;;; compare the volume returned by the above endpoint against these...
+;; (let (aggregator)
+;;   (dolist (maker (horses *charioteer*))
+;;     (let ((list (remove (timestamp- (now) 30 :day)
+;;                         (slot-reduce maker lictor trades)
+;;                         :test-not 'timestamp< :key 'timestamp))
+;;           (accumulator 0))
+;;       (dolist (execution list)
+;;         (incf accumulator (* (volume execution) (price execution))))
+;;       (push (cons (market maker)
+;;                   (cons-aq* (counter (market maker)) accumulator))
+;;             aggregator)))
+;;   (acons (mapcar 'car aggregator)
+;;          (reduce 'aq+ (mapcar 'cdr aggregator))
+;;          aggregator))
+;;; the detailed data is the beginning of optimising allocation between
+;;; the various traded markets, for the goal of keeping fee tier status 
 
 ;;;
 ;;; Private Data API
@@ -268,12 +304,8 @@ the good folks at your local Gambler's Anonymous.")
     (24 . :RefundFeeWithdrawal)
     (26 . :DepositFee)
     (27 . :RefundDepositFee)            ; OM NOM NOMM MLEM MLEM FF
+    (30 . :ReverseInterest)             ; Found after erroneous 31
     (31 . :DepositInterest)))           ; RIBA RIBA RIBA RIBA RIBA
-
-(defun account-history (gate &optional stream)
-  (aprog1 (gate-request gate '(:GET "Order/AccountHistory") ())
-    ;; (format stream "~A" it)
-    ))
 
 (defparameter *bit2c-timestamp*
   '((:day 2) "/" (:month 2) "/" :year " "
@@ -283,8 +315,9 @@ the good folks at your local Gambler's Anonymous.")
   (with-json-slots (ticks action price reference) json
     (flet ((adjust (field)
              (abs (parse-float (remove #\, (getjso field json))))))
-      (make-instance 'execution :market market ; consider using TXID
-                     :oid reference            ; field of superclass
+      ;; TODO: `reference' is probably "<market>|<bid-oid>|<ask-oid>",
+      ;; and thus our OID can probably be separated from the full TXID
+      (make-instance 'execution :market market :txid reference :oid reference
                      :timestamp (unix-to-timestamp ticks)
                      :direction (case action (0 "buy") (1 "sell"))
                      :price (parse-float (remove #\, price))
@@ -292,10 +325,27 @@ the good folks at your local Gambler's Anonymous.")
                               (case action
                                 (1 (adjust "feeAmount")) (0 0) (t 0)))
                      :net-cost (adjust "secondAmount")
+                     :fee (adjust "feeAmount")
                      :volume (adjust "firstAmount")
                      :net-volume (adjust "firstAmount")))))
 
-;; (defmethod execution-until ...)
+;;; this isn't too useful, as the API endpoint seems to only
+;;; have access to the last 30 days of data ...
+(defmethod execution-until ((gate bit2c-gate) market until)
+  (awhen (gate-request gate '(:GET "Order/OrderHistory")
+                       `(("pair" . ,(name market))
+                         ,@(when until
+                             `(("toTime"
+                                . ,(format-timestring
+                                    () (timestamp until)
+                                    :format *bit2c-timestamp*))))))
+    (when (eq :|error| (caar it)) (return-from execution-until ()))
+    (let ((executions (remove 2 (reverse it)
+                              :key (getjso "action") :test #'<=)))
+      (mapcar (lambda (json) (parse-execution json market))
+              (if (null until) executions
+                  (remove (timestamp-to-unix (timestamp until)) executions
+                          :key (getjso "ticks") :test #'=))))))
 
 (defmethod execution-since ((gate bit2c-gate) market since)
   (awhen (gate-request gate '(:GET "Order/OrderHistory")
@@ -323,40 +373,43 @@ the good folks at your local Gambler's Anonymous.")
 
 (defmethod post-offer ((gate bit2c-gate) (offer offer))
   (with-slots (market volume price) offer
-    (let ((factor (expt 10 (decimals market))))
+    (let ((dec-al (expt 10 (decimals market))))
       (multiple-value-bind (json complaint)
           (post-raw-limit gate (not (plusp price)) market
                           (multiple-value-bind (int dec)
-                              (floor (abs price) factor)
+                              (floor (abs price) dec-al)
                             (format () "~D.~V,'0D" int
                                     (decimals market) dec))
                           (format () "~8$"
-                                  (if (plusp price) volume
-                                      (/ volume (/ (abs price) factor)))))
+                                  (/ volume
+                                     (if (plusp price) 1
+                                         (/ (abs price) dec-al)))))
         (with-json-slots
             ((response "OrderResponse") (echo "NewOrder")) json
-          (let ((message (getjso "Error" response)))
-            (when (or complaint (not (zerop (length message))))
-              ;; (break)
-              (warn "~S" (or (getjso "Message" response) message)))
-            (or (unless complaint
-                  (atypecase (getjso "id" echo)
-                    ((integer 1)
-                     (change-class offer 'offered
-                                   :oid (prin1-to-string it)))
-                    ((eql 0) ;; (break)
-                     (warn "FIXME! Balance guard failed..."))))
-                (unless (let ((length (length message)))
-                          (or (awhen (search "nonce" message :from-end t)
-                                (string= (subseq message (+ it 6)
-                                                 (- length 2))
-                                         (subseq message
-                                                 (position #\( message)
-                                                 (position #\) message))))
-                              (awhen (search " 30% " message)
-                                (warn "~&Coding ~3D BPM ; nice !~%" it))))
-                  (warn "~&Failed placing ~A:~%" offer) ; count ANYTHING!?
-                  ))))))))
+          (let ((now (now)) (message (getjso "Error" response)))
+            (acond
+              ((aand (search "% " message)
+                     (numberp (or (parse-integer message
+                                                 :end it :start (- it 2)
+                                                 :junk-allowed t)
+                                  (parse-integer message
+                                                 :end it :start (1- it)
+                                                 :junk-allowed t))))
+               (warn "~&Exceeded linear price clamp ~A ~D~%~A"
+                     now price message))
+              ((null complaint)
+               (atypecase (getjso "id" echo)
+                 ((integer 1)
+                  (change-class offer 'offered
+                                :oid (prin1-to-string it)))
+                 ((eql 0) ;; (cerror "Proceed" "Break-point one")
+                  (warn "~&~A~%Please reduce order-slots [ ~A ]"
+                        (now) (market offer)))))
+              ((string= complaint "Incapsula") (sleep 37))
+              (t ;; (cerror "Proceed" "Break-point two")
+                 (warn "~A ~S" (now)
+                     (or (getjso "Message" response)
+                         message complaint))))))))))
 
 (defmethod cancel-offer ((gate bit2c-gate) (offer offered))
   (with-slots (oid) offer
@@ -371,6 +424,34 @@ the good folks at your local Gambler's Anonymous.")
                                " not found."))
                 (values () message)))
           (values () err)))))
+
+;;; EXPLAME YOURSELF, BOOKISH BOOKIE ! BOOKWORM BOOGER BUGGER BAGGER stripmine, lol
+;;; "#<2088550125 1963.09 Nis @ 219155.69>       #<ASK  0.16721539 Btc @ 225594.57>
+;;; Totals:
+;;;                3670899.68 Nis > 0.10             17.22194805 Btc < 2000000.00 
+;;; I failed calculus, so why take my word for any of these reckonings?
+;;; Looked across past   +30.885 days 2024-10-10T21:29:12.625675+03:00
+;;; where account traded +.27067 btc,
+;;; captured profit of   -.00746 btc,
+;;; expected turnover of  +169.8 days;
+;;; chudloadic exkrmnt:  -0.031%
+;;; mean daily profit:   -0.03247%
+;;; "
+
+;;; The following code belongs, probably, after some page break...
+;; (defun account-history (gate &optional stream)
+;;   (aprog1 (gate-request gate '(:GET "Order/AccountHistory") ())
+;;     ;; (format stream "~A" it)
+;;     ))
+
+;;; The following code was only reasonable for a window where the
+;;; encountered accountAction values were {0,1,3,4,31}; a smarter
+;;; grouping would be helpful for the complete account overview.
+;; (loop with groupings for record in *
+;;       for action = (getjso "accountAction" record)
+;;       for index = (floor (log (1+ action) 3))
+;;       do (push record (getf groupings index))
+;;       finally (return (length groupings)))
 
 (defmethod describe-account
     ((supplicant supplicant) (exchange (eql *bit2c*)) (stream t)))
@@ -387,3 +468,44 @@ the good folks at your local Gambler's Anonymous.")
                   ("Reference" . ,(format () "~S" comment))
                   ("IsDeposit" . "false"))))
 
+;;; Adjacent Cohort Genotypes, from view-source://bit2c.co.il/home/api#Examples
+;; <h2 class="mb-4" id="Examples">Examples</h2>
+;; <div class="mx-3">
+;;     <div class="table-responsive">
+;;         <table class="table">
+;;             <thead>
+;;                 <tr><th>Language</th><th>Link</th></tr>
+;;             </thead>
+;;             <tbody>
+;;                 <tr><th>JS/PHP/Python</th><td><a
+;; href="https://github.com/ccxt/ccxt" target="blank">Code</a> by CCXT</td></tr>
+;;                 <tr><th>C#</th><td><a
+;; href="https://github.com/macdasi/Bit2C.ApiClient/tree/master"
+;; target="_blank">Code</a> by Hadar Macdasi</td></tr>
+;;                 <tr>
+;;                     <th>Java</th>
+;;                     <td>
+;;                         Version A - <a
+;; href="https://bitbucket.org/IPeeBlood/bit2cjavaapi/src/master/"
+;; target="_blank">Code</a> by Ilan Arengauz<br>
+;;                         Version B - <a
+;; href="https://github.com/sagyeli/Bit2cJavaAPI"
+;; target="_blank">Code</a> by Eli Sagy<br>
+;;                         Version C - <a
+;; href="https://github.com/Amitabitbul/Bit2c.co.il_Java"
+;; target="_blank">Code</a> by Amit Abutbul
+;;                     </td>
+;;                 </tr>
+;;                 <tr><th>PHP</th><td><a
+;; href="https://github.com/Amitabitbul/Bit2c.co.il_PHP"
+;; target="blank">Code</a> by Amit Abutbul</td></tr>
+;;                 <tr><th>Python</th><td><a
+;; href="https://github.com/Amitabitbul/Bit2c.co.il.API.Python"
+;; target="_blank">Code</a> by Amit Abutbul</td></tr>
+;;                 <tr><th>Node.js</th><td><a
+;; href="https://github.com/OferE/bit2c"
+;; target="_blank">Code</a> by Ofer Eliassaf</td></tr>
+;;             </tbody>
+;;         </table>
+;;     </div>
+;; </div>

@@ -17,6 +17,13 @@ a set of numerical parameters representing
 tool for evaluating statistical queries on market events, past and present
 ** Network                                             :WIP:
 decentralized multimodal swarm optimization of the above guidelines
+* TODO PLEASE COMMENT
+the cohorts need some disambiguation;
+** TODO PLEASE DISAMBIGUATE ...
+there are several circumstances where...
+*** TODO PLEASE ADVISE!
+**** TODO PLEASE FORMAT ...
+outer product of join[ advisory contices & numerics ]
 * Overview of Current Capabilities
 ** what it is / how it acts
 *** acts upon an exchange account
@@ -67,6 +74,8 @@ works with current price scalars, only due to them being integer
 *** TODO separate registry
 it is not obvious that assets and markets are different things; cf lisp1
 ** TODO create give/take directly in each exchange API
+probably DONEable, although not enforced; why bother enforcing ?
+see exchange.lisp/(find-method #'shared-initialize '(:after) '(offer t))
 ** TODO consider imod*exp(jarg) instead of ix+jy
 determine whether resolution is sufficient at compile and/or load time
 * TODO Basis Tracking aka planar fund coloring
@@ -112,7 +121,7 @@ Currently, `slot-reduce ope epsilon` configures several limits:
 - smallest amount[s] to actually offer, on each side.
 Document the computations, and split the configurations apart.
 *** TODO skew
-Currently, `slot-reduce maker skew-factor` does two things:
+Currently, `slot-reduce maker skew-exponent` does two things:
 - adjusts the relative sizes of the minimal bid and ask; and
 - adjusts the trader's velocity of money, i.e. how much larger
   than the minimal possible amount should the bid and ask be.
